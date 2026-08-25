@@ -1,0 +1,30 @@
+.experience-page {
+  padding: 32px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+
+  background: var(--surface-color);
+}
+
+.experience-page p {
+  margin: 0 0 8px;
+
+  color: var(--accent-color);
+
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.experience-page h2 {
+  margin: 0 0 8px;
+
+  color: var(--text-primary);
+}
+
+.experience-page span {
+  color: var(--text-muted);
+}

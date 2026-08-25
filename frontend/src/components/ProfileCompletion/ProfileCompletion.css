@@ -1,0 +1,102 @@
+.profile-completion {
+  min-width: 0;
+}
+
+.dashboard-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 20px;
+}
+
+.dashboard-card-eyebrow {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--text-muted);
+
+  font-size: 0.66rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.dashboard-card-header h3 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 1rem;
+}
+
+.completion-percentage {
+  color: var(--accent-hover);
+
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.completion-bar {
+  width: 100%;
+  height: 8px;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.completion-progress {
+  height: 100%;
+
+  border-radius: inherit;
+
+  background: linear-gradient(90deg, var(--accent), #06b6d4);
+
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.35);
+
+  transition: width 0.4s ease;
+}
+
+.dashboard-card-description {
+  margin: 14px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.completion-items {
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  margin-top: 20px;
+}
+
+.completion-item {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.8rem;
+}
+
+.completion-item span:first-child {
+  color: var(--text-muted);
+}
+
+.completion-item.completed span:first-child {
+  color: var(--success);
+}

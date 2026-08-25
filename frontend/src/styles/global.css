@@ -1,0 +1,233 @@
+:root {
+  /* =========================================
+     Backgrounds
+     ========================================= */
+
+  --bg-primary: #070a12;
+  --bg-secondary: #0c111c;
+  --bg-tertiary: #111827;
+
+  --bg-card: rgba(17, 24, 39, 0.72);
+  --bg-card-hover: rgba(24, 32, 50, 0.82);
+
+  /* =========================================
+     Borders
+     ========================================= */
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+
+  /* =========================================
+     Text
+     ========================================= */
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* =========================================
+     Accent
+     ========================================= */
+
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.12);
+  --accent-glow: rgba(99, 102, 241, 0.25);
+
+  /* =========================================
+     Status
+     ========================================= */
+
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+
+  /* =========================================
+     Layout
+     ========================================= */
+
+  --sidebar-width: 260px;
+  --header-height: 72px;
+
+  /* =========================================
+     Border Radius
+     ========================================= */
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* =========================================
+     Shadows
+     ========================================= */
+
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.28);
+
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.35);
+
+  /* =========================================
+     Animation
+     ========================================= */
+
+  --transition: 0.2s ease;
+
+  /* =========================================
+     Typography
+     ========================================= */
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  color: var(--text-primary);
+  background: var(--bg-primary);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =========================================
+   Global Reset
+   ========================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--bg-primary);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+/* =========================================
+   Body
+   ========================================= */
+
+body {
+  min-width: 320px;
+
+  background:
+    radial-gradient(
+      circle at 15% 10%,
+      rgba(99, 102, 241, 0.08),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 85% 90%,
+      rgba(6, 182, 212, 0.06),
+      transparent 30%
+    ),
+    var(--bg-primary);
+
+  color: var(--text-primary);
+}
+
+/* =========================================
+   Typography
+   ========================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  color: var(--text-primary);
+}
+
+p {
+  margin-top: 0;
+  color: var(--text-secondary);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* =========================================
+   Scrollbar
+   ========================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* =========================================
+   Selection
+   ========================================= */
+
+::selection {
+  background: var(--accent);
+  color: white;
+}
+
+/* =========================================
+   Responsive Typography
+   ========================================= */
+
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-height: 64px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --header-height: 60px;
+  }
+}
