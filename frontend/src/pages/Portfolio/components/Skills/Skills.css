@@ -1,0 +1,99 @@
+/* =========================================
+   Skills Section
+   ========================================= */
+
+.skills-section {
+  width: 100%;
+
+  padding: 26px;
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.skills-header {
+  margin-bottom: 22px;
+}
+
+.skills-eyebrow {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--accent-hover);
+
+  font-size: 0.68rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.09em;
+}
+
+.skills-header h3 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.skills-header p {
+  max-width: 700px;
+
+  margin: 6px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 0.8rem;
+
+  line-height: 1.55;
+}
+
+/* =========================================
+   Skills List
+   ========================================= */
+
+.skills-list {
+  display: grid;
+
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+}
+
+/* =========================================
+   Tablet
+   ========================================= */
+
+@media (max-width: 800px) {
+  .skills-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 700px) {
+  .skills-section {
+    padding: 20px;
+  }
+
+  .skills-header {
+    margin-bottom: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .skills-section {
+    padding: 18px;
+  }
+
+  .skills-header p {
+    font-size: 0.76rem;
+  }
+}

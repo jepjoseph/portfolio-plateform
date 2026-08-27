@@ -1,0 +1,148 @@
+/* =========================================
+   Statistic Card
+   ========================================= */
+
+.statistic-card {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  min-width: 0;
+
+  padding: 20px;
+
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  background: var(--bg-card);
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+/* =========================================
+   Hover
+   ========================================= */
+
+.statistic-card:hover {
+  transform: translateY(-2px);
+
+  border-color: var(--border-hover);
+
+  background: rgba(17, 24, 39, 0.88);
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* =========================================
+   Icon
+   ========================================= */
+
+.statistic-card-icon {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 12px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-hover);
+
+  font-size: 1rem;
+
+  transition:
+    background var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.statistic-card:hover .statistic-card-icon {
+  background: rgba(99, 102, 241, 0.18);
+
+  color: #c7d2fe;
+
+  transform: scale(1.05);
+}
+
+/* =========================================
+   Content
+   ========================================= */
+
+.statistic-card-content {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+/* =========================================
+   Label
+   ========================================= */
+
+.statistic-card-label {
+  color: var(--text-muted);
+
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* =========================================
+   Value
+   ========================================= */
+
+.statistic-card-value {
+  margin-top: 3px;
+
+  color: var(--text-primary);
+
+  font-size: 1.35rem;
+  font-weight: 700;
+
+  line-height: 1.2;
+}
+
+/* =========================================
+   Tablet
+   ========================================= */
+
+@media (max-width: 1100px) {
+  .statistic-card {
+    padding: 18px;
+  }
+
+  .statistic-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 700px) {
+  .statistic-card {
+    padding: 16px;
+  }
+
+  .statistic-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .statistic-card-value {
+    font-size: 1.2rem;
+  }
+}

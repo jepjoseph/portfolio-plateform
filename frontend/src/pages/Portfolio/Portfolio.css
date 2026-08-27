@@ -1,30 +1,98 @@
+/* =========================================
+   My Portfolio Page
+   ========================================= */
+
 .portfolio-page {
-  padding: 32px;
+  width: 100%;
 
+  max-width: 1500px;
+
+  margin: 0 auto;
+}
+
+/* =========================================
+   Portfolio Editor
+   ========================================= */
+
+.portfolio-editor {
+  width: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 20px;
+}
+
+/* =========================================
+   Shared Portfolio Editor Card
+   ========================================= */
+
+.portfolio-editor-card {
   border: 1px solid var(--border-color);
-  border-radius: 16px;
 
-  background: var(--surface-color);
+  border-radius: var(--radius-lg);
+
+  background: var(--bg-card);
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
 }
 
-.portfolio-page p {
-  margin: 0 0 8px;
+/* =========================================
+   Tablet
+   ========================================= */
 
-  color: var(--accent-color);
+@media (max-width: 900px) {
+  .portfolio-page-header {
+    flex-direction: column;
 
-  font-size: 0.72rem;
-  font-weight: 700;
+    gap: 18px;
+  }
 
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  .portfolio-page-actions {
+    width: 100%;
+  }
 }
 
-.portfolio-page h2 {
-  margin: 0 0 8px;
+/* =========================================
+   Mobile
+   ========================================= */
 
-  color: var(--text-primary);
+@media (max-width: 600px) {
+  .portfolio-page-header {
+    margin-bottom: 22px;
+  }
+
+  .portfolio-page-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .portfolio-page-header p {
+    font-size: 0.82rem;
+  }
+
+  .portfolio-page-actions {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 8px;
+  }
+
+  .portfolio-page-actions button {
+    width: 100%;
+  }
 }
 
-.portfolio-page span {
-  color: var(--text-muted);
+/* =========================================
+   Small Mobile
+   ========================================= */
+
+@media (max-width: 420px) {
+  .portfolio-page-actions {
+    grid-template-columns: 1fr;
+  }
 }

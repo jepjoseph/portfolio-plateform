@@ -1,0 +1,272 @@
+/* =========================================
+   Portfolio Page Header
+   ========================================= */
+
+.portfolio-page-header {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 24px;
+
+  margin-bottom: 28px;
+}
+
+/* =========================================
+   Header Content
+   ========================================= */
+
+.portfolio-page-header-content {
+  min-width: 0;
+}
+
+.portfolio-page-eyebrow {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: var(--accent-hover);
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.1em;
+}
+
+.portfolio-page-header h2 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 1.65rem;
+  font-weight: 700;
+
+  line-height: 1.25;
+
+  letter-spacing: -0.03em;
+}
+
+.portfolio-page-header p {
+  max-width: 650px;
+
+  margin: 8px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 0.88rem;
+
+  line-height: 1.6;
+}
+
+/* =========================================
+   Header Actions
+   ========================================= */
+
+.portfolio-page-header-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  flex-shrink: 0;
+}
+
+/* =========================================
+   Portfolio Status
+   ========================================= */
+
+.portfolio-page-status {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  min-height: 40px;
+
+  padding: 0 11px;
+
+  border: 1px solid rgba(34, 197, 94, 0.18);
+
+  border-radius: var(--radius-md);
+
+  background: rgba(34, 197, 94, 0.06);
+
+  color: var(--success);
+
+  font-size: 0.72rem;
+
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+.portfolio-page-status-dot {
+  width: 7px;
+  height: 7px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: var(--text-muted);
+}
+
+.portfolio-page-status-dot.live {
+  background: var(--success);
+
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+}
+
+.portfolio-page-status-dot.offline {
+  background: var(--danger);
+
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.55);
+}
+
+/* =========================================
+   Buttons
+   ========================================= */
+
+.portfolio-page-header-actions button {
+  min-height: 40px;
+
+  padding: 0 16px;
+
+  border-radius: var(--radius-md);
+
+  font-size: 0.8rem;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
+}
+
+/* Secondary */
+
+.portfolio-secondary-button {
+  border: 1px solid var(--border-color);
+
+  background: rgba(255, 255, 255, 0.035);
+
+  color: var(--text-secondary);
+}
+
+.portfolio-secondary-button:hover {
+  background: rgba(255, 255, 255, 0.07);
+
+  border-color: var(--border-hover);
+
+  color: var(--text-primary);
+
+  transform: translateY(-1px);
+}
+
+/* Primary */
+
+.portfolio-primary-button {
+  border: 1px solid transparent;
+
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+
+  color: #ffffff;
+
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.18);
+}
+
+.portfolio-primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  box-shadow: 0 10px 26px rgba(99, 102, 241, 0.28);
+}
+
+.portfolio-primary-button:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+
+  box-shadow: none;
+}
+
+/* =========================================
+   Tablet
+   ========================================= */
+
+@media (max-width: 1000px) {
+  .portfolio-page-header {
+    flex-direction: column;
+  }
+
+  .portfolio-page-header-actions {
+    width: 100%;
+  }
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 600px) {
+  .portfolio-page-header {
+    gap: 18px;
+
+    margin-bottom: 22px;
+  }
+
+  .portfolio-page-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .portfolio-page-header p {
+    font-size: 0.82rem;
+  }
+
+  .portfolio-page-header-actions {
+    display: grid;
+
+    grid-template-columns: auto 1fr 1fr;
+
+    width: 100%;
+
+    gap: 8px;
+  }
+
+  .portfolio-page-header-actions button {
+    width: 100%;
+
+    padding: 0 12px;
+  }
+
+  .portfolio-page-status {
+    justify-content: center;
+
+    padding: 0 9px;
+  }
+}
+
+/* =========================================
+   Small Mobile
+   ========================================= */
+
+@media (max-width: 460px) {
+  .portfolio-page-header-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .portfolio-page-status {
+    grid-column: 1 / -1;
+
+    justify-self: flex-start;
+  }
+}

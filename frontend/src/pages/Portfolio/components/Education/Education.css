@@ -1,0 +1,85 @@
+/* =========================================
+   Education Section
+   ========================================= */
+
+.education-section {
+  width: 100%;
+
+  padding: 26px;
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.education-header {
+  margin-bottom: 24px;
+}
+
+.education-eyebrow {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--accent-hover);
+
+  font-size: 0.68rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.09em;
+}
+
+.education-header h3 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.education-header p {
+  margin: 6px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 0.8rem;
+
+  line-height: 1.55;
+}
+
+/* =========================================
+   Education List
+   ========================================= */
+
+.education-list {
+  display: flex;
+
+  flex-direction: column;
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 700px) {
+  .education-section {
+    padding: 20px;
+  }
+
+  .education-header {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .education-section {
+    padding: 18px;
+  }
+
+  .education-header p {
+    font-size: 0.76rem;
+  }
+}

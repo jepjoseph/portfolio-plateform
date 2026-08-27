@@ -1,0 +1,265 @@
+/* =========================================
+   Recent Activity
+   ========================================= */
+
+.recent-activity {
+  min-width: 0;
+}
+
+/* =========================================
+   Activity Count
+   ========================================= */
+
+.activity-count {
+  min-width: 24px;
+  height: 24px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 7px;
+
+  border-radius: 999px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-hover);
+
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* =========================================
+   Activity List
+   ========================================= */
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================
+   Activity Item
+   ========================================= */
+
+.activity-item {
+  display: grid;
+
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  gap: 12px;
+
+  min-width: 0;
+
+  padding: 14px 0;
+
+  border-bottom: 1px solid var(--border-color);
+}
+
+.activity-item:first-child {
+  padding-top: 0;
+}
+
+.activity-item:last-child {
+  padding-bottom: 0;
+
+  border-bottom: none;
+}
+
+/* =========================================
+   Activity Indicator
+   ========================================= */
+
+.activity-indicator {
+  width: 16px;
+
+  display: flex;
+  justify-content: center;
+
+  position: relative;
+}
+
+.activity-dot {
+  width: 7px;
+  height: 7px;
+
+  display: block;
+
+  border-radius: 50%;
+
+  background: var(--accent);
+
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.65);
+}
+
+/* =========================================
+   Activity Content
+   ========================================= */
+
+.activity-content {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+.activity-content strong {
+  overflow: hidden;
+
+  color: var(--text-primary);
+
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-content span {
+  margin-top: 4px;
+
+  overflow: hidden;
+
+  color: var(--text-muted);
+
+  font-size: 0.7rem;
+  line-height: 1.4;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================
+   Activity Time
+   ========================================= */
+
+.activity-item time {
+  flex-shrink: 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.65rem;
+
+  white-space: nowrap;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.activity-empty {
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  min-height: 150px;
+
+  padding: 20px;
+
+  text-align: center;
+}
+
+.activity-empty-icon {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  margin-bottom: 12px;
+
+  border-radius: 12px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-hover);
+
+  font-size: 1rem;
+}
+
+.activity-empty strong {
+  color: var(--text-primary);
+
+  font-size: 0.82rem;
+}
+
+.activity-empty span {
+  max-width: 260px;
+
+  margin-top: 5px;
+
+  color: var(--text-muted);
+
+  font-size: 0.7rem;
+
+  line-height: 1.5;
+}
+
+/* =========================================
+   Hover
+   ========================================= */
+
+.activity-item {
+  transition: padding-left var(--transition);
+}
+
+.activity-item:hover {
+  padding-left: 4px;
+}
+
+/* =========================================
+   Tablet
+   ========================================= */
+
+@media (max-width: 900px) {
+  .activity-content span {
+    white-space: normal;
+  }
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 700px) {
+  .activity-item {
+    grid-template-columns: 16px minmax(0, 1fr);
+
+    gap: 10px;
+  }
+
+  .activity-item time {
+    display: none;
+  }
+
+  .activity-content strong {
+    white-space: normal;
+  }
+
+  .activity-content span {
+    white-space: normal;
+  }
+}
+
+/* =========================================
+   Small Mobile
+   ========================================= */
+
+@media (max-width: 480px) {
+  .activity-item {
+    padding: 13px 0;
+  }
+
+  .activity-content strong {
+    font-size: 0.76rem;
+  }
+
+  .activity-content span {
+    font-size: 0.68rem;
+  }
+}

@@ -15,7 +15,7 @@ function Sidebar({ isOpen, onClose }) {
         <div className="brand-mark">P</div>
 
         <div className="brand-text">
-          <span className="brand-name">Portify</span>
+          <span className="brand-name">PortAncest</span>
 
           <span className="brand-subtitle">Portfolio Platform</span>
         </div>

@@ -86,3 +86,47 @@ Phase 5
 ├── Deployment
 └── Production security
 
+## Portfolio Editor Architecture
+
+The Portfolio page is designed using a reusable component-based
+architecture.
+
+Each professional profile section is implemented as an independent
+React component with its own CSS file.
+
+Current structure:
+
+Portfolio
+├── ProfileHeader
+└── ProfessionalSummary
+
+### ProfileHeader
+
+Responsible for displaying and editing the user's primary
+professional identity information.
+
+### ProfessionalSummary
+
+Responsible for collecting and displaying the user's professional
+summary.
+
+The component receives its data through props rather than directly
+managing application-wide portfolio state.
+
+Props:
+
+- `summary` - Current professional summary text.
+- `onChange` - Callback used to update the summary.
+
+This architecture allows additional portfolio sections to be added
+without creating a large monolithic Portfolio component.
+
+Future sections include:
+
+- Experience
+- Education
+- Skills
+- Projects
+- Certifications
+- Interests
+- Contact Information

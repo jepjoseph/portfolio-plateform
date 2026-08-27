@@ -1,0 +1,213 @@
+/* =========================================
+   Certification Item
+   ========================================= */
+
+.certification-item {
+  display: grid;
+
+  grid-template-columns: 150px minmax(0, 1fr);
+
+  gap: 18px;
+
+  min-width: 0;
+
+  padding: 18px;
+
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.025);
+
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    transform var(--transition);
+}
+
+.certification-item:hover {
+  transform: translateY(-2px);
+
+  border-color: var(--border-hover);
+
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* =========================================
+   Information
+   ========================================= */
+
+.certification-information {
+  min-width: 0;
+}
+
+.certification-item-header {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+.certification-item-header > div {
+  min-width: 0;
+}
+
+.certification-item-eyebrow {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--accent-hover);
+
+  font-size: 0.62rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.certification-item-header h4 {
+  margin: 0;
+
+  overflow: hidden;
+
+  color: var(--text-primary);
+
+  font-size: 0.95rem;
+  font-weight: 700;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.certification-issuer {
+  display: block;
+
+  margin-top: 4px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.75rem;
+}
+
+/* =========================================
+   Delete
+   ========================================= */
+
+.certification-delete-button {
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+
+  background: rgba(255, 255, 255, 0.025);
+
+  color: var(--text-muted);
+
+  font-size: 1rem;
+
+  cursor: pointer;
+
+  transition:
+    background var(--transition),
+    color var(--transition),
+    border-color var(--transition);
+}
+
+.certification-delete-button:hover {
+  background: rgba(239, 68, 68, 0.08);
+
+  border-color: rgba(239, 68, 68, 0.25);
+
+  color: #f87171;
+}
+
+/* =========================================
+   Metadata
+   ========================================= */
+
+.certification-meta {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 8px 16px;
+
+  margin-top: 14px;
+}
+
+.certification-meta div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.certification-meta span {
+  color: var(--text-muted);
+
+  font-size: 0.62rem;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.certification-meta strong {
+  color: var(--text-secondary);
+
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* =========================================
+   Description
+   ========================================= */
+
+.certification-description {
+  margin: 12px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+/* =========================================
+   Credential Link
+   ========================================= */
+
+.certification-credential-link {
+  display: inline-block;
+
+  margin-top: 12px;
+
+  color: var(--accent-hover);
+
+  font-size: 0.72rem;
+  font-weight: 600;
+
+  text-decoration: none;
+}
+
+.certification-credential-link:hover {
+  text-decoration: underline;
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 600px) {
+  .certification-item {
+    grid-template-columns: 1fr;
+
+    gap: 14px;
+  }
+}

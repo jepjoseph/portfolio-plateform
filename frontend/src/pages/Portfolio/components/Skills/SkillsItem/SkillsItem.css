@@ -1,0 +1,153 @@
+/* =========================================
+   Skills Item
+   ========================================= */
+
+.skills-item {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  min-width: 0;
+
+  padding: 14px 15px;
+
+  border: 1px solid var(--border-color);
+
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.025);
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.skills-item:hover {
+  background: rgba(255, 255, 255, 0.045);
+
+  border-color: var(--border-hover);
+
+  transform: translateY(-1px);
+}
+
+/* =========================================
+   Main Content
+   ========================================= */
+
+.skills-item-main {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  min-width: 0;
+}
+
+.skills-item-icon {
+  width: 36px;
+  height: 36px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 10px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-hover);
+
+  font-size: 0.9rem;
+}
+
+.skills-item-info {
+  display: flex;
+
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+.skills-item-info h4 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 0.82rem;
+  font-weight: 600;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.skills-item-category {
+  margin-top: 3px;
+
+  color: var(--text-muted);
+
+  font-size: 0.68rem;
+}
+
+/* =========================================
+   Skill Level
+   ========================================= */
+
+.skills-item-level {
+  flex-shrink: 0;
+
+  padding: 5px 8px;
+
+  border: 1px solid rgba(99, 102, 241, 0.16);
+
+  border-radius: 999px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-hover);
+
+  font-size: 0.64rem;
+
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 480px) {
+  .skills-item {
+    padding: 12px;
+  }
+
+  .skills-item-icon {
+    width: 32px;
+    height: 32px;
+
+    border-radius: 8px;
+  }
+
+  .skills-item-info h4 {
+    font-size: 0.78rem;
+  }
+
+  .skills-item-category {
+    font-size: 0.64rem;
+  }
+
+  .skills-item-level {
+    padding: 4px 7px;
+
+    font-size: 0.58rem;
+  }
+}

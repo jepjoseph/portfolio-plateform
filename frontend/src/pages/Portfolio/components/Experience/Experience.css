@@ -1,0 +1,239 @@
+/* =========================================
+   Experience Section
+   ========================================= */
+
+.experience-section {
+  width: 100%;
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.experience-header {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 26px;
+}
+
+.experience-eyebrow {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--accent-hover);
+
+  font-size: 0.66rem;
+
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.09em;
+}
+
+.experience-header h3 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 1.05rem;
+
+  font-weight: 700;
+}
+
+.experience-header p {
+  max-width: 620px;
+
+  margin: 7px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 0.8rem;
+
+  line-height: 1.6;
+}
+
+/* =========================================
+   Add Button
+   ========================================= */
+
+.experience-add-button {
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 7px;
+
+  min-height: 38px;
+
+  padding: 0 13px;
+
+  flex-shrink: 0;
+
+  border: 1px solid var(--border-color);
+
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.035);
+
+  color: var(--text-secondary);
+
+  font-size: 0.75rem;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.experience-add-button:hover {
+  background: var(--accent-soft);
+
+  border-color: rgba(99, 102, 241, 0.25);
+
+  color: var(--text-primary);
+
+  transform: translateY(-1px);
+}
+
+.experience-add-button span:first-child {
+  color: var(--accent-hover);
+
+  font-size: 1rem;
+
+  line-height: 1;
+}
+
+/* =========================================
+   Experience List
+   ========================================= */
+
+.experience-list {
+  display: flex;
+
+  flex-direction: column;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.experience-empty {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 40px 20px;
+
+  text-align: center;
+
+  border: 1px dashed var(--border-color);
+
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.experience-empty-icon {
+  width: 46px;
+
+  height: 46px;
+
+  display: grid;
+
+  place-items: center;
+
+  margin-bottom: 12px;
+
+  border-radius: 14px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-hover);
+
+  font-size: 1.1rem;
+}
+
+.experience-empty h4 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 0.9rem;
+}
+
+.experience-empty p {
+  max-width: 430px;
+
+  margin: 7px 0 16px;
+
+  color: var(--text-muted);
+
+  font-size: 0.76rem;
+
+  line-height: 1.6;
+}
+
+.experience-empty-button {
+  min-height: 38px;
+
+  padding: 0 14px;
+
+  border: none;
+
+  border-radius: var(--radius-md);
+
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+
+  color: white;
+
+  font-size: 0.75rem;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition);
+}
+
+.experience-empty-button:hover {
+  transform: translateY(-1px);
+
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.22);
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 700px) {
+  .experience-header {
+    flex-direction: column;
+
+    gap: 14px;
+  }
+
+  .experience-add-button {
+    width: 100%;
+  }
+}
