@@ -1,113 +1,284 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import CertificationItem from "./CertificationItem/CertificationItem";
 import CertificationForm from "./CertificationForm/CertificationForm";
+import CertificationItem from "./CertificationItem/CertificationItem";
 
 import "./Certifications.css";
 
+const INITIAL_CERTIFICATIONS = [
+  {
+    id: "cert-1",
+    name: "CompTIA A+",
+    issuingOrganization: "CompTIA",
+    issueDate: "2026-01",
+    expirationDate: "",
+    credentialId: "",
+    credentialUrl: "",
+    description:
+      "Professional certification covering foundational IT support, hardware, networking, operating systems, and troubleshooting.",
+    file: null,
+    fileName: "",
+    fileUrl: "",
+    fileType: "",
+  },
+];
+
 function Certifications() {
-  const [certifications, setCertifications] = useState([
-    {
-      id: "cert-1",
-      name: "CompTIA A+",
-      issuer: "CompTIA",
-      issueDate: "2026-05-15",
-      expirationDate: "",
-      credentialId: "ABC123456",
-      credentialUrl: "",
-      description:
-        "Professional certification covering IT fundamentals, hardware, operating systems, networking, and troubleshooting.",
-      file: null,
-    },
-  ]);
+  const [certifications, setCertifications] = useState(INITIAL_CERTIFICATIONS);
 
-  const [isAdding, setIsAdding] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const handleAddCertification = (certification) => {
-    const newCertification = {
-      ...certification,
-      id: `cert-${Date.now()}`,
-    };
+  const [editingCertification, setEditingCertification] = useState(null);
 
-    setCertifications((current) => [...current, newCertification]);
+  const objectUrlsRef = useRef(new Set());
 
-    setIsAdding(false);
+  /*
+   * =========================================
+   * Object URL Cleanup
+   * =========================================
+   */
+
+  const revokeObjectUrl = (url) => {
+    if (!url?.startsWith("blob:")) {
+      return;
+    }
+
+    URL.revokeObjectURL(url);
+
+    objectUrlsRef.current.delete(url);
   };
 
+  /*
+   * =========================================
+   * Add
+   * =========================================
+   */
+
+  const handleAddCertification = () => {
+    setEditingCertification(null);
+
+    setIsFormOpen(true);
+  };
+
+  /*
+   * =========================================
+   * Edit
+   * =========================================
+   */
+
+  const handleEditCertification = (certification) => {
+    setEditingCertification(certification);
+
+    setIsFormOpen(true);
+  };
+
+  /*
+   * =========================================
+   * Save
+   * =========================================
+   */
+
+  const handleSaveCertification = (values) => {
+    let fileData;
+
+    if (values.file) {
+      const fileUrl = URL.createObjectURL(values.file);
+
+      objectUrlsRef.current.add(fileUrl);
+
+      revokeObjectUrl(editingCertification?.fileUrl);
+
+      fileData = {
+        file: values.file,
+        fileName: values.file.name,
+        fileUrl,
+        fileType: values.file.type,
+      };
+    } else if (values.removeExistingFile) {
+      revokeObjectUrl(editingCertification?.fileUrl);
+
+      fileData = {
+        file: null,
+        fileName: "",
+        fileUrl: "",
+        fileType: "",
+      };
+    } else {
+      fileData = {
+        file: editingCertification?.file ?? null,
+        fileName: editingCertification?.fileName ?? "",
+        fileUrl: editingCertification?.fileUrl ?? "",
+        fileType: editingCertification?.fileType ?? "",
+      };
+    }
+
+    const certificationData = {
+      name: values.name,
+      issuingOrganization: values.issuingOrganization,
+      issueDate: values.issueDate,
+      expirationDate: values.expirationDate,
+      credentialId: values.credentialId,
+      credentialUrl: values.credentialUrl,
+      description: values.description,
+      ...fileData,
+    };
+
+    setCertifications((currentCertifications) => {
+      if (editingCertification) {
+        return currentCertifications.map((certification) =>
+          certification.id === editingCertification.id
+            ? {
+                ...certification,
+                ...certificationData,
+              }
+            : certification,
+        );
+      }
+
+      const newCertification = {
+        id: crypto.randomUUID(),
+        ...certificationData,
+      };
+
+      return [...currentCertifications, newCertification];
+    });
+
+    setIsFormOpen(false);
+
+    setEditingCertification(null);
+  };
+
+  /*
+   * =========================================
+   * Cancel
+   * =========================================
+   */
+
+  const handleCancelForm = () => {
+    setIsFormOpen(false);
+
+    setEditingCertification(null);
+  };
+
+  /*
+   * =========================================
+   * Delete
+   * =========================================
+   */
+
   const handleDeleteCertification = (id) => {
-    setCertifications((current) =>
-      current.filter((certification) => certification.id !== id),
+    const certification = certifications.find((item) => item.id === id);
+
+    revokeObjectUrl(certification?.fileUrl);
+
+    setCertifications((currentCertifications) =>
+      currentCertifications.filter(
+        (certificationItem) => certificationItem.id !== id,
+      ),
     );
   };
 
+  /*
+   * =========================================
+   * Component Cleanup
+   * =========================================
+   */
+
+  useEffect(() => {
+    const objectUrls = objectUrlsRef.current;
+
+    return () => {
+      objectUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+
+      objectUrls.clear();
+    };
+  }, []);
+
   return (
-    <section className="certifications-section">
+    <section
+      className="certifications-section portfolio-editor-card"
+      aria-labelledby="certifications-title"
+    >
       {/* =========================================
-          Section Header
+          Header
           ========================================= */}
 
-      <div className="certifications-header">
-        <div>
+      <header className="certifications-header">
+        <div className="certifications-header-content">
           <span className="certifications-eyebrow">
             Professional Credentials
           </span>
 
-          <h3>Certifications</h3>
+          <h3 id="certifications-title">Certifications</h3>
 
           <p>
-            Add professional certifications, licenses, and credentials to
-            strengthen your portfolio.
+            Add and manage your professional certifications and supporting
+            documents.
           </p>
         </div>
 
-        {!isAdding && (
-          <button
-            type="button"
-            className="certifications-add-button"
-            onClick={() => setIsAdding(true)}
-          >
-            + Add Certification
-          </button>
-        )}
-      </div>
+        <button
+          type="button"
+          className="certifications-add-button"
+          onClick={handleAddCertification}
+        >
+          + Add Certification
+        </button>
+      </header>
 
       {/* =========================================
-          Add Certification Form
+          Form
           ========================================= */}
 
-      {isAdding && (
-        <CertificationForm
-          onSave={handleAddCertification}
-          onCancel={() => setIsAdding(false)}
-        />
+      {isFormOpen && (
+        <div className="certifications-form-wrapper">
+          <CertificationForm
+            key={editingCertification?.id ?? "new"}
+            certification={editingCertification}
+            onSubmit={handleSaveCertification}
+            onCancel={handleCancelForm}
+          />
+        </div>
       )}
 
       {/* =========================================
-          Certification List
+          Certifications List
           ========================================= */}
 
-      {certifications.length > 0 ? (
-        <div className="certifications-list">
-          {certifications.map((certification) => (
+      <div className="certifications-list" aria-live="polite">
+        {certifications.length > 0 ? (
+          certifications.map((certification) => (
             <CertificationItem
               key={certification.id}
               certification={certification}
+              onEdit={handleEditCertification}
               onDelete={handleDeleteCertification}
             />
-          ))}
-        </div>
-      ) : (
-        <div className="certifications-empty">
-          <span className="certifications-empty-icon">✦</span>
+          ))
+        ) : (
+          <div className="certifications-empty">
+            <span className="certifications-empty-icon" aria-hidden="true">
+              ✦
+            </span>
 
-          <h4>No certifications yet</h4>
+            <h4>No certifications yet</h4>
 
-          <p>
-            Add your professional certifications and credentials to display them
-            on your portfolio.
-          </p>
-        </div>
-      )}
+            <p>
+              Add your professional certifications and supporting documents.
+            </p>
+
+            <button
+              type="button"
+              className="certifications-empty-button"
+              onClick={handleAddCertification}
+            >
+              + Add Certification
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
