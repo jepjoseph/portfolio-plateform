@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { usePortfolioDraft } from "../../context/PortfolioDraftContext";
+import { useProfileData } from "../../context/ProfileDataContext";
+
+import { buildSelectedProfile } from "../../services/Portfolio/profileSelectionUtils";
+import { savePortfolio } from "../../services/Portfolio/portfolioService";
+
 import PortfolioPageHeader from "./components/PortfolioPageHeader/PortfolioPageHeader";
-import ProfileHeader from "./components/ProfileHeader/ProfileHeader";
-import PersonalInformation from "./components/PersonalInformation/PersonalInformation";
+import ProfileInformationSelector from "./components/ProfileInformationSelector/ProfileInformationSelector";
 import ProfessionalSummary from "./components/ProfessionalSummary/ProfessionalSummary";
 import Experience from "./components/Experience/Experience";
 import Education from "./components/Education/Education";
@@ -11,174 +17,170 @@ import Certifications from "./components/Certifications/Certifications";
 import "./Portfolio.css";
 
 function Portfolio() {
+  const navigate = useNavigate();
+
+  const { profile } = useProfileData();
+
+  const { portfolioDraft, updateDraftField, saveStatus, setSaveStatus } =
+    usePortfolioDraft();
+
+  const {
+    profileSelections,
+    summary,
+    experiences,
+    education,
+    skills,
+    certifications,
+    sectionVisibility,
+    isPublished,
+  } = portfolioDraft;
+
+  const buildCompletePortfolio = () => {
+    const selectedProfile = buildSelectedProfile(profile, profileSelections);
+
+    return {
+      ...portfolioDraft,
+      selectedProfile,
+    };
+  };
+
+  /*
+   * =========================================
+   * Preview
+   * =========================================
+   */
+
   const handlePreview = () => {
-    console.log("Preview portfolio");
+    const completePortfolio = buildCompletePortfolio();
+
+    try {
+      sessionStorage.setItem(
+        "portfolio-preview",
+        JSON.stringify(completePortfolio),
+      );
+
+      navigate("/portfolio/preview");
+    } catch (error) {
+      console.error("Unable to create portfolio preview:", error);
+    }
   };
 
-  const handleSave = () => {
-    console.log("Save portfolio");
+  /*
+   * =========================================
+   * Save Changes
+   * =========================================
+   */
+
+  const handleSave = async () => {
+    try {
+      setSaveStatus("saving");
+
+      const completePortfolio = buildCompletePortfolio();
+
+      const savedPortfolio = await savePortfolio(completePortfolio);
+
+      updateDraftField("isPublished", savedPortfolio.isPublished);
+
+      setSaveStatus("success");
+
+      console.log("Portfolio saved:", savedPortfolio);
+    } catch (error) {
+      console.error("Unable to save portfolio:", error);
+
+      setSaveStatus("error");
+    }
   };
-
-  const [summary, setSummary] = useState("");
-
-  const experiences = [
-    {
-      id: "experience-1",
-      jobTitle: "Founder",
-      company: "MOTICH",
-      location: "Coconut Creek, FL",
-      startDate: "Fall 2023",
-      endDate: "",
-      current: true,
-      description: "CEO, CTO",
-    },
-    {
-      id: "experience-2",
-      jobTitle: "Learning Assistant",
-      company: "Florida Atlantic University",
-      location: "Boca Raton, FL",
-      startDate: "Fall 2025",
-      endDate: "Fall 2025",
-      current: false,
-      description:
-        "Support students with Python programming concepts, technical problem-solving, and course-related learning activities.",
-    },
-    {
-      id: "experience-3",
-      jobTitle: "Sales Associate",
-      company: "The Home Depot",
-      location: "Coconut Creek, FL",
-      startDate: "August 2023",
-      endDate: "january 2025",
-      current: false,
-      description:
-        "Provide customer support and product expertise while assisting customers with lumber and building materials, problem-solving, and department operations.",
-    },
-  ];
-
-  const education = [
-    {
-      id: "education-1",
-      institution: "Florida Atlantic University",
-      degree: "Bachelor of Science",
-      field: "Computer Engineering",
-      startYear: "2025",
-      endYear: "Present",
-      description:
-        "Second bachelor's degree focused on computer engineering, software development, hardware systems, and embedded technologies.",
-    },
-    {
-      id: "education-2",
-      institution: "University Name",
-      degree: "Bachelor's Degree",
-      field: "Electronic Engineering",
-      startYear: "2009",
-      endYear: "2015",
-      description:
-        "Academic foundation in electronics, electrical systems, embedded technology, and engineering principles.",
-    },
-  ];
-
-  const skills = [
-    {
-      id: "skill-python",
-      name: "Python",
-      category: "Programming",
-      level: "Advanced",
-    },
-    {
-      id: "skill-java",
-      name: "Java",
-      category: "Programming",
-      level: "Advanced",
-    },
-    {
-      id: "skill-javascript",
-      name: "JavaScript",
-      category: "Web Development",
-      level: "Intermediate",
-    },
-    {
-      id: "skill-react",
-      name: "React",
-      category: "Web Development",
-      level: "Intermediate",
-    },
-    {
-      id: "skill-windows",
-      name: "Windows Administration",
-      category: "Systems Administration",
-      level: "Advanced",
-    },
-    {
-      id: "skill-linux",
-      name: "Linux Administration",
-      category: "Systems Administration",
-      level: "Intermediate",
-    },
-    {
-      id: "skill-networking",
-      name: "Network Administration",
-      category: "Networking",
-      level: "Advanced",
-    },
-    {
-      id: "skill-azure",
-      name: "Microsoft Azure",
-      category: "Cloud",
-      level: "Intermediate",
-    },
-  ];
-
-  const certifications = [
-    {
-      id: "cert-1",
-      name: "CompTIA A+",
-      issuer: "CompTIA",
-      date: "2026",
-      credentialId: "A+ Certified",
-      credentialUrl: "https://www.comptia.org/",
-    },
-    {
-      id: "cert-2",
-      name: "AI110 Coding Calibration",
-      issuer: "CodePath",
-      date: "2026",
-      credentialId: "",
-      credentialUrl: "",
-    },
-  ];
 
   return (
     <section className="portfolio-page">
-      {/* =========================================
-          Page Header
-          ========================================= */}
       <PortfolioPageHeader
         onPreview={handlePreview}
         onSave={handleSave}
-        isLive={true}
+        isLive={isPublished}
+        isSaving={saveStatus === "saving"}
+        saveStatus={saveStatus}
       />
 
-      {/* =========================================
-          Portfolio Editor
-          ========================================= */}
+      {saveStatus === "success" && (
+        <div
+          className="portfolio-save-message portfolio-save-message--success"
+          role="status"
+        >
+          Portfolio changes saved successfully.
+          <a
+            href={`/portfolio/${portfolioDraft.username}/${portfolioDraft.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View Public Portfolio
+          </a>
+        </div>
+      )}
+
+      {saveStatus === "error" && (
+        <div
+          className="portfolio-save-message portfolio-save-message--error"
+          role="alert"
+        >
+          The portfolio could not be saved. Please try again.
+        </div>
+      )}
 
       <div className="portfolio-editor">
-        {/* Profile Header */}
-        <ProfileHeader />
+        {sectionVisibility.profile && (
+          <ProfileInformationSelector
+            profile={profile}
+            selections={profileSelections}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("profileSelections", valueOrUpdater)
+            }
+          />
+        )}
 
-        <PersonalInformation />
+        {sectionVisibility.summary && (
+          <ProfessionalSummary
+            summary={summary}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("summary", valueOrUpdater)
+            }
+          />
+        )}
 
-        <ProfessionalSummary summary={summary} onChange={setSummary} />
+        {sectionVisibility.experience && (
+          <Experience
+            experiences={experiences}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("experiences", valueOrUpdater)
+            }
+          />
+        )}
 
-        <Experience experiences={experiences} />
+        {sectionVisibility.education && (
+          <Education
+            education={education}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("education", valueOrUpdater)
+            }
+          />
+        )}
 
-        <Education education={education} />
+        {sectionVisibility.skills && (
+          <Skills
+            skills={skills}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("skills", valueOrUpdater)
+            }
+          />
+        )}
 
-        <Skills skills={skills} />
-
-        <Certifications certifications={certifications}/>
+        {sectionVisibility.certifications && (
+          <Certifications
+            certifications={certifications}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("certifications", valueOrUpdater)
+            }
+          />
+        )}
       </div>
     </section>
   );

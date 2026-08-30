@@ -1,0 +1,104 @@
+/* =========================================
+   Professional Title Section
+   ========================================= */
+
+.professional-title {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.professional-title-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.professional-title-header > div {
+  min-width: 0;
+}
+
+.professional-title-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.professional-title-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.professional-title-header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Title Count
+   ========================================= */
+
+.professional-title-count {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.62rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* =========================================
+   Title List
+   ========================================= */
+
+.professional-title-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 700px) {
+  .professional-title-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .professional-title {
+    padding: 14px;
+  }
+
+  .professional-title-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .professional-title-count {
+    align-self: flex-start;
+  }
+}

@@ -1,0 +1,544 @@
+/* =========================================
+   Personal Information
+   ========================================= */
+
+.personal-information {
+  width: 100%;
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.personal-information-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.personal-information-heading {
+  min-width: 0;
+}
+
+.personal-information-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-hover);
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.personal-information-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.personal-information-header p {
+  max-width: 650px;
+  margin: 7px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* =========================================
+   Edit Button
+   ========================================= */
+
+.personal-information-edit-button {
+  min-height: 38px;
+  padding: 0 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.personal-information-edit-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+
+.personal-information-edit-button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* =========================================
+   Name Grid
+   ========================================= */
+
+.personal-information-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+/* =========================================
+   Name Field
+   ========================================= */
+
+.personal-information-field {
+  min-width: 0;
+}
+
+.personal-information-field dt {
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.personal-information-field dd {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-information-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* =========================================
+   Pictures Section
+   ========================================= */
+
+.personal-information-pictures {
+  width: 100%;
+  min-width: 0;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.personal-information-pictures:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* =========================================
+   Pictures Header
+   ========================================= */
+
+.personal-information-pictures-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.personal-information-pictures-header > div {
+  min-width: 0;
+}
+
+.personal-information-pictures-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.59rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.personal-information-pictures-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+/* =========================================
+   Pictures Count
+   ========================================= */
+
+.personal-information-pictures-count {
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* =========================================
+   Pictures Grid
+   ========================================= */
+
+.personal-information-pictures-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* =========================================
+   Picture Item
+   ========================================= */
+
+.personal-information-picture-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
+}
+
+.personal-information-picture-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* =========================================
+   Picture Preview
+   ========================================= */
+
+.personal-information-picture-preview {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.08),
+      rgba(6, 182, 212, 0.05)
+    ),
+    rgba(0, 0, 0, 0.2);
+}
+
+.personal-information-picture-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+/* Profile pictures */
+
+.personal-information-picture-item[data-picture-type="profile"]
+  .personal-information-picture-preview,
+.personal-information-picture-item[data-picture-type="headshot"]
+  .personal-information-picture-preview,
+.personal-information-picture-item[data-picture-type="avatar"]
+  .personal-information-picture-preview {
+  border-radius: 50%;
+}
+
+/* Background pictures */
+
+.personal-information-picture-item[data-picture-type="header-background"],
+.personal-information-picture-item[data-picture-type="portfolio-background"] {
+  flex-direction: column;
+}
+
+.personal-information-picture-item[data-picture-type="header-background"]
+  .personal-information-picture-preview,
+.personal-information-picture-item[data-picture-type="portfolio-background"]
+  .personal-information-picture-preview {
+  width: 100%;
+  height: 130px;
+  border-radius: 12px;
+}
+
+/* Logo pictures */
+
+.personal-information-picture-item[data-picture-type="logo"]
+  .personal-information-picture-preview img {
+  padding: 8px;
+  object-fit: contain;
+}
+
+/* =========================================
+   Picture Content
+   ========================================= */
+
+.personal-information-picture-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.personal-information-picture-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.personal-information-picture-label > span {
+  color: var(--text-muted);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.personal-information-picture-label small {
+  padding: 2px 6px;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.personal-information-picture-content strong {
+  display: block;
+  max-width: 100%;
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-information-picture-content p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
+   Contact Grid
+   ========================================= */
+
+.personal-information-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.personal-information-no-data {
+  padding: 32px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  text-align: center;
+}
+
+.personal-information-no-data p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+/* =========================================
+   Desktop and Tablet
+   ========================================= */
+
+@media (max-width: 1000px) {
+  .personal-information-pictures-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .personal-information-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .personal-information-contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 600px) {
+  .personal-information {
+    padding: 20px;
+  }
+
+  .personal-information-header {
+    flex-direction: column;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+  }
+
+  .personal-information-edit-button {
+    width: 100%;
+  }
+
+  .personal-information-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .personal-information-pictures {
+    padding: 14px;
+  }
+
+  .personal-information-picture-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+  }
+
+  .personal-information-picture-item[data-picture-type="header-background"]
+    .personal-information-picture-preview,
+  .personal-information-picture-item[data-picture-type="portfolio-background"]
+    .personal-information-picture-preview {
+    height: 115px;
+  }
+}
+
+/* =========================================
+   Small Mobile
+   ========================================= */
+
+@media (max-width: 420px) {
+  .personal-information {
+    padding: 18px;
+  }
+
+  .personal-information-header p {
+    font-size: 0.76rem;
+  }
+
+  .personal-information-field dd {
+    font-size: 0.78rem;
+  }
+
+  .personal-information-picture-item {
+    flex-direction: column;
+  }
+
+  .personal-information-picture-preview {
+    width: 100%;
+    height: 180px;
+  }
+
+  .personal-information-picture-item[data-picture-type="profile"]
+    .personal-information-picture-preview,
+  .personal-information-picture-item[data-picture-type="headshot"]
+    .personal-information-picture-preview,
+  .personal-information-picture-item[data-picture-type="avatar"]
+    .personal-information-picture-preview {
+    width: 96px;
+    height: 96px;
+    align-self: center;
+  }
+
+  .personal-information-picture-item[data-picture-type="header-background"]
+    .personal-information-picture-preview,
+  .personal-information-picture-item[data-picture-type="portfolio-background"]
+    .personal-information-picture-preview {
+    height: 125px;
+  }
+}
+
+/* =========================================
+   Reduced Motion
+   ========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .personal-information,
+  .personal-information-edit-button,
+  .personal-information-pictures,
+  .personal-information-picture-item {
+    transition: none;
+  }
+
+  .personal-information-edit-button:hover,
+  .personal-information-picture-item:hover {
+    transform: none;
+  }
+}
+
+/* =========================================
+   Reduced Transparency
+   ========================================= */
+
+@media (prefers-reduced-transparency: reduce) {
+  .personal-information {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

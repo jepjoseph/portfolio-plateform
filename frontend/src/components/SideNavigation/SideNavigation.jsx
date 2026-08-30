@@ -2,13 +2,13 @@ import { NavLink } from "react-router-dom";
 
 const sideNavigation = [
   { label: "Dashboard", path: "/", icon: "⌂" },
-  { label: "My Portfolio", path: "/portfolio", icon: "◈" },
+  { label: "Profile", path: "/profile", icon: "👤" },
   { label: "Projects", path: "/projects", icon: "▣" },
   { label: "Experience", path: "/experience", icon: "◷" },
   { label: "Education", path: "/education", icon: "◇" },
   { label: "Skills", path: "/skills", icon: "✦" },
+  { label: "My Portfolio", path: "/portfolio", icon: "◈" },
   { label: "Resumes", path: "/resumes", icon: "📋" },
-  { label: "Profile", path: "/profile", icon: "👤" },
 ];
 
 function SideNavigation({ onClose }) {

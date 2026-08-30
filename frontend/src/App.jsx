@@ -1,9 +1,13 @@
 import { useRoutes } from "react-router-dom";
+import { ProfileDataProvider } from "./context/ProfileDataContext";
+import { PortfolioDraftProvider } from "./context/PortfolioDraftContext";
 
 import DashboardLayout from "./layouts/DashboardLayout/DashboardLayout";
 
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Portfolio from "./pages/Portfolio/Portfolio";
+import PortfolioPreview from "./pages/Portfolio/PortfolioPreview/PortfolioPreview";
+import PublicPortfolio from "./pages/Portfolio/PortfolioPublic/PortfolioPublic";
 import Projects from "./pages/Projects/Projects";
 import Experience from "./pages/Experience/Experience";
 import Education from "./pages/Education/Education";
@@ -12,6 +16,11 @@ import Resumes from "./pages/Resumes/Resumes";
 import Profile from "./pages/Profile/Profile";
 
 function App() {
+  /*
+   * =========================================
+   * Private Dashboard Routes
+   * =========================================
+   */
   const routes = useRoutes([
     {
       path: "/",
@@ -56,10 +65,40 @@ function App() {
       ],
     },
 
-    // Public portfolio will be added here later.
+    /*
+     * =========================================
+     * Portfolio Preview
+     * =========================================
+     *
+     * This route does not use DashboardLayout.
+     * It displays the portfolio like a public page.
+     */
+
+    {
+      path: "/portfolio/preview",
+      element: <PortfolioPreview />,
+    },
+
+    /*
+     * =========================================
+     * Public Portfolio
+     * =========================================
+     *
+     * Example:
+     * /portfolio/jean-pierre-joseph/software-engineer
+     */
+
+    {
+      path: "/portfolio/:username/:portfolioSlug",
+      element: <PublicPortfolio />,
+    },
   ]);
 
-  return routes;
+  return (
+    <ProfileDataProvider>
+      <PortfolioDraftProvider>{routes}</PortfolioDraftProvider>
+    </ProfileDataProvider>
+  );
 }
 
 export default App;

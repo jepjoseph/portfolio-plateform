@@ -1,0 +1,487 @@
+/* =========================================
+   Repeatable Information Section
+   ========================================= */
+
+.repeatable-information-section {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  color-scheme: dark;
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.repeatable-information-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.repeatable-information-header > div {
+  min-width: 0;
+}
+
+.repeatable-information-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.repeatable-information-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.repeatable-information-header p {
+  max-width: 550px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Add Button
+   ========================================= */
+
+.repeatable-information-add-button {
+  min-height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.repeatable-information-add-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.16);
+}
+
+/* =========================================
+   List
+   ========================================= */
+
+.repeatable-information-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* =========================================
+   Item
+   ========================================= */
+
+.repeatable-information-item {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.repeatable-information-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.repeatable-information-item-header > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.repeatable-information-item-header span {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.repeatable-information-item-header small {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.53rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* =========================================
+   Remove Button
+   ========================================= */
+
+.repeatable-information-remove-button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.repeatable-information-remove-button:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+
+/* =========================================
+   Fields
+   ========================================= */
+
+.repeatable-information-fields {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.repeatable-information-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.repeatable-information-field--full {
+  grid-column: 1 / -1;
+}
+
+.repeatable-information-field label {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.repeatable-information-field label span {
+  margin-left: 5px;
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* =========================================
+   Shared Input and Select Styles
+   ========================================= */
+
+.repeatable-information-field input,
+.repeatable-information-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background-color: rgba(0, 0, 0, 0.22);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.repeatable-information-field input::placeholder {
+  color: var(--text-muted);
+}
+
+/* =========================================
+   Select
+   ========================================= */
+
+.repeatable-information-field select {
+  padding-right: 38px;
+  cursor: pointer;
+
+  /*
+   * Instructs the browser to use a dark native
+   * dropdown menu when the application is dark.
+   */
+
+  color-scheme: dark;
+}
+
+/*
+ * These styles fix white text on a white dropdown
+ * background in Chrome, Edge, and Firefox.
+ */
+
+.repeatable-information-field select option {
+  background-color: #111827;
+  color: #f9fafb;
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.repeatable-information-field select option:checked {
+  background-color: #4f46e5;
+  color: #ffffff;
+}
+
+.repeatable-information-field select option:disabled {
+  color: #6b7280;
+}
+
+/* =========================================
+   Hover
+   ========================================= */
+
+.repeatable-information-field input:hover,
+.repeatable-information-field select:hover {
+  border-color: var(--border-hover);
+  background-color: rgba(0, 0, 0, 0.28);
+}
+
+/* =========================================
+   Focus
+   ========================================= */
+
+.repeatable-information-field input:focus,
+.repeatable-information-field select:focus {
+  border-color: var(--accent);
+  background-color: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* =========================================
+   Keyboard Focus
+   ========================================= */
+
+.repeatable-information-field input:focus-visible,
+.repeatable-information-field select:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* =========================================
+   Invalid
+   ========================================= */
+
+.repeatable-information-field input:invalid:not(:placeholder-shown),
+.repeatable-information-field select:invalid {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+/* =========================================
+   Disabled
+   ========================================= */
+
+.repeatable-information-field input:disabled,
+.repeatable-information-field select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* =========================================
+   Picture Upload
+   ========================================= */
+
+.repeatable-picture-upload {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 12px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.repeatable-picture-upload:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.repeatable-picture-upload > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.repeatable-picture-upload small {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 500;
+}
+
+/* Visually hidden, but keyboard-accessible */
+
+.repeatable-picture-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.repeatable-picture-upload:has(+ .repeatable-picture-file-input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* =========================================
+   Picture Preview
+   ========================================= */
+
+.repeatable-picture-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.repeatable-picture-preview img {
+  width: 82px;
+  height: 62px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.repeatable-picture-preview > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.repeatable-picture-preview strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repeatable-picture-preview span {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+}
+
+.repeatable-picture-preview button {
+  align-self: flex-start;
+  margin-top: 7px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.64rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repeatable-picture-preview button:hover {
+  text-decoration: underline;
+}
+
+/* =========================================
+   Picture Error
+   ========================================= */
+
+.repeatable-picture-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 420px) {
+  .repeatable-picture-preview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .repeatable-picture-preview img {
+    width: 100%;
+    height: 150px;
+  }
+}
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 700px) {
+  .repeatable-information-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .repeatable-information-field--full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .repeatable-information-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .repeatable-information-add-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .repeatable-information-section {
+    padding: 14px;
+  }
+}

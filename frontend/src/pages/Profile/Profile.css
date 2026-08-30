@@ -1,30 +1,69 @@
+/* =========================================
+   Profile Page
+   ========================================= */
+
 .profile-page {
-  padding: 32px;
-
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-
-  background: var(--surface-color);
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
 }
 
-.profile-page p {
-  margin: 0 0 8px;
+/* =========================================
+   Page Header
+   ========================================= */
 
-  color: var(--accent-color);
+.profile-page-header {
+  margin-bottom: 20px;
+}
 
-  font-size: 0.72rem;
+.profile-page-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-hover);
+  font-size: 0.68rem;
   font-weight: 700;
-
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
 }
 
-.profile-page h2 {
-  margin: 0 0 8px;
-
+.profile-page-header h2 {
+  margin: 0;
   color: var(--text-primary);
+  font-size: 1.45rem;
+  font-weight: 700;
 }
 
-.profile-page span {
-  color: var(--text-muted);
+.profile-page-header p {
+  max-width: 700px;
+  margin: 7px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* =========================================
+   Page Content
+   ========================================= */
+
+.profile-page-content {
+  width: 100%;
+  min-width: 0;
+}
+
+/* =========================================
+   Mobile
+   ========================================= */
+
+@media (max-width: 600px) {
+  .profile-page-header {
+    margin-bottom: 16px;
+  }
+
+  .profile-page-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .profile-page-header p {
+    font-size: 0.78rem;
+  }
 }
