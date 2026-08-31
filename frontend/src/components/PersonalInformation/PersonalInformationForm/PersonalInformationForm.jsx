@@ -116,7 +116,7 @@ function getInitialFormData(profile) {
       "linkedin",
     ),
 
-    profilePictures: createInitialList(profile?.profilePictures, "", "profile"),
+    profilePictures: createInitialPictureList(profile?.profilePictures),
   };
 }
 
@@ -170,12 +170,39 @@ function cleanInformationItems(items, category) {
   }, []);
 }
 
+function createPictureItem() {
+  return {
+    id: createId(),
+    imageUrl: "",
+    fileName: "",
+    fileType: "",
+    fileSize: 0,
+    description: "",
+  };
+}
+
+function createInitialPictureList(currentList) {
+  if (Array.isArray(currentList) && currentList.length > 0) {
+    return currentList.map((picture) => ({
+      id: picture.id || createId(),
+
+      imageUrl: picture.imageUrl || picture.fileUrl || picture.url || "",
+
+      fileName: picture.fileName || "",
+      fileType: picture.fileType || "",
+      fileSize: picture.fileSize || 0,
+      description: picture.description || "",
+    }));
+  }
+
+  return [createPictureItem()];
+}
+
 function cleanProfilePictures(profilePictures) {
   return profilePictures
     .filter((picture) => picture.imageUrl)
     .map((picture) => ({
       id: picture.id,
-      type: picture.type,
       imageUrl: picture.imageUrl,
       fileName: picture.fileName,
       fileType: picture.fileType,
@@ -260,7 +287,6 @@ function PersonalInformationForm({ profile, onSave, onCancel }) {
       websites: "portfolio",
       locations: "home",
       socialLinks: "linkedin",
-      profilePictures: "profile",
     };
 
     setFormData((currentFormData) => ({
@@ -269,7 +295,9 @@ function PersonalInformationForm({ profile, onSave, onCancel }) {
       [category]: [
         ...currentFormData[category],
 
-        createInformationItem("", defaultTypes[category]),
+        category === "profilePictures"
+          ? createPictureItem()
+          : createInformationItem("", defaultTypes[category]),
       ],
     }));
   };
@@ -296,7 +324,6 @@ function PersonalInformationForm({ profile, onSave, onCancel }) {
       websites: "portfolio",
       locations: "home",
       socialLinks: "linkedin",
-      profilePictures: "profile",
     };
 
     setFormData((currentFormData) => {
@@ -310,7 +337,11 @@ function PersonalInformationForm({ profile, onSave, onCancel }) {
         [category]:
           remainingItems.length > 0
             ? remainingItems
-            : [createInformationItem("", defaultTypes[category])],
+            : [
+                category === "profilePictures"
+                  ? createPictureItem()
+                  : createInformationItem("", defaultTypes[category]),
+              ],
       };
     });
   };
@@ -369,51 +400,83 @@ function PersonalInformationForm({ profile, onSave, onCancel }) {
           Name
           ========================================= */}
 
-      <div className="personal-information-form-grid">
-        <div className="personal-information-form-field">
-          <label htmlFor="profile-first-name">First Name</label>
+      {/* =========================================
+    Identity
+    ========================================= */}
 
-          <input
-            id="profile-first-name"
-            name="firstName"
-            type="text"
-            value={formData.firstName}
-            onChange={handleChange}
-            autoComplete="given-name"
-            placeholder="First name"
-            required
-          />
+      <section className="personal-identity-form-section">
+        <header className="personal-identity-form-header">
+          <div>
+            <span>Name</span>
+
+            <h4>Personal Identity</h4>
+
+            <p>
+              Enter the name information available to your portfolios, resumes,
+              and other professional documents.
+            </p>
+          </div>
+
+          <span className="personal-identity-form-badge" aria-hidden="true">
+            ID
+          </span>
+        </header>
+
+        <div className="personal-information-form-grid personal-information-form-grid--identity">
+          <div className="personal-information-form-field">
+            <label htmlFor="profile-first-name">
+              First Name
+              <span className="personal-information-required">Required</span>
+            </label>
+
+            <input
+              id="profile-first-name"
+              name="firstName"
+              type="text"
+              value={formData.firstName}
+              onChange={handleChange}
+              autoComplete="given-name"
+              placeholder="First name"
+              required
+            />
+          </div>
+
+          <div className="personal-information-form-field">
+            <label htmlFor="profile-middle-name">
+              Middle Name
+              <span className="personal-information-optional">Optional</span>
+            </label>
+
+            <input
+              id="profile-middle-name"
+              name="middleName"
+              type="text"
+              value={formData.middleName}
+              onChange={handleChange}
+              autoComplete="additional-name"
+              placeholder="Middle name"
+            />
+          </div>
+
+          <div className="personal-information-form-field">
+            <label htmlFor="profile-last-name">
+              Last Name
+              <span className="personal-information-required">Required</span>
+            </label>
+
+            <input
+              id="profile-last-name"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={handleChange}
+              autoComplete="family-name"
+              placeholder="Last name"
+              required
+            />
+          </div>
         </div>
-
-        <div className="personal-information-form-field">
-          <label htmlFor="profile-middle-name">Middle Name</label>
-
-          <input
-            id="profile-middle-name"
-            name="middleName"
-            type="text"
-            value={formData.middleName}
-            onChange={handleChange}
-            autoComplete="additional-name"
-            placeholder="Middle name"
-          />
-        </div>
-
-        <div className="personal-information-form-field">
-          <label htmlFor="profile-last-name">Last Name</label>
-
-          <input
-            id="profile-last-name"
-            name="lastName"
-            type="text"
-            value={formData.lastName}
-            onChange={handleChange}
-            autoComplete="family-name"
-            placeholder="Last name"
-            required
-          />
-        </div>
-      </div>
+      </section>
 
       {/* =========================================
           Professional Titles

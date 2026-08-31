@@ -6,8 +6,6 @@ import { useProfileData } from "../../context/ProfileDataContext";
 
 import "./Profile.css";
 
-const INITIAL_PROFILE = {};
-
 function Profile() {
   const {profile, setProfile} = useProfileData();
   const [isEditing, setIsEditing] = useState(false);

@@ -50,6 +50,128 @@
 }
 
 /* =========================================
+   Personal Identity Form Section
+   ========================================= */
+
+.personal-identity-form-section {
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.personal-identity-form-section:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.025);
+}
+
+/* =========================================
+   Identity Form Header
+   ========================================= */
+
+.personal-identity-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.personal-identity-form-header > div {
+  min-width: 0;
+}
+
+.personal-identity-form-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.personal-identity-form-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.personal-identity-form-header p {
+  max-width: 600px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Identity Badge
+   ========================================= */
+
+.personal-identity-form-badge {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* =========================================
+   Identity Grid
+   ========================================= */
+
+.personal-information-form-grid--identity {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* =========================================
+   Required and Optional Labels
+   ========================================= */
+
+.personal-information-form-field label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.personal-information-required,
+.personal-information-optional {
+  padding: 2px 5px;
+  border-radius: 999px;
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.personal-information-required {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-hover);
+}
+
+.personal-information-optional {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+/* =========================================
    Form Grid
    ========================================= */
 
@@ -179,7 +301,8 @@
    ========================================= */
 
 .professional-title-form-section {
-  margin-bottom: 22px;
+  margin-top: 18px;
+  margin-bottom: 0;
   padding: 16px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -394,9 +517,39 @@
   .professional-title-add-button {
     width: 100%;
   }
+
+  .personal-identity-form-section {
+    padding: 14px;
+  }
+
+  .personal-identity-form-header {
+    margin-bottom: 12px;
+  }
+
+  .personal-information-form {
+    padding: 20px;
+  }
+
+  .personal-information-form-header {
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+  }
+
+  .personal-information-form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .personal-information-form-actions button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 420px) {
+  .personal-identity-form-header p {
+    font-size: 0.66rem;
+  }
+
   .professional-title-form-section {
     padding: 14px;
   }
@@ -416,8 +569,18 @@
    Tablet
    ========================================= */
 
+@media (max-width: 900px) {
+  .personal-information-form-grid--identity {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 800px) {
   .personal-information-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .personal-information-form-grid--identity {
     grid-template-columns: 1fr;
   }
 }
@@ -427,23 +590,6 @@
    ========================================= */
 
 @media (max-width: 600px) {
-  .personal-information-form {
-    padding: 20px;
-  }
-
-  .personal-information-form-header {
-    margin-bottom: 18px;
-    padding-bottom: 18px;
-  }
-
-  .personal-information-form-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .personal-information-form-actions button {
-    width: 100%;
-  }
 }
 
 /* =========================================

@@ -38,9 +38,42 @@ export const PROFILE_CATEGORY_OPTIONS = [
   },
 ];
 
+export const PICTURE_USAGE_OPTIONS = [
+  {
+    value: "profile",
+    label: "Profile Picture",
+  },
+  {
+    value: "headshot",
+    label: "Professional Headshot",
+  },
+  {
+    value: "avatar",
+    label: "Avatar",
+  },
+  {
+    value: "header-background",
+    label: "Header Background",
+  },
+  {
+    value: "portfolio-background",
+    label: "Portfolio Background",
+  },
+  {
+    value: "logo",
+    label: "Logo",
+  },
+  {
+    value: "icon",
+    label: "Icon",
+  },
+];
+
 function createNameOptions(profile) {
   const firstName = profile.firstName?.trim() || "";
+
   const middleName = profile.middleName?.trim() || "";
+
   const lastName = profile.lastName?.trim() || "";
 
   const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
@@ -60,8 +93,18 @@ function createNameOptions(profile) {
     },
     {
       id: "first-name",
-      label: "First Name Only",
+      label: "First Name",
       displayValue: firstName,
+    },
+    {
+      id: "middle-name",
+      label: "Middle Name",
+      displayValue: middleName,
+    },
+    {
+      id: "last-name",
+      label: "Last Name",
+      displayValue: lastName,
     },
   ].filter((option) => option.displayValue);
 }
@@ -113,18 +156,14 @@ function createProfilePictureOptions(profile) {
       return {
         id: picture.id,
 
-        label: `${getContactTypeLabel(
-          "profilePictures",
-          picture.type,
-        )}${index === 0 ? " — Primary" : ""}`,
+        label: picture.description || `Picture ${index + 1}`,
 
-        displayValue:
-          picture.description || picture.fileName || `Picture ${index + 1}`,
+        displayValue: picture.fileName || `Picture ${index + 1}`,
 
         imageUrl,
       };
     })
-    .filter((option) => option.imageUrl);
+    .filter((picture) => picture.imageUrl);
 }
 
 export function getProfileCategoryLabel(category) {
@@ -164,7 +203,7 @@ export function getSelectedProfileValue(profile, selection) {
   return options.find((option) => option.id === selection.itemId);
 }
 
-export function buildSelectedProfile(profile, selections) {
+export function buildSelectedProfile(profile, selections = []) {
   const selectedProfile = {
     firstName: "",
     middleName: "",
@@ -179,12 +218,26 @@ export function buildSelectedProfile(profile, selections) {
     selectedName: "",
   };
 
+  if (!profile) {
+    return selectedProfile;
+  }
+
   selections.forEach((selection) => {
+    if (!selection?.category || !selection?.itemId) {
+      return;
+    }
+
     const selectedOption = getSelectedProfileValue(profile, selection);
 
     if (!selectedOption) {
       return;
     }
+
+    /*
+     * =========================================
+     * Selected Name
+     * =========================================
+     */
 
     if (selection.category === "name") {
       selectedProfile.selectedName = selectedOption.displayValue;
@@ -192,13 +245,64 @@ export function buildSelectedProfile(profile, selections) {
       return;
     }
 
+    /*
+     * =========================================
+     * Selected Reusable Information
+     * =========================================
+     */
+
     const selectedItem = profile[selection.category]?.find(
       (item) => item.id === selection.itemId,
     );
 
-    if (selectedItem) {
-      selectedProfile[selection.category].push(selectedItem);
+    if (!selectedItem) {
+      return;
     }
+
+    /*
+     * =========================================
+     * Selected Picture
+     * =========================================
+     *
+     * Pictures stored in the reusable profile
+     * do not have a permanent purpose.
+     *
+     * The portfolio selection assigns the
+     * picture usage, such as:
+     *
+     * - profile
+     * - headshot
+     * - avatar
+     * - header-background
+     * - portfolio-background
+     * - logo
+     * - icon
+     */
+
+    if (selection.category === "profilePictures") {
+      if (!selection.pictureUsage) {
+        return;
+      }
+
+      selectedProfile.profilePictures.push({
+        ...selectedItem,
+        type: selection.pictureUsage,
+      });
+
+      return;
+    }
+
+    /*
+     * =========================================
+     * Other Profile Categories
+     * =========================================
+     */
+
+    if (!Array.isArray(selectedProfile[selection.category])) {
+      return;
+    }
+
+    selectedProfile[selection.category].push(selectedItem);
   });
 
   return selectedProfile;

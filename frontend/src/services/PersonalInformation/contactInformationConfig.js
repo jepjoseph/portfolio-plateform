@@ -228,45 +228,9 @@ export const CONTACT_INFORMATION_CONFIG = {
     maxFileSize: 20 * 1024 * 1024,
 
     icon: "▧",
-    defaultType: "profile",
+    //defaultType: "profile",
 
-    typeOptions: [
-      {
-        value: "profile",
-        label: "Profile Picture",
-        icon: "◉",
-      },
-      {
-        value: "headshot",
-        label: "Professional Headshot",
-        icon: "◉",
-      },
-      {
-        value: "avatar",
-        label: "Avatar",
-        icon: "◉",
-      },
-      {
-        value: "header-background",
-        label: "Header Background",
-        icon: "▧",
-      },
-      {
-        value: "portfolio-background",
-        label: "Portfolio Background",
-        icon: "▧",
-      },
-      {
-        value: "logo",
-        label: "Personal or Business Logo",
-        icon: "◆",
-      },
-      {
-        value: "other",
-        label: "Other Picture",
-        icon: "▧",
-      },
-    ],
+    typeOptions: [],
   },
 };
 

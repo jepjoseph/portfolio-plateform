@@ -81,7 +81,10 @@
 
 .profile-information-selection-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(180px, 0.8fr)
+    minmax(200px, 1fr)
+    minmax(220px, 1.2fr);
   gap: 12px;
 }
 
@@ -359,8 +362,79 @@
 }
 
 /* =========================================
+   Picture preview
+   ========================================= */
+
+.profile-information-picture-choice-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+
+.profile-information-picture-choice-preview img {
+  width: 512px;
+  height: 384px;
+  display: block;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.profile-information-picture-choice-preview > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profile-information-picture-choice-preview span {
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-information-picture-choice-preview strong {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-information-picture-choice-preview small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================
    Responsive
    ========================================= */
+
+@media (max-width: 1000px) {
+  .profile-information-selection-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-information-selection-field:last-child {
+    grid-column: 1 / -1;
+  }
+}
 
 @media (max-width: 700px) {
   .profile-information-selector {
@@ -369,6 +443,10 @@
 
   .profile-information-selection-fields {
     grid-template-columns: 1fr;
+  }
+
+  .profile-information-selection-field:last-child {
+    grid-column: auto;
   }
 }
 

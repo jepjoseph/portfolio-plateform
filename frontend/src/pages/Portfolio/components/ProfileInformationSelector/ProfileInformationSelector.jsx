@@ -4,24 +4,43 @@ import {
   getProfileCategoryLabel,
   getProfileSelectionOptions,
   getSelectedProfileValue,
+  PICTURE_USAGE_OPTIONS,
   PROFILE_CATEGORY_OPTIONS,
 } from "../../../../services/Portfolio/profileSelectionUtils";
 
 import "./ProfileInformationSelector.css";
 
-function createSelection(category, itemId) {
-  const id =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `profile-selection-${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2)}`;
+/*
+ * =========================================
+ * Helpers
+ * =========================================
+ */
 
+function createId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `profile-selection-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
+}
+
+function createSelection({ category, itemId, pictureUsage = "" }) {
   return {
-    id,
+    id: createId(),
     category,
     itemId,
+
+    pictureUsage: category === "profilePictures" ? pictureUsage : "",
   };
+}
+
+function getPictureUsageLabel(pictureUsage) {
+  return (
+    PICTURE_USAGE_OPTIONS.find((option) => option.value === pictureUsage)
+      ?.label || "Picture"
+  );
 }
 
 function ProfileInformationSelector({ profile, selections = [], onChange }) {
@@ -29,38 +48,98 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
 
   const [selectedItemId, setSelectedItemId] = useState("");
 
+  const [selectedPictureUsage, setSelectedPictureUsage] = useState("");
+
   const [editingSelectionId, setEditingSelectionId] = useState(null);
 
   const [error, setError] = useState("");
+
+  /*
+   * =========================================
+   * Derived Information
+   * =========================================
+   */
+
+  const isPictureCategory = selectedCategory === "profilePictures";
 
   const availableItems = useMemo(
     () => getProfileSelectionOptions(profile, selectedCategory),
     [profile, selectedCategory],
   );
 
+  const selectedPictureOption = useMemo(
+    () => availableItems.find((option) => option.id === selectedItemId) || null,
+    [availableItems, selectedItemId],
+  );
+
   const isEditing = Boolean(editingSelectionId);
 
-  const handleCategoryChange = (event) => {
-    setSelectedCategory(event.target.value);
-    setSelectedItemId("");
-    setError("");
-  };
+  const hasAvailableInformation = availableItems.length > 0;
+
+  const canChoosePictureUsage = isPictureCategory && hasAvailableInformation;
+
+  const canChoosePictureFile =
+    isPictureCategory &&
+    hasAvailableInformation &&
+    Boolean(selectedPictureUsage);
+
+  /*
+   * =========================================
+   * Form Reset
+   * =========================================
+   */
 
   const resetEditor = () => {
     setSelectedCategory("");
     setSelectedItemId("");
+    setSelectedPictureUsage("");
     setEditingSelectionId(null);
     setError("");
   };
 
-  const isDuplicateSelection = (category, itemId) => {
-    return selections.some(
-      (selection) =>
-        selection.category === category &&
-        selection.itemId === itemId &&
-        selection.id !== editingSelectionId,
-    );
+  /*
+   * =========================================
+   * Category Change
+   * =========================================
+   */
+
+  const handleCategoryChange = (event) => {
+    setSelectedCategory(event.target.value);
+
+    setSelectedItemId("");
+    setSelectedPictureUsage("");
+    setError("");
   };
+
+  /*
+   * =========================================
+   * Duplicate Detection
+   * =========================================
+   */
+
+  const isDuplicateSelection = ({ category, itemId, pictureUsage = "" }) => {
+    return selections.some((selection) => {
+      if (selection.id === editingSelectionId) {
+        return false;
+      }
+
+      if (category === "profilePictures") {
+        return (
+          selection.category === category &&
+          selection.itemId === itemId &&
+          selection.pictureUsage === pictureUsage
+        );
+      }
+
+      return selection.category === category && selection.itemId === itemId;
+    });
+  };
+
+  /*
+   * =========================================
+   * Submit
+   * =========================================
+   */
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -71,50 +150,81 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
       return;
     }
 
-    if (!selectedItemId) {
-      setError("Choose the information to include.");
+    if (isPictureCategory && !selectedPictureUsage) {
+      setError("Choose where the picture will be used.");
 
       return;
     }
 
-    if (isDuplicateSelection(selectedCategory, selectedItemId)) {
+    if (!selectedItemId) {
+      setError(
+        isPictureCategory
+          ? "Choose an uploaded picture."
+          : "Choose the information to include.",
+      );
+
+      return;
+    }
+
+    const selectionData = {
+      category: selectedCategory,
+      itemId: selectedItemId,
+
+      pictureUsage: isPictureCategory ? selectedPictureUsage : "",
+    };
+
+    if (isDuplicateSelection(selectionData)) {
       setError("This information has already been added.");
 
       return;
     }
 
     if (isEditing) {
-      onChange((currentSelections) =>
+      onChange?.((currentSelections = []) =>
         currentSelections.map((selection) =>
           selection.id === editingSelectionId
             ? {
                 ...selection,
-                category: selectedCategory,
-                itemId: selectedItemId,
+                ...selectionData,
               }
             : selection,
         ),
       );
     } else {
-      onChange((currentSelections) => [
+      onChange?.((currentSelections = []) => [
         ...currentSelections,
-
-        createSelection(selectedCategory, selectedItemId),
+        createSelection(selectionData),
       ]);
     }
 
     resetEditor();
   };
 
+  /*
+   * =========================================
+   * Edit
+   * =========================================
+   */
+
   const handleEdit = (selection) => {
     setSelectedCategory(selection.category);
+
     setSelectedItemId(selection.itemId);
+
+    setSelectedPictureUsage(selection.pictureUsage || "");
+
     setEditingSelectionId(selection.id);
     setError("");
   };
 
+  /*
+   * =========================================
+   * Delete
+   * =========================================
+   */
+
   const handleDelete = (selectionId) => {
-    onChange((currentSelections) =>
+    onChange?.((currentSelections = []) =>
       currentSelections.filter((selection) => selection.id !== selectionId),
     );
 
@@ -128,6 +238,10 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
       className="profile-information-selector portfolio-editor-card"
       aria-labelledby="profile-information-selector-title"
     >
+      {/* =========================================
+          Header
+          ========================================= */}
+
       <header className="profile-information-selector-header">
         <div>
           <span>Profile Content</span>
@@ -135,8 +249,8 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
           <h3 id="profile-information-selector-title">Profile Information</h3>
 
           <p>
-            Choose the personal information that will appear at the top of this
-            portfolio.
+            Choose reusable profile information and decide how uploaded pictures
+            will be used in this portfolio.
           </p>
         </div>
 
@@ -155,6 +269,10 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
         onSubmit={handleSubmit}
       >
         <div className="profile-information-selection-fields">
+          {/* =====================================
+              Dropdown 1: Information Type
+              ===================================== */}
+
           <div className="profile-information-selection-field">
             <label htmlFor="profile-information-category">
               Information Type
@@ -175,54 +293,175 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
             </select>
           </div>
 
+          {/* =====================================
+              Dropdown 2: Information / Usage
+              ===================================== */}
+
           <div className="profile-information-selection-field">
-            <label htmlFor="profile-information-item">Information</label>
+            <label htmlFor="profile-information-value">
+              {isPictureCategory ? "Picture Usage" : "Information"}
+            </label>
+
+            {isPictureCategory ? (
+              <select
+                id="profile-information-value"
+                value={selectedPictureUsage}
+                onChange={(event) => {
+                  setSelectedPictureUsage(event.target.value);
+
+                  setSelectedItemId("");
+                  setError("");
+                }}
+                disabled={!canChoosePictureUsage}
+              >
+                <option value="">
+                  {!hasAvailableInformation
+                    ? "Upload and save a picture first"
+                    : "Choose picture usage"}
+                </option>
+
+                {PICTURE_USAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                id="profile-information-value"
+                value={selectedItemId}
+                onChange={(event) => {
+                  setSelectedItemId(event.target.value);
+
+                  setError("");
+                }}
+                disabled={!selectedCategory || !hasAvailableInformation}
+              >
+                <option value="">
+                  {!selectedCategory
+                    ? "Choose a type first"
+                    : hasAvailableInformation
+                      ? "Choose information"
+                      : "No information available"}
+                </option>
+
+                {availableItems.map((option) => {
+                  const duplicate = isDuplicateSelection({
+                    category: selectedCategory,
+                    itemId: option.id,
+                  });
+
+                  return (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      disabled={duplicate}
+                    >
+                      {option.label}
+
+                      {option.displayValue ? ` — ${option.displayValue}` : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+          </div>
+
+          {/* =====================================
+              Dropdown 3: Picture File
+              ===================================== */}
+
+          <div className="profile-information-selection-field">
+            <label htmlFor="profile-information-picture">Picture File</label>
 
             <select
-              id="profile-information-item"
-              value={selectedItemId}
+              id="profile-information-picture"
+              value={isPictureCategory ? selectedItemId : ""}
               onChange={(event) => {
                 setSelectedItemId(event.target.value);
+
                 setError("");
               }}
-              disabled={!selectedCategory || availableItems.length === 0}
+              disabled={!canChoosePictureFile}
             >
               <option value="">
-                {!selectedCategory
-                  ? "Choose a type first"
-                  : availableItems.length > 0
-                    ? "Choose information"
-                    : selectedCategory === "profilePictures"
-                      ? "Upload and save a picture on your Profile page first"
-                      : "No information available"}
+                {!isPictureCategory
+                  ? "Available for pictures only"
+                  : !hasAvailableInformation
+                    ? "No uploaded pictures available"
+                    : !selectedPictureUsage
+                      ? "Choose picture usage first"
+                      : "Choose uploaded picture"}
               </option>
 
-              {availableItems.map((option) => {
-                const duplicate = isDuplicateSelection(
-                  selectedCategory,
-                  option.id,
-                );
+              {isPictureCategory &&
+                availableItems.map((option) => {
+                  const duplicate = isDuplicateSelection({
+                    category: "profilePictures",
+                    itemId: option.id,
+                    pictureUsage: selectedPictureUsage,
+                  });
 
-                return (
-                  <option
-                    key={option.id}
-                    value={option.id}
-                    disabled={duplicate}
-                  >
-                    {option.label}
-                    {option.displayValue ? ` — ${option.displayValue}` : ""}
-                  </option>
-                );
-              })}
+                  return (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      disabled={duplicate}
+                    >
+                      {option.displayValue}
+
+                      {option.label && option.label !== option.displayValue
+                        ? ` — ${option.label}`
+                        : ""}
+                    </option>
+                  );
+                })}
             </select>
           </div>
         </div>
+
+        {/* =========================================
+            Picture Preview
+            ========================================= */}
+
+        {isPictureCategory && selectedPictureOption?.imageUrl && (
+          <div className="profile-information-picture-choice-preview">
+            <img
+              src={selectedPictureOption.imageUrl}
+              alt={
+                selectedPictureOption.label ||
+                selectedPictureOption.displayValue ||
+                "Selected picture"
+              }
+            />
+
+            <div>
+              <span>{getPictureUsageLabel(selectedPictureUsage)}</span>
+
+              <strong>{selectedPictureOption.displayValue}</strong>
+
+              {selectedPictureOption.label &&
+                selectedPictureOption.label !==
+                  selectedPictureOption.displayValue && (
+                  <small>{selectedPictureOption.label}</small>
+                )}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================
+            Error
+            ========================================= */}
 
         {error && (
           <p className="profile-information-selection-error" role="alert">
             {error}
           </p>
         )}
+
+        {/* =========================================
+            Form Actions
+            ========================================= */}
 
         <div className="profile-information-selection-actions">
           {isEditing && (
@@ -254,17 +493,22 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
               return null;
             }
 
+            const isPicture = selection.category === "profilePictures";
+
             return (
               <article
                 key={selection.id}
                 className="profile-information-selected-item"
               >
-                {selection.category === "profilePictures" &&
-                selectedValue.imageUrl ? (
+                {isPicture && selectedValue.imageUrl ? (
                   <img
                     className="profile-information-selected-picture"
                     src={selectedValue.imageUrl}
-                    alt={selectedValue.displayValue || "Selected picture"}
+                    alt={
+                      selectedValue.label ||
+                      selectedValue.displayValue ||
+                      "Selected picture"
+                    }
                   />
                 ) : (
                   <div
@@ -276,11 +520,17 @@ function ProfileInformationSelector({ profile, selections = [], onChange }) {
                 )}
 
                 <div className="profile-information-selected-content">
-                  <span>{getProfileCategoryLabel(selection.category)}</span>
+                  <span>
+                    {isPicture
+                      ? getPictureUsageLabel(selection.pictureUsage)
+                      : getProfileCategoryLabel(selection.category)}
+                  </span>
 
                   <strong>{selectedValue.displayValue}</strong>
 
-                  <small>{selectedValue.label}</small>
+                  <small>
+                    {isPicture ? selectedValue.label : selectedValue.label}
+                  </small>
                 </div>
 
                 <div className="profile-information-selected-actions">

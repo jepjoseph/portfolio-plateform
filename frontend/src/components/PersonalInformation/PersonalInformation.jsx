@@ -15,17 +15,6 @@ function getPictureUrl(picture) {
   return picture?.imageUrl || picture?.fileUrl || picture?.url || "";
 }
 
-function formatPictureType(type) {
-  if (!type) {
-    return "Picture";
-  }
-
-  return type
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
 function PersonalInformation({
   profile,
   title = "Personal Information",
@@ -109,22 +98,42 @@ function PersonalInformation({
           Name
           ========================================= */}
 
-      {visibleNameFields.length > 0 && (
-        <dl className="personal-information-grid">
-          {visibleNameFields.map((field) => (
-            <div key={field.id} className="personal-information-field">
-              <dt>{field.label}</dt>
+      {/* =========================================
+    Identity
+    ========================================= */}
 
-              <dd>
-                {field.value || (
-                  <span className="personal-information-empty">
-                    Not provided
-                  </span>
-                )}
-              </dd>
+      {visibleNameFields.length > 0 && (
+        <section className="personal-information-identity">
+          <header className="personal-information-identity-header">
+            <div>
+              <span>Name</span>
+
+              <h4>Personal Identity</h4>
+
+              <p>The name information associated with your profile.</p>
             </div>
-          ))}
-        </dl>
+
+            <span className="personal-information-identity-count">
+              {visibleNameFields.length}
+            </span>
+          </header>
+
+          <dl className="personal-information-grid">
+            {visibleNameFields.map((field) => (
+              <div key={field.id} className="personal-information-field">
+                <dt>{field.label}</dt>
+
+                <dd>
+                  {field.value || (
+                    <span className="personal-information-empty">
+                      Not provided
+                    </span>
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
       {/* =========================================
@@ -149,18 +158,12 @@ function PersonalInformation({
             {visiblePictures.map((picture, index) => {
               const pictureUrl = getPictureUrl(picture);
 
-              const pictureType = formatPictureType(picture.type);
-
-              const pictureName =
-                picture.fileName ||
-                picture.description ||
-                `Picture ${index + 1}`;
+              const pictureName = picture.fileName || `Picture ${index + 1}`;
 
               return (
                 <article
                   key={picture.id}
                   className="personal-information-picture-item"
-                  data-picture-type={picture.type || "other"}
                 >
                   <div className="personal-information-picture-preview">
                     <img
@@ -168,24 +171,19 @@ function PersonalInformation({
                       alt={
                         picture.description ||
                         picture.fileName ||
-                        `${pictureType} ${index + 1}`
+                        `Uploaded picture ${index + 1}`
                       }
                     />
                   </div>
 
                   <div className="personal-information-picture-content">
                     <div className="personal-information-picture-label">
-                      <span>{pictureType}</span>
-
-                      {index === 0 && <small>Primary</small>}
+                      <span>Picture {index + 1}</span>
                     </div>
 
                     <strong>{pictureName}</strong>
 
-                    {picture.description &&
-                      picture.description !== pictureName && (
-                        <p>{picture.description}</p>
-                      )}
+                    {picture.description && <p>{picture.description}</p>}
                   </div>
                 </article>
               );

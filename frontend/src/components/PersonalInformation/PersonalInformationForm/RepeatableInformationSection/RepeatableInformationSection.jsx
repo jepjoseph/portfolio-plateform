@@ -176,21 +176,25 @@ function RepeatableInformationSection({
               {/* Type */}
 
               <div className="repeatable-information-field">
-                <label htmlFor={`${category}-type-${item.id}`}>Type</label>
+                {!isPictureCategory && (
+                  <div className="repeatable-information-field">
+                    <label htmlFor={`${category}-type-${item.id}`}>Type</label>
 
-                <select
-                  id={`${category}-type-${item.id}`}
-                  value={item.type}
-                  onChange={(event) =>
-                    onChange(category, item.id, "type", event.target.value)
-                  }
-                >
-                  {config.typeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                    <select
+                      id={`${category}-type-${item.id}`}
+                      value={item.type}
+                      onChange={(event) =>
+                        onChange(category, item.id, "type", event.target.value)
+                      }
+                    >
+                      {config.typeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Picture Upload */}
