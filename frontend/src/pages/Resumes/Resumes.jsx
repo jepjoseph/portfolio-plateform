@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import { useProfileData } from "../../context/ProfileDataContext";
+import { useResumeData } from "../../context/ResumeDataContext";
+
 import { buildSelectedResumeHeader } from "../../services/Resume/resumeSelectionUtils";
 
 import ResumeHeaderBuilder from "./components/ResumeHeaderBuilder/ResumeHeaderBuilder";
+
+import ProfessionalSummaryBuilder from "./components/ProfessionalSummaryBuilder/ProfessionalSummaryBuilder";
+
+import ResumeDocument from "./components/ResumeDocument/ResumeDocument";
+
+import ResumePreviewModal from "./components/ResumePreviewModal/ResumePreviewModal";
 
 import "./Resumes.css";
 
@@ -25,6 +34,15 @@ const EMPTY_RESUME_DRAFT = {
   },
 
   summary: "",
+
+  summaryMeta: {
+    source: "manual",
+    status: "empty", //"draft"
+    generatedAt: null,
+    contextFingerprint: "",
+    isStale: false,
+  },
+
   experiences: [],
   education: [],
   skills: [],
@@ -54,6 +72,10 @@ function createEmptyResumeDraft() {
       ...EMPTY_RESUME_DRAFT.headerSelections,
     },
 
+    summaryMeta: {
+      ...EMPTY_RESUME_DRAFT.summaryMeta,
+    },
+
     experiences: [],
     education: [],
     skills: [],
@@ -64,22 +86,6 @@ function createEmptyResumeDraft() {
       ...EMPTY_RESUME_DRAFT.sectionVisibility,
     },
   };
-}
-
-function createId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `resume-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function createSlug(value) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 function formatDate(dateValue) {
@@ -94,14 +100,253 @@ function formatDate(dateValue) {
   }).format(new Date(dateValue));
 }
 
+/*
+ * =========================================
+ * Print Resume in an Isolated Document
+ * =========================================
+ */
+
+async function printResumeDocument(resumeElement, fileName) {
+  if (!resumeElement) {
+    throw new Error("The printable resume could not be found.");
+  }
+
+  const printFrame = document.createElement("iframe");
+
+  printFrame.setAttribute("title", "Resume PDF export");
+  printFrame.setAttribute("aria-hidden", "true");
+  printFrame.tabIndex = -1;
+
+  Object.assign(printFrame.style, {
+    position: "fixed",
+    top: "0",
+    left: "-100000px",
+    width: "816px",
+    height: "1056px",
+    border: "0",
+    opacity: "0",
+    pointerEvents: "none",
+  });
+
+  document.body.appendChild(printFrame);
+
+  const frameWindow = printFrame.contentWindow;
+  const frameDocument = printFrame.contentDocument;
+
+  if (!frameWindow || !frameDocument) {
+    printFrame.remove();
+
+    throw new Error("The PDF document could not be created.");
+  }
+
+  /*
+   * Copy the application's stylesheets so
+   * ResumeDocument keeps its normal design.
+   */
+
+  const applicationStyles = Array.from(
+    document.querySelectorAll('link[rel="stylesheet"], style'),
+  )
+    .map((styleElement) => styleElement.outerHTML)
+    .join("\n");
+
+  const safeTitle =
+    String(fileName || "Resume")
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, "-") || "Resume";
+
+  const previousPageTitle = document.title;
+
+  /*
+   * Chrome often uses the parent page title as
+   * the suggested Save as PDF filename, even
+   * when an iframe is being printed.
+   */
+
+  document.title = safeTitle;
+
+  const resumeMarkup = resumeElement.outerHTML;
+
+  const frameLoaded = new Promise((resolve) => {
+    printFrame.addEventListener("load", resolve, {
+      once: true,
+    });
+
+    /*
+     * Fallback in case the browser does not
+     * dispatch a second iframe load event.
+     */
+
+    window.setTimeout(resolve, 700);
+  });
+
+  frameDocument.open();
+
+  frameDocument.write(`
+    <!doctype html>
+
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0"
+        />
+
+        <title>${safeTitle}</title>
+
+        ${applicationStyles}
+
+        <style>
+          @page {
+            size: Letter;
+            margin: 0;
+          }
+
+          html,
+          body {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+          }
+
+          body {
+            overflow: visible;
+          }
+
+          *,
+          *::before,
+          *::after {
+            box-sizing: border-box;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
+          .resume-document {
+            width: 8.5in !important;
+            max-width: none !important;
+            min-height: 11in !important;
+            margin: 0 !important;
+            padding: 0.5in 0.6in !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+          }
+
+          .resume-document-header {
+            flex-direction: row !important;
+          }
+
+          .resume-document-section,
+          .resume-document-entry {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .resume-document-section > h3 {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+        </style>
+      </head>
+
+      <body>
+        ${resumeMarkup}
+      </body>
+    </html>
+  `);
+
+  frameDocument.close();
+
+  await frameLoaded;
+
+  /*
+   * Wait for fonts and pictures before opening
+   * the browser print dialog.
+   */
+
+  if (frameDocument.fonts?.ready) {
+    try {
+      await frameDocument.fonts.ready;
+    } catch {
+      // The browser can still print with fallback fonts.
+    }
+  }
+
+  const images = Array.from(frameDocument.images);
+
+  await Promise.all(
+    images.map((image) => {
+      if (image.complete) {
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        image.addEventListener("load", resolve, {
+          once: true,
+        });
+
+        image.addEventListener("error", resolve, {
+          once: true,
+        });
+      });
+    }),
+  );
+
+  frameWindow.focus();
+
+  const restorePageAfterPrint = () => {
+    document.title = previousPageTitle;
+
+    window.setTimeout(() => {
+      printFrame.remove();
+    }, 300);
+  };
+
+  frameWindow.addEventListener("afterprint", restorePageAfterPrint, {
+    once: true,
+  });
+
+  try {
+    frameWindow.print();
+  } finally {
+    /*
+     * In most browsers, print() returns after the
+     * print dialog closes. This also handles browsers
+     * that do not dispatch the iframe afterprint event.
+     */
+
+    window.setTimeout(() => {
+      if (document.title === safeTitle) {
+        restorePageAfterPrint();
+      }
+    }, 500);
+  }
+}
+
 function Resumes() {
   const { profile } = useProfileData();
 
+  const {
+    savedResumes,
+    persistenceError,
+    saveResume,
+    deleteResume,
+    duplicateResume,
+    toggleResumeSetting,
+  } = useResumeData();
+
   const [resumeDraft, setResumeDraft] = useState(createEmptyResumeDraft);
 
-  const [savedResumes, setSavedResumes] = useState([]);
-
   const [saveStatus, setSaveStatus] = useState("idle");
+
+  const [previewResume, setPreviewResume] = useState(null);
+
+  const [pdfResume, setPdfResume] = useState(null);
 
   const isEditingSavedResume = Boolean(resumeDraft.id);
 
@@ -183,6 +428,27 @@ function Resumes() {
 
   /*
    * =========================================
+   * Professional Summary
+   * =========================================
+   */
+
+  const handleSummaryChange = ({ summary, summaryMeta }) => {
+    setResumeDraft((currentDraft) => ({
+      ...currentDraft,
+
+      summary,
+
+      summaryMeta: {
+        ...EMPTY_RESUME_DRAFT.summaryMeta,
+        ...summaryMeta,
+      },
+    }));
+
+    setSaveStatus("idle");
+  };
+
+  /*
+   * =========================================
    * Save Resume
    * =========================================
    */
@@ -191,7 +457,6 @@ function Resumes() {
     event.preventDefault();
 
     const resumeName = resumeDraft.resumeName.trim();
-
     const targetRole = resumeDraft.targetRole.trim();
 
     const selectedHeader = buildSelectedResumeHeader(
@@ -208,38 +473,26 @@ function Resumes() {
     ) {
       setSaveStatus("error");
 
+      window.requestAnimationFrame(() => {
+        const errorMessage = document.getElementById("resume-builder-error");
+
+        errorMessage?.scrollIntoView({
+          behavior: "auto",
+          block: "center",
+        });
+
+        errorMessage?.focus({
+          preventScroll: true,
+        });
+      });
+
       return;
     }
 
-    const now = new Date().toISOString();
-
-    const savedResume = {
+    const savedResume = saveResume({
       ...resumeDraft,
-
-      id: resumeDraft.id || createId(),
-
       resumeName,
       targetRole,
-
-      publicSlug: resumeDraft.publicSlug || createSlug(resumeName),
-
-      createdAt: resumeDraft.createdAt || now,
-
-      updatedAt: now,
-    };
-
-    setSavedResumes((currentResumes) => {
-      const resumeExists = currentResumes.some(
-        (resume) => resume.id === savedResume.id,
-      );
-
-      if (resumeExists) {
-        return currentResumes.map((resume) =>
-          resume.id === savedResume.id ? savedResume : resume,
-        );
-      }
-
-      return [savedResume, ...currentResumes];
     });
 
     setResumeDraft(savedResume);
@@ -262,6 +515,17 @@ function Resumes() {
         ...resume.headerSelections,
       },
 
+      summaryMeta: {
+        ...EMPTY_RESUME_DRAFT.summaryMeta,
+        ...resume.summaryMeta,
+      },
+
+      experiences: [...(resume.experiences || [])],
+      education: [...(resume.education || [])],
+      skills: [...(resume.skills || [])],
+      projects: [...(resume.projects || [])],
+      certifications: [...(resume.certifications || [])],
+
       sectionVisibility: {
         ...EMPTY_RESUME_DRAFT.sectionVisibility,
         ...resume.sectionVisibility,
@@ -283,25 +547,7 @@ function Resumes() {
    */
 
   const handleDuplicateResume = (resume) => {
-    const now = new Date().toISOString();
-
-    const duplicatedResume = {
-      ...resume,
-
-      id: createId(),
-
-      resumeName: `${resume.resumeName} Copy`,
-
-      publicSlug: `${createSlug(resume.resumeName)}-copy`,
-
-      isSharedOnline: false,
-      isShownOnPortfolio: false,
-
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setSavedResumes((currentResumes) => [duplicatedResume, ...currentResumes]);
+    const duplicatedResume = duplicateResume(resume);
 
     setResumeDraft(duplicatedResume);
     setSaveStatus("success");
@@ -319,9 +565,7 @@ function Resumes() {
    */
 
   const handleDeleteResume = (resumeId) => {
-    setSavedResumes((currentResumes) =>
-      currentResumes.filter((resume) => resume.id !== resumeId),
-    );
+    deleteResume(resumeId);
 
     if (resumeDraft.id === resumeId) {
       setResumeDraft(createEmptyResumeDraft());
@@ -336,22 +580,28 @@ function Resumes() {
    * =========================================
    */
 
-  const handlePreviewResume = () => {
-    const completeResume = buildCompleteResume();
+  const handlePreviewResume = (resume = resumeDraft) => {
+    const completeResume = buildCompleteResume(resume);
 
-    try {
-      sessionStorage.setItem("resume-preview", JSON.stringify(completeResume));
+    setPreviewResume(completeResume);
+  };
 
-      console.log("Resume preview:", completeResume);
+  const handleClosePreview = () => {
+    setPreviewResume(null);
+  };
 
-      /*
-       * Enable this when the preview route exists:
-       *
-       * navigate("/resumes/preview");
-       */
-    } catch (error) {
-      console.error("Unable to create resume preview:", error);
-    }
+  /*
+   * =========================================
+   * PDF Export
+   * =========================================
+   */
+
+  const handleExportPdf = (resume = resumeDraft) => {
+    const completeResume = resume.selectedHeader
+      ? resume
+      : buildCompleteResume(resume);
+
+    setPdfResume(completeResume);
   };
 
   /*
@@ -360,19 +610,92 @@ function Resumes() {
    * =========================================
    */
 
+  /*
+   * =========================================
+   * Sharing Settings
+   * =========================================
+   */
+
   const handleToggleSetting = (resumeId, settingName) => {
-    setSavedResumes((currentResumes) =>
-      currentResumes.map((resume) =>
-        resume.id === resumeId
-          ? {
-              ...resume,
-              [settingName]: !resume[settingName],
-              updatedAt: new Date().toISOString(),
-            }
-          : resume,
-      ),
-    );
+    toggleResumeSetting(resumeId, settingName);
   };
+
+  /*
+   * =========================================
+   * Invalid Form Field
+   * =========================================
+   */
+
+  const handleInvalidField = (event) => {
+    const form = event.currentTarget;
+    const firstInvalidField = form.querySelector(":invalid");
+
+    /*
+     * Several fields may be invalid, but we only
+     * want to scroll to the first invalid field.
+     */
+
+    if (!firstInvalidField || event.target !== firstInvalidField) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      firstInvalidField.scrollIntoView({
+        behavior: "auto",
+        block: "center",
+        inline: "nearest",
+      });
+
+      firstInvalidField.focus({
+        preventScroll: true,
+      });
+    });
+  };
+
+  /*
+   * =========================================
+   * Print PDF Document
+   * =========================================
+   */
+
+  /*
+   * =========================================
+   * Print PDF Document
+   * =========================================
+   */
+
+  useEffect(() => {
+    if (!pdfResume) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const timeoutId = window.setTimeout(async () => {
+      const printableResume = document.querySelector(
+        ".resume-pdf-print-root .resume-document",
+      );
+
+      if (!printableResume || cancelled) {
+        return;
+      }
+
+      try {
+        await printResumeDocument(printableResume, pdfResume.resumeName);
+      } catch (error) {
+        console.error("Unable to export resume PDF:", error);
+      } finally {
+        if (!cancelled) {
+          setPdfResume(null);
+        }
+      }
+    }, 100);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [pdfResume]);
 
   return (
     <main className="resumes-page">
@@ -400,6 +723,12 @@ function Resumes() {
           + New Resume
         </button>
       </header>
+
+      {persistenceError && (
+        <div className="resume-persistence-error" role="alert">
+          {persistenceError}
+        </div>
+      )}
 
       {/* =========================================
           Resume Builder
@@ -430,7 +759,11 @@ function Resumes() {
           </span>
         </header>
 
-        <form className="resume-builder-form" onSubmit={handleSaveResume}>
+        <form
+          className="resume-builder-form"
+          onSubmit={handleSaveResume}
+          onInvalid={handleInvalidField}
+        >
           {/* =====================================
               Resume Setup
               ===================================== */}
@@ -509,13 +842,6 @@ function Resumes() {
             <header className="resume-builder-section-header">
               <div>
                 <span>Header</span>
-
-                <h4>Resume Header</h4>
-
-                <p>
-                  Select the name, professional title, location, email, phone,
-                  LinkedIn, and website displayed at the top of this resume.
-                </p>
               </div>
 
               <span aria-hidden="true">02</span>
@@ -525,6 +851,29 @@ function Resumes() {
               profile={profile}
               selections={resumeDraft.headerSelections}
               onChange={handleHeaderSelectionsChange}
+            />
+          </section>
+
+          {/* =====================================
+            Professional Summary
+            ===================================== */}
+
+          <section className="resume-builder-section">
+            <header className="resume-builder-section-header">
+              <div>
+                <span>Summary</span>
+              </div>
+
+              <span aria-hidden="true">03</span>
+            </header>
+
+            <ProfessionalSummaryBuilder
+              profile={profile}
+              resumeDraft={resumeDraft}
+              summary={resumeDraft.summary}
+              summaryMeta={resumeDraft.summaryMeta}
+              documentType="resume"
+              onChange={handleSummaryChange}
             />
           </section>
 
@@ -550,11 +899,10 @@ function Resumes() {
 
             <div className="resume-section-overview">
               {[
-                "Professional Summary",
-                "Experience",
-                "Education",
+                "Professional Experience",
                 "Skills",
                 "Projects",
+                "Education",
                 "Certifications",
               ].map((sectionName) => (
                 <article
@@ -602,7 +950,7 @@ function Resumes() {
             <button
               type="button"
               className="resume-builder-preview-button"
-              onClick={handlePreviewResume}
+              onClick={() => handlePreviewResume(resumeDraft)}
             >
               Preview Resume
             </button>
@@ -689,9 +1037,13 @@ function Resumes() {
                 <div className="saved-resume-actions">
                   <button
                     type="button"
-                    onClick={() => handleEditResume(resume)}
+                    onClick={() => handlePreviewResume(resume)}
                   >
-                    Edit
+                    Preview
+                  </button>
+
+                  <button type="button" onClick={() => handleExportPdf(resume)}>
+                    PDF
                   </button>
 
                   <button
@@ -699,6 +1051,13 @@ function Resumes() {
                     onClick={() => handleDuplicateResume(resume)}
                   >
                     Duplicate
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleEditResume(resume)}
+                  >
+                    Edit
                   </button>
 
                   <button
@@ -724,6 +1083,18 @@ function Resumes() {
           </div>
         )}
       </section>
+      {previewResume && (
+        <ResumePreviewModal
+          resume={previewResume}
+          onClose={handleClosePreview}
+          onExportPdf={() => handleExportPdf(previewResume)}
+        />
+      )}
+      {pdfResume && (
+        <div className="resume-pdf-print-root" aria-hidden="true">
+          <ResumeDocument resume={pdfResume} />
+        </div>
+      )}
     </main>
   );
 }

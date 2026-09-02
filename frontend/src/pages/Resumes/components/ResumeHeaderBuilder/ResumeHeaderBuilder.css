@@ -9,6 +9,11 @@
   min-width: 0;
 }
 
+.resume-header-builder-field select {
+  scroll-margin-top: 120px;
+  scroll-margin-bottom: 40px;
+}
+
 /* =========================================
    Main Header
    ========================================= */

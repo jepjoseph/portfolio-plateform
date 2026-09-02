@@ -1,6 +1,4 @@
 import { useRoutes } from "react-router-dom";
-import { ProfileDataProvider } from "./context/ProfileDataContext";
-import { PortfolioDraftProvider } from "./context/PortfolioDraftContext";
 
 import DashboardLayout from "./layouts/DashboardLayout/DashboardLayout";
 
@@ -14,6 +12,7 @@ import Education from "./pages/Education/Education";
 import Skills from "./pages/skills/Skills";
 import Resumes from "./pages/Resumes/Resumes";
 import Profile from "./pages/Profile/Profile";
+import Certifications from "./pages/Certifications/Certifications";
 
 function App() {
   /*
@@ -62,6 +61,10 @@ function App() {
           path: "profile",
           element: <Profile />,
         },
+        {
+          path: "certifications",
+          element: <Certifications />,
+        },
       ],
     },
 
@@ -94,11 +97,7 @@ function App() {
     },
   ]);
 
-  return (
-    <ProfileDataProvider>
-      <PortfolioDraftProvider>{routes}</PortfolioDraftProvider>
-    </ProfileDataProvider>
-  );
+  return routes;
 }
 
 export default App;

@@ -9,6 +9,17 @@
 }
 
 /* =========================================
+   Form Validation Scroll Position
+   ========================================= */
+
+.resume-builder-field input,
+.resume-builder-field select,
+.resume-header-builder-field select {
+  scroll-margin-top: 120px;
+  scroll-margin-bottom: 40px;
+}
+
+/* =========================================
    Page Header
    ========================================= */
 
@@ -586,8 +597,44 @@
 }
 
 /* =========================================
+   Persistence Error
+   ========================================= */
+
+.resume-persistence-error {
+  margin-bottom: 18px;
+  padding: 11px 13px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* =========================================
+   Hidden PDF Source
+   ========================================= */
+
+.resume-pdf-print-root {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  width: 816px;
+  min-height: 1056px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* =========================================
    Responsive
    ========================================= */
+
+@media (max-width: 1200px) {
+  .saved-resume-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 
 @media (max-width: 1000px) {
   .saved-resumes-grid {
@@ -643,6 +690,10 @@
   }
 
   .saved-resume-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .saved-resume-actions .saved-resume-delete {
+    grid-column: 1 / -1;
   }
 }

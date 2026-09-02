@@ -1,0 +1,208 @@
+.resume-document {
+  width: min(100%, 816px);
+  min-height: 1056px;
+  margin: 0 auto;
+  padding: 52px 58px;
+  background: #ffffff;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.resume-document-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding-bottom: 22px;
+  border-bottom: 2px solid #111827;
+  text-align: center;
+}
+
+.resume-document-picture {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.resume-document-picture img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.resume-document-identity {
+  min-width: 0;
+}
+
+.resume-document-identity h1 {
+  margin: 0;
+  color: #111827;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  line-height: 1.15;
+}
+
+.resume-document-identity h2 {
+  margin: 7px 0 0;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.resume-document-contact {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+  margin-top: 12px;
+}
+
+.resume-document-contact span {
+  position: relative;
+  color: #4b5563;
+  font-size: 0.66rem;
+  overflow-wrap: anywhere;
+}
+
+.resume-document-contact span:not(:last-child)::after {
+  position: absolute;
+  right: -10px;
+  color: #9ca3af;
+  content: "•";
+}
+
+.resume-document-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 24px;
+}
+
+.resume-document-section > h3 {
+  margin: 0 0 11px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #9ca3af;
+  color: #111827;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.resume-document-summary {
+  margin: 0;
+  color: #374151;
+  font-size: 0.7rem;
+  line-height: 1.65;
+}
+
+.resume-document-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.resume-document-entry header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.resume-document-entry h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 0.75rem;
+}
+
+.resume-document-entry header p {
+  margin: 3px 0 0;
+  color: #374151;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.resume-document-entry header > span {
+  flex-shrink: 0;
+  color: #4b5563;
+  font-size: 0.62rem;
+}
+
+.resume-document-entry > small {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 0.6rem;
+}
+
+.resume-document-entry > p {
+  margin: 7px 0 0;
+  color: #4b5563;
+  font-size: 0.66rem;
+  line-height: 1.55;
+}
+
+.resume-document-entry ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: #4b5563;
+  font-size: 0.66rem;
+  line-height: 1.55;
+}
+
+.resume-document-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.resume-document-skills span {
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.62rem;
+}
+
+.resume-document-empty {
+  padding: 26px;
+  border: 1px dashed #d1d5db;
+  text-align: center;
+}
+
+.resume-document-empty p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.68rem;
+}
+
+.resume-document--modern .resume-document-header {
+  border-bottom-color: #4f46e5;
+}
+
+.resume-document--modern .resume-document-section > h3 {
+  color: #4f46e5;
+  border-bottom-color: #c7d2fe;
+}
+
+.resume-document--technical .resume-document-identity h1 {
+  font-family: "Courier New", monospace;
+}
+
+.resume-document--academic .resume-document-identity h1 {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+@media (max-width: 700px) {
+  .resume-document {
+    min-height: auto;
+    padding: 32px 24px;
+  }
+
+  .resume-document-header {
+    flex-direction: column;
+  }
+}
