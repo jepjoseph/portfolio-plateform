@@ -1,5 +1,7 @@
 import { useId, useMemo, useState } from "react";
 
+import { API_ENDPOINTS } from "../../../../config/api.js";
+
 import "./ProfessionalSummaryBuilder.css";
 
 const EMPTY_SUMMARY_META = {
@@ -69,7 +71,14 @@ function getProfessionalTitle(profile, professionalTitleId) {
     (title) => title.id === professionalTitleId,
   );
 
-  return selectedTitle?.name?.trim() || "";
+  return (
+    selectedTitle?.name?.trim() ||
+    selectedTitle?.title?.trim() ||
+    selectedTitle?.value?.trim() ||
+    selectedTitle?.displayValue?.trim() ||
+    selectedTitle?.label?.trim() ||
+    ""
+  );
 }
 
 /*
@@ -422,7 +431,7 @@ function ProfessionalSummaryBuilder({
       setGenerationError("");
       setGenerationWarnings([]);
 
-      const response = await fetch("/api/ai/resume-summary", {
+      const response = await fetch(API_ENDPOINTS.generateResumeSummary, {
         method: "POST",
 
         headers: {
