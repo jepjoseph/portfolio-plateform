@@ -11,6 +11,47 @@ const INITIAL_PORTFOLIO_DRAFT = {
   portfolioName: "My Professional Portfolio",
 
   profileSelections: [],
+  heroSettings: {
+    eyebrow: "Professional Portfolio",
+
+    tagline:
+      "Building reliable software, connected systems, and practical technology solutions.",
+
+    availability: {
+      isAvailable: true,
+      label: "Open to internships and technical opportunities",
+    },
+
+    showLocation: true,
+    showSocialLinks: true,
+    showProjectsButton: true,
+    showResumeButton: true,
+    showContactButton: true,
+    showWebsiteButton: true,
+
+    featuredResumeId: "",
+  },
+
+  heroSettings: {
+    eyebrow: "Professional Portfolio",
+
+    tagline:
+      "Building reliable software, connected systems, and practical technology solutions.",
+
+    availability: {
+      isAvailable: true,
+      label: "Open to internships and technical opportunities",
+    },
+
+    showLocation: true,
+    showSocialLinks: true,
+    showWebsiteButton: true,
+    showContactButton: true,
+    showProjectsButton: true,
+    showResumeButton: true,
+
+    featuredResumeId: "",
+  },
 
   summary: "",
 
@@ -28,6 +69,7 @@ const INITIAL_PORTFOLIO_DRAFT = {
     skills: true,
     certifications: true,
     projects: false,
+    resume: true,
   },
 
   isPublished: false,
@@ -46,6 +88,16 @@ function loadStoredDraft() {
     return {
       ...INITIAL_PORTFOLIO_DRAFT,
       ...parsedDraft,
+
+      heroSettings: {
+        ...INITIAL_PORTFOLIO_DRAFT.heroSettings,
+        ...parsedDraft.heroSettings,
+
+        availability: {
+          ...INITIAL_PORTFOLIO_DRAFT.heroSettings.availability,
+          ...parsedDraft.heroSettings?.availability,
+        },
+      },
 
       sectionVisibility: {
         ...INITIAL_PORTFOLIO_DRAFT.sectionVisibility,

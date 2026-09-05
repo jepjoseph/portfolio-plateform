@@ -2,19 +2,19 @@ import { useNavigate } from "react-router-dom";
 
 import { usePortfolioDraft } from "../../context/PortfolioDraftContext";
 import { useProfileData } from "../../context/ProfileDataContext";
+import { useResumeData } from "../../context/ResumeDataContext";
 
 import { buildSelectedProfile } from "../../services/Portfolio/profileSelectionUtils";
 import { savePortfolio } from "../../services/Portfolio/portfolioService";
 
-import PortfolioPageHeader from "./components/PortfolioPageHeader/PortfolioPageHeader";
-import ProfileInformationSelector from "./components/ProfileInformationSelector/ProfileInformationSelector";
-
-
-import ProfessionalSummary from "./components/ProfessionalSummary/ProfessionalSummary";
-import Experience from "./components/Experience/Experience";
-import Education from "./components/Education/Education";
-import Skills from "./components/Skills/Skills";
 import Certifications from "./components/Certifications/Certifications";
+import Education from "./components/Education/Education";
+import Experience from "./components/Experience/Experience";
+import PortfolioPageHeader from "./components/PortfolioPageHeader/PortfolioPageHeader";
+import ProfessionalSummary from "./components/ProfessionalSummary/ProfessionalSummary";
+import ProfileInformationSelector from "./components/ProfileInformationSelector/ProfileInformationSelector";
+import Skills from "./components/Skills/Skills";
+import PortfolioHeroSettings from "./components/PortfolioHeroSettings/PortfolioHeroSettings";
 
 import "./Portfolio.css";
 
@@ -23,26 +23,48 @@ function Portfolio() {
 
   const { profile } = useProfileData();
 
+  const { savedResumes } = useResumeData();
+
   const { portfolioDraft, updateDraftField, saveStatus, setSaveStatus } =
     usePortfolioDraft();
 
   const {
-    profileSelections,
-    summary,
-    experiences,
-    education,
-    skills,
-    certifications,
-    sectionVisibility,
-    isPublished,
+    profileSelections = [],
+    heroSettings = {},
+    summary = "",
+    experiences = [],
+    education = [],
+    skills = [],
+    certifications = [],
+    sectionVisibility = {},
+    isPublished = false,
   } = portfolioDraft;
+
+  const isSectionVisible = (sectionName) =>
+    sectionVisibility[sectionName] !== false;
+
+  /*
+   * =========================================
+   * Complete Portfolio
+   * =========================================
+   */
 
   const buildCompletePortfolio = () => {
     const selectedProfile = buildSelectedProfile(profile, profileSelections);
 
+    const featuredResume =
+      savedResumes.find(
+        (resume) => resume.id === heroSettings.featuredResumeId,
+      ) || null;
+
     return {
       ...portfolioDraft,
+
       selectedProfile,
+
+      featuredResume: featuredResume?.isShownOnPortfolio
+        ? featuredResume
+        : null,
     };
   };
 
@@ -53,9 +75,9 @@ function Portfolio() {
    */
 
   const handlePreview = () => {
-    const completePortfolio = buildCompletePortfolio();
-
     try {
+      const completePortfolio = buildCompletePortfolio();
+
       sessionStorage.setItem(
         "portfolio-preview",
         JSON.stringify(completePortfolio),
@@ -64,6 +86,8 @@ function Portfolio() {
       navigate("/portfolio/preview");
     } catch (error) {
       console.error("Unable to create portfolio preview:", error);
+
+      setSaveStatus("error");
     }
   };
 
@@ -74,6 +98,10 @@ function Portfolio() {
    */
 
   const handleSave = async () => {
+    if (saveStatus === "saving") {
+      return;
+    }
+
     try {
       setSaveStatus("saving");
 
@@ -84,8 +112,6 @@ function Portfolio() {
       updateDraftField("isPublished", savedPortfolio.isPublished);
 
       setSaveStatus("success");
-
-      console.log("Portfolio saved:", savedPortfolio);
     } catch (error) {
       console.error("Unable to save portfolio:", error);
 
@@ -94,7 +120,7 @@ function Portfolio() {
   };
 
   return (
-    <section className="portfolio-page">
+    <main className="portfolio-page">
       <PortfolioPageHeader
         onPreview={handlePreview}
         onSave={handleSave}
@@ -108,7 +134,8 @@ function Portfolio() {
           className="portfolio-save-message portfolio-save-message--success"
           role="status"
         >
-          Portfolio changes saved successfully.
+          <span>Portfolio changes saved successfully.</span>
+
           <a
             href={`/portfolio/${portfolioDraft.username}/${portfolioDraft.slug}`}
             target="_blank"
@@ -129,7 +156,7 @@ function Portfolio() {
       )}
 
       <div className="portfolio-editor">
-        {sectionVisibility.profile && (
+        {isSectionVisible("profile") && (
           <ProfileInformationSelector
             profile={profile}
             selections={profileSelections}
@@ -139,7 +166,15 @@ function Portfolio() {
           />
         )}
 
-        {sectionVisibility.summary && (
+        <PortfolioHeroSettings
+          heroSettings={heroSettings}
+          savedResumes={savedResumes}
+          onChange={(valueOrUpdater) =>
+            updateDraftField("heroSettings", valueOrUpdater)
+          }
+        />
+
+        {isSectionVisible("summary") && (
           <ProfessionalSummary
             summary={summary}
             onChange={(valueOrUpdater) =>
@@ -148,7 +183,7 @@ function Portfolio() {
           />
         )}
 
-        {sectionVisibility.experience && (
+        {isSectionVisible("experience") && (
           <Experience
             experiences={experiences}
             onChange={(valueOrUpdater) =>
@@ -157,16 +192,7 @@ function Portfolio() {
           />
         )}
 
-        {sectionVisibility.education && (
-          <Education
-            education={education}
-            onChange={(valueOrUpdater) =>
-              updateDraftField("education", valueOrUpdater)
-            }
-          />
-        )}
-
-        {sectionVisibility.skills && (
+        {isSectionVisible("skills") && (
           <Skills
             skills={skills}
             onChange={(valueOrUpdater) =>
@@ -175,7 +201,16 @@ function Portfolio() {
           />
         )}
 
-        {sectionVisibility.certifications && (
+        {isSectionVisible("education") && (
+          <Education
+            education={education}
+            onChange={(valueOrUpdater) =>
+              updateDraftField("education", valueOrUpdater)
+            }
+          />
+        )}
+
+        {isSectionVisible("certifications") && (
           <Certifications
             certifications={certifications}
             onChange={(valueOrUpdater) =>
@@ -184,7 +219,7 @@ function Portfolio() {
           />
         )}
       </div>
-    </section>
+    </main>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
-import PortfolioView from "../../../components/PortfolioView/PortfolioView";
+//import PortfolioView from "../../../components/PortfolioView/PortfolioView";
+import PortfolioView from "../PortfolioView/PortfolioView";
 
 import "./PortfolioPreview.css";
 
@@ -55,7 +56,7 @@ function PortfolioPreview() {
         </button>
       </aside>
 
-      <PortfolioView portfolio={portfolio} />
+      <PortfolioView portfolio={portfolio} mode="preview" />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /* =========================================
-   Portfolio Page
+   Portfolio Editor Page
    ========================================= */
 
 .portfolio-page {
@@ -15,35 +15,23 @@
 .portfolio-editor {
   width: 100%;
   min-width: 0;
-
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
 /* =========================================
-   Shared Portfolio Editor Card
+   Shared Editor Card
    ========================================= */
-
-/*
- * Add this class to every major section inside
- * the portfolio editor:
- *
- * className="portfolio-editor-card"
- */
 
 .portfolio-editor-card {
   width: 100%;
   min-width: 0;
-
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-
   background: var(--bg-card);
-
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
 }
 
@@ -79,13 +67,11 @@
   flex-shrink: 0;
   color: inherit;
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-@media (max-width: 600px) {
-  .portfolio-save-message {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.portfolio-save-message a:hover {
+  text-decoration-thickness: 2px;
 }
 
 /* =========================================
@@ -98,15 +84,18 @@
   }
 }
 
+@media (max-width: 600px) {
+  .portfolio-save-message {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 480px) {
   .portfolio-editor {
     gap: 14px;
   }
 }
-
-/* =========================================
-   Reduced Transparency
-   ========================================= */
 
 @media (prefers-reduced-transparency: reduce) {
   .portfolio-editor-card {
