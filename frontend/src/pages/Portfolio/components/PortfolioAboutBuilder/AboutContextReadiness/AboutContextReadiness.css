@@ -1,0 +1,107 @@
+.about-context-readiness {
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.about-context-readiness > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.about-context-readiness > header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.about-context-readiness h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.about-context-readiness > p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  line-height: 1.5;
+}
+
+.about-context-level {
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.56rem;
+  font-weight: 700;
+}
+
+.about-context-level--basic {
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+}
+
+.about-context-level--good {
+  background: rgba(245, 158, 11, 0.09);
+  color: #fbbf24;
+}
+
+.about-context-level--strong,
+.about-context-level--excellent {
+  background: rgba(34, 197, 94, 0.09);
+  color: #86efac;
+}
+
+.about-context-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.about-context-details article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.about-context-details article span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.59rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.about-context-details article strong {
+  overflow: hidden;
+  color: var(--accent-hover);
+  font-size: 0.63rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .about-context-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .about-context-details {
+    grid-template-columns: 1fr;
+  }
+}

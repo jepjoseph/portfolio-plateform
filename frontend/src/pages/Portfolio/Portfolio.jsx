@@ -7,11 +7,12 @@ import { useResumeData } from "../../context/ResumeDataContext";
 import { buildSelectedProfile } from "../../services/Portfolio/profileSelectionUtils";
 import { savePortfolio } from "../../services/Portfolio/portfolioService";
 
+import PortfolioAboutBuilder from "./components/PortfolioAboutBuilder/PortfolioAboutBuilder";
+
 import Certifications from "./components/Certifications/Certifications";
 import Education from "./components/Education/Education";
 import Experience from "./components/Experience/Experience";
 import PortfolioPageHeader from "./components/PortfolioPageHeader/PortfolioPageHeader";
-import ProfessionalSummary from "./components/ProfessionalSummary/ProfessionalSummary";
 import ProfileInformationSelector from "./components/ProfileInformationSelector/ProfileInformationSelector";
 import Skills from "./components/Skills/Skills";
 import PortfolioHeroSettings from "./components/PortfolioHeroSettings/PortfolioHeroSettings";
@@ -31,7 +32,10 @@ function Portfolio() {
   const {
     profileSelections = [],
     heroSettings = {},
-    summary = "",
+    about = {
+      text: "",
+      meta: {},
+    },
     experiences = [],
     education = [],
     skills = [],
@@ -167,6 +171,8 @@ function Portfolio() {
         )}
 
         <PortfolioHeroSettings
+          profile={profile}
+          portfolioDraft={portfolioDraft}
           heroSettings={heroSettings}
           savedResumes={savedResumes}
           onChange={(valueOrUpdater) =>
@@ -175,10 +181,12 @@ function Portfolio() {
         />
 
         {isSectionVisible("summary") && (
-          <ProfessionalSummary
-            summary={summary}
+          <PortfolioAboutBuilder
+            profile={profile}
+            portfolioDraft={portfolioDraft}
+            about={about}
             onChange={(valueOrUpdater) =>
-              updateDraftField("summary", valueOrUpdater)
+              updateDraftField("about", valueOrUpdater)
             }
           />
         )}

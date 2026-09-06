@@ -1,4 +1,99 @@
 /* =========================================
+   Portfolio Style Variants
+   ========================================= */
+
+.portfolio-hero--professional {
+  --hero-style-accent: var(--accent);
+  --hero-style-secondary: #4f46e5;
+}
+
+.portfolio-hero--modern {
+  --hero-style-accent: #06b6d4;
+  --hero-style-secondary: #6366f1;
+}
+
+.portfolio-hero--technical {
+  --hero-style-accent: #22c55e;
+  --hero-style-secondary: #0ea5e9;
+}
+
+.portfolio-hero--academic {
+  --hero-style-accent: #a855f7;
+  --hero-style-secondary: #7c3aed;
+}
+
+.portfolio-hero--professional
+  .portfolio-hero-picture,
+.portfolio-hero--professional
+  .portfolio-hero-button--primary {
+  background: linear-gradient(
+    135deg,
+    var(--hero-style-accent),
+    var(--hero-style-secondary)
+  );
+}
+
+.portfolio-hero--modern
+  .portfolio-hero-picture,
+.portfolio-hero--modern
+  .portfolio-hero-button--primary {
+  background: linear-gradient(
+    135deg,
+    var(--hero-style-accent),
+    var(--hero-style-secondary)
+  );
+}
+
+.portfolio-hero--technical
+  .portfolio-hero-picture,
+.portfolio-hero--technical
+  .portfolio-hero-button--primary {
+  background: linear-gradient(
+    135deg,
+    var(--hero-style-accent),
+    var(--hero-style-secondary)
+  );
+}
+
+.portfolio-hero--technical
+  .portfolio-hero-identity h1 {
+  font-family:
+    "Courier New",
+    Consolas,
+    monospace;
+  letter-spacing: -0.045em;
+}
+
+.portfolio-hero--academic
+  .portfolio-hero-picture,
+.portfolio-hero--academic
+  .portfolio-hero-button--primary {
+  background: linear-gradient(
+    135deg,
+    var(--hero-style-accent),
+    var(--hero-style-secondary)
+  );
+}
+
+.portfolio-hero--academic
+  .portfolio-hero-identity h1 {
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+  font-weight: 700;
+}
+
+.portfolio-hero--modern
+  .portfolio-hero-eyebrow,
+.portfolio-hero--technical
+  .portfolio-hero-eyebrow,
+.portfolio-hero--academic
+  .portfolio-hero-eyebrow {
+  color: var(--hero-style-accent);
+}
+
+/* =========================================
    Portfolio Hero
    ========================================= */
 

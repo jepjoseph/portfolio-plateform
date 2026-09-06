@@ -12,10 +12,18 @@ const INITIAL_PORTFOLIO_DRAFT = {
 
   profileSelections: [],
   heroSettings: {
-    eyebrow: "Professional Portfolio",
+    portfolioStyle: "professional",
+    showEyebrow: true,
 
-    tagline:
-      "Building reliable software, connected systems, and practical technology solutions.",
+    tagline: "",
+
+    taglineMeta: {
+      source: "manual",
+      status: "draft",
+      generatedAt: null,
+      contextFingerprint: "",
+      isStale: false,
+    },
 
     availability: {
       isAvailable: true,
@@ -32,26 +40,22 @@ const INITIAL_PORTFOLIO_DRAFT = {
     featuredResumeId: "",
   },
 
-  heroSettings: {
-    eyebrow: "Professional Portfolio",
+  about: {
+    text: "",
 
-    tagline:
-      "Building reliable software, connected systems, and practical technology solutions.",
-
-    availability: {
-      isAvailable: true,
-      label: "Open to internships and technical opportunities",
+    meta: {
+      source: "manual",
+      status: "empty",
+      generatedAt: null,
+      contextFingerprint: "",
+      isStale: false,
     },
-
-    showLocation: true,
-    showSocialLinks: true,
-    showWebsiteButton: true,
-    showContactButton: true,
-    showProjectsButton: true,
-    showResumeButton: true,
-
-    featuredResumeId: "",
   },
+
+  /*
+   * Temporarily retained for migration from older
+   * browser-saved portfolio drafts.
+   */
 
   summary: "",
 
@@ -59,6 +63,7 @@ const INITIAL_PORTFOLIO_DRAFT = {
   education: [],
   skills: [],
   certifications: [],
+  trainings: [],
   projects: [],
 
   sectionVisibility: {
@@ -93,6 +98,11 @@ function loadStoredDraft() {
         ...INITIAL_PORTFOLIO_DRAFT.heroSettings,
         ...parsedDraft.heroSettings,
 
+        taglineMeta: {
+          ...INITIAL_PORTFOLIO_DRAFT.heroSettings.taglineMeta,
+          ...parsedDraft.heroSettings?.taglineMeta,
+        },
+
         availability: {
           ...INITIAL_PORTFOLIO_DRAFT.heroSettings.availability,
           ...parsedDraft.heroSettings?.availability,
@@ -102,6 +112,18 @@ function loadStoredDraft() {
       sectionVisibility: {
         ...INITIAL_PORTFOLIO_DRAFT.sectionVisibility,
         ...parsedDraft.sectionVisibility,
+      },
+
+      about: {
+        ...INITIAL_PORTFOLIO_DRAFT.about,
+        ...parsedDraft.about,
+
+        text: parsedDraft.about?.text || parsedDraft.summary || "",
+
+        meta: {
+          ...INITIAL_PORTFOLIO_DRAFT.about.meta,
+          ...parsedDraft.about?.meta,
+        },
       },
     };
   } catch (error) {

@@ -23,6 +23,7 @@ function PortfolioNavigation({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const {
+    about = {},
     summary = "",
     experiences = [],
     education = [],
@@ -32,13 +33,16 @@ function PortfolioNavigation({
     sectionVisibility = {},
   } = portfolio;
 
+  const aboutText =
+    typeof about === "string" ? about : about?.text || summary || "";
+
   const isVisible = (sectionName) => sectionVisibility[sectionName] !== false;
 
   const links = [
     {
       id: "about",
       label: "About",
-      visible: isVisible("summary") && Boolean(summary),
+      visible: isVisible("summary") && Boolean(aboutText),
     },
     {
       id: "experience",

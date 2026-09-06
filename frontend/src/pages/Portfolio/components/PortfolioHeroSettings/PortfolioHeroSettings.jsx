@@ -1,10 +1,26 @@
 import { useId } from "react";
 
+import {
+  getPortfolioStyleOption,
+  PORTFOLIO_STYLE_OPTIONS,
+} from "../../../../services/Portfolio/portfolioStyleUtils.js";
+
+import PortfolioTaglineGenerator from "./PortfolioTaglineGenerator/PortfolioTaglineGenerator";
+
 import "./PortfolioHeroSettings.css";
 
 const DEFAULT_HERO_SETTINGS = {
-  eyebrow: "Professional Portfolio",
+  portfolioStyle: "professional",
+  showEyebrow: true,
   tagline: "",
+
+  taglineMeta: {
+    source: "manual",
+    status: "empty",
+    generatedAt: null,
+    contextFingerprint: "",
+    isStale: false,
+  },
 
   availability: {
     isAvailable: false,
@@ -22,6 +38,8 @@ const DEFAULT_HERO_SETTINGS = {
 };
 
 function PortfolioHeroSettings({
+  profile = {},
+  portfolioDraft = {},
   heroSettings = DEFAULT_HERO_SETTINGS,
   savedResumes = [],
   onChange,
@@ -115,6 +133,21 @@ function PortfolioHeroSettings({
     });
   };
 
+  const handleTaglineChange = (event) => {
+    const nextTagline = event.target.value;
+
+    updateSettings({
+      tagline: nextTagline,
+
+      taglineMeta: {
+        source: "manual",
+        status: nextTagline.trim() ? "draft" : "empty",
+        generatedAt: null,
+        contextFingerprint: "",
+        isStale: false,
+      },
+    });
+  };
   return (
     <section
       className="portfolio-hero-settings portfolio-editor-card"
@@ -168,20 +201,36 @@ function PortfolioHeroSettings({
 
         <div className="portfolio-hero-settings-fields">
           <div className="portfolio-hero-settings-field">
-            <label htmlFor="portfolio-hero-eyebrow">Eyebrow</label>
+            <label htmlFor="portfolio-style">Portfolio Style</label>
 
-            <input
-              id="portfolio-hero-eyebrow"
-              name="eyebrow"
-              type="text"
-              value={settings.eyebrow}
+            <select
+              id="portfolio-style"
+              name="portfolioStyle"
+              value={settings.portfolioStyle}
               onChange={handleTextChange}
-              maxLength={60}
-              placeholder="Professional Portfolio"
+            >
+              {PORTFOLIO_STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <small>
+              {getPortfolioStyleOption(settings.portfolioStyle).description}
+            </small>
+          </div>
+
+          <label className="portfolio-hero-settings-switch">
+            <input
+              name="showEyebrow"
+              type="checkbox"
+              checked={settings.showEyebrow}
+              onChange={handleVisibilityChange}
             />
 
-            <small>A short label displayed above your name.</small>
-          </div>
+            <span>Show the portfolio-style label above my name</span>
+          </label>
 
           <div className="portfolio-hero-settings-field portfolio-hero-settings-field--full">
             <div className="portfolio-hero-settings-label-row">
@@ -195,11 +244,23 @@ function PortfolioHeroSettings({
             <textarea
               id="portfolio-hero-tagline"
               name="tagline"
-              value={settings.tagline}
-              onChange={handleTextChange}
+              value={settings.tagline || ""}
+              onChange={handleTaglineChange}
               rows={3}
               maxLength={180}
-              placeholder="Building reliable software, connected systems, and practical technology solutions."
+              placeholder={
+                "Write a short tagline describing what you do and the professional value you provide.\nExample: Creating thoughtful solutions that combine professional expertise, practical skills, and meaningful results."
+              }
+            />
+
+            <PortfolioTaglineGenerator
+              profile={profile}
+              portfolioDraft={portfolioDraft}
+              tagline={settings.tagline}
+              taglineMeta={settings.taglineMeta}
+              onChange={(taglineUpdate) => {
+                updateSettings(taglineUpdate);
+              }}
             />
 
             <small>Recommended length: 8–20 words.</small>

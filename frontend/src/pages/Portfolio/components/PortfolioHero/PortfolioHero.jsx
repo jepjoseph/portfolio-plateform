@@ -1,8 +1,24 @@
+import {
+  getPortfolioStyleOption,
+  normalizePortfolioStyle,
+} from "../../../../services/Portfolio/portfolioStyleUtils.js";
+
 import "./PortfolioHero.css";
 
 const DEFAULT_HERO_SETTINGS = {
-  eyebrow: "Professional Portfolio",
+  portfolioStyle: "professional",
+  showEyebrow: true,
+
   tagline: "",
+
+  taglineMeta: {
+    source: "manual",
+    status: "empty",
+    generatedAt: null,
+    contextFingerprint: "",
+    isStale: false,
+  },
+
   availability: {
     isAvailable: false,
     label: "",
@@ -65,6 +81,15 @@ function PortfolioHero({
   headerBackgroundUrl = "",
   selectedProfilePicture = null,
 }) {
+  /*
+   * Read saved settings first.
+   */
+  const savedHeroSettings = portfolio.heroSettings || {};
+
+  /*
+   * Then build the normalized settings.
+   */
+
   const {
     selectedName = "",
     professionalTitles = [],
@@ -74,17 +99,55 @@ function PortfolioHero({
     socialLinks = [],
   } = selectedProfile;
 
-  const savedHeroSettings = portfolio.heroSettings || {};
-
   const heroSettings = {
-    ...DEFAULT_HERO_SETTINGS,
-    ...savedHeroSettings,
+    portfolioStyle: "professional",
+    showEyebrow: true,
+    tagline: "",
+
+    taglineMeta: {
+      source: "manual",
+      status: "empty",
+      generatedAt: null,
+      contextFingerprint: "",
+      isStale: false,
+      ...(savedHeroSettings.taglineMeta || {}),
+    },
 
     availability: {
-      ...DEFAULT_HERO_SETTINGS.availability,
-      ...savedHeroSettings.availability,
+      isAvailable: false,
+      label: "",
+      ...(savedHeroSettings.availability || {}),
     },
+
+    showLocation: true,
+    showSocialLinks: true,
+    showWebsiteButton: true,
+    showContactButton: true,
+    showProjectsButton: true,
+    showResumeButton: true,
+    featuredResumeId: "",
+
+    ...savedHeroSettings,
   };
+
+  heroSettings.taglineMeta = {
+    source: "manual",
+    status: "empty",
+    generatedAt: null,
+    contextFingerprint: "",
+    isStale: false,
+    ...(savedHeroSettings.taglineMeta || {}),
+  };
+
+  heroSettings.availability = {
+    isAvailable: false,
+    label: "",
+    ...(savedHeroSettings.availability || {}),
+  };
+
+  const portfolioStyle = normalizePortfolioStyle(heroSettings.portfolioStyle);
+
+  const styleOption = getPortfolioStyleOption(portfolioStyle);
 
   const primaryTitle = professionalTitles[0];
   const primaryLocation = locations[0];
@@ -113,7 +176,7 @@ function PortfolioHero({
   return (
     <section
       id="home"
-      className={`portfolio-hero ${
+      className={`portfolio-hero portfolio-hero--${portfolioStyle} ${
         headerBackgroundUrl ? "portfolio-hero--has-background" : ""
       }`}
       aria-labelledby="portfolio-hero-name"
@@ -147,7 +210,9 @@ function PortfolioHero({
         </div>
 
         <div className="portfolio-hero-identity">
-          <span className="portfolio-hero-eyebrow">{heroSettings.eyebrow}</span>
+          {heroSettings.showEyebrow && (
+            <span className="portfolio-hero-eyebrow">{styleOption.label}</span>
+          )}
 
           <h1 id="portfolio-hero-name">{selectedName || "Portfolio Owner"}</h1>
 

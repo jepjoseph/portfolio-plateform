@@ -57,6 +57,7 @@ function PortfolioView({ portfolio, mode = "public" }) {
 
   const {
     selectedProfile = {},
+    about = {},
     summary = "",
     experiences = [],
     education = [],
@@ -66,6 +67,9 @@ function PortfolioView({ portfolio, mode = "public" }) {
     featuredResume = null,
     sectionVisibility = {},
   } = portfolio;
+
+  const aboutText =
+    typeof about === "string" ? about : about?.text || summary || "";
 
   const {
     selectedName = "",
@@ -137,7 +141,7 @@ function PortfolioView({ portfolio, mode = "public" }) {
       />
 
       <main className="portfolio-view-main">
-        {isSectionVisible("summary") && summary && (
+        {isSectionVisible("summary") && aboutText && (
           <section id="about" className="portfolio-view-section">
             <header className="portfolio-view-section-header">
               <span>Professional Story</span>
@@ -145,7 +149,7 @@ function PortfolioView({ portfolio, mode = "public" }) {
               <h2>About</h2>
             </header>
 
-            <p className="portfolio-view-summary">{summary}</p>
+            <p className="portfolio-view-summary">{aboutText}</p>
           </section>
         )}
 
