@@ -1,0 +1,477 @@
+/* =========================================
+   Achievement Editor
+   ========================================= */
+
+.achievement-editor {
+  width: 100%;
+}
+
+/* =========================================
+   Writing Guidance
+   ========================================= */
+
+.achievement-editor-guidance {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 15px;
+}
+
+.achievement-editor-guidance article {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.achievement-editor-guidance article > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.achievement-editor-guidance strong {
+  color: var(--text-primary);
+  font-size: 0.65rem;
+}
+
+.achievement-editor-guidance p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.59rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Editor Form
+   ========================================= */
+
+.achievement-editor-form {
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.achievement-editor-field + .achievement-editor-field {
+  margin-top: 13px;
+}
+
+.achievement-editor-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.achievement-editor-label-row label {
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.achievement-editor-label-row label small {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 500;
+}
+
+.achievement-editor-label-row > span {
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+
+.achievement-editor-field textarea,
+.achievement-editor-field input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.achievement-editor-field textarea {
+  min-height: 108px;
+  padding: 11px 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.achievement-editor-field input {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.achievement-editor-field textarea:hover:not(:disabled),
+.achievement-editor-field input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(0, 0, 0, 0.23);
+}
+
+.achievement-editor-field textarea:focus,
+.achievement-editor-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.11);
+}
+
+.achievement-editor-field textarea:disabled,
+.achievement-editor-field input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.achievement-editor-field textarea::placeholder,
+.achievement-editor-field input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.achievement-editor-field textarea::placeholder {
+  white-space: pre-line;
+}
+
+.achievement-editor-help {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+.achievement-editor-error {
+  margin: 9px 0 0;
+  color: #f87171;
+  font-size: 0.65rem;
+}
+
+/* =========================================
+   Form Footer
+   ========================================= */
+
+.achievement-editor-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 13px;
+}
+
+.achievement-editor-form-footer > small {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+}
+
+.achievement-editor-form-footer > div {
+  display: flex;
+  gap: 8px;
+}
+
+.achievement-editor-form-footer button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.achievement-editor-form-footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.achievement-editor-cancel-button {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+}
+
+.achievement-editor-add-button {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+}
+
+/* =========================================
+   Achievement List
+   ========================================= */
+
+.achievement-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.achievement-editor-item {
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+  align-items: center;
+  gap: 13px;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.022);
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.achievement-editor-item:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.achievement-editor-item--editing {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.achievement-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* =========================================
+   Order Controls
+   ========================================= */
+
+.achievement-editor-order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.achievement-editor-order > span {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  font-size: 0.59rem;
+  font-weight: 800;
+}
+
+.achievement-editor-order > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.achievement-editor-order button {
+  width: 22px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.achievement-editor-order button:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Item Content
+   ========================================= */
+
+.achievement-editor-content {
+  min-width: 0;
+}
+
+.achievement-editor-content > span {
+  display: block;
+  color: #fbbf24;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.achievement-editor-content > p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.achievement-editor-metric {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(34, 197, 94, 0.08);
+  color: #86efac;
+  font-size: 0.63rem;
+}
+
+.achievement-editor-content > small {
+  display: block;
+  margin-top: 5px;
+  color: #f87171;
+  font-size: 0.62rem;
+}
+
+/* =========================================
+   Item Actions
+   ========================================= */
+
+.achievement-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.achievement-editor-actions button {
+  min-height: 31px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.achievement-editor-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.achievement-editor-edit-button {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+}
+
+.achievement-editor-delete-button {
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.achievement-editor-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 30px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.achievement-editor-empty > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+}
+
+.achievement-editor-empty h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.77rem;
+}
+
+.achievement-editor-empty p {
+  max-width: 470px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 850px) {
+  .achievement-editor-guidance {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .achievement-editor-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .achievement-editor-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    padding-left: 61px;
+  }
+}
+
+@media (max-width: 560px) {
+  .achievement-editor-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .achievement-editor-form-footer > div {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .achievement-editor-form-footer button {
+    width: 100%;
+  }
+
+  .achievement-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .achievement-editor-order {
+    justify-content: space-between;
+  }
+
+  .achievement-editor-order > div {
+    flex-direction: row;
+  }
+
+  .achievement-editor-actions {
+    grid-column: auto;
+    padding-left: 0;
+  }
+
+  .achievement-editor-actions button {
+    flex: 1;
+  }
+}

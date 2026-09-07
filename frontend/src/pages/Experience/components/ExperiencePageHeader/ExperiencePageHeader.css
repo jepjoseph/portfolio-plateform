@@ -1,0 +1,205 @@
+/* =========================================
+   Experience Page Header
+   ========================================= */
+
+.experience-page-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 30px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(99, 102, 241, 0.16),
+      transparent 38%
+    ),
+    var(--bg-card);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+}
+
+.experience-page-header::after {
+  position: absolute;
+  top: -100px;
+  right: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.08);
+  filter: blur(55px);
+  content: "";
+  pointer-events: none;
+}
+
+/* =========================================
+   Header Content
+   ========================================= */
+
+.experience-page-header-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.experience-page-header-content > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--accent-hover);
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.experience-page-header-content h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.experience-page-header-content > p {
+  max-width: 780px;
+  margin: 11px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+/* =========================================
+   Header Metadata
+   ========================================= */
+
+.experience-page-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 17px;
+}
+
+.experience-page-header-meta > span {
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.028);
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.experience-page-header-meta strong {
+  color: var(--text-primary);
+}
+
+/* =========================================
+   Header Actions
+   ========================================= */
+
+.experience-page-header-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-shrink: 0;
+  gap: 9px;
+}
+
+.experience-page-header-actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition),
+    box-shadow var(--transition);
+}
+
+.experience-page-header-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.experience-page-header-actions button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.experience-page-header-archive-button {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+}
+
+.experience-page-header-archive-button:hover,
+.experience-page-header-archive-button--active {
+  border-color: rgba(99, 102, 241, 0.38);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.experience-page-header-add-button {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  box-shadow: 0 9px 22px rgba(99, 102, 241, 0.2);
+}
+
+.experience-page-header-add-button:hover {
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.28);
+}
+
+.experience-page-header-add-button > span {
+  font-size: 1rem;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 820px) {
+  .experience-page-header {
+    flex-direction: column;
+    padding: 25px;
+  }
+
+  .experience-page-header-actions {
+    width: 100%;
+  }
+
+  .experience-page-header-actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .experience-page-header {
+    padding: 20px;
+  }
+
+  .experience-page-header-actions {
+    flex-direction: column-reverse;
+  }
+
+  .experience-page-header-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-page-header-actions button {
+    transition: none;
+  }
+}

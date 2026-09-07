@@ -1,0 +1,583 @@
+/* =========================================
+   Experience Form
+   ========================================= */
+
+.experience-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 20px;
+  /*
+   * Start the automatic section counter.
+   */
+
+  counter-reset: experience-form-section;
+}
+
+/* =========================================
+   Form Section
+   ========================================= */
+
+/* =========================================
+   Form Section
+   ========================================= */
+
+.experience-form-section {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  /*
+   * Every section increases the counter.
+   */
+
+  counter-increment: experience-form-section;
+}
+
+/* =========================================
+   Form Section Header
+   ========================================= */
+
+.experience-form-section-header {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.experience-form-section-header > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+.experience-form-section-header > span::before {
+  content: counter(experience-form-section, decimal-leading-zero);
+}
+
+.experience-form-section-header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.experience-form-section-header small {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.experience-form-section-header h3 {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.experience-form-section-header p {
+  max-width: 700px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Form Grid
+   ========================================= */
+
+.experience-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.experience-form-field--wide {
+  grid-column: span 2;
+}
+
+.experience-form-field--full {
+  grid-column: 1 / -1;
+}
+
+/* =========================================
+   Form Field
+   ========================================= */
+
+.experience-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.experience-form-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.experience-form-label-row label {
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.experience-form-label-row label > span {
+  margin-left: 3px;
+  color: #f87171;
+}
+
+.experience-form-label-row > small {
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+
+/* =========================================
+   Inputs
+   ========================================= */
+
+.experience-form-field input,
+.experience-form-field select,
+.experience-form-field textarea {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.experience-form-field input,
+.experience-form-field select {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.experience-form-field select {
+  cursor: pointer;
+  color-scheme: dark;
+}
+
+.experience-form-field select option {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.experience-form-field textarea {
+  min-height: 100px;
+  padding: 11px 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.experience-form-field input:hover:not(:disabled),
+.experience-form-field select:hover:not(:disabled),
+.experience-form-field textarea:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(0, 0, 0, 0.23);
+}
+
+.experience-form-field input:focus,
+.experience-form-field select:focus,
+.experience-form-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.11);
+}
+
+.experience-form-field input:disabled,
+.experience-form-field select:disabled,
+.experience-form-field textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.experience-form-field input::placeholder,
+.experience-form-field textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.experience-form-field textarea::placeholder {
+  white-space: pre-line;
+}
+
+/* =========================================
+   Field Errors
+   ========================================= */
+
+.experience-form-field--error input,
+.experience-form-field--error select,
+.experience-form-field--error textarea {
+  border-color: rgba(239, 68, 68, 0.58);
+}
+
+.experience-form-field-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.experience-form-help {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Checkbox Field
+   ========================================= */
+
+.experience-form-checkbox-field {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.experience-form-checkbox-field--full {
+  width: 100%;
+}
+
+.experience-form-checkbox-field > label {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.022);
+  cursor: pointer;
+}
+
+.experience-form-checkbox-field input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.experience-form-checkbox-field label > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.experience-form-checkbox-field strong {
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.experience-form-checkbox-field small {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Leadership
+   ========================================= */
+
+.experience-form-leadership-fields {
+  margin-top: 15px;
+}
+
+/* =========================================
+   Child Editor Notice
+   ========================================= */
+
+.experience-form-child-editor-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.experience-form-child-editor-notice > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.experience-form-child-editor-notice strong {
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.experience-form-child-editor-notice p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Private Information
+   ========================================= */
+
+.experience-form-private-notice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 15px;
+  padding: 11px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.06);
+  color: #fbbf24;
+}
+
+.experience-form-private-notice > span {
+  flex-shrink: 0;
+  font-size: 0.55rem;
+}
+
+.experience-form-private-notice p {
+  margin: 0;
+  font-size: 0.64rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Visibility
+   ========================================= */
+
+.experience-form-visibility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.experience-form-visibility-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.022);
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.experience-form-visibility-option:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.038);
+}
+
+.experience-form-visibility-option input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.experience-form-visibility-option > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.experience-form-visibility-option strong {
+  color: var(--text-primary);
+  font-size: 0.68rem;
+}
+
+.experience-form-visibility-option small {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Warnings
+   ========================================= */
+
+.experience-form-warnings {
+  padding: 14px 16px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.06);
+  color: #fcd34d;
+}
+
+.experience-form-warnings > strong {
+  font-size: 0.72rem;
+}
+
+.experience-form-warnings ul {
+  margin: 8px 0 0;
+  padding-left: 19px;
+}
+
+.experience-form-warnings li {
+  margin-top: 4px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Submission Error
+   ========================================= */
+
+.experience-form-submission-error {
+  padding: 14px 16px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.07);
+  color: #fca5a5;
+}
+
+.experience-form-submission-error strong {
+  font-size: 0.72rem;
+}
+
+.experience-form-submission-error p {
+  margin: 4px 0 0;
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Form Actions
+   ========================================= */
+
+.experience-form-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(11, 15, 25, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.experience-form-actions button {
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.experience-form-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.experience-form-cancel-button {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+}
+
+.experience-form-save-button {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 950px) {
+  .experience-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .experience-form-field--wide {
+    grid-column: span 1;
+  }
+
+  .experience-form-field--full {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 650px) {
+  .experience-form-section {
+    padding: 16px;
+  }
+
+  .experience-form-grid,
+  .experience-form-visibility-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-form-field--wide,
+  .experience-form-field--full {
+    grid-column: auto;
+  }
+
+  .experience-form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .experience-form-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-form input,
+  .experience-form select,
+  .experience-form textarea,
+  .experience-form button,
+  .experience-form-visibility-option {
+    transition: none;
+  }
+}

@@ -7,6 +7,8 @@ import App from "./App";
 import { ProfileDataProvider } from "./context/ProfileDataContext";
 import { PortfolioDraftProvider } from "./context/PortfolioDraftContext";
 import { ResumeDataProvider } from "./context/ResumeDataContext";
+import { ExperienceDataProvider } from "./context/ExperienceDataContext.jsx";
+import { SkillDataProvider } from "./context/SkillDataContext.jsx";
 
 import "./styles/global.css";
 
@@ -14,11 +16,15 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
       <ProfileDataProvider>
-        <PortfolioDraftProvider>
-          <ResumeDataProvider>
-            <App />
-          </ResumeDataProvider>
-        </PortfolioDraftProvider>
+        <SkillDataProvider>
+          <PortfolioDraftProvider>
+            <ResumeDataProvider>
+              <ExperienceDataProvider>
+                <App />
+              </ExperienceDataProvider>
+            </ResumeDataProvider>
+          </PortfolioDraftProvider>
+        </SkillDataProvider>
       </ProfileDataProvider>
     </BrowserRouter>
   </StrictMode>,
