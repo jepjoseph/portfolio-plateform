@@ -18,6 +18,7 @@ import { validateExperience } from "../../../../services/Experience/experienceVa
 import ResponsibilityEditor from "../ResponsibilityEditor/ResponsibilityEditor.jsx";
 import AchievementEditor from "../AchievementEditor/AchievementEditor.jsx";
 import ExperienceSkillsEditor from "../ExperienceSkillsEditor/ExperienceSkillsEditor.jsx";
+import ExperienceOverviewBuilder from "../ExperienceOverviewBuilder/ExperienceOverviewBuilder.jsx";
 
 import "./ExperienceForm.css";
 
@@ -264,6 +265,17 @@ function ExperienceForm({
    */
 
   const getFieldId = (fieldName) => `${formId}-${fieldName}`;
+
+  const handleOverviewUpdate = ({ overview, overviewMeta }) => {
+    setFormData((currentData) => ({
+      ...currentData,
+      overview,
+      overviewMeta,
+    }));
+
+    clearFieldError("overview");
+    setSubmissionError("");
+  };
 
   return (
     <form className="experience-form" onSubmit={handleSubmit} noValidate>
@@ -600,45 +612,16 @@ function ExperienceForm({
           Experience Overview
           ===================================== */}
 
-      <section
-        className="experience-form-section"
-        aria-labelledby={`${formId}-timeline-section-title`}
-      >
-        <header className="experience-form-section-header">
-          <span aria-hidden="true" />
+      <ExperienceOverviewBuilder
+        experience={formData}
+        fieldError={fieldErrors.overview}
+        disabled={isSaving}
+        onChange={handleOverviewUpdate}
+      />
 
-          <div>
-            <small>Overview</small>
-
-            <h3 id={`${formId}-overview-section-title`}>Experience Overview</h3>
-
-            <p>
-              Explain the purpose, scope, and professional focus of the role.
-            </p>
-          </div>
-        </header>
-
-        <FormField
-          id={getFieldId("overview")}
-          label="Professional Overview"
-          error={fieldErrors.overview}
-          help="Use responsibilities and achievements for detailed bullet points."
-          count={`${formData.overview.length}/${EXPERIENCE_FIELD_LIMITS.overview}`}
-        >
-          <textarea
-            id={getFieldId("overview")}
-            value={formData.overview}
-            onChange={(event) =>
-              updateTopLevelField("overview", event.target.value)
-            }
-            rows={6}
-            maxLength={EXPERIENCE_FIELD_LIMITS.overview}
-            placeholder={`Describe the role's purpose, scope, responsibilities, and professional value.
-
-Example: Supported business-critical information systems and maintained reliable technology services for employees across the organization.`}
-          />
-        </FormField>
-      </section>
+      {/* =====================================
+          Responsibility
+          ===================================== */}
 
       <ResponsibilityEditor
         responsibilities={formData.responsibilities}
@@ -649,6 +632,10 @@ Example: Supported business-critical information systems and maintained reliable
         }
       />
 
+      {/* =====================================
+          Achievements and Results
+          ===================================== */}
+
       <AchievementEditor
         achievements={formData.achievements}
         fieldErrors={fieldErrors}
@@ -658,7 +645,12 @@ Example: Supported business-critical information systems and maintained reliable
         }
       />
 
+      {/* =====================================
+          Skills and Competencies
+          ===================================== */}
+
       <ExperienceSkillsEditor
+        experience={formData}
         experienceSkills={formData.skills}
         fieldErrors={fieldErrors}
         disabled={isSaving}

@@ -373,6 +373,14 @@ export function createEmptyExperience() {
 
     overview: "",
 
+    overviewMeta: {
+      source: "manual",
+      status: "empty",
+      generatedAt: null,
+      contextFingerprint: "",
+      isStale: false,
+    },
+
     responsibilities: [],
 
     achievements: [],
@@ -484,6 +492,11 @@ export function normalizeExperience(value = {}) {
 
   const isCurrent = normalizeBoolean(dates.isCurrent, false);
 
+  const overviewMeta =
+    source.overviewMeta && typeof source.overviewMeta === "object"
+      ? source.overviewMeta
+      : {};
+
   return {
     modelVersion: EXPERIENCE_MODEL_VERSION,
 
@@ -552,6 +565,20 @@ export function normalizeExperience(value = {}) {
       source.overview || source.description,
       EXPERIENCE_FIELD_LIMITS.overview,
     ),
+
+    overviewMeta: {
+      source: overviewMeta.source === "ai" ? "ai" : "manual",
+
+      status:
+        normalizeText(overviewMeta.status, 50) ||
+        (source.overview ? "draft" : "empty"),
+
+      generatedAt: normalizeText(overviewMeta.generatedAt, 100),
+
+      contextFingerprint: normalizeText(overviewMeta.contextFingerprint, 300),
+
+      isStale: overviewMeta.isStale === true,
+    },
 
     responsibilities: normalizeResponsibilities(source.responsibilities),
 
@@ -693,6 +720,11 @@ export function updateExperienceModel(currentExperience, updates = {}) {
     dates: {
       ...currentExperience?.dates,
       ...updates.dates,
+    },
+
+    overviewMeta: {
+      ...currentExperience?.overviewMeta,
+      ...updates?.overviewMeta,
     },
 
     leadership: {

@@ -16,6 +16,8 @@ import { normalizeSkillNameForComparison } from "../../../../models/skillModel.j
 
 import { useSkillData } from "../../../../context/SkillDataContext.jsx";
 
+import ExperienceSkillSuggestions from "./ExperienceSkillSuggestions/ExperienceSkillSuggestions.jsx";
+
 import "./ExperienceSkillsEditor.css";
 
 /*
@@ -38,6 +40,7 @@ function normalizeSkillOrder(skills) {
  */
 
 function ExperienceSkillsEditor({
+  experience = {},
   experienceSkills = [],
   fieldErrors = {},
   disabled = false,
@@ -514,6 +517,18 @@ function ExperienceSkillsEditor({
           {editorMessage}
         </div>
       )}
+
+        {/* =====================================
+          AI Skill Suggestions
+          ===================================== */}
+
+      <ExperienceSkillSuggestions
+        experience={experience}
+        experienceSkills={experienceSkills}
+        maximumExperienceSkills={maximumSkills}
+        disabled={disabled}
+        onChange={onChange}
+      />
 
       {/* =====================================
           Selected Experience Skills

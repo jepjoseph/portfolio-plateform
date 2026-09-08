@@ -39,4 +39,8 @@ export const API_ENDPOINTS = {
   health: buildApiUrl("/api/health"),
 
   generateResumeSummary: buildApiUrl("/api/ai/resume-summary"),
+
+  generateExperienceSkills: buildApiUrl("/api/ai/experience-skills"),
+
+  generateExperienceOverview: buildApiUrl("/api/ai/experience-overview"),
 };

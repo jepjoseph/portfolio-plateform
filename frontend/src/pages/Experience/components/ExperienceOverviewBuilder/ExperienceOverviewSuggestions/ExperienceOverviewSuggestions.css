@@ -1,0 +1,101 @@
+.experience-overview-suggestions {
+  margin-top: 16px;
+}
+
+.experience-overview-suggestions > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.experience-overview-suggestions > header span {
+  color: var(--accent-hover);
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.experience-overview-suggestions > header h4 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.experience-overview-suggestions > header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+}
+
+.experience-overview-suggestions > header > button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.experience-overview-suggestions-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.experience-overview-suggestions-list > article {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.experience-overview-suggestions-list > article > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.experience-overview-suggestions-list > article > header span {
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+.experience-overview-suggestions-list h5 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.experience-overview-suggestions-list > article > p {
+  flex: 1;
+  margin: 12px 0 15px;
+  color: var(--text-secondary);
+  font-size: 0.67rem;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.experience-overview-suggestions-list > article > button {
+  min-height: 35px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.64rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 950px) {
+  .experience-overview-suggestions-list {
+    grid-template-columns: 1fr;
+  }
+}
