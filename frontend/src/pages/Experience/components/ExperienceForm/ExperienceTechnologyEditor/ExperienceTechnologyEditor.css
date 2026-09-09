@@ -1,0 +1,485 @@
+/* =========================================
+   Technology Editor
+   ========================================= */
+
+.experience-technology-editor {
+  min-width: 0;
+}
+
+.experience-technology-editor-workspace {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.92fr)
+    minmax(0, 1.08fr);
+  gap: 16px;
+}
+
+/* =========================================
+   Shared Panels
+   ========================================= */
+
+.experience-technology-editor-panel,
+.experience-technology-editor-selected {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.experience-technology-editor-panel > header,
+.experience-technology-editor-selected > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.experience-technology-editor-panel > header span,
+.experience-technology-editor-selected > header div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.experience-technology-editor-panel > header h4,
+.experience-technology-editor-selected > header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.experience-technology-editor-panel > header button {
+  min-height: 32px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.66rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* =========================================
+   Fields
+   ========================================= */
+
+.experience-technology-editor-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.experience-technology-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.experience-technology-editor-field--full {
+  grid-column: 1 / -1;
+}
+
+.experience-technology-editor-field label {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.experience-technology-editor-field input,
+.experience-technology-editor-field select,
+.experience-technology-editor-field textarea {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.experience-technology-editor-field input,
+.experience-technology-editor-field select {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.experience-technology-editor-field select {
+  padding-right: 36px;
+  color-scheme: dark;
+}
+
+.experience-technology-editor-field select option {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.experience-technology-editor-field textarea {
+  min-height: 90px;
+  padding: 11px 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.experience-technology-editor-field input:hover:not(:disabled),
+.experience-technology-editor-field select:hover:not(:disabled),
+.experience-technology-editor-field textarea:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.experience-technology-editor-field input:focus,
+.experience-technology-editor-field select:focus,
+.experience-technology-editor-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.experience-technology-editor-field input:disabled,
+.experience-technology-editor-field select:disabled,
+.experience-technology-editor-field textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.experience-technology-editor-field small {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Editor Error
+   ========================================= */
+
+.experience-technology-editor-error,
+.experience-technology-editor-field-error {
+  margin: 12px 0 0;
+  color: #fca5a5;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.experience-technology-editor-field-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* =========================================
+   Form Actions
+   ========================================= */
+
+.experience-technology-editor-panel > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.experience-technology-editor-panel > footer button {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.experience-technology-editor-panel
+  > footer
+  .experience-technology-editor-save {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  box-shadow: 0 7px 18px rgba(99, 102, 241, 0.16);
+}
+
+.experience-technology-editor-panel > footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Selection Count
+   ========================================= */
+
+.experience-technology-editor-selected > header > span {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+/* =========================================
+   Technology List
+   ========================================= */
+
+.experience-technology-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.experience-technology-editor-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    transform var(--transition);
+}
+
+.experience-technology-editor-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.042);
+}
+
+.experience-technology-editor-item-number {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.63rem;
+  font-weight: 800;
+}
+
+.experience-technology-editor-item-content {
+  min-width: 0;
+}
+
+.experience-technology-editor-item-content > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.experience-technology-editor-item-content > div span {
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.experience-technology-editor-item-content h5 {
+  margin: 7px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.79rem;
+}
+
+.experience-technology-editor-item-content p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.experience-technology-editor-item-content > small {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+}
+
+/* =========================================
+   Item Actions
+   ========================================= */
+
+.experience-technology-editor-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 150px;
+}
+
+.experience-technology-editor-item-actions button {
+  min-height: 29px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.61rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.experience-technology-editor-item-actions button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.experience-technology-editor-item-actions
+  .experience-technology-editor-remove {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.04);
+  color: #f87171;
+}
+
+.experience-technology-editor-item-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.experience-technology-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.012);
+  text-align: center;
+}
+
+.experience-technology-editor-empty > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-weight: 800;
+}
+
+.experience-technology-editor-empty h5 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.experience-technology-editor-empty p {
+  max-width: 330px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 1050px) {
+  .experience-technology-editor-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .experience-technology-editor-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-technology-editor-field--full {
+    grid-column: auto;
+  }
+
+  .experience-technology-editor-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .experience-technology-editor-item-actions {
+    grid-column: 1 / -1;
+    max-width: none;
+    padding-left: 44px;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .experience-technology-editor-panel,
+  .experience-technology-editor-selected {
+    padding: 14px;
+  }
+
+  .experience-technology-editor-panel > header {
+    flex-direction: column;
+  }
+
+  .experience-technology-editor-panel > footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .experience-technology-editor-panel > footer button {
+    width: 100%;
+  }
+
+  .experience-technology-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-technology-editor-item-number {
+    width: 30px;
+    height: 30px;
+  }
+
+  .experience-technology-editor-item-actions {
+    grid-column: auto;
+    padding-left: 0;
+  }
+}
+
+/* =========================================
+   Reduced Motion
+   ========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-technology-editor-item,
+  .experience-technology-editor-field input,
+  .experience-technology-editor-field select,
+  .experience-technology-editor-field textarea {
+    transition: none;
+  }
+}

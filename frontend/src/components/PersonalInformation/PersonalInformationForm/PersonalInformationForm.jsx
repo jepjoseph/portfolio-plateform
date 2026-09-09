@@ -211,7 +211,12 @@ function cleanProfilePictures(profilePictures) {
     }));
 }
 
-function PersonalInformationForm({ profile, onSave, onCancel }) {
+function PersonalInformationForm({
+  profile,
+  isSaving = false,
+  onSave,
+  onCancel,
+}) {
   const [formData, setFormData] = useState(() => getInitialFormData(profile));
 
   useEffect(() => {
@@ -573,12 +578,17 @@ function PersonalInformationForm({ profile, onSave, onCancel }) {
           type="button"
           className="personal-information-cancel-button"
           onClick={onCancel}
+          disabled={isSaving}
         >
           Cancel
         </button>
 
-        <button type="submit" className="personal-information-save-button">
-          Save Profile
+        <button
+          type="submit"
+          className="personal-information-save-button"
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving Profile..." : "Save Profile"}
         </button>
       </div>
     </form>

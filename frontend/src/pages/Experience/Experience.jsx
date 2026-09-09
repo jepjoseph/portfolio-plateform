@@ -12,6 +12,7 @@ import {
 import ExperienceDashboard from "./components/ExperienceDashboard/ExperienceDashboard.jsx";
 import ExperiencePageHeader from "./components/ExperiencePageHeader/ExperiencePageHeader.jsx";
 import ExperienceForm from "./components/ExperienceForm/ExperienceForm.jsx";
+import ExperienceList from "./components/ExperienceList/ExperienceList.jsx";
 
 import "./Experience.css";
 
@@ -28,6 +29,9 @@ function Experience() {
     refreshExperiences,
     createExperience,
     updateExperience,
+    archiveExperience,
+    restoreExperience,
+    deleteExperience,
     clearError,
     resetSaveStatus,
   } = useExperienceData();
@@ -102,6 +106,77 @@ function Experience() {
 
     setEditingExperienceId(null);
     setIsFormOpen(false);
+  };
+
+  /*
+   * =========================================
+   * Library Actions
+   * =========================================
+   */
+
+  const handleEditExperience = (experience) => {
+    setEditingExperienceId(experience.id);
+    setIsFormOpen(true);
+
+    clearError();
+    resetSaveStatus();
+
+    window.requestAnimationFrame(() => {
+      document.querySelector(".experience-page-form")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const handleArchiveExperience = async (experience) => {
+    try {
+      await archiveExperience(experience.id);
+
+      if (editingExperienceId === experience.id) {
+        handleCloseForm();
+      }
+    } catch {
+      /*
+       * ExperienceDataContext displays the error.
+       */
+    }
+  };
+
+  const handleRestoreExperience = async (experience) => {
+    try {
+      await restoreExperience(experience.id);
+    } catch {
+      /*
+       * ExperienceDataContext displays the error.
+       */
+    }
+  };
+
+  const handleDeleteExperience = async (experience) => {
+    const positionTitle = getExperiencePositionTitle(experience);
+
+    const organizationName = getExperienceOrganizationName(experience);
+
+    const shouldDelete = window.confirm(
+      `Permanently delete "${positionTitle}" at "${organizationName}"?\n\nThis action cannot be undone.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    try {
+      await deleteExperience(experience.id);
+
+      if (editingExperienceId === experience.id) {
+        handleCloseForm();
+      }
+    } catch {
+      /*
+       * ExperienceDataContext displays the error.
+       */
+    }
   };
 
   /*
@@ -333,28 +408,18 @@ function Experience() {
             </div>
           )}
 
-        {!isLoading && displayedExperiences.length > 0 && (
-          <div className="experience-page-temporary-list">
-            {displayedExperiences.map((experience) => (
-              <article key={experience.id}>
-                <div>
-                  <span>
-                    {experience.dates?.isCurrent
-                      ? "Current Position"
-                      : "Previous Position"}
-                  </span>
-
-                  <h3>{getExperiencePositionTitle(experience)}</h3>
-
-                  <p>{getExperienceOrganizationName(experience)}</p>
-                </div>
-
-                {operation.experienceId === experience.id &&
-                  operation.status === "loading" && <small>Updating...</small>}
-              </article>
-            ))}
-          </div>
-        )}
+        {!isLoading &&
+          loadStatus !== "error" &&
+          displayedExperiences.length > 0 && (
+            <ExperienceList
+              experiences={displayedExperiences}
+              operation={operation}
+              onEdit={handleEditExperience}
+              onArchive={handleArchiveExperience}
+              onRestore={handleRestoreExperience}
+              onDelete={handleDeleteExperience}
+            />
+          )}
       </section>
     </main>
   );

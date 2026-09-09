@@ -1,0 +1,693 @@
+/* =========================================
+   Profile Picture Editor
+   ========================================= */
+
+.profile-picture-editor {
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.profile-picture-editor:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.025);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.profile-picture-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-picture-editor-header > div {
+  min-width: 0;
+}
+
+.profile-picture-editor-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-picture-editor-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-picture-editor-header p {
+  max-width: 610px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Add Button
+   ========================================= */
+
+.profile-picture-editor-add-button {
+  min-height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-picture-editor-add-button:hover:not(:disabled) {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.profile-picture-editor-add-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Summary
+   ========================================= */
+
+.profile-picture-editor-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.profile-picture-editor-summary span,
+.profile-picture-editor-summary small {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+.profile-picture-editor-summary span strong {
+  color: var(--accent-hover);
+}
+
+/* =========================================
+   List and Item
+   ========================================= */
+
+.profile-picture-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin-top: 12px;
+}
+
+.profile-picture-editor-item {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.profile-picture-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* =========================================
+   Item Header
+   ========================================= */
+
+.profile-picture-editor-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.profile-picture-editor-item-header > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.profile-picture-editor-item-header > div > span {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-picture-editor-item-header > div > small {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.profile-picture-editor-remove-button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: 7px;
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.61rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-picture-editor-remove-button:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.profile-picture-editor-remove-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Picture Content
+   ========================================= */
+
+.profile-picture-editor-content {
+  display: grid;
+  grid-template-columns: minmax(180px, 250px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+/* =========================================
+   Default Avatar
+   ========================================= */
+
+.profile-picture-editor-default-avatar {
+  min-height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at top, rgba(139, 92, 246, 0.24), transparent 58%),
+    linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(126, 34, 206, 0.14));
+  text-align: center;
+}
+
+.profile-picture-editor-default-avatar strong {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #7e22ce);
+  color: #ffffff;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.25);
+}
+
+.profile-picture-editor-default-avatar small {
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+/* =========================================
+   Default Avatar Button
+   ========================================= */
+
+.profile-picture-editor-default-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-picture-editor-default-button:hover:not(:disabled) {
+  border-color: rgba(99, 102, 241, 0.42);
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.profile-picture-editor-default-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Default Avatar Status
+   ========================================= */
+
+.profile-picture-editor-avatar-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  border: 1px solid rgba(34, 197, 94, 0.23);
+  border-radius: var(--radius-md);
+  background: rgba(34, 197, 94, 0.07);
+}
+
+.profile-picture-editor-avatar-status > div {
+  min-width: 0;
+}
+
+.profile-picture-editor-avatar-status strong {
+  color: #86efac;
+  font-size: 0.64rem;
+}
+
+.profile-picture-editor-avatar-status p {
+  margin: 3px 0 0;
+  color: #86efac;
+  font-size: 0.58rem;
+  line-height: 1.45;
+  opacity: 0.82;
+}
+
+.profile-picture-editor-avatar-status button {
+  min-height: 29px;
+  padding: 0 9px;
+  flex-shrink: 0;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 7px;
+  background: transparent;
+  color: #86efac;
+  font-family: inherit;
+  font-size: 0.59rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-picture-editor-avatar-status button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .profile-picture-editor-avatar-status {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-picture-editor-avatar-status button {
+    width: 100%;
+  }
+}
+
+/* =========================================
+   Preview
+   ========================================= */
+
+.profile-picture-editor-preview {
+  min-height: 190px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.04)),
+    rgba(0, 0, 0, 0.18);
+}
+
+.profile-picture-editor-preview img {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  display: block;
+  object-fit: cover;
+}
+
+.profile-picture-editor-placeholder {
+  min-height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.profile-picture-editor-placeholder > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.profile-picture-editor-placeholder > small {
+  color: var(--text-muted);
+  font-size: 0.63rem;
+}
+
+/* =========================================
+   Fields
+   ========================================= */
+
+.profile-picture-editor-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.profile-picture-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.profile-picture-editor-field > label:first-child {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-picture-editor-field > label:first-child span {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.profile-picture-editor-field input[type="text"] {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.profile-picture-editor-field input[type="text"]::placeholder {
+  color: var(--text-muted);
+}
+
+.profile-picture-editor-field input[type="text"]:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.profile-picture-editor-field input[type="text"]:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.profile-picture-editor-field input[aria-invalid="true"] {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.profile-picture-editor-field > small {
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   File Upload
+   ========================================= */
+
+.profile-picture-editor-upload {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+}
+
+.profile-picture-editor-upload:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.profile-picture-editor-upload > span {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.profile-picture-editor-upload > small {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+}
+
+.profile-picture-editor-upload--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.profile-picture-editor-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.profile-picture-editor-upload:has(
+  + .profile-picture-editor-file-input:focus-visible
+) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* =========================================
+   File Information
+   ========================================= */
+
+.profile-picture-editor-file-information {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.profile-picture-editor-file-information > div {
+  min-width: 0;
+}
+
+.profile-picture-editor-file-information span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.profile-picture-editor-file-information strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-picture-editor-file-information button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: 7px;
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.59rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-picture-editor-file-information button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.profile-picture-editor-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 14px;
+  padding: 27px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.profile-picture-editor-empty > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.profile-picture-editor-empty h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.profile-picture-editor-empty p {
+  max-width: 440px;
+  margin: 6px 0 14px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.profile-picture-editor-empty button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 900px) {
+  .profile-picture-editor-content {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-picture-editor-preview,
+  .profile-picture-editor-preview img,
+  .profile-picture-editor-placeholder {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 700px) {
+  .profile-picture-editor-header,
+  .profile-picture-editor-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-picture-editor-add-button {
+    width: 100%;
+  }
+
+  .profile-picture-editor-file-information {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-picture-editor-file-information button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-picture-editor {
+    padding: 14px;
+  }
+
+  .profile-picture-editor-item-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-picture-editor-remove-button {
+    width: 100%;
+  }
+
+  .profile-picture-editor-preview,
+  .profile-picture-editor-preview img,
+  .profile-picture-editor-placeholder {
+    min-height: 190px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-picture-editor,
+  .profile-picture-editor button,
+  .profile-picture-editor input,
+  .profile-picture-editor-upload {
+    transition: none;
+  }
+}

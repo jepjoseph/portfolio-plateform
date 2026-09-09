@@ -1,67 +1,25 @@
 import {
   getContactIcon,
   getContactTypeLabel,
-} from "../../../../services/PersonalInformation/contactInformationConfig";
+} from "../../../../services/PersonalInformation/contactInformationConfig.js";
+
+import {
+  getProfileContactLink,
+  isExternalProfileLink,
+} from "../../../../services/Profile/profileUtils.js";
 
 import "./ContactInformationItem.css";
 
-function getExternalUrl(value) {
-  if (!value) {
-    return "";
-  }
-
-  if (
-    value.startsWith("http://") ||
-    value.startsWith("https://")
-  ) {
-    return value;
-  }
-
-  return `https://${value}`;
-}
-
-function getLink(category, value) {
-  if (!value) {
-    return "";
-  }
-
-  if (category === "emails") {
-    return `mailto:${value}`;
-  }
-
-  if (category === "phones") {
-    const normalizedPhone = value.replace(/[^\d+]/g, "");
-
-    return `tel:${normalizedPhone}`;
-  }
-
-  if (
-    category === "websites" ||
-    category === "socialLinks"
-  ) {
-    return getExternalUrl(value);
-  }
-
-  return "";
-}
-
-function ContactInformationItem({
-  item,
-  category,
-  index,
-}) {
-  const typeLabel = getContactTypeLabel(
-    category,
-    item.type,
-  );
+function ContactInformationItem({ item, category, index }) {
+  const typeLabel = getContactTypeLabel(category, item.type);
 
   const icon = getContactIcon(category, item.type);
-  const link = getLink(category, item.value);
+
+  const link = getProfileContactLink(category, item.value);
+
   const isPrimary = index === 0;
 
-  const isExternalLink =
-    category === "websites" ||
-    category === "socialLinks";
+  const isExternalLink = isExternalProfileLink(category);
 
   return (
     <article
@@ -69,10 +27,7 @@ function ContactInformationItem({
       data-category={category}
       data-type={item.type}
     >
-      <div
-        className="contact-information-item-icon"
-        aria-hidden="true"
-      >
+      <div className="contact-information-item-icon" aria-hidden="true">
         {icon}
       </div>
 
@@ -87,20 +42,12 @@ function ContactInformationItem({
           <a
             href={link}
             target={isExternalLink ? "_blank" : undefined}
-            rel={
-              isExternalLink
-                ? "noopener noreferrer"
-                : undefined
-            }
+            rel={isExternalLink ? "noopener noreferrer" : undefined}
             aria-label={
-              isExternalLink
-                ? `Open ${typeLabel} in a new tab`
-                : undefined
+              isExternalLink ? `Open ${typeLabel} in a new tab` : undefined
             }
           >
-            <span className="contact-information-link-value">
-              {item.value}
-            </span>
+            <span className="contact-information-link-value">{item.value}</span>
 
             {isExternalLink && (
               <span

@@ -264,6 +264,13 @@
     box-shadow var(--transition);
 }
 
+.personal-information-form-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* =========================================
    Cancel Button
    ========================================= */

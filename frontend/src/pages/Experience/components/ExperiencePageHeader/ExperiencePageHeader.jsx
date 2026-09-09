@@ -37,7 +37,7 @@ function ExperiencePageHeader({
       </div>
 
       <div className="experience-page-header-actions">
-        {archivedCount > 0 && (
+        {(showArchived || archivedCount > 0) && (
           <button
             type="button"
             className={`experience-page-header-archive-button ${
@@ -50,6 +50,12 @@ function ExperiencePageHeader({
             aria-pressed={showArchived}
           >
             {showArchived ? "View Active" : "View Archived"}
+
+            {!showArchived && archivedCount > 0 && (
+              <span className="experience-page-header-archive-count">
+                {archivedCount}
+              </span>
+            )}
           </button>
         )}
 

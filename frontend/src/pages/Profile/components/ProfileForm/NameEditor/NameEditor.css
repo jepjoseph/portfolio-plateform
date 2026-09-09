@@ -1,0 +1,236 @@
+/* =========================================
+   Name Editor
+   ========================================= */
+
+.profile-name-editor {
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.profile-name-editor:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.025);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.profile-name-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.profile-name-editor-header > div {
+  min-width: 0;
+}
+
+.profile-name-editor-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-name-editor-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-name-editor-header p {
+  max-width: 590px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Identity Badge
+   ========================================= */
+
+.profile-name-editor-badge {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* =========================================
+   Field Grid
+   ========================================= */
+
+.profile-name-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* =========================================
+   Field
+   ========================================= */
+
+.profile-name-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.profile-name-editor-field label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* =========================================
+   Required and Optional
+   ========================================= */
+
+.profile-name-editor-required,
+.profile-name-editor-optional {
+  padding: 2px 5px;
+  border-radius: 999px;
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.profile-name-editor-required {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-hover);
+}
+
+.profile-name-editor-optional {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+/* =========================================
+   Input
+   ========================================= */
+
+.profile-name-editor-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.profile-name-editor-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.profile-name-editor-field input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.profile-name-editor-field input:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.profile-name-editor-field input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
+}
+
+.profile-name-editor-field input[aria-invalid="true"] {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.profile-name-editor-field input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Field Error
+   ========================================= */
+
+.profile-name-editor-field > small {
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+.profile-name-editor-field--error input {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 900px) {
+  .profile-name-editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .profile-name-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-name-editor {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-name-editor-header p {
+    font-size: 0.66rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-name-editor,
+  .profile-name-editor-field input {
+    transition: none;
+  }
+}

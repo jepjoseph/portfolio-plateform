@@ -165,6 +165,18 @@
   font-size: 1rem;
 }
 
+.experience-page-header-archive-count {
+  min-width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 800;
+}
 /* =========================================
    Responsive
    ========================================= */

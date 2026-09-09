@@ -43,10 +43,29 @@ function normalizeAchievement(value) {
   };
 }
 
-function getTechnologyName(value) {
-  return typeof value === "string"
-    ? value.trim()
-    : (value?.name || value?.value || value?.label || "").trim();
+function normalizeTechnology(value) {
+  if (typeof value === "string") {
+    return {
+      name: value.trim(),
+      category: "",
+      proficiency: "",
+      usageDescription: "",
+    };
+  }
+
+  return {
+    name: String(
+      value?.nameSnapshot || value?.name || value?.value || value?.label || "",
+    ).trim(),
+
+    category: String(value?.category || "").trim(),
+
+    proficiency: String(value?.proficiency || value?.level || "").trim(),
+
+    usageDescription: String(
+      value?.usageDescription || value?.description || "",
+    ).trim(),
+  };
 }
 
 function getWordCount(value) {
@@ -120,6 +139,13 @@ function getOverviewReadiness(context) {
       value: `${context.skills.length} selected`,
     },
     {
+      id: "technologies",
+      label: "Technologies",
+      complete: context.technologies.length > 0,
+      weight: 2,
+      value: `${context.technologies.length} selected`,
+    },
+    {
       id: "leadership",
       label: "Leadership",
       complete: Boolean(
@@ -157,7 +183,7 @@ function getOverviewReadiness(context) {
     };
   }
 
-  if (score >= 7) {
+  if (score >= 9) {
     return {
       level: "strong",
       label: "Strong",
@@ -169,7 +195,7 @@ function getOverviewReadiness(context) {
     };
   }
 
-  if (score >= 3) {
+  if (score >= 4) {
     return {
       level: "developing",
       label: "Developing",
@@ -268,8 +294,8 @@ function ExperienceOverviewBuilder({
         .filter((skill) => skill.name || skill.nameSnapshot),
 
       technologies: (experience.technologies || [])
-        .map(getTechnologyName)
-        .filter(Boolean),
+        .map(normalizeTechnology)
+        .filter((technology) => technology.name),
 
       leadership: {
         hasLeadershipResponsibilities:

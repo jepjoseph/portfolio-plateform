@@ -1,0 +1,522 @@
+/* =========================================
+   Website Editor
+   ========================================= */
+
+.profile-website-editor {
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  color-scheme: dark;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.profile-website-editor:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.025);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.profile-website-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-website-editor-header > div {
+  min-width: 0;
+}
+
+.profile-website-editor-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-website-editor-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-website-editor-header p {
+  max-width: 590px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Add Button
+   ========================================= */
+
+.profile-website-editor-add-button {
+  min-height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.profile-website-editor-add-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.profile-website-editor-add-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Summary
+   ========================================= */
+
+.profile-website-editor-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.profile-website-editor-summary span {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+.profile-website-editor-summary span strong {
+  color: var(--accent-hover);
+}
+
+.profile-website-editor-summary small {
+  max-width: 55%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================
+   Website List
+   ========================================= */
+
+.profile-website-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* =========================================
+   Website Item
+   ========================================= */
+
+.profile-website-editor-item {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.profile-website-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* =========================================
+   Item Header
+   ========================================= */
+
+.profile-website-editor-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.profile-website-editor-item-header > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.profile-website-editor-item-header > div > span {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-website-editor-item-header > div > small {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* =========================================
+   Remove Button
+   ========================================= */
+
+.profile-website-editor-remove-button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: 7px;
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.61rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-website-editor-remove-button:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.profile-website-editor-remove-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Fields
+   ========================================= */
+
+.profile-website-editor-fields {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.profile-website-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.profile-website-editor-field--full {
+  grid-column: 1 / -1;
+}
+
+.profile-website-editor-field label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0em;
+}
+
+.profile-website-editor-field label span {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* =========================================
+   Input and Select
+   ========================================= */
+
+.profile-website-editor-field input,
+.profile-website-editor-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background-color: rgba(0, 0, 0, 0.22);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.profile-website-editor-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.profile-website-editor-field select {
+  padding-right: 38px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+/* =========================================
+   Dropdown Options
+   ========================================= */
+
+.profile-website-editor-field select option {
+  background-color: #111827;
+  color: #f9fafb;
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.profile-website-editor-field select option:checked {
+  background-color: #4f46e5;
+  color: #ffffff;
+}
+
+/* =========================================
+   Input States
+   ========================================= */
+
+.profile-website-editor-field input:hover:not(:disabled),
+.profile-website-editor-field select:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background-color: rgba(0, 0, 0, 0.28);
+}
+
+.profile-website-editor-field input:focus,
+.profile-website-editor-field select:focus {
+  border-color: var(--accent);
+  background-color: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.profile-website-editor-field input[aria-invalid="true"],
+.profile-website-editor-field select[aria-invalid="true"] {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.profile-website-editor-field input:disabled,
+.profile-website-editor-field select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.profile-website-editor-field > small {
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Item Footer
+   ========================================= */
+
+.profile-website-editor-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.profile-website-editor-item-footer > div {
+  min-width: 0;
+}
+
+.profile-website-editor-item-footer > div > span {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.profile-website-editor-item-footer > div > small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+}
+
+.profile-website-editor-item-footer > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-website-editor-item-footer > a:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.profile-website-editor-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 14px;
+  padding: 27px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.profile-website-editor-empty > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-weight: 800;
+}
+
+.profile-website-editor-empty h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.profile-website-editor-empty p {
+  max-width: 440px;
+  margin: 6px 0 14px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.profile-website-editor-empty button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-website-editor-empty button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 700px) {
+  .profile-website-editor-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-website-editor-add-button {
+    width: 100%;
+  }
+
+  .profile-website-editor-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-website-editor-summary small {
+    max-width: 100%;
+  }
+
+  .profile-website-editor-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-website-editor-field--full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-website-editor {
+    padding: 14px;
+  }
+
+  .profile-website-editor-item-header,
+  .profile-website-editor-item-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-website-editor-remove-button {
+    width: 100%;
+  }
+
+  .profile-website-editor-item-footer > a {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-website-editor,
+  .profile-website-editor button,
+  .profile-website-editor input,
+  .profile-website-editor select {
+    transition: none;
+  }
+
+  .profile-website-editor button:hover {
+    transform: none;
+  }
+}

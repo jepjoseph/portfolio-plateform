@@ -19,6 +19,7 @@ import ResponsibilityEditor from "../ResponsibilityEditor/ResponsibilityEditor.j
 import AchievementEditor from "../AchievementEditor/AchievementEditor.jsx";
 import ExperienceSkillsEditor from "../ExperienceSkillsEditor/ExperienceSkillsEditor.jsx";
 import ExperienceOverviewBuilder from "../ExperienceOverviewBuilder/ExperienceOverviewBuilder.jsx";
+import ExperienceTechnologyEditor from "./ExperienceTechnologyEditor/ExperienceTechnologyEditor.jsx";
 
 import "./ExperienceForm.css";
 
@@ -274,6 +275,23 @@ function ExperienceForm({
     }));
 
     clearFieldError("overview");
+    setSubmissionError("");
+  };
+
+  /*
+   * =========================================
+   * Technologies Update
+   * =========================================
+   */
+
+  const handleTechnologiesChange = (nextTechnologies) => {
+    setFormData((currentData) => ({
+      ...currentData,
+
+      technologies: nextTechnologies,
+    }));
+
+    clearFieldError("technologies");
     setSubmissionError("");
   };
 
@@ -655,6 +673,13 @@ function ExperienceForm({
         fieldErrors={fieldErrors}
         disabled={isSaving}
         onChange={(nextSkills) => updateCollectionField("skills", nextSkills)}
+      />
+
+      <ExperienceTechnologyEditor
+        technologies={formData.technologies || []}
+        fieldError={fieldErrors.technologies}
+        disabled={isSaving}
+        onChange={handleTechnologiesChange}
       />
 
       {/* =====================================

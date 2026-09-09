@@ -1,0 +1,598 @@
+/* =========================================
+   Social Link Editor
+   ========================================= */
+
+.profile-social-link-editor {
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  color-scheme: dark;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.profile-social-link-editor:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.025);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.profile-social-link-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-social-link-editor-header > div {
+  min-width: 0;
+}
+
+.profile-social-link-editor-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-social-link-editor-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-social-link-editor-header p {
+  max-width: 590px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Add Button
+   ========================================= */
+
+.profile-social-link-editor-add-button {
+  min-height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.profile-social-link-editor-add-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.profile-social-link-editor-add-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Summary
+   ========================================= */
+
+.profile-social-link-editor-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.profile-social-link-editor-summary span {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+.profile-social-link-editor-summary span strong {
+  color: var(--accent-hover);
+}
+
+.profile-social-link-editor-summary small {
+  max-width: 55%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================
+   List
+   ========================================= */
+
+.profile-social-link-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* =========================================
+   Item
+   ========================================= */
+
+.profile-social-link-editor-item {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.profile-social-link-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* =========================================
+   Item Header
+   ========================================= */
+
+.profile-social-link-editor-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.profile-social-link-editor-item-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.profile-social-link-editor-item-header > div:first-child > div {
+  min-width: 0;
+}
+
+.profile-social-link-editor-item-header > div:first-child > div > span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-social-link-editor-item-header > div:first-child > div > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 3px;
+}
+
+.profile-social-link-editor-item-header strong {
+  color: var(--text-primary);
+  font-size: 0.68rem;
+}
+
+.profile-social-link-editor-item-header small {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* =========================================
+   Platform Icon
+   ========================================= */
+
+.profile-social-link-editor-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+/* =========================================
+   Platform Colors
+   ========================================= */
+
+.profile-social-link-editor-item[data-type="linkedin"]
+  .profile-social-link-editor-icon {
+  background: #0a66c2;
+  color: #ffffff;
+}
+
+.profile-social-link-editor-item[data-type="github"]
+  .profile-social-link-editor-icon {
+  background: #24292f;
+  color: #ffffff;
+}
+
+.profile-social-link-editor-item[data-type="youtube"]
+  .profile-social-link-editor-icon {
+  background: #ff0000;
+  color: #ffffff;
+}
+
+.profile-social-link-editor-item[data-type="facebook"]
+  .profile-social-link-editor-icon {
+  background: #1877f2;
+  color: #ffffff;
+}
+
+.profile-social-link-editor-item[data-type="instagram"]
+  .profile-social-link-editor-icon {
+  background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+  color: #ffffff;
+}
+
+.profile-social-link-editor-item[data-type="x"]
+  .profile-social-link-editor-icon {
+  background: #000000;
+  color: #ffffff;
+}
+
+/* =========================================
+   Remove Button
+   ========================================= */
+
+.profile-social-link-editor-remove-button {
+  min-height: 30px;
+  padding: 0 9px;
+  flex-shrink: 0;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: 7px;
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.61rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-social-link-editor-remove-button:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.profile-social-link-editor-remove-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Fields
+   ========================================= */
+
+.profile-social-link-editor-fields {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.profile-social-link-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.profile-social-link-editor-field--full {
+  grid-column: 1 / -1;
+}
+
+.profile-social-link-editor-field label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-social-link-editor-field label span {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* =========================================
+   Input and Select
+   ========================================= */
+
+.profile-social-link-editor-field input,
+.profile-social-link-editor-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background-color: rgba(0, 0, 0, 0.22);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.profile-social-link-editor-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.profile-social-link-editor-field select {
+  padding-right: 38px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.profile-social-link-editor-field select option {
+  background-color: #111827;
+  color: #f9fafb;
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.profile-social-link-editor-field select option:checked {
+  background-color: #4f46e5;
+  color: #ffffff;
+}
+
+/* =========================================
+   Input States
+   ========================================= */
+
+.profile-social-link-editor-field input:hover:not(:disabled),
+.profile-social-link-editor-field select:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background-color: rgba(0, 0, 0, 0.28);
+}
+
+.profile-social-link-editor-field input:focus,
+.profile-social-link-editor-field select:focus {
+  border-color: var(--accent);
+  background-color: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.profile-social-link-editor-field input[aria-invalid="true"],
+.profile-social-link-editor-field select[aria-invalid="true"] {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.profile-social-link-editor-field input:disabled,
+.profile-social-link-editor-field select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.profile-social-link-editor-field > small {
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Item Footer
+   ========================================= */
+
+.profile-social-link-editor-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.profile-social-link-editor-item-footer > div {
+  min-width: 0;
+}
+
+.profile-social-link-editor-item-footer > div > span {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.profile-social-link-editor-item-footer > div > small {
+  display: block;
+  max-width: 480px;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-social-link-editor-item-footer > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-social-link-editor-item-footer > a:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.profile-social-link-editor-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 14px;
+  padding: 27px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.profile-social-link-editor-empty > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-weight: 800;
+}
+
+.profile-social-link-editor-empty h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.profile-social-link-editor-empty p {
+  max-width: 440px;
+  margin: 6px 0 14px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.profile-social-link-editor-empty button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-social-link-editor-empty button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 700px) {
+  .profile-social-link-editor-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-social-link-editor-add-button {
+    width: 100%;
+  }
+
+  .profile-social-link-editor-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-social-link-editor-summary small {
+    max-width: 100%;
+  }
+
+  .profile-social-link-editor-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-social-link-editor-field--full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-social-link-editor {
+    padding: 14px;
+  }
+
+  .profile-social-link-editor-item-header,
+  .profile-social-link-editor-item-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-social-link-editor-remove-button {
+    width: 100%;
+  }
+
+  .profile-social-link-editor-item-footer > a {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-social-link-editor,
+  .profile-social-link-editor button,
+  .profile-social-link-editor input,
+  .profile-social-link-editor select {
+    transition: none;
+  }
+
+  .profile-social-link-editor button:hover {
+    transform: none;
+  }
+}

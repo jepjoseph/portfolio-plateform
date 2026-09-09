@@ -1,0 +1,421 @@
+/* =========================================
+   Professional Title Editor
+   ========================================= */
+
+.professional-title-editor {
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.professional-title-editor:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.025);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.professional-title-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.professional-title-editor-header > div {
+  min-width: 0;
+}
+
+.professional-title-editor-header > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.professional-title-editor-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.professional-title-editor-header p {
+  max-width: 590px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Add Button
+   ========================================= */
+
+.professional-title-editor-add-button {
+  min-height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.professional-title-editor-add-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.professional-title-editor-add-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Summary
+   ========================================= */
+
+.professional-title-editor-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.professional-title-editor-summary span {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+.professional-title-editor-summary span strong {
+  color: var(--accent-hover);
+}
+
+.professional-title-editor-summary small {
+  max-width: 55%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================
+   List
+   ========================================= */
+
+.professional-title-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* =========================================
+   Item
+   ========================================= */
+
+.professional-title-editor-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.professional-title-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* =========================================
+   Order
+   ========================================= */
+
+.professional-title-editor-order {
+  align-self: center;
+}
+
+.professional-title-editor-order span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+/* =========================================
+   Field
+   ========================================= */
+
+.professional-title-editor-field {
+  min-width: 0;
+}
+
+.professional-title-editor-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+
+.professional-title-editor-label label {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.professional-title-editor-label span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.53rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.professional-title-editor-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.professional-title-editor-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.professional-title-editor-field input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.professional-title-editor-field input:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.professional-title-editor-field input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
+}
+
+.professional-title-editor-field input[aria-invalid="true"] {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.professional-title-editor-field input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.professional-title-editor-field > small {
+  display: block;
+  margin-top: 6px;
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Remove Button
+   ========================================= */
+
+.professional-title-editor-remove-button {
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.professional-title-editor-remove-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.professional-title-editor-remove-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.professional-title-editor-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 14px;
+  padding: 27px 20px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.professional-title-editor-empty > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.professional-title-editor-empty h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.professional-title-editor-empty p {
+  max-width: 440px;
+  margin: 6px 0 14px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.professional-title-editor-empty button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.professional-title-editor-empty button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 700px) {
+  .professional-title-editor-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .professional-title-editor-add-button {
+    width: 100%;
+  }
+
+  .professional-title-editor-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .professional-title-editor-summary small {
+    max-width: 100%;
+  }
+
+  .professional-title-editor-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .professional-title-editor-remove-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 480px) {
+  .professional-title-editor {
+    padding: 14px;
+  }
+
+  .professional-title-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .professional-title-editor-order {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .professional-title-editor-remove-button {
+    width: 100%;
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .professional-title-editor,
+  .professional-title-editor button,
+  .professional-title-editor input {
+    transition: none;
+  }
+
+  .professional-title-editor button:hover {
+    transform: none;
+  }
+}

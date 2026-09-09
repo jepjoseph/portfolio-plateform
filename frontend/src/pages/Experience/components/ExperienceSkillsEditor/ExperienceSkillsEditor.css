@@ -427,6 +427,40 @@
   color-scheme: dark;
 }
 
+/*
+ * Native dropdown menu options
+ */
+
+.experience-skills-level select option {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+/*
+ * Currently selected option
+ */
+
+.experience-skills-level select option:checked {
+  background-color: #1e3a5f;
+  color: #ffffff;
+}
+
+.experience-skills-level select:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background-color: #172033;
+}
+
+.experience-skills-level select:focus {
+  border-color: var(--accent);
+  background-color: #111827;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.experience-skills-level select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* =========================================
    Remove
    ========================================= */
