@@ -1,0 +1,170 @@
+/*
+ * =========================================
+ * Profile Professional Titles
+ * =========================================
+ */
+
+.profile-professional-titles {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.profile-professional-titles:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/*
+ * =========================================
+ * Header
+ * =========================================
+ */
+
+.profile-professional-titles-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.profile-professional-titles-header > div {
+  min-width: 0;
+}
+
+.profile-professional-titles-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-professional-titles-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-professional-titles-header p {
+  max-width: 550px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/*
+ * =========================================
+ * Count
+ * =========================================
+ */
+
+.profile-professional-titles-count {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.62rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * =========================================
+ * List
+ * =========================================
+ */
+
+.profile-professional-titles-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.profile-professional-titles-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.profile-professional-titles-empty > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.profile-professional-titles-empty p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 700px) {
+  .profile-professional-titles-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-professional-titles {
+    padding: 14px;
+  }
+
+  .profile-professional-titles-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-professional-titles-count {
+    align-self: flex-start;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-professional-titles {
+    transition: none;
+  }
+}

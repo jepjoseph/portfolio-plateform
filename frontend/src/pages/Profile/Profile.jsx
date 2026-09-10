@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import PersonalInformation from "../../components/PersonalInformation/PersonalInformation.jsx";
+import ProfileDetails from "./components/ProfileDetails/ProfileDetails.jsx";
 import ProfileForm from "./components/ProfileForm/ProfileForm.jsx";
 
 import { useProfileData } from "../../context/ProfileDataContext.jsx";
@@ -261,7 +261,7 @@ function Profile() {
               onCancel={handleCancel}
             />
           ) : (
-            <PersonalInformation
+            <ProfileDetails
               profile={profile}
               onEdit={handleEdit}
               showEmptyFields

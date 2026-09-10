@@ -1,0 +1,180 @@
+/*
+ * =========================================
+ * Profile Contact Section
+ * =========================================
+ */
+
+.profile-contact-section {
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.profile-contact-section:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/*
+ * =========================================
+ * Header
+ * =========================================
+ */
+
+.profile-contact-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.profile-contact-section-header > div {
+  min-width: 0;
+}
+
+.profile-contact-section-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.59rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-contact-section-header h4 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * =========================================
+ * Item Count
+ * =========================================
+ */
+
+.profile-contact-section-count {
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/*
+ * =========================================
+ * Item List
+ * =========================================
+ */
+
+.profile-contact-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.profile-contact-section-empty {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.profile-contact-section-empty > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.85rem;
+}
+
+.profile-contact-section-empty p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+/*
+ * =========================================
+ * Mobile
+ * =========================================
+ */
+
+@media (max-width: 600px) {
+  .profile-contact-section {
+    padding: 14px;
+  }
+
+  .profile-contact-section-header {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-contact-section {
+    padding: 12px;
+  }
+
+  .profile-contact-section-header h4 {
+    font-size: 0.8rem;
+  }
+
+  .profile-contact-section-eyebrow {
+    font-size: 0.56rem;
+  }
+
+  .profile-contact-section-count {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: 0.57rem;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-contact-section {
+    transition: none;
+  }
+}

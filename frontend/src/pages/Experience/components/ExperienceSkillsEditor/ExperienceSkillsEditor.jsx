@@ -518,8 +518,8 @@ function ExperienceSkillsEditor({
         </div>
       )}
 
-        {/* =====================================
-          AI Skill Suggestions
+      {/* =====================================
+          AI Skill 
           ===================================== */}
 
       <ExperienceSkillSuggestions
