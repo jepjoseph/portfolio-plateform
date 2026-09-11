@@ -1,0 +1,366 @@
+/*
+ * =========================================
+ * Education Library
+ * =========================================
+ */
+
+.education-library {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/*
+ * =========================================
+ * Header
+ * =========================================
+ */
+
+.education-library-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.education-library-header > div {
+  min-width: 0;
+}
+
+.education-library-header > div > span {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.education-library-header h2 {
+  margin: 5px 0 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.education-library-header p {
+  max-width: 700px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.education-library-count {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.59rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/*
+ * =========================================
+ * Controls
+ * =========================================
+ */
+
+.education-library-controls {
+  display: grid;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.education-library-search,
+.education-library-select {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.education-library-search > span,
+.education-library-select > span {
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.education-library-search input,
+.education-library-select select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.64rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.education-library-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.education-library-search input:hover,
+.education-library-select select:hover {
+  border-color: var(--border-hover);
+}
+
+.education-library-search input:focus,
+.education-library-select select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.education-library-select select {
+  cursor: pointer;
+}
+
+.education-library-select option {
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+
+.education-library-filter-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.education-library-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.education-library-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  cursor: pointer;
+}
+
+.education-library-options input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.education-library-controls footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.education-library-controls footer span {
+  color: var(--text-muted);
+  font-size: 0.59rem;
+}
+
+.education-library-controls footer strong {
+  color: var(--text-secondary);
+}
+
+/*
+ * =========================================
+ * Buttons
+ * =========================================
+ */
+
+.education-library-controls footer button,
+.education-library-state button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.59rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.education-library-controls footer button:hover,
+.education-library-state button:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+/*
+ * =========================================
+ * List
+ * =========================================
+ */
+
+.education-library-list {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 14px;
+}
+
+/*
+ * =========================================
+ * Loading
+ * =========================================
+ */
+
+.education-library-loading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: 45px 20px;
+}
+
+.education-library-loading > span {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: education-library-spin 0.8s linear infinite;
+}
+
+.education-library-loading strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.education-library-loading p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+@keyframes education-library-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * =========================================
+ * Empty and Error States
+ * =========================================
+ */
+
+.education-library-state {
+  padding: 45px 20px;
+  text-align: center;
+}
+
+.education-library-state > span {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-weight: 700;
+}
+
+.education-library-state h3 {
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.education-library-state p {
+  max-width: 520px;
+  margin: 6px auto 0;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  line-height: 1.5;
+}
+
+.education-library-state button {
+  margin-top: 13px;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 850px) {
+  .education-library-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .education-library-header {
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .education-library-controls {
+    padding: 14px 16px;
+  }
+
+  .education-library-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .education-library-options {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .education-library-controls footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .education-library-controls footer button {
+    width: 100%;
+  }
+
+  .education-library-list {
+    padding: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .education-library-loading > span {
+    animation: none;
+  }
+}

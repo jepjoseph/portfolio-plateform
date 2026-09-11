@@ -580,6 +580,87 @@ function validateAchievements(collector, experience) {
 
 /*
  * =========================================
+ * Central Skill Relationship Helpers
+ * =========================================
+ */
+
+const EXPERIENCE_SKILL_LEVEL_VALUES = [
+  "",
+  "foundational",
+  "intermediate",
+  "advanced",
+  "expert",
+];
+
+function getRelationshipSkillId(value) {
+  const relationship = getObject(value);
+
+  return getText(relationship.skillId || relationship.profileSkillId);
+}
+
+function getSkillSnapshotName(value) {
+  const relationship = getObject(value);
+
+  return getText(
+    relationship.nameSnapshot ||
+      relationship.name ||
+      relationship.label ||
+      relationship.value,
+  );
+}
+
+function validateRelationshipIdentifier(collector, field, value, label) {
+  if (!value) {
+    return;
+  }
+
+  if (typeof value !== "string") {
+    collector.addError(
+      field,
+      `${label} has an invalid identifier.`,
+      "invalid_identifier",
+    );
+
+    return;
+  }
+
+  if (value.trim().length > 200) {
+    collector.addError(
+      field,
+      `${label} identifier cannot exceed 200 characters.`,
+      "too_long",
+    );
+  }
+}
+
+function validateRelationshipOrder(collector, field, value) {
+  if (value === undefined || value === null || value === "") {
+    return;
+  }
+
+  if (!Number.isInteger(value) || value < 0) {
+    collector.addError(
+      field,
+      "Relationship order must be a whole number of zero or greater.",
+      "invalid_order",
+    );
+  }
+}
+
+function validateRelationshipProficiency(collector, field, value, label) {
+  const proficiency = getText(value);
+
+  if (!EXPERIENCE_SKILL_LEVEL_VALUES.includes(proficiency)) {
+    collector.addError(
+      field,
+      `Select a valid ${label.toLowerCase()} proficiency level.`,
+      "invalid_option",
+    );
+  }
+}
+
+/*
+ * =========================================
  * Skills
  * =========================================
  */
@@ -596,20 +677,65 @@ function validateSkills(collector, experience) {
   }
 
   skills.forEach((skill, index) => {
-    const item = getObject(skill);
+    const relationship = getObject(skill);
 
-    const skillId = getText(item.skillId || item.profileSkillId);
+    const skillId = getRelationshipSkillId(relationship);
 
-    const nameSnapshot = getText(item.nameSnapshot || item.name);
+    const nameSnapshot = getSkillSnapshotName(relationship);
+
+    const categorySnapshot = getText(relationship.categorySnapshot);
+
+    const typeSnapshot = getText(relationship.typeSnapshot);
+
+    const level = relationship.level ?? "";
+
+    const usageDescription = relationship.usageDescription;
+
+    validateRelationshipIdentifier(
+      collector,
+      `skills.${index}.id`,
+      relationship.id,
+      "Skill relationship",
+    );
+
+    validateRelationshipIdentifier(
+      collector,
+      `skills.${index}.skillId`,
+      skillId,
+      "Central skill",
+    );
 
     if (!skillId && !nameSnapshot) {
       collector.addError(
         `skills.${index}.skillId`,
-        "Select a saved skill or create a new one.",
+        "Select a saved skill or provide a skill name.",
         "required",
       );
 
       return;
+    }
+
+    /*
+     * A snapshot is required even when the central
+     * Skill Library relationship exists. This keeps
+     * the experience readable if the central record
+     * is archived, deleted, or temporarily unavailable.
+     */
+
+    if (skillId && !nameSnapshot) {
+      collector.addError(
+        `skills.${index}.nameSnapshot`,
+        "Store the skill name snapshot with this relationship.",
+        "required_snapshot",
+      );
+    }
+
+    if (!skillId && nameSnapshot) {
+      collector.addWarning(
+        `skills.${index}.skillId`,
+        `"${nameSnapshot}" is a legacy skill without a central Skill Library relationship.`,
+        "missing_skill_relationship",
+      );
     }
 
     validateTextLength(
@@ -620,27 +746,66 @@ function validateSkills(collector, experience) {
       "Skill name",
     );
 
-    if (
-      item.level &&
-      !["", "foundational", "intermediate", "advanced", "expert"].includes(
-        item.level,
-      )
-    ) {
-      collector.addError(
-        `skills.${index}.level`,
-        "Select a valid experience-specific proficiency level.",
-        "invalid_option",
-      );
-    }
+    validateTextLength(
+      collector,
+      `skills.${index}.categorySnapshot`,
+      categorySnapshot,
+      EXPERIENCE_FIELD_LIMITS.skillCategory,
+      "Skill category snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.typeSnapshot`,
+      typeSnapshot,
+      EXPERIENCE_FIELD_LIMITS.skillType,
+      "Skill type snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.level`,
+      level,
+      EXPERIENCE_FIELD_LIMITS.skillLevel,
+      "Experience-specific proficiency",
+    );
+
+    validateRelationshipProficiency(
+      collector,
+      `skills.${index}.level`,
+      level,
+      "Skill",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.usageDescription`,
+      usageDescription,
+      EXPERIENCE_FIELD_LIMITS.skillUsageDescription,
+      "Skill usage description",
+    );
+
+    validateRelationshipOrder(
+      collector,
+      `skills.${index}.order`,
+      relationship.order,
+    );
   });
 
-  const duplicates = findDuplicateIndexes(skills, (skill) => {
-    const item = getObject(skill);
+  /*
+   * Prefer the permanent central skill ID for
+   * duplicate detection. Fall back to the snapshot
+   * name for migrated or legacy records.
+   */
 
-    return (
-      getText(item.skillId || item.profileSkillId) ||
-      getText(item.nameSnapshot || item.name)
-    );
+  const duplicates = findDuplicateIndexes(skills, (skill) => {
+    const skillId = getRelationshipSkillId(skill);
+
+    if (skillId) {
+      return `id:${skillId}`;
+    }
+
+    return `name:${getSkillSnapshotName(skill)}`;
   });
 
   duplicates.forEach(({ duplicateIndex }) => {
@@ -670,33 +835,126 @@ function validateTechnologies(collector, experience) {
   }
 
   technologies.forEach((technology, index) => {
-    const name = getItemText(technology);
+    const relationship = getObject(technology);
 
-    if (!name) {
+    const skillId = getRelationshipSkillId(relationship);
+
+    const nameSnapshot = getSkillSnapshotName(relationship);
+
+    const category = getText(relationship.category);
+
+    const proficiency = relationship.proficiency ?? "";
+
+    const usageDescription = relationship.usageDescription;
+
+    validateRelationshipIdentifier(
+      collector,
+      `technologies.${index}.id`,
+      relationship.id,
+      "Technology relationship",
+    );
+
+    validateRelationshipIdentifier(
+      collector,
+      `technologies.${index}.skillId`,
+      skillId,
+      "Central skill",
+    );
+
+    if (!skillId && !nameSnapshot) {
       collector.addError(
-        `technologies.${index}.name`,
-        "Technology name cannot be empty.",
+        `technologies.${index}.skillId`,
+        "Select a saved technology or provide its name.",
         "required",
       );
 
       return;
     }
 
+    if (skillId && !nameSnapshot) {
+      collector.addError(
+        `technologies.${index}.nameSnapshot`,
+        "Store the technology name snapshot with this relationship.",
+        "required_snapshot",
+      );
+    }
+
+    if (!skillId && nameSnapshot) {
+      collector.addWarning(
+        `technologies.${index}.skillId`,
+        `"${nameSnapshot}" is a legacy technology without a central Skill Library relationship.`,
+        "missing_skill_relationship",
+      );
+    }
+
     validateTextLength(
       collector,
-      `technologies.${index}.name`,
-      name,
+      `technologies.${index}.nameSnapshot`,
+      nameSnapshot,
       EXPERIENCE_FIELD_LIMITS.technologyName,
       "Technology name",
     );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.name`,
+      relationship.name,
+      EXPERIENCE_FIELD_LIMITS.technologyName,
+      "Technology compatibility name",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.category`,
+      category,
+      EXPERIENCE_FIELD_LIMITS.technologyCategory,
+      "Technology category",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.proficiency`,
+      proficiency,
+      EXPERIENCE_FIELD_LIMITS.technologyProficiency,
+      "Technology proficiency",
+    );
+
+    validateRelationshipProficiency(
+      collector,
+      `technologies.${index}.proficiency`,
+      proficiency,
+      "Technology",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.usageDescription`,
+      usageDescription,
+      EXPERIENCE_FIELD_LIMITS.technologyUsageDescription,
+      "Technology usage description",
+    );
+
+    validateRelationshipOrder(
+      collector,
+      `technologies.${index}.order`,
+      relationship.order,
+    );
   });
 
-  const duplicates = findDuplicateIndexes(technologies, getItemText);
+  const duplicates = findDuplicateIndexes(technologies, (technology) => {
+    const skillId = getRelationshipSkillId(technology);
+
+    if (skillId) {
+      return `id:${skillId}`;
+    }
+
+    return `name:${getSkillSnapshotName(technology)}`;
+  });
 
   duplicates.forEach(({ duplicateIndex }) => {
     collector.addError(
-      `technologies.${duplicateIndex}.name`,
-      "This technology has already been added.",
+      `technologies.${duplicateIndex}.skillId`,
+      "This technology has already been added to the experience.",
       "duplicate",
     );
   });
@@ -853,17 +1111,15 @@ function validateMeaningfulContent(collector, experience) {
 
   const hasCapability =
     getArray(experience.skills).some((skill) => {
-      const item = getObject(skill);
-
       return Boolean(
-        getText(item.skillId) ||
-        getText(item.nameSnapshot) ||
-        getText(item.name),
+        getRelationshipSkillId(skill) || getSkillSnapshotName(skill),
       );
     }) ||
-    getArray(experience.technologies).some((technology) =>
-      Boolean(getItemText(technology)),
-    );
+    getArray(experience.technologies).some((technology) => {
+      return Boolean(
+        getRelationshipSkillId(technology) || getSkillSnapshotName(technology),
+      );
+    });
 
   if (!hasCapability) {
     collector.addWarning(

@@ -9,9 +9,9 @@ import {
  * =========================================
  */
 
-const EXPERIENCE_STORAGE_KEY = "portfolio-platform:experiences";
+export const EXPERIENCE_STORAGE_KEY = "portfolio-platform:experiences";
 
-const EXPERIENCE_STORAGE_VERSION = 1;
+const EXPERIENCE_STORAGE_VERSION = 2;
 
 /*
  * =========================================
@@ -35,7 +35,7 @@ function createStorageError(message, publicMessage, cause) {
 
 /*
  * =========================================
- * Storage Availability
+ * Browser Storage
  * =========================================
  */
 
@@ -66,9 +66,174 @@ function getBrowserStorage() {
 function createEmptyStorageDocument() {
   return {
     storageVersion: EXPERIENCE_STORAGE_VERSION,
+
     experienceModelVersion: EXPERIENCE_MODEL_VERSION,
+
     experiences: [],
+
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/*
+ * =========================================
+ * Version 1 Relationship Migration
+ * =========================================
+ */
+
+function migrateVersionOneSkill(skill, index) {
+  if (typeof skill === "string") {
+    return {
+      id: "",
+      skillId: "",
+      nameSnapshot: skill,
+      categorySnapshot: "",
+      typeSnapshot: "",
+      level: "",
+      usageDescription: "",
+      order: index,
+    };
+  }
+
+  const source = skill && typeof skill === "object" ? skill : {};
+
+  return {
+    ...source,
+
+    skillId: source.skillId || source.profileSkillId || "",
+
+    nameSnapshot:
+      source.nameSnapshot || source.name || source.label || source.value || "",
+
+    categorySnapshot: source.categorySnapshot || source.category || "",
+
+    typeSnapshot: source.typeSnapshot || source.type || "",
+
+    level: source.level || source.proficiency || "",
+
+    usageDescription: source.usageDescription || source.description || "",
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0
+        ? source.order
+        : index,
+  };
+}
+
+function migrateVersionOneTechnology(technology, index) {
+  if (typeof technology === "string") {
+    return {
+      id: "",
+      skillId: "",
+      nameSnapshot: technology,
+      name: technology,
+      category: "",
+      proficiency: "",
+      usageDescription: "",
+      order: index,
+    };
+  }
+
+  const source = technology && typeof technology === "object" ? technology : {};
+
+  const nameSnapshot =
+    source.nameSnapshot || source.name || source.label || source.value || "";
+
+  return {
+    ...source,
+
+    skillId: source.skillId || source.profileSkillId || "",
+
+    nameSnapshot,
+
+    /*
+     * Retain the compatibility field while the
+     * frontend still supports version 1 records.
+     */
+
+    name: source.name || nameSnapshot,
+
+    category: source.category || source.categorySnapshot || "",
+
+    proficiency: source.proficiency || source.level || "",
+
+    usageDescription: source.usageDescription || source.description || "",
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0
+        ? source.order
+        : index,
+  };
+}
+
+function migrateExperienceModelVersionOne(experience) {
+  const source = experience && typeof experience === "object" ? experience : {};
+
+  return {
+    ...source,
+
+    modelVersion: 2,
+
+    skills: Array.isArray(source.skills)
+      ? source.skills.map(migrateVersionOneSkill)
+      : [],
+
+    technologies: Array.isArray(source.technologies)
+      ? source.technologies.map(migrateVersionOneTechnology)
+      : [],
+  };
+}
+
+/*
+ * =========================================
+ * Model Migration Pipeline
+ * =========================================
+ */
+
+function migrateExperienceModel(experience) {
+  const source = experience && typeof experience === "object" ? experience : {};
+
+  let migratedExperience = source;
+
+  const sourceVersion = Number(source.modelVersion) || 1;
+
+  if (sourceVersion < 2) {
+    migratedExperience = migrateExperienceModelVersionOne(migratedExperience);
+  }
+
+  return migratedExperience;
+}
+
+function migrateExperienceCollection(experiences) {
+  if (!Array.isArray(experiences)) {
+    return [];
+  }
+
+  return experiences.map(migrateExperienceModel);
+}
+
+/*
+ * =========================================
+ * Storage Document Migration
+ * =========================================
+ */
+
+function migrateStorageDocument(document) {
+  const source = document && typeof document === "object" ? document : {};
+
+  const experiences = migrateExperienceCollection(source.experiences);
+
+  return {
+    storageVersion: EXPERIENCE_STORAGE_VERSION,
+
+    experienceModelVersion: EXPERIENCE_MODEL_VERSION,
+
+    experiences: normalizeExperienceCollection(experiences),
+
+    updatedAt:
+      typeof source.updatedAt === "string"
+        ? source.updatedAt
+        : new Date().toISOString(),
   };
 }
 
@@ -80,7 +245,10 @@ function createEmptyStorageDocument() {
 
 function parseStorageDocument(value) {
   if (!value) {
-    return createEmptyStorageDocument();
+    return {
+      document: createEmptyStorageDocument(),
+      migrated: false,
+    };
   }
 
   let parsedValue;
@@ -96,14 +264,19 @@ function parseStorageDocument(value) {
   }
 
   /*
-   * Support an older format in which experiences
-   * may have been saved as an array directly.
+   * Legacy storage may contain the experience
+   * collection directly as an array.
    */
 
   if (Array.isArray(parsedValue)) {
     return {
-      ...createEmptyStorageDocument(),
-      experiences: normalizeExperienceCollection(parsedValue),
+      document: migrateStorageDocument({
+        storageVersion: 1,
+        experienceModelVersion: 1,
+        experiences: parsedValue,
+      }),
+
+      migrated: true,
     };
   }
 
@@ -114,25 +287,47 @@ function parseStorageDocument(value) {
     );
   }
 
+  const storageVersion = Number(parsedValue.storageVersion) || 1;
+
+  const modelVersion = Number(parsedValue.experienceModelVersion) || 1;
+
+  const requiresMigration =
+    storageVersion < EXPERIENCE_STORAGE_VERSION ||
+    modelVersion < EXPERIENCE_MODEL_VERSION ||
+    parsedValue.experiences?.some(
+      (experience) =>
+        Number(experience?.modelVersion || 1) < EXPERIENCE_MODEL_VERSION,
+    );
+
+  if (requiresMigration) {
+    return {
+      document: migrateStorageDocument(parsedValue),
+
+      migrated: true,
+    };
+  }
+
   return {
-    storageVersion:
-      Number(parsedValue.storageVersion) || EXPERIENCE_STORAGE_VERSION,
+    document: {
+      storageVersion: EXPERIENCE_STORAGE_VERSION,
 
-    experienceModelVersion:
-      Number(parsedValue.experienceModelVersion) || EXPERIENCE_MODEL_VERSION,
+      experienceModelVersion: EXPERIENCE_MODEL_VERSION,
 
-    experiences: normalizeExperienceCollection(parsedValue.experiences),
+      experiences: normalizeExperienceCollection(parsedValue.experiences),
 
-    updatedAt:
-      typeof parsedValue.updatedAt === "string"
-        ? parsedValue.updatedAt
-        : new Date().toISOString(),
+      updatedAt:
+        typeof parsedValue.updatedAt === "string"
+          ? parsedValue.updatedAt
+          : new Date().toISOString(),
+    },
+
+    migrated: false,
   };
 }
 
 /*
  * =========================================
- * Read Storage Document
+ * Read Storage
  * =========================================
  */
 
@@ -142,7 +337,25 @@ export function readExperienceStorage() {
   try {
     const storedValue = storage.getItem(EXPERIENCE_STORAGE_KEY);
 
-    return parseStorageDocument(storedValue);
+    const { document, migrated } = parseStorageDocument(storedValue);
+
+    /*
+     * Persist the upgraded representation so the
+     * migration does not run during every read.
+     */
+
+    if (migrated) {
+      const migratedDocument = {
+        ...document,
+        updatedAt: new Date().toISOString(),
+      };
+
+      storage.setItem(EXPERIENCE_STORAGE_KEY, JSON.stringify(migratedDocument));
+
+      return migratedDocument;
+    }
+
+    return document;
   } catch (error) {
     if (error?.name === "ExperienceStorageError") {
       throw error;
@@ -158,7 +371,7 @@ export function readExperienceStorage() {
 
 /*
  * =========================================
- * Write Storage Document
+ * Write Storage
  * =========================================
  */
 
@@ -167,6 +380,7 @@ export function writeExperienceStorage(experiences) {
 
   const storageDocument = {
     storageVersion: EXPERIENCE_STORAGE_VERSION,
+
     experienceModelVersion: EXPERIENCE_MODEL_VERSION,
 
     experiences: normalizeExperienceCollection(experiences),
@@ -189,7 +403,7 @@ export function writeExperienceStorage(experiences) {
 
 /*
  * =========================================
- * Read Experiences
+ * Collection Operations
  * =========================================
  */
 
@@ -197,24 +411,14 @@ export function readStoredExperiences() {
   return readExperienceStorage().experiences;
 }
 
-/*
- * =========================================
- * Replace Experiences
- * =========================================
- */
-
 export function replaceStoredExperiences(experiences) {
   return writeExperienceStorage(experiences).experiences;
 }
 
 /*
  * =========================================
- * Clear Experience Storage
+ * Clear Storage
  * =========================================
- *
- * This is intentionally kept separate from normal
- * CRUD operations because it removes every saved
- * experience from this browser.
  */
 
 export function clearExperienceStorage() {
@@ -242,9 +446,13 @@ export function getExperienceStorageInformation() {
 
   return {
     storageKey: EXPERIENCE_STORAGE_KEY,
+
     storageVersion: document.storageVersion,
+
     experienceModelVersion: document.experienceModelVersion,
+
     experienceCount: document.experiences.length,
+
     updatedAt: document.updatedAt,
   };
 }

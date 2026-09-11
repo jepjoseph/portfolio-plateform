@@ -9,6 +9,7 @@ import { PortfolioDraftProvider } from "./context/PortfolioDraftContext";
 import { ResumeDataProvider } from "./context/ResumeDataContext";
 import { ExperienceDataProvider } from "./context/ExperienceDataContext.jsx";
 import { SkillDataProvider } from "./context/SkillDataContext.jsx";
+import { EducationDataProvider } from "./context/EducationDataContext.jsx";
 
 import "./styles/global.css";
 
@@ -20,7 +21,9 @@ createRoot(document.getElementById("root")).render(
           <PortfolioDraftProvider>
             <ResumeDataProvider>
               <ExperienceDataProvider>
-                <App />
+                <EducationDataProvider>
+                  <App />
+                </EducationDataProvider>
               </ExperienceDataProvider>
             </ResumeDataProvider>
           </PortfolioDraftProvider>

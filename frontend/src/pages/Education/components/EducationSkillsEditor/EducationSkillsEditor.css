@@ -1,0 +1,148 @@
+.education-skills-editor {
+  display: grid;
+  gap: 18px;
+}
+
+.education-skills-editor-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+}
+
+.education-skills-editor-summary span {
+  color: var(--text-muted);
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.education-skills-editor-summary strong {
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+}
+
+.education-skills-editor-list {
+  display: grid;
+  gap: 8px;
+}
+
+.education-skills-editor-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.education-skills-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.education-skills-editor-order {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.education-skills-editor-order > span {
+  color: var(--accent-hover);
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+
+.education-skills-editor-order > div {
+  display: grid;
+  gap: 3px;
+}
+
+.education-skills-editor button {
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.59rem;
+  cursor: pointer;
+}
+
+.education-skills-editor-order button {
+  width: 27px;
+  padding: 0;
+}
+
+.education-skills-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.education-skills-editor-item > div:nth-child(2) {
+  min-width: 0;
+}
+
+.education-skills-editor-item > div:nth-child(2) > span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  text-transform: uppercase;
+}
+
+.education-skills-editor-item > div:nth-child(2) > strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-size: 0.68rem;
+}
+
+.education-skills-editor-item > div:nth-child(2) > small {
+  display: block;
+  margin-top: 4px;
+  color: #fbbf24;
+  font-size: 0.55rem;
+}
+
+.education-skills-editor-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.61rem;
+}
+
+.education-skills-editor-empty {
+  padding: 30px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.education-skills-editor-empty h4 {
+  margin: 7px 0 0;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+}
+
+.education-skills-editor-empty p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+@media (max-width: 520px) {
+  .education-skills-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .education-skills-editor-order {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .education-skills-editor-order > div {
+    display: flex;
+  }
+}

@@ -1,0 +1,187 @@
+/*
+ * =========================================
+ * Education Page Header
+ * =========================================
+ */
+
+.education-page-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  overflow: hidden;
+  padding: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(99, 102, 241, 0.13),
+      transparent 38%
+    ),
+    rgba(255, 255, 255, 0.025);
+}
+
+.education-page-header::after {
+  position: absolute;
+  right: -70px;
+  bottom: -90px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.education-page-header-content {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+}
+
+.education-page-header-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.education-page-header-label > span {
+  width: 24px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.education-page-header-label strong {
+  color: var(--accent-hover);
+  font-size: 0.66rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.education-page-header h1 {
+  margin: 9px 0 0;
+  color: var(--text-primary);
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  line-height: 1.1;
+}
+
+.education-page-header-content > p {
+  max-width: 680px;
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.education-page-header-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.education-page-header-summary strong {
+  color: var(--text-secondary);
+}
+
+.education-page-header-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.education-page-header-actions button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.education-page-header-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.education-page-header-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.education-page-header-archive-button {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+}
+
+.education-page-header-archive-button:hover:not(:disabled),
+.education-page-header-archive-button--active {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+}
+
+.education-page-header-add-button {
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.18);
+}
+
+.education-page-header-add-button:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+@media (max-width: 780px) {
+  .education-page-header {
+    flex-direction: column;
+  }
+
+  .education-page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .education-page-header {
+    padding: 20px;
+  }
+
+  .education-page-header-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .education-page-header-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .education-page-header-actions button {
+    transition: none;
+  }
+}

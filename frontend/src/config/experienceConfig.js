@@ -215,7 +215,15 @@ export const EXPERIENCE_FIELD_LIMITS = {
   achievementMetric: 300,
 
   skillName: 150,
+  skillCategory: 100,
+  skillType: 100,
+  skillLevel: 50,
+  skillUsageDescription: 500,
+
   technologyName: 150,
+  technologyCategory: 100,
+  technologyProficiency: 50,
+  technologyUsageDescription: 500,
 
   leadershipDescription: 1500,
   reasonForLeaving: 1000,

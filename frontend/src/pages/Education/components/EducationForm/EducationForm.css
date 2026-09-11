@@ -1,0 +1,246 @@
+.education-form {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.education-form-section {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.education-form-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.education-form-section-header > span {
+  width: 4px;
+  min-height: 42px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.education-form-section-header small {
+  color: var(--accent-hover);
+  font-size: 0.54rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.education-form-section-header h3 {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.education-form-section-header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  line-height: 1.5;
+}
+
+.education-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.education-form-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.education-form-field > span {
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.education-form-field > span small {
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+}
+
+.education-form-field input,
+.education-form-field select,
+.education-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.67rem;
+}
+
+.education-form-field input,
+.education-form-field select {
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.education-form-field textarea {
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.education-form-field input:focus,
+.education-form-field select:focus,
+.education-form-field textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+}
+
+.education-form-field > small[role="alert"] {
+  color: #f87171;
+  font-size: 0.57rem;
+}
+
+.education-form-wide {
+  grid-column: 1 / -1;
+}
+
+.education-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+  cursor: pointer;
+}
+
+.education-form-checkbox input {
+  accent-color: var(--accent);
+}
+
+.education-form-visibility {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.education-form-submit-error {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.06);
+  color: #f87171;
+  font-size: 0.64rem;
+}
+
+.education-form-warnings {
+  padding: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 9px;
+  background: rgba(245, 158, 11, 0.045);
+}
+
+.education-form-warnings strong {
+  color: #fbbf24;
+  font-size: 0.65rem;
+}
+
+.education-form-warnings ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+.education-form-footer {
+  position: sticky;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.education-form-footer > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.education-form-footer > div:first-child span {
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  text-transform: uppercase;
+}
+
+.education-form-footer > div:first-child strong {
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+}
+
+.education-form-footer > div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.education-form-footer button {
+  min-height: 37px;
+  padding: 0 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.64rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.education-form-footer .education-form-submit {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.education-form-footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 620px) {
+  .education-form {
+    padding: 12px;
+  }
+
+  .education-form-grid,
+  .education-form-visibility {
+    grid-template-columns: 1fr;
+  }
+
+  .education-form-wide {
+    grid-column: auto;
+  }
+
+  .education-form-footer {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .education-form-footer > div:last-child {
+    display: grid;
+  }
+}

@@ -15,7 +15,7 @@ import {
  * database records to be migrated safely.
  */
 
-export const EXPERIENCE_MODEL_VERSION = 1;
+export const EXPERIENCE_MODEL_VERSION = 2;
 
 /*
  * =========================================
@@ -199,7 +199,6 @@ function normalizeAchievements(values) {
       order: index,
     }));
 }
-
 /*
  * =========================================
  * Experience Skill Model
@@ -212,7 +211,14 @@ export function createExperienceSkill(value = {}) {
       ? {
           nameSnapshot: value,
         }
-      : value || {};
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const sourceProficiency =
+    source.proficiency && typeof source.proficiency === "object"
+      ? source.proficiency.level
+      : source.proficiency;
 
   return {
     id: normalizeText(source.id, 200) || createExperienceId("experience-skill"),
@@ -225,9 +231,9 @@ export function createExperienceSkill(value = {}) {
     skillId: normalizeText(source.skillId || source.profileSkillId, 200),
 
     /*
-     * Snapshot allows old experiences to retain a
-     * readable name if a central skill is archived
-     * or temporarily unavailable.
+     * The snapshot keeps the Experience readable
+     * if the central Skill record is renamed,
+     * archived, deleted, or temporarily unavailable.
      */
 
     nameSnapshot: normalizeText(
@@ -236,14 +242,45 @@ export function createExperienceSkill(value = {}) {
     ),
 
     /*
-     * Experience-specific proficiency. This can
-     * differ from the central skill's default.
+     * Classification snapshots are optional.
+     * The current central Skill record remains the
+     * preferred source when it is available.
      */
 
-    level: normalizeText(source.level, 50),
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      EXPERIENCE_FIELD_LIMITS.skillCategory,
+    ),
+
+    typeSnapshot: normalizeText(
+      source.typeSnapshot || source.type,
+      EXPERIENCE_FIELD_LIMITS.skillType,
+    ),
+
+    /*
+     * Experience-specific proficiency can differ
+     * from the general Skill Library proficiency.
+     */
+
+    level: normalizeText(
+      source.level || sourceProficiency,
+      EXPERIENCE_FIELD_LIMITS.skillLevel,
+    ),
+
+    /*
+     * Optional explanation of how the skill was
+     * applied specifically in this Experience.
+     */
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      EXPERIENCE_FIELD_LIMITS.skillUsageDescription,
+    ),
 
     order:
-      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+      Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+        ? Number(source.order)
+        : 0,
   };
 }
 
@@ -256,21 +293,26 @@ function normalizeExperienceSkills(values) {
     .map(createExperienceSkill)
     .filter((skill) => skill.skillId || skill.nameSnapshot);
 
-  const uniqueSkills = normalizedSkills.filter((skill, index, collection) => {
-    const identity = (skill.skillId || skill.nameSnapshot).toLocaleLowerCase();
+  const seenIdentities = new Set();
 
-    return (
-      collection.findIndex((candidate) => {
-        const candidateIdentity = (
-          candidate.skillId || candidate.nameSnapshot
-        ).toLocaleLowerCase();
+  return normalizedSkills
+    .filter((skill) => {
+      const identity = skill.skillId
+        ? `id:${skill.skillId}`
+        : `name:${skill.nameSnapshot
+            .normalize("NFKC")
+            .toLocaleLowerCase()
+            .replace(/\s+/g, " ")
+            .trim()}`;
 
-        return candidateIdentity === identity;
-      }) === index
-    );
-  });
+      if (seenIdentities.has(identity)) {
+        return false;
+      }
 
-  return uniqueSkills
+      seenIdentities.add(identity);
+
+      return true;
+    })
     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumSkills)
     .map((skill, index) => ({
       ...skill,
@@ -280,7 +322,7 @@ function normalizeExperienceSkills(values) {
 
 /*
  * =========================================
- * Technology Model
+ * Experience Technology Model
  * =========================================
  */
 
@@ -288,20 +330,70 @@ export function createExperienceTechnology(value = {}) {
   const source =
     typeof value === "string"
       ? {
-          name: value,
+          nameSnapshot: value,
         }
-      : value || {};
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const sourceProficiency =
+    source.proficiency && typeof source.proficiency === "object"
+      ? source.proficiency.level
+      : source.proficiency;
+
+  const nameSnapshot = normalizeText(
+    source.nameSnapshot || source.name || source.label || source.value,
+    EXPERIENCE_FIELD_LIMITS.technologyName,
+  );
 
   return {
-    id: normalizeText(source.id, 200) || createExperienceId("technology"),
+    id:
+      normalizeText(source.id, 200) ||
+      createExperienceId("experience-technology"),
 
-    name: normalizeText(
-      source.name || source.label || source.value,
-      EXPERIENCE_FIELD_LIMITS.technologyName,
+    /*
+     * Permanent relationship to the central
+     * Skill Library.
+     */
+
+    skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+
+    /*
+     * Snapshot retained for historical display.
+     */
+
+    nameSnapshot,
+
+    /*
+     * Retained as a compatibility alias for older
+     * Experience display and validation code.
+     */
+
+    name: nameSnapshot,
+
+    /*
+     * Technology-specific relationship metadata.
+     */
+
+    category: normalizeText(
+      source.categorySnapshot || source.category,
+      EXPERIENCE_FIELD_LIMITS.technologyCategory,
+    ),
+
+    proficiency: normalizeText(
+      source.level || sourceProficiency,
+      EXPERIENCE_FIELD_LIMITS.technologyProficiency,
+    ),
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      EXPERIENCE_FIELD_LIMITS.technologyUsageDescription,
     ),
 
     order:
-      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+      Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+        ? Number(source.order)
+        : 0,
   };
 }
 
@@ -312,17 +404,30 @@ function normalizeTechnologies(values) {
 
   const normalizedTechnologies = values
     .map(createExperienceTechnology)
-    .filter((technology) => technology.name);
+    .filter((technology) => technology.skillId || technology.nameSnapshot);
 
-  const uniqueTechnologies = normalizedTechnologies.filter(
-    (technology, index, collection) =>
-      collection.findIndex(
-        (candidate) =>
-          candidate.name.toLowerCase() === technology.name.toLowerCase(),
-      ) === index,
-  );
+  const seenIdentities = new Set();
 
-  return uniqueTechnologies
+  return normalizedTechnologies
+    .filter((technology) => {
+      const normalizedName = technology.nameSnapshot
+        .normalize("NFKC")
+        .toLocaleLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const identity = technology.skillId
+        ? `id:${technology.skillId}`
+        : `name:${normalizedName}`;
+
+      if (seenIdentities.has(identity)) {
+        return false;
+      }
+
+      seenIdentities.add(identity);
+
+      return true;
+    })
     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumTechnologies)
     .map((technology, index) => ({
       ...technology,

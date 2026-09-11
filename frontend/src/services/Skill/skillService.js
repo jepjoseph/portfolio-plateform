@@ -8,13 +8,20 @@ import {
   updateSkillModel,
 } from "../../models/skillModel.js";
 
+import { readStoredExperiences } from "../Experience/experienceStorage.js";
+
+import { getSkillUsage } from "./skillUtils.js";
+
 import {
   assertValidSkill,
   validateSkill,
   validateSkillNameAvailability,
 } from "./skillValidation.js";
 
-import { readStoredSkills, replaceStoredSkills } from "./skillStorage.js";
+import {
+  readStoredSkills,
+  replaceStoredSkills,
+} from "./skillStorage.js";
 
 /*
  * =========================================
@@ -28,6 +35,8 @@ function createSkillServiceError({
   code,
   status = 500,
   details = null,
+  conflicts = [],
+  usage = null,
 }) {
   const error = new Error(message);
 
@@ -37,15 +46,114 @@ function createSkillServiceError({
   error.publicMessage = publicMessage;
   error.details = details;
 
+  error.conflicts = Array.isArray(conflicts)
+    ? conflicts
+    : [];
+
+  error.usage =
+    usage && typeof usage === "object"
+      ? usage
+      : null;
+
   return error;
 }
 
 function createSkillNotFoundError(skillId) {
   return createSkillServiceError({
     message: `Skill "${skillId}" was not found.`,
-    publicMessage: "The requested skill could not be found.",
+
+    publicMessage:
+      "The requested skill could not be found.",
+
     code: "SKILL_NOT_FOUND",
+
     status: 404,
+  });
+}
+
+/*
+ * =========================================
+ * Skill Usage Conflict
+ * =========================================
+ */
+
+function createSkillUsageConflict(
+  skill,
+  usage,
+) {
+  const experienceCount =
+    Number(usage?.experienceCount) || 0;
+
+  const experienceSkillCount =
+    Number(
+      usage?.experienceSkillCount,
+    ) || 0;
+
+  const experienceTechnologyCount =
+    Number(
+      usage?.experienceTechnologyCount,
+    ) || 0;
+
+  const publicMessage =
+    experienceCount === 1
+      ? `"${skill.name}" cannot be permanently deleted because it is used by an experience. Archive it instead.`
+      : `"${skill.name}" cannot be permanently deleted because it is used by ${experienceCount} experiences. Archive it instead.`;
+
+  return createSkillServiceError({
+    message:
+      `Skill "${skill.id}" has active relationships and cannot be deleted.`,
+
+    publicMessage,
+
+    code: "SKILL_IN_USE",
+
+    status: 409,
+
+    details: {
+      skillId: skill.id,
+      skillName: skill.name,
+      relationshipCount:
+        Number(usage?.total) || 0,
+      experienceCount,
+      experienceSkillCount,
+      experienceTechnologyCount,
+    },
+
+    usage,
+
+    conflicts: [
+      {
+        field: "skillId",
+
+        code: "skill_in_use",
+
+        message: publicMessage,
+
+        skillId: skill.id,
+
+        skillName: skill.name,
+
+        relationshipCount:
+          Number(usage?.total) || 0,
+
+        experienceCount,
+
+        experienceSkillCount,
+
+        experienceTechnologyCount,
+
+        experienceIds: Array.isArray(
+          usage?.experiences,
+        )
+          ? usage.experiences
+              .map(
+                (experience) =>
+                  experience.id,
+              )
+              .filter(Boolean)
+          : [],
+      },
+    ],
   });
 }
 
@@ -53,26 +161,31 @@ function createSkillNotFoundError(skillId) {
  * =========================================
  * Candidate Creation
  * =========================================
- *
- * Add defaults before validation without first
- * normalizing or truncating the supplied values.
  */
 
-function createSkillCandidate(skillData = {}) {
+function createSkillCandidate(
+  skillData = {},
+) {
   const defaults = createEmptySkill();
+
+  const source =
+    skillData &&
+    typeof skillData === "object"
+      ? skillData
+      : {};
 
   return {
     ...defaults,
-    ...skillData,
+    ...source,
 
     proficiency: {
       ...defaults.proficiency,
-      ...skillData.proficiency,
+      ...source.proficiency,
     },
 
     language: {
       ...defaults.language,
-      ...skillData.language,
+      ...source.language,
     },
   };
 }
@@ -91,19 +204,29 @@ export async function getSkills({
 } = {}) {
   const skills = readStoredSkills();
 
-  const normalizedQuery = normalizeSkillNameForComparison(query);
+  const normalizedQuery =
+    normalizeSkillNameForComparison(query);
 
   return skills
     .filter((skill) => {
-      if (!includeArchived && skill.status === "archived") {
+      if (
+        !includeArchived &&
+        skill.status === "archived"
+      ) {
         return false;
       }
 
-      if (category !== "all" && skill.category !== category) {
+      if (
+        category !== "all" &&
+        skill.category !== category
+      ) {
         return false;
       }
 
-      if (type !== "all" && skill.type !== type) {
+      if (
+        type !== "all" &&
+        skill.type !== type
+      ) {
         return false;
       }
 
@@ -118,15 +241,27 @@ export async function getSkills({
         skill.type,
         ...(skill.aliases || []),
       ]
-        .map(normalizeSkillNameForComparison)
+        .map(
+          normalizeSkillNameForComparison,
+        )
         .filter(Boolean);
 
-      return searchableValues.some((value) => value.includes(normalizedQuery));
+      return searchableValues.some(
+        (value) =>
+          value.includes(
+            normalizedQuery,
+          ),
+      );
     })
-    .sort((firstSkill, secondSkill) =>
-      firstSkill.name.localeCompare(secondSkill.name, undefined, {
-        sensitivity: "base",
-      }),
+    .sort(
+      (firstSkill, secondSkill) =>
+        firstSkill.name.localeCompare(
+          secondSkill.name,
+          undefined,
+          {
+            sensitivity: "base",
+          },
+        ),
     );
 }
 
@@ -136,22 +271,34 @@ export async function getSkills({
  * =========================================
  */
 
-export async function getSkillById(skillId) {
+export async function getSkillById(
+  skillId,
+) {
   if (!skillId) {
     throw createSkillServiceError({
-      message: "A skill ID is required to retrieve a skill.",
-      publicMessage: "The requested skill could not be identified.",
+      message:
+        "A skill ID is required to retrieve a skill.",
+
+      publicMessage:
+        "The requested skill could not be identified.",
+
       code: "SKILL_ID_REQUIRED",
+
       status: 400,
     });
   }
 
   const skills = readStoredSkills();
 
-  const skill = skills.find((candidate) => candidate.id === skillId);
+  const skill = skills.find(
+    (candidate) =>
+      candidate.id === skillId,
+  );
 
   if (!skill) {
-    throw createSkillNotFoundError(skillId);
+    throw createSkillNotFoundError(
+      skillId,
+    );
   }
 
   return skill;
@@ -163,14 +310,21 @@ export async function getSkillById(skillId) {
  * =========================================
  */
 
-export async function findSkillByName(name) {
-  if (!normalizeSkillNameForComparison(name)) {
+export async function findSkillByName(
+  name,
+) {
+  if (
+    !normalizeSkillNameForComparison(
+      name,
+    )
+  ) {
     return null;
   }
 
-  const skills = readStoredSkills();
-
-  return findMatchingSkill(skills, name);
+  return findMatchingSkill(
+    readStoredSkills(),
+    name,
+  );
 }
 
 /*
@@ -179,32 +333,44 @@ export async function findSkillByName(name) {
  * =========================================
  */
 
-export async function createSkill(skillData) {
+export async function createSkill(
+  skillData,
+) {
   const skills = readStoredSkills();
 
-  const candidate = createSkillCandidate(skillData);
+  const candidate =
+    createSkillCandidate(skillData);
 
   assertValidSkill(candidate, {
     existingSkills: skills,
   });
 
-  const skill = createSkillModel(candidate);
+  const skill =
+    createSkillModel(candidate);
 
   const duplicateId = skills.some(
-    (existingSkill) => existingSkill.id === skill.id,
+    (existingSkill) =>
+      existingSkill.id === skill.id,
   );
 
   if (duplicateId) {
     throw createSkillServiceError({
-      message: `Skill ID "${skill.id}" already exists.`,
+      message:
+        `Skill ID "${skill.id}" already exists.`,
+
       publicMessage:
         "This skill could not be created because its identifier already exists.",
+
       code: "SKILL_ID_CONFLICT",
+
       status: 409,
     });
   }
 
-  replaceStoredSkills([skill, ...skills]);
+  replaceStoredSkills([
+    skill,
+    ...skills,
+  ]);
 
   return skill;
 }
@@ -215,42 +381,63 @@ export async function createSkill(skillData) {
  * =========================================
  */
 
-export async function updateSkill(skillId, updates = {}) {
+export async function updateSkill(
+  skillId,
+  updates = {},
+) {
   if (!skillId) {
     throw createSkillServiceError({
-      message: "A skill ID is required to update a skill.",
-      publicMessage: "The skill could not be identified.",
+      message:
+        "A skill ID is required to update a skill.",
+
+      publicMessage:
+        "The skill could not be identified.",
+
       code: "SKILL_ID_REQUIRED",
+
       status: 400,
     });
   }
 
   const skills = readStoredSkills();
 
-  const skillIndex = skills.findIndex((skill) => skill.id === skillId);
+  const skillIndex = skills.findIndex(
+    (skill) => skill.id === skillId,
+  );
 
   if (skillIndex === -1) {
-    throw createSkillNotFoundError(skillId);
+    throw createSkillNotFoundError(
+      skillId,
+    );
   }
 
-  const currentSkill = skills[skillIndex];
+  const currentSkill =
+    skills[skillIndex];
+
+  const safeUpdates =
+    updates &&
+    typeof updates === "object"
+      ? updates
+      : {};
 
   const mergedSkill = {
     ...currentSkill,
-    ...updates,
+    ...safeUpdates,
 
     proficiency: {
       ...currentSkill.proficiency,
-      ...updates.proficiency,
+      ...safeUpdates.proficiency,
     },
 
     language: {
       ...currentSkill.language,
-      ...updates.language,
+      ...safeUpdates.language,
     },
 
     id: currentSkill.id,
-    createdAt: currentSkill.createdAt,
+
+    createdAt:
+      currentSkill.createdAt,
   };
 
   assertValidSkill(mergedSkill, {
@@ -258,11 +445,16 @@ export async function updateSkill(skillId, updates = {}) {
     excludeSkillId: skillId,
   });
 
-  const updatedSkill = updateSkillModel(currentSkill, updates);
+  const updatedSkill =
+    updateSkillModel(
+      currentSkill,
+      safeUpdates,
+    );
 
   const nextSkills = [...skills];
 
-  nextSkills[skillIndex] = updatedSkill;
+  nextSkills[skillIndex] =
+    updatedSkill;
 
   replaceStoredSkills(nextSkills);
 
@@ -275,7 +467,15 @@ export async function updateSkill(skillId, updates = {}) {
  * =========================================
  */
 
-export async function archiveSkill(skillId) {
+export async function archiveSkill(
+  skillId,
+) {
+  /*
+   * Archiving is allowed even when the skill is
+   * referenced. Experience snapshots preserve its
+   * readable name and other relationship details.
+   */
+
   return updateSkill(skillId, {
     status: "archived",
   });
@@ -287,9 +487,35 @@ export async function archiveSkill(skillId) {
  * =========================================
  */
 
-export async function restoreSkill(skillId) {
+export async function restoreSkill(
+  skillId,
+) {
   return updateSkill(skillId, {
     status: "active",
+  });
+}
+
+/*
+ * =========================================
+ * Resolve Stored Usage
+ * =========================================
+ */
+
+function resolveStoredSkillUsage(
+  skillId,
+) {
+  /*
+   * readStoredExperiences() includes active and
+   * archived Experience records. Archived records
+   * still contain real relationships and must
+   * therefore continue blocking deletion.
+   */
+
+  const experiences =
+    readStoredExperiences();
+
+  return getSkillUsage(skillId, {
+    experiences,
   });
 }
 
@@ -299,31 +525,71 @@ export async function restoreSkill(skillId) {
  * =========================================
  */
 
-export async function deleteSkill(skillId) {
+export async function deleteSkill(
+  skillId,
+) {
   if (!skillId) {
     throw createSkillServiceError({
-      message: "A skill ID is required to delete a skill.",
-      publicMessage: "The skill could not be identified.",
+      message:
+        "A skill ID is required to delete a skill.",
+
+      publicMessage:
+        "The skill could not be identified.",
+
       code: "SKILL_ID_REQUIRED",
+
       status: 400,
     });
   }
 
   const skills = readStoredSkills();
 
-  const skillToDelete = skills.find((skill) => skill.id === skillId);
+  const skillToDelete = skills.find(
+    (skill) => skill.id === skillId,
+  );
 
   if (!skillToDelete) {
-    throw createSkillNotFoundError(skillId);
+    throw createSkillNotFoundError(
+      skillId,
+    );
   }
 
-  const remainingSkills = skills.filter((skill) => skill.id !== skillId);
+  /*
+   * The service independently reads Experience
+   * storage. Deletion protection therefore cannot
+   * be bypassed by calling skillService directly.
+   */
 
-  replaceStoredSkills(remainingSkills);
+  const usage =
+    resolveStoredSkillUsage(skillId);
+
+  if (
+    Number(
+      usage.total ??
+        usage.totalUsage,
+    ) > 0
+  ) {
+    throw createSkillUsageConflict(
+      skillToDelete,
+      usage,
+    );
+  }
+
+  const remainingSkills =
+    skills.filter(
+      (skill) =>
+        skill.id !== skillId,
+    );
+
+  replaceStoredSkills(
+    remainingSkills,
+  );
 
   return {
     id: skillId,
+
     name: skillToDelete.name,
+
     deleted: true,
   };
 }
@@ -334,12 +600,21 @@ export async function deleteSkill(skillId) {
  * =========================================
  */
 
-export async function resolveSkillMatch(name) {
+export async function resolveSkillMatch(
+  name,
+) {
   const skills = readStoredSkills();
 
-  const availability = validateSkillNameAvailability(name, skills);
+  const availability =
+    validateSkillNameAvailability(
+      name,
+      skills,
+    );
 
-  if (availability.isAvailable) {
+  if (
+    availability.isAvailable ||
+    !availability.matchingSkill
+  ) {
     return {
       matched: false,
       matchedBy: "",
@@ -347,27 +622,27 @@ export async function resolveSkillMatch(name) {
     };
   }
 
-  const matchingSkill = availability.matchingSkill;
+  const matchingSkill =
+    availability.matchingSkill;
 
-  if (!matchingSkill) {
-    return {
-      matched: false,
-      matchedBy: "",
-      skill: null,
-    };
-  }
+  const normalizedRequestedName =
+    normalizeSkillNameForComparison(
+      name,
+    );
 
-  const normalizedRequestedName = normalizeSkillNameForComparison(name);
-
-  const normalizedPrimaryName = normalizeSkillNameForComparison(
-    matchingSkill.name,
-  );
+  const normalizedPrimaryName =
+    normalizeSkillNameForComparison(
+      matchingSkill.name,
+    );
 
   return {
     matched: true,
 
     matchedBy:
-      normalizedRequestedName === normalizedPrimaryName ? "name" : "alias",
+      normalizedRequestedName ===
+      normalizedPrimaryName
+        ? "name"
+        : "alias",
 
     skill: matchingSkill,
   };
@@ -377,9 +652,6 @@ export async function resolveSkillMatch(name) {
  * =========================================
  * Find or Create Skill
  * =========================================
- *
- * This is the main operation used by
- * ExperienceSkillsEditor.
  */
 
 export async function findOrCreateSkill(
@@ -391,56 +663,92 @@ export async function findOrCreateSkill(
       ? {
           name: skillData,
         }
-      : skillData || {};
+      : skillData &&
+          typeof skillData ===
+            "object"
+        ? skillData
+        : {};
 
   const name =
-    typeof candidateData.name === "string" ? candidateData.name.trim() : "";
+    typeof candidateData.name ===
+    "string"
+      ? candidateData.name.trim()
+      : "";
 
   if (!name) {
     throw createSkillServiceError({
-      message: "A skill name is required for find-or-create.",
-      publicMessage: "Enter a skill name before adding it.",
+      message:
+        "A skill name is required for find-or-create.",
+
+      publicMessage:
+        "Enter a skill name before adding it.",
+
       code: "SKILL_NAME_REQUIRED",
+
       status: 400,
     });
   }
 
-  const matchResult = await resolveSkillMatch(name);
+  const matchResult =
+    await resolveSkillMatch(name);
 
   if (matchResult.matched) {
-    let matchedSkill = matchResult.skill;
+    let matchedSkill =
+      matchResult.skill;
+
     let restored = false;
 
-    if (restoreArchived && matchedSkill.status === "archived") {
-      matchedSkill = await restoreSkill(matchedSkill.id);
+    if (
+      restoreArchived &&
+      matchedSkill.status ===
+        "archived"
+    ) {
+      matchedSkill =
+        await restoreSkill(
+          matchedSkill.id,
+        );
 
       restored = true;
     }
 
     return {
       skill: matchedSkill,
+
       created: false,
+
       restored,
+
       matched: true,
-      matchedBy: matchResult.matchedBy,
+
+      matchedBy:
+        matchResult.matchedBy,
     };
   }
 
-  const createdSkill = await createSkill({
-    ...candidateData,
+  const createdSkill =
+    await createSkill({
+      ...candidateData,
 
-    name,
+      name,
 
-    source: candidateData.source || "manual",
+      source:
+        candidateData.source ||
+        "manual",
 
-    sourceContext: candidateData.sourceContext || "experience",
-  });
+      sourceContext:
+        candidateData.sourceContext ||
+        "experience",
+    });
 
   return {
     skill: createdSkill,
+
     created: true,
+
     restored: false,
+
     matched: false,
+
     matchedBy: "",
   };
 }
@@ -455,9 +763,11 @@ export async function validateSkillDraft(
   skillData,
   { excludeSkillId = "" } = {},
 ) {
-  const existingSkills = readStoredSkills();
+  const existingSkills =
+    readStoredSkills();
 
-  const candidate = createSkillCandidate(skillData);
+  const candidate =
+    createSkillCandidate(skillData);
 
   return validateSkill(candidate, {
     existingSkills,
@@ -475,47 +785,70 @@ export async function checkSkillNameAvailability(
   name,
   { excludeSkillId = "" } = {},
 ) {
-  const existingSkills = readStoredSkills();
-
-  return validateSkillNameAvailability(name, existingSkills, excludeSkillId);
+  return validateSkillNameAvailability(
+    name,
+    readStoredSkills(),
+    excludeSkillId,
+  );
 }
 
 /*
  * =========================================
  * Replace Skill Library
  * =========================================
- *
- * Used for future imports and migrations.
  */
 
-export async function replaceSkills(skillValues) {
+export async function replaceSkills(
+  skillValues,
+) {
   if (!Array.isArray(skillValues)) {
     throw createSkillServiceError({
-      message: "The replacement Skill Library must be an array.",
-      publicMessage: "The Skill Library has an invalid format.",
-      code: "INVALID_SKILL_COLLECTION",
+      message:
+        "The replacement Skill Library must be an array.",
+
+      publicMessage:
+        "The Skill Library has an invalid format.",
+
+      code:
+        "INVALID_SKILL_COLLECTION",
+
       status: 400,
     });
   }
 
   const validatedSkills = [];
 
-  skillValues.forEach((skillValue, index) => {
-    const candidate = createSkillCandidate(skillValue);
+  skillValues.forEach(
+    (skillValue, index) => {
+      const candidate =
+        createSkillCandidate(
+          skillValue,
+        );
 
-    const otherSkills = skillValues.filter(
-      (_, candidateIndex) => candidateIndex !== index,
+      const otherSkills =
+        skillValues.filter(
+          (_, candidateIndex) =>
+            candidateIndex !== index,
+        );
+
+      assertValidSkill(candidate, {
+        existingSkills: otherSkills,
+        excludeSkillId:
+          candidate.id,
+      });
+
+      validatedSkills.push(
+        normalizeSkill(candidate),
+      );
+    },
+  );
+
+  const normalizedSkills =
+    normalizeSkillCollection(
+      validatedSkills,
     );
 
-    assertValidSkill(candidate, {
-      existingSkills: otherSkills,
-      excludeSkillId: candidate.id,
-    });
-
-    validatedSkills.push(normalizeSkill(candidate));
-  });
-
-  const normalizedSkills = normalizeSkillCollection(validatedSkills);
-
-  return replaceStoredSkills(normalizedSkills);
+  return replaceStoredSkills(
+    normalizedSkills,
+  );
 }

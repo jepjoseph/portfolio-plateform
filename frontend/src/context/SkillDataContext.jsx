@@ -24,31 +24,13 @@ import {
 
 import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
 
-/*
- * =========================================
- * Context
- * =========================================
- */
-
 const SkillDataContext = createContext(null);
-
-/*
- * =========================================
- * Default Operation
- * =========================================
- */
 
 const INITIAL_OPERATION = {
   type: "",
   skillId: "",
   status: "idle",
 };
-
-/*
- * =========================================
- * Error Normalization
- * =========================================
- */
 
 function normalizeSkillContextError(error) {
   return {
@@ -74,15 +56,48 @@ function normalizeSkillContextError(error) {
 
     validation: error?.validation || null,
 
+    usage: error?.usage && typeof error.usage === "object" ? error.usage : null,
+
     originalError: error,
   };
 }
 
-/*
- * =========================================
- * Sort Library
- * =========================================
- */
+function createSkillDeletionConflict(skillId, usage) {
+  const experienceCount = Number(usage?.experienceCount) || 0;
+
+  const error = new Error(`Skill "${skillId}" is still referenced.`);
+
+  error.name = "SkillUsageConflictError";
+  error.code = "SKILL_IN_USE";
+  error.status = 409;
+
+  error.publicMessage =
+    experienceCount === 1
+      ? "This skill cannot be permanently deleted because it is used by an experience. Archive it instead."
+      : `This skill cannot be permanently deleted because it is used by ${experienceCount} experiences. Archive it instead.`;
+
+  error.usage = usage;
+
+  error.conflicts = [
+    {
+      field: "skillId",
+      code: "skill_in_use",
+      message: error.publicMessage,
+      skillId,
+      experienceCount,
+
+      experienceSkillCount: Number(usage?.experienceSkillCount) || 0,
+
+      experienceTechnologyCount: Number(usage?.experienceTechnologyCount) || 0,
+
+      experienceIds: Array.isArray(usage?.experiences)
+        ? usage.experiences.map((item) => item.id).filter(Boolean)
+        : [],
+    },
+  ];
+
+  return error;
+}
 
 function sortSkillLibrary(skills) {
   return [...skills].sort((firstSkill, secondSkill) =>
@@ -92,30 +107,13 @@ function sortSkillLibrary(skills) {
   );
 }
 
-/*
- * =========================================
- * Provider
- * =========================================
- */
-
 export function SkillDataProvider({ children }) {
   const [skills, setSkills] = useState([]);
-
   const [isLoading, setIsLoading] = useState(true);
-
   const [loadStatus, setLoadStatus] = useState("idle");
-
   const [saveStatus, setSaveStatus] = useState("idle");
-
   const [error, setError] = useState(null);
-
   const [operation, setOperation] = useState(INITIAL_OPERATION);
-
-  /*
-   * =========================================
-   * Status Management
-   * =========================================
-   */
 
   const clearError = useCallback(() => {
     setError(null);
@@ -128,12 +126,6 @@ export function SkillDataProvider({ children }) {
   const resetOperation = useCallback(() => {
     setOperation(INITIAL_OPERATION);
   }, []);
-
-  /*
-   * =========================================
-   * Load Skills
-   * =========================================
-   */
 
   const refreshSkills = useCallback(
     async ({ includeArchived = true, showLoading = true } = {}) => {
@@ -174,25 +166,13 @@ export function SkillDataProvider({ children }) {
     [],
   );
 
-  /*
-   * =========================================
-   * Initial Load
-   * =========================================
-   */
-
   useEffect(() => {
     let isActive = true;
 
-    const loadInitialSkills = async () => {
-      try {
-        setIsLoading(true);
-        setLoadStatus("loading");
-        setError(null);
-
-        const loadedSkills = await getSkillsService({
-          includeArchived: true,
-        });
-
+    getSkillsService({
+      includeArchived: true,
+    })
+      .then((loadedSkills) => {
         if (!isActive) {
           return;
         }
@@ -202,7 +182,8 @@ export function SkillDataProvider({ children }) {
         );
 
         setLoadStatus("success");
-      } catch (loadError) {
+      })
+      .catch((loadError) => {
         if (!isActive) {
           return;
         }
@@ -213,28 +194,17 @@ export function SkillDataProvider({ children }) {
         setLoadStatus("error");
 
         setError(normalizeSkillContextError(loadError));
-      } finally {
+      })
+      .finally(() => {
         if (isActive) {
           setIsLoading(false);
         }
-      }
-    };
-
-    loadInitialSkills();
+      });
 
     return () => {
       isActive = false;
     };
   }, []);
-
-  /*
-   * =========================================
-   * Cross-Tab Synchronization
-   * =========================================
-   *
-   * If the Skill Library changes in another browser
-   * tab, reload it without showing the main loader.
-   */
 
   useEffect(() => {
     const handleStorageChange = (event) => {
@@ -248,11 +218,7 @@ export function SkillDataProvider({ children }) {
       refreshSkills({
         includeArchived: true,
         showLoading: false,
-      }).catch(() => {
-        /*
-         * The context already records the error.
-         */
-      });
+      }).catch(() => {});
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -261,12 +227,6 @@ export function SkillDataProvider({ children }) {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, [refreshSkills]);
-
-  /*
-   * =========================================
-   * Get Skill
-   * =========================================
-   */
 
   const getSkillById = useCallback(
     async (skillId) => {
@@ -281,8 +241,6 @@ export function SkillDataProvider({ children }) {
 
         return await getSkillByIdService(skillId);
       } catch (getError) {
-        console.error("Unable to get skill:", getError);
-
         setError(normalizeSkillContextError(getError));
 
         throw getError;
@@ -290,12 +248,6 @@ export function SkillDataProvider({ children }) {
     },
     [skills],
   );
-
-  /*
-   * =========================================
-   * Create Skill
-   * =========================================
-   */
 
   const createSkill = useCallback(async (skillData) => {
     try {
@@ -310,11 +262,10 @@ export function SkillDataProvider({ children }) {
 
       const createdSkill = await createSkillService(skillData);
 
-      setSkills((currentSkills) =>
+      setSkills((current) =>
         sortSkillLibrary([
           createdSkill,
-
-          ...currentSkills.filter((skill) => skill.id !== createdSkill.id),
+          ...current.filter((skill) => skill.id !== createdSkill.id),
         ]),
       );
 
@@ -328,8 +279,6 @@ export function SkillDataProvider({ children }) {
 
       return createdSkill;
     } catch (createError) {
-      console.error("Unable to create skill:", createError);
-
       setSaveStatus("error");
 
       setOperation({
@@ -344,12 +293,6 @@ export function SkillDataProvider({ children }) {
     }
   }, []);
 
-  /*
-   * =========================================
-   * Update Skill
-   * =========================================
-   */
-
   const updateSkill = useCallback(async (skillId, updates) => {
     try {
       setSaveStatus("saving");
@@ -363,11 +306,9 @@ export function SkillDataProvider({ children }) {
 
       const updatedSkill = await updateSkillService(skillId, updates);
 
-      setSkills((currentSkills) =>
+      setSkills((current) =>
         sortSkillLibrary(
-          currentSkills.map((skill) =>
-            skill.id === skillId ? updatedSkill : skill,
-          ),
+          current.map((skill) => (skill.id === skillId ? updatedSkill : skill)),
         ),
       );
 
@@ -381,8 +322,6 @@ export function SkillDataProvider({ children }) {
 
       return updatedSkill;
     } catch (updateError) {
-      console.error("Unable to update skill:", updateError);
-
       setSaveStatus("error");
 
       setOperation({
@@ -396,12 +335,6 @@ export function SkillDataProvider({ children }) {
       throw updateError;
     }
   }, []);
-
-  /*
-   * =========================================
-   * Find or Create Skill
-   * =========================================
-   */
 
   const findOrCreateSkill = useCallback(async (skillData, options = {}) => {
     try {
@@ -418,18 +351,16 @@ export function SkillDataProvider({ children }) {
 
       const resolvedSkill = result.skill;
 
-      setSkills((currentSkills) => {
-        const alreadyInState = currentSkills.some(
-          (skill) => skill.id === resolvedSkill.id,
-        );
+      setSkills((current) => {
+        const exists = current.some((skill) => skill.id === resolvedSkill.id);
 
-        const nextSkills = alreadyInState
-          ? currentSkills.map((skill) =>
+        const next = exists
+          ? current.map((skill) =>
               skill.id === resolvedSkill.id ? resolvedSkill : skill,
             )
-          : [resolvedSkill, ...currentSkills];
+          : [resolvedSkill, ...current];
 
-        return sortSkillLibrary(nextSkills);
+        return sortSkillLibrary(next);
       });
 
       setSaveStatus("success");
@@ -441,9 +372,7 @@ export function SkillDataProvider({ children }) {
       });
 
       return result;
-    } catch (findOrCreateError) {
-      console.error("Unable to find or create skill:", findOrCreateError);
-
+    } catch (operationError) {
       setSaveStatus("error");
 
       setOperation({
@@ -452,17 +381,11 @@ export function SkillDataProvider({ children }) {
         status: "error",
       });
 
-      setError(normalizeSkillContextError(findOrCreateError));
+      setError(normalizeSkillContextError(operationError));
 
-      throw findOrCreateError;
+      throw operationError;
     }
   }, []);
-
-  /*
-   * =========================================
-   * Archive Skill
-   * =========================================
-   */
 
   const archiveSkill = useCallback(async (skillId) => {
     try {
@@ -477,9 +400,9 @@ export function SkillDataProvider({ children }) {
 
       const archivedSkill = await archiveSkillService(skillId);
 
-      setSkills((currentSkills) =>
+      setSkills((current) =>
         sortSkillLibrary(
-          currentSkills.map((skill) =>
+          current.map((skill) =>
             skill.id === skillId ? archivedSkill : skill,
           ),
         ),
@@ -495,8 +418,6 @@ export function SkillDataProvider({ children }) {
 
       return archivedSkill;
     } catch (archiveError) {
-      console.error("Unable to archive skill:", archiveError);
-
       setSaveStatus("error");
 
       setOperation({
@@ -511,12 +432,6 @@ export function SkillDataProvider({ children }) {
     }
   }, []);
 
-  /*
-   * =========================================
-   * Restore Skill
-   * =========================================
-   */
-
   const restoreSkill = useCallback(async (skillId) => {
     try {
       setSaveStatus("saving");
@@ -530,9 +445,9 @@ export function SkillDataProvider({ children }) {
 
       const restoredSkill = await restoreSkillService(skillId);
 
-      setSkills((currentSkills) =>
+      setSkills((current) =>
         sortSkillLibrary(
-          currentSkills.map((skill) =>
+          current.map((skill) =>
             skill.id === skillId ? restoredSkill : skill,
           ),
         ),
@@ -548,8 +463,6 @@ export function SkillDataProvider({ children }) {
 
       return restoredSkill;
     } catch (restoreError) {
-      console.error("Unable to restore skill:", restoreError);
-
       setSaveStatus("error");
 
       setOperation({
@@ -564,13 +477,7 @@ export function SkillDataProvider({ children }) {
     }
   }, []);
 
-  /*
-   * =========================================
-   * Delete Skill
-   * =========================================
-   */
-
-  const deleteSkill = useCallback(async (skillId) => {
+  const deleteSkill = useCallback(async (skillId, { usage = null } = {}) => {
     try {
       setSaveStatus("saving");
       setError(null);
@@ -581,11 +488,13 @@ export function SkillDataProvider({ children }) {
         status: "loading",
       });
 
+      if (Number(usage?.total ?? usage?.totalUsage) > 0) {
+        throw createSkillDeletionConflict(skillId, usage);
+      }
+
       const deletionResult = await deleteSkillService(skillId);
 
-      setSkills((currentSkills) =>
-        currentSkills.filter((skill) => skill.id !== skillId),
-      );
+      setSkills((current) => current.filter((skill) => skill.id !== skillId));
 
       setSaveStatus("success");
 
@@ -597,8 +506,6 @@ export function SkillDataProvider({ children }) {
 
       return deletionResult;
     } catch (deleteError) {
-      console.error("Unable to delete skill:", deleteError);
-
       setSaveStatus("error");
 
       setOperation({
@@ -613,12 +520,6 @@ export function SkillDataProvider({ children }) {
     }
   }, []);
 
-  /*
-   * =========================================
-   * Replace Skill Library
-   * =========================================
-   */
-
   const replaceSkills = useCallback(async (skillValues) => {
     try {
       setSaveStatus("saving");
@@ -630,9 +531,9 @@ export function SkillDataProvider({ children }) {
         status: "loading",
       });
 
-      const replacedSkills = await replaceSkillsService(skillValues);
+      const replaced = await replaceSkillsService(skillValues);
 
-      setSkills(sortSkillLibrary(replacedSkills));
+      setSkills(sortSkillLibrary(replaced));
 
       setSaveStatus("success");
 
@@ -642,10 +543,8 @@ export function SkillDataProvider({ children }) {
         status: "success",
       });
 
-      return replacedSkills;
+      return replaced;
     } catch (replaceError) {
-      console.error("Unable to replace skills:", replaceError);
-
       setSaveStatus("error");
 
       setOperation({
@@ -660,34 +559,20 @@ export function SkillDataProvider({ children }) {
     }
   }, []);
 
-  /*
-   * =========================================
-   * Validation and Resolution
-   * =========================================
-   */
-
   const validateSkillDraft = useCallback(
-    async (skillData, options = {}) =>
-      validateSkillDraftService(skillData, options),
+    (skillData, options = {}) => validateSkillDraftService(skillData, options),
     [],
   );
 
   const checkSkillNameAvailability = useCallback(
-    async (name, options = {}) =>
-      checkSkillNameAvailabilityService(name, options),
+    (name, options = {}) => checkSkillNameAvailabilityService(name, options),
     [],
   );
 
   const resolveSkillMatch = useCallback(
-    async (name) => resolveSkillMatchService(name),
+    (name) => resolveSkillMatchService(name),
     [],
   );
-
-  /*
-   * =========================================
-   * Derived Collections
-   * =========================================
-   */
 
   const activeSkills = useMemo(
     () => skills.filter((skill) => skill.status !== "archived"),
@@ -699,21 +584,24 @@ export function SkillDataProvider({ children }) {
     [skills],
   );
 
-  const skillsById = useMemo(() => {
-    return new Map(skills.map((skill) => [skill.id, skill]));
-  }, [skills]);
+  const skillsById = useMemo(
+    () => new Map(skills.map((skill) => [skill.id, skill])),
+    [skills],
+  );
 
-  const skillsByCategory = useMemo(() => {
-    return activeSkills.reduce((groups, skill) => {
-      if (!groups[skill.category]) {
-        groups[skill.category] = [];
-      }
+  const skillsByCategory = useMemo(
+    () =>
+      activeSkills.reduce((groups, skill) => {
+        if (!groups[skill.category]) {
+          groups[skill.category] = [];
+        }
 
-      groups[skill.category].push(skill);
+        groups[skill.category].push(skill);
 
-      return groups;
-    }, {});
-  }, [activeSkills]);
+        return groups;
+      }, {}),
+    [activeSkills],
+  );
 
   const statistics = useMemo(
     () => ({
@@ -738,18 +626,8 @@ export function SkillDataProvider({ children }) {
     [skills, activeSkills, archivedSkills],
   );
 
-  /*
-   * =========================================
-   * Context Value
-   * =========================================
-   */
-
   const contextValue = useMemo(
     () => ({
-      /*
-       * Collections
-       */
-
       skills,
       activeSkills,
       archivedSkills,
@@ -757,27 +635,15 @@ export function SkillDataProvider({ children }) {
       skillsByCategory,
       statistics,
 
-      /*
-       * Status
-       */
-
       isLoading,
       loadStatus,
       saveStatus,
       operation,
       error,
 
-      /*
-       * Read Operations
-       */
-
       refreshSkills,
       getSkillById,
       resolveSkillMatch,
-
-      /*
-       * Write Operations
-       */
 
       createSkill,
       updateSkill,
@@ -787,16 +653,8 @@ export function SkillDataProvider({ children }) {
       deleteSkill,
       replaceSkills,
 
-      /*
-       * Validation
-       */
-
       validateSkillDraft,
       checkSkillNameAvailability,
-
-      /*
-       * Status Management
-       */
 
       clearError,
       resetSaveStatus,
@@ -838,12 +696,6 @@ export function SkillDataProvider({ children }) {
     </SkillDataContext.Provider>
   );
 }
-
-/*
- * =========================================
- * Context Hook
- * =========================================
- */
 
 export function useSkillData() {
   const context = useContext(SkillDataContext);
