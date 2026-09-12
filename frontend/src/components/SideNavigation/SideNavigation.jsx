@@ -6,6 +6,7 @@ const sideNavigation = [
   { label: "Projects", path: "/projects", icon: "🎯" },
   { label: "Experience", path: "/experience", icon: "🤝🏻" },
   { label: "Education", path: "/education", icon: "👨🏻‍🎓" },
+  { label: "Training", path: "/training", icon: "📚" },
   { label: "Skills", path: "/skills", icon: "💡" },
   { label: "Certifications", path: "/certifications", icon: "📜" },
   { label: "My Portfolio", path: "/portfolio", icon: "📂" },

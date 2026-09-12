@@ -19,6 +19,8 @@ function SkillItem({
   usage,
   isWorking = false,
   isUsageLoading = false,
+  conflictError = null,
+  onDismissConflict,
   onEdit,
   onArchive,
   onRestore,
@@ -68,7 +70,9 @@ function SkillItem({
     lastUsedDate ||
     skill.notes ||
     skill.sourceContext ||
-    resolvedUsage.experienceCount > 0,
+    resolvedUsage.experienceCount > 0 ||
+    resolvedUsage.educationCount > 0 ||
+    resolvedUsage.trainingCount > 0,
   );
 
   return (
@@ -166,18 +170,84 @@ function SkillItem({
             type="button"
             className="skill-item-delete-button"
             onClick={() => onDelete?.(skill)}
-            disabled={isWorking || isUsageLoading || isInUse}
-            aria-disabled={isUsageLoading || isInUse}
+            disabled={isWorking || isUsageLoading}
+            aria-disabled={isWorking || isUsageLoading}
             title={
               isInUse
-                ? "This skill is still used by an experience. Archive it instead."
+                ? "This skill is referenced by saved records. Select it to view the deletion conflict."
                 : "Permanently delete this skill"
             }
           >
-            {isInUse ? "In Use" : "Delete"}
+            {isInUse ? "Protected" : "Delete"}
           </button>
         </div>
       </header>
+
+      {conflictError && (
+        <section className="skill-item-conflict" role="alert">
+          <div className="skill-item-conflict-content">
+            <strong>Skill is still in use</strong>
+
+            <p>{conflictError.message}</p>
+
+            {conflictError.usage?.experiences?.length > 0 && (
+              <div className="skill-item-conflict-group">
+                <span>Experience</span>
+
+                <ul>
+                  {conflictError.usage.experiences.map((experience) => (
+                    <li key={`experience-${experience.id}`}>
+                      <strong>{experience.positionTitle}</strong>
+
+                      <small>{experience.organizationName}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {conflictError.usage?.educationRecords?.length > 0 && (
+              <div className="skill-item-conflict-group">
+                <span>Education</span>
+
+                <ul>
+                  {conflictError.usage.educationRecords.map((education) => (
+                    <li key={`education-${education.id}`}>
+                      <strong>{education.credentialName}</strong>
+
+                      <small>{education.institutionName}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {conflictError.usage?.trainingRecords?.length > 0 && (
+              <div className="skill-item-conflict-group">
+                <span>Training</span>
+
+                <ul>
+                  {conflictError.usage.trainingRecords.map((training) => (
+                    <li key={`training-${training.id}`}>
+                      <strong>{training.title}</strong>
+
+                      <small>{training.providerName}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="skill-item-conflict-dismiss"
+            onClick={onDismissConflict}
+          >
+            Dismiss
+          </button>
+        </section>
+      )}
 
       {isWorking && (
         <div className="skill-item-operation" role="status" aria-live="polite">
@@ -217,6 +287,18 @@ function SkillItem({
             <span>Experience</span>
 
             <strong>{usageValue(resolvedUsage.experienceCount)}</strong>
+          </div>
+
+          <div>
+            <span>Education</span>
+
+            <strong>{usageValue(resolvedUsage.educationCount)}</strong>
+          </div>
+
+          <div>
+            <span>Training</span>
+
+            <strong>{usageValue(resolvedUsage.trainingCount)}</strong>
           </div>
 
           <div>
@@ -266,13 +348,63 @@ function SkillItem({
           </>
         )}
 
+        {!isUsageLoading && resolvedUsage.educationCount > 0 && (
+          <div className="skill-item-education-usage">
+            <div className="skill-item-usage-types">
+              <span>
+                Education relationships
+                <strong>{resolvedUsage.educationSkillCount}</strong>
+              </span>
+            </div>
+
+            <ul className="skill-item-education-list">
+              {resolvedUsage.educationRecords.map((education) => (
+                <li key={education.id}>
+                  <div>
+                    <strong>{education.credentialName}</strong>
+
+                    <span>{education.institutionName}</span>
+                  </div>
+
+                  <small>Education</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!isUsageLoading && resolvedUsage.trainingCount > 0 && (
+          <div className="skill-item-training-usage">
+            <div className="skill-item-usage-types">
+              <span>
+                Training relationships
+                <strong>{resolvedUsage.trainingSkillCount}</strong>
+              </span>
+            </div>
+
+            <ul className="skill-item-training-list">
+              {resolvedUsage.trainingRecords.map((training) => (
+                <li key={training.id}>
+                  <div>
+                    <strong>{training.title}</strong>
+
+                    <span>{training.providerName}</span>
+                  </div>
+
+                  <small>Training</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {isUsageLoading ? (
           <small role="status">Checking Skill Library relationships...</small>
         ) : (
           !isInUse && (
             <small>
-              This skill is not currently connected to an Experience, Résumé, or
-              Portfolio.
+              This skill is not currently connected to an Experience, Education,
+              Training, Résumé, or Portfolio record.
             </small>
           )
         )}

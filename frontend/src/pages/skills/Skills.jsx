@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 
+import { useEducationData } from "../../context/EducationDataContext.jsx";
 import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
 import { useSkillData } from "../../context/SkillDataContext.jsx";
+import { useTrainingData } from "../../context/TrainingDataContext.jsx";
 
 import {
   createEmptySkillUsage,
@@ -38,6 +40,11 @@ function Skills() {
 
   const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
 
+  const { educationRecords, isLoading: isEducationLoading } =
+    useEducationData();
+
+  const { trainingRecords, isLoading: isTrainingLoading } = useTrainingData();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const [editingSkillId, setEditingSkillId] = useState(null);
@@ -51,9 +58,14 @@ function Skills() {
       createSkillUsageMap({
         skills,
         experiences,
+        educationRecords,
+        trainingRecords,
       }),
-    [skills, experiences],
+    [skills, experiences, educationRecords, trainingRecords],
   );
+
+  const isUsageLoading =
+    areExperiencesLoading || isEducationLoading || isTrainingLoading;
 
   const selectedSkills = showArchived ? archivedSkills : activeSkills;
 
@@ -132,8 +144,10 @@ function Skills() {
     const usage = usageBySkillId[skill.id] || createEmptySkillUsage(skill.id);
 
     /*
-     * Send the operation through the context so
-     * it creates and displays a structured conflict.
+     * The page already knows the skill is referenced,
+     * but it still sends the delete request through the
+     * service so the structured SKILL_IN_USE conflict
+     * is created from storage and displayed consistently.
      */
 
     if (usage.isUsed) {
@@ -198,32 +212,15 @@ function Skills() {
 
       <SkillsDashboard statistics={statistics} isLoading={isLoading} />
 
-      {error && (
+      {error && error.code !== "SKILL_IN_USE" && (
         <section
           className="skills-page-message skills-page-message--error"
           role="alert"
         >
           <div>
-            <strong>
-              {error.code === "SKILL_IN_USE"
-                ? "Skill is still in use"
-                : "Unable to complete the Skill Library operation"}
-            </strong>
+            <strong>Unable to complete the Skill Library operation</strong>
 
             <p>{error.message}</p>
-
-            {error.code === "SKILL_IN_USE" &&
-              error.usage?.experiences?.length > 0 && (
-                <ul className="skills-page-conflict-list">
-                  {error.usage.experiences.map((experience) => (
-                    <li key={experience.id}>
-                      <strong>{experience.positionTitle}</strong>
-
-                      <span>{experience.organizationName}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
           </div>
 
           <button type="button" onClick={clearError}>
@@ -278,8 +275,8 @@ function Skills() {
               </h2>
 
               <p>
-                Create a reusable Skill Library record for Experiences, Résumés,
-                and Portfolios.
+                Create a reusable Skill Library record for Experiences,
+                Education, Training, Résumés, and Portfolios.
               </p>
             </div>
 
@@ -307,10 +304,12 @@ function Skills() {
         skills={selectedSkills}
         showArchived={showArchived}
         isLoading={isLoading}
-        isUsageLoading={areExperiencesLoading}
+        isUsageLoading={isUsageLoading}
         loadStatus={loadStatus}
         operation={operation}
         usageBySkillId={usageBySkillId}
+        conflictError={error?.code === "SKILL_IN_USE" ? error : null}
+        onDismissConflict={clearError}
         onAddSkill={handleAddSkill}
         onRetry={handleRetryLoading}
         onEdit={handleEditSkill}

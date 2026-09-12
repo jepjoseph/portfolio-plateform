@@ -1,0 +1,494 @@
+/*
+ * =========================================
+ * Training Document Editor
+ * =========================================
+ */
+
+.training-document-editor {
+  display: grid;
+  gap: 18px;
+}
+
+/*
+ * =========================================
+ * Storage Notice
+ * =========================================
+ */
+
+.training-document-editor-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 9px;
+  background: rgba(59, 130, 246, 0.045);
+}
+
+.training-document-editor-notice span {
+  flex-shrink: 0;
+  color: #60a5fa;
+  font-size: 0.72rem;
+}
+
+.training-document-editor-notice p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+/*
+ * =========================================
+ * Upload Form
+ * =========================================
+ */
+
+.training-document-editor-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-document-editor-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.training-document-editor-field label {
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.training-document-editor-field label small {
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+}
+
+.training-document-editor-field input,
+.training-document-editor-field select,
+.training-document-editor-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.66rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.training-document-editor-field input:not([type="file"]),
+.training-document-editor-field select {
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.training-document-editor-field input[type="file"] {
+  padding: 9px;
+}
+
+.training-document-editor-field textarea {
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.training-document-editor-field input:hover,
+.training-document-editor-field select:hover,
+.training-document-editor-field textarea:hover {
+  border-color: var(--border-hover);
+}
+
+.training-document-editor-field input:focus,
+.training-document-editor-field select:focus,
+.training-document-editor-field textarea:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.04);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.training-document-editor-field input:disabled,
+.training-document-editor-field select:disabled,
+.training-document-editor-field textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.training-document-editor-field select option {
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+
+.training-document-editor-field > small {
+  color: var(--text-muted);
+  font-size: 0.56rem;
+  line-height: 1.4;
+}
+
+.training-document-editor-wide {
+  grid-column: 1 / -1;
+}
+
+.training-document-editor-character-count {
+  justify-self: end;
+}
+
+/*
+ * =========================================
+ * Selected File
+ * =========================================
+ */
+
+.training-document-editor-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 9px;
+  background: var(--accent-soft);
+}
+
+.training-document-editor-selected > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-hover);
+}
+
+.training-document-editor-selected > div {
+  min-width: 0;
+}
+
+.training-document-editor-selected strong,
+.training-document-editor-selected small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.training-document-editor-selected strong {
+  color: var(--text-primary);
+  font-size: 0.66rem;
+}
+
+.training-document-editor-selected small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+/*
+ * =========================================
+ * Editor Status
+ * =========================================
+ */
+
+.training-document-editor-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.6rem;
+}
+
+.training-document-editor-form-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.training-document-editor-form-footer > small {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+}
+
+.training-document-editor-form-footer > div,
+.training-document-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/*
+ * =========================================
+ * Buttons
+ * =========================================
+ */
+
+.training-document-editor button {
+  min-height: 31px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.59rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.training-document-editor button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.training-document-editor button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.training-document-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.training-document-editor .training-document-editor-add {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/*
+ * =========================================
+ * Document List
+ * =========================================
+ */
+
+.training-document-editor-list {
+  display: grid;
+  gap: 9px;
+}
+
+.training-document-editor-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-document-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/*
+ * =========================================
+ * Order Controls
+ * =========================================
+ */
+
+.training-document-editor-order {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.training-document-editor-order > span {
+  color: var(--accent-hover);
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+
+.training-document-editor-order > div {
+  display: grid;
+  gap: 3px;
+}
+
+.training-document-editor-order button {
+  width: 27px;
+  min-height: 25px;
+  padding: 0;
+}
+
+/*
+ * =========================================
+ * Document Content
+ * =========================================
+ */
+
+.training-document-editor-content {
+  min-width: 0;
+}
+
+.training-document-editor-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.training-document-editor-labels span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.5rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.training-document-editor-content > strong {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.training-document-editor-content > small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+.training-document-editor-content p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.training-document-editor-content > .training-document-editor-field-error {
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Document Actions
+ * =========================================
+ */
+
+.training-document-editor-actions {
+  justify-content: flex-end;
+}
+
+.training-document-editor-remove:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.07);
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.training-document-editor-empty {
+  padding: 32px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.training-document-editor-empty > span {
+  color: var(--accent-hover);
+  font-size: 1rem;
+}
+
+.training-document-editor-empty h4 {
+  margin: 8px 0 0;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.training-document-editor-empty p {
+  max-width: 560px;
+  margin: 5px auto 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 700px) {
+  .training-document-editor-form {
+    grid-template-columns: 1fr;
+  }
+
+  .training-document-editor-wide {
+    grid-column: auto;
+  }
+
+  .training-document-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .training-document-editor-order {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .training-document-editor-order > div {
+    display: flex;
+  }
+
+  .training-document-editor-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .training-document-editor-form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .training-document-editor-form-footer > div,
+  .training-document-editor-actions {
+    display: grid;
+  }
+
+  .training-document-editor-form-footer button,
+  .training-document-editor-actions button {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .training-document-editor-field input,
+  .training-document-editor-field select,
+  .training-document-editor-field textarea,
+  .training-document-editor button {
+    transition: none;
+  }
+}

@@ -1,16 +1,21 @@
 import { useId, useMemo } from "react";
 
-import { EDUCATION_FIELD_LIMITS } from "../../../../config/educationConfig.js";
-
+import { TRAINING_FIELD_LIMITS } from "../../../../config/trainingConfig.js";
 import { getSkillCategoryLabel } from "../../../../config/skillConfig.js";
 
 import { useSkillData } from "../../../../context/SkillDataContext.jsx";
 
-import { createEducationSkill } from "../../../../models/educationModel.js";
+import { createTrainingSkillRelationship } from "../../../../models/trainingModel.js";
 
 import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
 
-import "./EducationSkillsEditor.css";
+import "./TrainingSkillsEditor.css";
+
+/*
+ * =========================================
+ * Order Normalization
+ * =========================================
+ */
 
 function normalizeOrder(relationships) {
   return relationships.map((relationship, index) => ({
@@ -19,7 +24,13 @@ function normalizeOrder(relationships) {
   }));
 }
 
-function EducationSkillsEditor({
+/*
+ * =========================================
+ * Training Skills Editor
+ * =========================================
+ */
+
+function TrainingSkillsEditor({
   skillRelationships = [],
   fieldErrors = {},
   disabled = false,
@@ -34,7 +45,7 @@ function EducationSkillsEditor({
     findOrCreateSkill,
   } = useSkillData();
 
-  const maximumItems = EDUCATION_FIELD_LIMITS.maximumSkills;
+  const maximumItems = TRAINING_FIELD_LIMITS.maximumSkills;
 
   const orderedRelationships = useMemo(
     () =>
@@ -58,20 +69,27 @@ function EducationSkillsEditor({
 
   const hasReachedMaximum = orderedRelationships.length >= maximumItems;
 
+  /*
+   * =========================================
+   * Select Existing Skill
+   * =========================================
+   */
+
   const handleSelectSkill = (skill) => {
-    if (!skill?.id || hasReachedMaximum) {
+    if (!skill?.id || isWorking || hasReachedMaximum) {
       return;
     }
 
     const alreadySelected = skillRelationships.some(
-      (relationship) => relationship.skillId === skill.id,
+      (relationship) =>
+        (relationship.skillId || relationship.profileSkillId) === skill.id,
     );
 
     if (alreadySelected) {
       return;
     }
 
-    const relationship = createEducationSkill({
+    const relationship = createTrainingSkillRelationship({
       skillId: skill.id,
 
       nameSnapshot: skill.name,
@@ -86,14 +104,26 @@ function EducationSkillsEditor({
     onChange?.(normalizeOrder([...skillRelationships, relationship]));
   };
 
+  /*
+   * =========================================
+   * Create Central Skill
+   * =========================================
+   */
+
   const handleCreateSkill = async (skillData) => {
+    /*
+     * SkillSelector calls handleSelectSkill after this
+     * operation succeeds. Do not attach the relationship
+     * here, or the skill will be added twice.
+     */
+
     return findOrCreateSkill(
       {
         ...skillData,
 
         source: skillData.source || "manual",
 
-        sourceContext: skillData.sourceContext || "education",
+        sourceContext: skillData.sourceContext || "training",
       },
       {
         restoreArchived: true,
@@ -101,15 +131,25 @@ function EducationSkillsEditor({
     );
   };
 
+  /*
+   * =========================================
+   * Remove Relationship
+   * =========================================
+   */
+
   const handleRemove = (relationshipId) => {
-    onChange?.(
-      normalizeOrder(
-        skillRelationships.filter(
-          (relationship) => relationship.id !== relationshipId,
-        ),
-      ),
+    const nextRelationships = skillRelationships.filter(
+      (relationship) => relationship.id !== relationshipId,
     );
+
+    onChange?.(normalizeOrder(nextRelationships));
   };
+
+  /*
+   * =========================================
+   * Reorder Relationships
+   * =========================================
+   */
 
   const handleMove = (relationshipId, direction) => {
     const currentIndex = orderedRelationships.findIndex(
@@ -127,31 +167,49 @@ function EducationSkillsEditor({
       return;
     }
 
-    const reordered = [...orderedRelationships];
+    const reorderedRelationships = [...orderedRelationships];
 
-    const [movedRelationship] = reordered.splice(currentIndex, 1);
+    const [movedRelationship] = reorderedRelationships.splice(currentIndex, 1);
 
-    reordered.splice(targetIndex, 0, movedRelationship);
+    reorderedRelationships.splice(targetIndex, 0, movedRelationship);
 
-    onChange?.(normalizeOrder(reordered));
+    onChange?.(normalizeOrder(reorderedRelationships));
+  };
+
+  /*
+   * =========================================
+   * Library Lookup
+   * =========================================
+   */
+
+  const getLibrarySkill = (skillId) => {
+    if (!skillId) {
+      return null;
+    }
+
+    if (skillsById instanceof Map) {
+      return skillsById.get(skillId) || null;
+    }
+
+    return skillsById?.[skillId] || null;
   };
 
   return (
     <section
-      className="education-form-section education-skills-editor"
+      className="training-form-section training-skills-editor"
       aria-labelledby={titleId}
     >
-      <header className="education-form-section-header">
+      <header className="training-form-section-header">
         <span aria-hidden="true" />
 
         <div>
-          <small>Academic Capabilities</small>
+          <small>Professional Capabilities</small>
 
           <h3 id={titleId}>Skills Developed</h3>
 
           <p>
-            Connect skills developed or meaningfully practiced during this
-            education.
+            Connect skills learned, strengthened, or meaningfully practiced
+            during this training.
           </p>
         </div>
       </header>
@@ -161,9 +219,9 @@ function EducationSkillsEditor({
         selectedSkillIds={selectedSkillIds}
         maximumSelections={maximumItems}
         disabled={isWorking || hasReachedMaximum}
-        title="Select Education Skills"
-        description="Search the central Skill Library or create a new skill."
-        emptyMessage="No matching skills were found."
+        title="Select Training Skills"
+        description="Search the central Skill Library or create a new reusable skill."
+        emptyMessage="No active skills are currently available."
         defaultNewSkillCategory="other"
         defaultNewSkillType="professional"
         onSelect={handleSelectSkill}
@@ -171,13 +229,13 @@ function EducationSkillsEditor({
       />
 
       {fieldErrors.skillRelationships && (
-        <p className="education-skills-editor-error" role="alert">
+        <p className="training-skills-editor-error" role="alert">
           {fieldErrors.skillRelationships}
         </p>
       )}
 
-      <div className="education-skills-editor-summary">
-        <span>Education Skill Set</span>
+      <div className="training-skills-editor-summary">
+        <span>Training Skill Set</span>
 
         <strong>
           {orderedRelationships.length}/{maximumItems}
@@ -185,9 +243,12 @@ function EducationSkillsEditor({
       </div>
 
       {orderedRelationships.length > 0 ? (
-        <div className="education-skills-editor-list">
+        <div className="training-skills-editor-list">
           {orderedRelationships.map((relationship, index) => {
-            const librarySkill = skillsById.get(relationship.skillId);
+            const relationshipSkillId =
+              relationship.skillId || relationship.profileSkillId;
+
+            const librarySkill = getLibrarySkill(relationshipSkillId);
 
             const skillName =
               librarySkill?.name ||
@@ -199,6 +260,9 @@ function EducationSkillsEditor({
               relationship.categorySnapshot ||
               "other";
 
+            const type =
+              librarySkill?.type || relationship.typeSnapshot || "professional";
+
             const relationshipError =
               fieldErrors[`skillRelationships.${index}.skillId`] ||
               fieldErrors[`skillRelationships.${index}.nameSnapshot`];
@@ -206,11 +270,11 @@ function EducationSkillsEditor({
             return (
               <article
                 key={relationship.id}
-                className={`education-skills-editor-item ${
-                  relationshipError ? "education-skills-editor-item--error" : ""
+                className={`training-skills-editor-item ${
+                  relationshipError ? "training-skills-editor-item--error" : ""
                 }`}
               >
-                <div className="education-skills-editor-order">
+                <div className="training-skills-editor-order">
                   <span>{String(index + 1).padStart(2, "0")}</span>
 
                   <div>
@@ -218,6 +282,7 @@ function EducationSkillsEditor({
                       type="button"
                       onClick={() => handleMove(relationship.id, "up")}
                       disabled={isWorking || index === 0}
+                      aria-label={`Move ${skillName} up`}
                     >
                       ↑
                     </button>
@@ -228,28 +293,44 @@ function EducationSkillsEditor({
                       disabled={
                         isWorking || index === orderedRelationships.length - 1
                       }
+                      aria-label={`Move ${skillName} down`}
                     >
                       ↓
                     </button>
                   </div>
                 </div>
 
-                <div>
-                  <span>{getSkillCategoryLabel(category)}</span>
+                <div className="training-skills-editor-content">
+                  <div className="training-skills-editor-labels">
+                    <span>{getSkillCategoryLabel(category)}</span>
+
+                    <span>{type}</span>
+                  </div>
 
                   <strong>{skillName}</strong>
 
-                  {!librarySkill && <small>Library record unavailable</small>}
+                  {!librarySkill && (
+                    <small className="training-skills-editor-warning">
+                      Library record unavailable; saved snapshot will be used.
+                    </small>
+                  )}
 
                   {relationshipError && (
-                    <small role="alert">{relationshipError}</small>
+                    <small
+                      className="training-skills-editor-field-error"
+                      role="alert"
+                    >
+                      {relationshipError}
+                    </small>
                   )}
                 </div>
 
                 <button
                   type="button"
+                  className="training-skills-editor-remove"
                   onClick={() => handleRemove(relationship.id)}
                   disabled={isWorking}
+                  aria-label={`Remove ${skillName} from this training`}
                 >
                   Remove
                 </button>
@@ -258,16 +339,16 @@ function EducationSkillsEditor({
           })}
         </div>
       ) : (
-        <div className="education-skills-editor-empty">
+        <div className="training-skills-editor-empty">
           <span aria-hidden="true">✦</span>
 
           <h4>No skills selected</h4>
 
-          <p>Add skills developed through this educational program.</p>
+          <p>Add skills developed or practiced through this training.</p>
         </div>
       )}
     </section>
   );
 }
 
-export default EducationSkillsEditor;
+export default TrainingSkillsEditor;

@@ -44,6 +44,8 @@ function SkillsLibrary({
   loadStatus = "idle",
   operation = {},
   usageBySkillId = EMPTY_USAGE_MAP,
+  conflictError = null,
+  onDismissConflict,
   onAddSkill,
   onRetry,
   onEdit,
@@ -317,6 +319,12 @@ function SkillsLibrary({
               operation?.skillId === skill.id &&
               operation?.status === "loading";
 
+            const conflictSkillId =
+              conflictError?.details?.skillId ||
+              conflictError?.usage?.skillId ||
+              conflictError?.conflicts?.[0]?.skillId ||
+              "";
+
             return (
               <SkillItem
                 key={skill.id}
@@ -324,6 +332,10 @@ function SkillsLibrary({
                 usage={resolveSkillUsage(usageBySkillId, skill.id)}
                 isWorking={isWorking}
                 isUsageLoading={isUsageLoading}
+                conflictError={
+                  conflictSkillId === skill.id ? conflictError : null
+                }
+                onDismissConflict={onDismissConflict}
                 onEdit={onEdit}
                 onArchive={onArchive}
                 onRestore={onRestore}

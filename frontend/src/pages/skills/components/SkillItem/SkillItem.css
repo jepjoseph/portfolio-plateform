@@ -656,8 +656,231 @@
   opacity: 0.52;
 }
 
+/*
+ * =========================================
+ * Education Usage
+ * =========================================
+ */
+
+.skill-item-education-usage {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.skill-item-education-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill-item-education-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-color);
+}
+
+.skill-item-education-list li > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.skill-item-education-list li > div > strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+}
+
+.skill-item-education-list li > div > span {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+.skill-item-education-list li > small {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.08);
+  color: #4ade80;
+  font-size: 0.51rem;
+  font-weight: 650;
+}
+
+.skill-item-delete-button[aria-disabled="false"] {
+  opacity: 1;
+}
+
+/*
+ * =========================================
+ * Training Usage
+ * =========================================
+ */
+
+.skill-item-training-usage {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.skill-item-training-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill-item-training-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-color);
+}
+
+.skill-item-training-list li > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.skill-item-training-list li > div > strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+}
+
+.skill-item-training-list li > div > span {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+.skill-item-training-list li > small {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.09);
+  color: #60a5fa;
+  font-size: 0.51rem;
+  font-weight: 650;
+}
+
+/*
+ * =========================================
+ * Deletion Conflict
+ * =========================================
+ */
+
+.skill-item-conflict {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 14px 14px;
+  padding: 13px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.065);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.skill-item-conflict-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.skill-item-conflict-content > strong {
+  color: #f87171;
+  font-size: 0.68rem;
+}
+
+.skill-item-conflict-content > p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+.skill-item-conflict-group {
+  margin-top: 10px;
+}
+
+.skill-item-conflict-group > span {
+  display: block;
+  color: #f87171;
+  font-size: 0.52rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.skill-item-conflict-group ul {
+  display: grid;
+  gap: 5px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill-item-conflict-group li {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.skill-item-conflict-group li strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+}
+
+.skill-item-conflict-group li small {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.55rem;
+}
+
+.skill-item-conflict-dismiss {
+  min-height: 31px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.59rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.skill-item-conflict-dismiss:hover {
+  background: rgba(239, 68, 68, 0.14);
+}
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
 @media (max-width: 480px) {
-  .skill-item-experience-list li {
+  .skill-item-experience-list li,
+  .skill-item-education-list li,
+  .skill-item-training-list li {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -665,13 +888,15 @@
   .skill-item-experience-types {
     justify-content: flex-start;
   }
-}
 
-/*
- * =========================================
- * Responsive
- * =========================================
- */
+  .skill-item-conflict {
+    flex-direction: column;
+  }
+
+  .skill-item-conflict-dismiss {
+    width: 100%;
+  }
+}
 
 @media (max-width: 900px) {
   .skill-item-detail-grid {

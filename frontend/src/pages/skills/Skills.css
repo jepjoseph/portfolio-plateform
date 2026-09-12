@@ -137,9 +137,11 @@
  */
 
 .skills-page-form {
+  position: relative;
   width: 100%;
   margin-bottom: 22px;
   padding: 20px;
+  overflow: visible;
   border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: var(--radius-lg);
   background: var(--bg-card);
@@ -207,6 +209,7 @@
   color: #f87171;
 }
 
+
 /*
  * =========================================
  * Responsive
@@ -235,6 +238,11 @@
   .skills-page-message {
     flex-direction: column;
   }
+
+  .skills-page-form .skill-form-footer {
+    position: sticky;
+    bottom: 8px;
+  }
 }
 
 @media (max-width: 440px) {
@@ -244,6 +252,11 @@
 
   .skills-page-form-header {
     flex-direction: column;
+  }
+
+  .skills-page-form .skill-form-footer {
+    position: sticky;
+    bottom: 8px;
   }
 }
 
@@ -256,5 +269,10 @@
 @media (prefers-reduced-motion: reduce) {
   .skills-page-message-loader {
     animation: none;
+  }
+
+  .skills-page-form .skill-form-footer {
+    position: sticky;
+    bottom: 8px;
   }
 }

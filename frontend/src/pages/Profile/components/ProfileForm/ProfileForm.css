@@ -3,9 +3,11 @@
    ========================================= */
 
 .profile-form {
+  position: relative;
   width: 100%;
   min-width: 0;
   padding: 26px;
+  overflow: visible;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background: var(--bg-card);
@@ -95,12 +97,20 @@
    ========================================= */
 
 .profile-form-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(11, 15, 25, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
 }
 
 .profile-form-actions button {
@@ -161,8 +171,13 @@
   }
 
   .profile-form-actions {
+    bottom: 8px;
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .profile-form-actions button {
+    width: 100%;
   }
 }
 

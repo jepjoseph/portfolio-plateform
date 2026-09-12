@@ -73,7 +73,10 @@ function normalizeEducationContextError(error) {
 
     validation: error?.validation || null,
 
-    details: error?.details || null,
+    details:
+      error?.details && typeof error.details === "object"
+        ? error.details
+        : null,
 
     originalError: error,
   };

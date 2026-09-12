@@ -443,7 +443,6 @@ export function getSkillCompleteness(skill) {
     missingChecks: checks.filter((check) => !check.complete),
   };
 }
-
 /*
  * =========================================
  * Relationship Helpers
@@ -451,6 +450,10 @@ export function getSkillCompleteness(skill) {
  */
 
 function getRelationshipSkillId(relationship) {
+  if (typeof relationship === "string") {
+    return relationship.trim();
+  }
+
   if (!relationship || typeof relationship !== "object") {
     return "";
   }
@@ -461,6 +464,10 @@ function getRelationshipSkillId(relationship) {
 }
 
 function countSkillRelationships(relationships, skillId) {
+  if (!skillId) {
+    return 0;
+  }
+
   return getArray(relationships).filter(
     (relationship) => getRelationshipSkillId(relationship) === skillId,
   ).length;
@@ -475,6 +482,25 @@ function getExperienceLabels(experience) {
   };
 }
 
+function getEducationLabels(education) {
+  return {
+    credentialName:
+      getText(education?.credential?.name) || "Unnamed Credential",
+
+    institutionName:
+      getText(education?.institution?.name) || "Institution not provided",
+  };
+}
+
+function getTrainingLabels(training) {
+  return {
+    title: getText(training?.title) || "Untitled Training",
+
+    providerName:
+      getText(training?.provider?.name) || "Training provider not provided",
+  };
+}
+
 /*
  * =========================================
  * Empty Usage
@@ -486,28 +512,38 @@ export function createEmptySkillUsage(skillId = "") {
     skillId,
 
     /*
-     * Total number of relationships.
+     * Unique parent records using this skill.
      */
 
     total: 0,
     totalUsage: 0,
 
     /*
-     * Unique parent records.
+     * Unique parent-record totals.
      */
 
     experienceCount: 0,
+    educationCount: 0,
+    trainingCount: 0,
     resumeCount: 0,
     portfolioCount: 0,
 
     /*
-     * Relationship-type totals.
+     * Relationship totals.
      */
 
     experienceSkillCount: 0,
     experienceTechnologyCount: 0,
+    educationSkillCount: 0,
+    trainingSkillCount: 0,
+
+    /*
+     * Referencing records.
+     */
 
     experiences: [],
+    educationRecords: [],
+    trainingRecords: [],
     resumes: [],
     portfolios: [],
 
@@ -522,26 +558,30 @@ export function createEmptySkillUsage(skillId = "") {
  */
 
 export function getSkillExperienceUsage(skillId, experiences = []) {
-  const usage = createEmptySkillUsage(skillId);
+  const result = {
+    experienceCount: 0,
+    experienceSkillCount: 0,
+    experienceTechnologyCount: 0,
+    experiences: [],
+  };
 
   if (!skillId) {
-    return usage;
+    return result;
   }
 
   getArray(experiences).forEach((experience) => {
-    const experienceSkillCount = countSkillRelationships(
+    const skillRelationshipCount = countSkillRelationships(
       experience?.skills,
       skillId,
     );
 
-    const experienceTechnologyCount = countSkillRelationships(
+    const technologyRelationshipCount = countSkillRelationships(
       experience?.technologies,
       skillId,
     );
 
-    const usedAsSkill = experienceSkillCount > 0;
-
-    const usedAsTechnology = experienceTechnologyCount > 0;
+    const usedAsSkill = skillRelationshipCount > 0;
+    const usedAsTechnology = technologyRelationshipCount > 0;
 
     if (!usedAsSkill && !usedAsTechnology) {
       return;
@@ -549,57 +589,187 @@ export function getSkillExperienceUsage(skillId, experiences = []) {
 
     const labels = getExperienceLabels(experience);
 
-    usage.experienceSkillCount += experienceSkillCount;
+    result.experienceSkillCount += skillRelationshipCount;
+    result.experienceTechnologyCount += technologyRelationshipCount;
 
-    usage.experienceTechnologyCount += experienceTechnologyCount;
-
-    usage.experiences.push({
-      id: experience?.id || "",
+    result.experiences.push({
+      id: getText(experience?.id),
 
       positionTitle: labels.positionTitle,
-
       organizationName: labels.organizationName,
 
       usedAsSkill,
-
       usedAsTechnology,
     });
   });
 
-  usage.experienceCount = usage.experiences.length;
+  result.experienceCount = result.experiences.length;
 
-  usage.total = usage.experienceSkillCount + usage.experienceTechnologyCount;
-
-  usage.totalUsage = usage.total;
-  usage.isUsed = usage.total > 0;
-
-  return usage;
+  return result;
 }
 
 /*
  * =========================================
- * Skill Usage
+ * Education Usage
+ * =========================================
+ */
+
+export function getSkillEducationUsage(skillId, educationRecords = []) {
+  const result = {
+    educationCount: 0,
+    educationSkillCount: 0,
+    educationRecords: [],
+  };
+
+  if (!skillId) {
+    return result;
+  }
+
+  getArray(educationRecords).forEach((education) => {
+    const relationshipCount = countSkillRelationships(
+      education?.skillRelationships,
+      skillId,
+    );
+
+    if (relationshipCount === 0) {
+      return;
+    }
+
+    const labels = getEducationLabels(education);
+
+    result.educationSkillCount += relationshipCount;
+
+    result.educationRecords.push({
+      id: getText(education?.id),
+
+      credentialName: labels.credentialName,
+      institutionName: labels.institutionName,
+
+      relationshipCount,
+    });
+  });
+
+  result.educationCount = result.educationRecords.length;
+
+  return result;
+}
+
+/*
+ * =========================================
+ * Training Usage
+ * =========================================
+ */
+
+export function getSkillTrainingUsage(skillId, trainingRecords = []) {
+  const result = {
+    trainingCount: 0,
+    trainingSkillCount: 0,
+    trainingRecords: [],
+  };
+
+  if (!skillId) {
+    return result;
+  }
+
+  getArray(trainingRecords).forEach((training) => {
+    const relationshipCount = countSkillRelationships(
+      training?.skillRelationships,
+      skillId,
+    );
+
+    if (relationshipCount === 0) {
+      return;
+    }
+
+    const labels = getTrainingLabels(training);
+
+    result.trainingSkillCount += relationshipCount;
+
+    result.trainingRecords.push({
+      id: getText(training?.id),
+
+      title: labels.title,
+
+      providerName: labels.providerName,
+
+      relationshipCount,
+    });
+  });
+
+  result.trainingCount = result.trainingRecords.length;
+
+  return result;
+}
+
+/*
+ * =========================================
+ * Complete Skill Usage
  * =========================================
  */
 
 export function getSkillUsage(
   skillId,
-  { experiences = [], portfolios = [], resumes = [] } = {},
+  {
+    experiences = [],
+    educationRecords = [],
+    trainingRecords = [],
+    portfolios = [],
+    resumes = [],
+  } = {},
 ) {
-  const usage = getSkillExperienceUsage(skillId, experiences);
+  const usage = createEmptySkillUsage(skillId);
+
+  const experienceUsage = getSkillExperienceUsage(skillId, experiences);
+
+  const educationUsage = getSkillEducationUsage(skillId, educationRecords);
+
+  const trainingUsage = getSkillTrainingUsage(skillId, trainingRecords);
+
+  usage.experienceCount = experienceUsage.experienceCount;
+
+  usage.experienceSkillCount = experienceUsage.experienceSkillCount;
+
+  usage.experienceTechnologyCount = experienceUsage.experienceTechnologyCount;
+
+  usage.experiences = experienceUsage.experiences;
+
+  usage.educationCount = educationUsage.educationCount;
+
+  usage.educationSkillCount = educationUsage.educationSkillCount;
+
+  usage.educationRecords = educationUsage.educationRecords;
+
+  usage.trainingCount = trainingUsage.trainingCount;
+
+  usage.trainingSkillCount = trainingUsage.trainingSkillCount;
+
+  usage.trainingRecords = trainingUsage.trainingRecords;
 
   /*
-   * These collections are reserved until their
-   * relationship models are implemented.
+   * Résumé and Portfolio relationship models
+   * have not been implemented yet.
    */
-
-  usage.resumes = [];
-  usage.portfolios = [];
 
   usage.resumeCount = 0;
   usage.portfolioCount = 0;
 
+  usage.resumes = [];
+  usage.portfolios = [];
+
+  /*
+   * Total represents unique parent records,
+   * not the number of relationship rows.
+   */
+
+  usage.total =
+    usage.experienceCount +
+    usage.educationCount +
+    usage.trainingCount +
+    usage.resumeCount +
+    usage.portfolioCount;
+
   usage.totalUsage = usage.total;
+
   usage.isUsed = usage.total > 0;
 
   void portfolios;
@@ -617,6 +787,8 @@ export function getSkillUsage(
 export function createSkillUsageMap({
   skills = [],
   experiences = [],
+  educationRecords = [],
+  trainingRecords = [],
   portfolios = [],
   resumes = [],
 } = {}) {
@@ -627,6 +799,8 @@ export function createSkillUsageMap({
 
     usageMap[skill.id] = getSkillUsage(skill.id, {
       experiences,
+      educationRecords,
+      trainingRecords,
       portfolios,
       resumes,
     });
@@ -639,6 +813,12 @@ export function isSkillInUse(usage) {
   return Number(usage?.total ?? usage?.totalUsage) > 0;
 }
 
+/*
+ * =========================================
+ * Usage Summary
+ * =========================================
+ */
+
 export function getSkillUsageSummary(usage) {
   if (!isSkillInUse(usage)) {
     return "Not currently used";
@@ -646,22 +826,46 @@ export function getSkillUsageSummary(usage) {
 
   const parts = [];
 
-  if (Number(usage?.experienceCount) > 0) {
-    const count = Number(usage.experienceCount);
+  const experienceCount = Number(usage?.experienceCount) || 0;
 
-    parts.push(`${count} ${count === 1 ? "experience" : "experiences"}`);
+  const educationCount = Number(usage?.educationCount) || 0;
+
+  const trainingCount = Number(usage?.trainingCount) || 0;
+
+  const resumeCount = Number(usage?.resumeCount) || 0;
+
+  const portfolioCount = Number(usage?.portfolioCount) || 0;
+
+  if (experienceCount > 0) {
+    parts.push(
+      `${experienceCount} ${
+        experienceCount === 1 ? "experience" : "experiences"
+      }`,
+    );
   }
 
-  if (Number(usage?.resumeCount) > 0) {
-    const count = Number(usage.resumeCount);
-
-    parts.push(`${count} ${count === 1 ? "résumé" : "résumés"}`);
+  if (educationCount > 0) {
+    parts.push(
+      `${educationCount} education ${
+        educationCount === 1 ? "record" : "records"
+      }`,
+    );
   }
 
-  if (Number(usage?.portfolioCount) > 0) {
-    const count = Number(usage.portfolioCount);
+  if (trainingCount > 0) {
+    parts.push(
+      `${trainingCount} training ${trainingCount === 1 ? "record" : "records"}`,
+    );
+  }
 
-    parts.push(`${count} ${count === 1 ? "portfolio" : "portfolios"}`);
+  if (resumeCount > 0) {
+    parts.push(`${resumeCount} ${resumeCount === 1 ? "résumé" : "résumés"}`);
+  }
+
+  if (portfolioCount > 0) {
+    parts.push(
+      `${portfolioCount} ${portfolioCount === 1 ? "portfolio" : "portfolios"}`,
+    );
   }
 
   return parts.join(" · ");

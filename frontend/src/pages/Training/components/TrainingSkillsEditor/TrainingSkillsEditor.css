@@ -1,0 +1,262 @@
+/*
+ * =========================================
+ * Training Skills Editor
+ * =========================================
+ */
+
+.training-skills-editor {
+  display: grid;
+  gap: 18px;
+}
+
+/*
+ * =========================================
+ * Summary
+ * =========================================
+ */
+
+.training-skills-editor-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-skills-editor-summary span {
+  color: var(--text-muted);
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.training-skills-editor-summary strong {
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+}
+
+/*
+ * =========================================
+ * Errors
+ * =========================================
+ */
+
+.training-skills-editor-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.61rem;
+}
+
+/*
+ * =========================================
+ * Relationship List
+ * =========================================
+ */
+
+.training-skills-editor-list {
+  display: grid;
+  gap: 8px;
+}
+
+.training-skills-editor-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-skills-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/*
+ * =========================================
+ * Order Controls
+ * =========================================
+ */
+
+.training-skills-editor-order {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.training-skills-editor-order > span {
+  color: var(--accent-hover);
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+
+.training-skills-editor-order > div {
+  display: grid;
+  gap: 3px;
+}
+
+.training-skills-editor button {
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.59rem;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.training-skills-editor button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.training-skills-editor-order button {
+  width: 27px;
+  min-height: 25px;
+  padding: 0;
+}
+
+.training-skills-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/*
+ * =========================================
+ * Skill Content
+ * =========================================
+ */
+
+.training-skills-editor-content {
+  min-width: 0;
+}
+
+.training-skills-editor-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.training-skills-editor-labels span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.5rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.training-skills-editor-content > strong {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.68rem;
+}
+
+.training-skills-editor-content > small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.55rem;
+}
+
+.training-skills-editor-warning {
+  color: #fbbf24;
+}
+
+.training-skills-editor-field-error {
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Remove Action
+ * =========================================
+ */
+
+.training-skills-editor-remove:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.07);
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.training-skills-editor-empty {
+  padding: 30px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.training-skills-editor-empty > span {
+  color: var(--accent-hover);
+  font-size: 0.9rem;
+}
+
+.training-skills-editor-empty h4 {
+  margin: 7px 0 0;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+}
+
+.training-skills-editor-empty p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 520px) {
+  .training-skills-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .training-skills-editor-order {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .training-skills-editor-order > div {
+    display: flex;
+  }
+
+  .training-skills-editor-remove {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .training-skills-editor button {
+    transition: none;
+  }
+}

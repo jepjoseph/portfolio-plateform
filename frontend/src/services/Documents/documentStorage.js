@@ -388,6 +388,226 @@ export async function deleteStoredDocumentFile(storageKey) {
 
 /*
  * =========================================
+ * Delete Multiple Stored Documents
+ * =========================================
+ *
+ * All document deletions run inside one IndexedDB
+ * transaction. If a request fails, IndexedDB aborts
+ * the transaction and preserves the remaining files.
+ *
+ * A missing document is considered successfully
+ * cleaned because no stored binary remains for its key.
+ */
+
+export async function deleteStoredDocuments(storageKeys = []) {
+  if (!Array.isArray(storageKeys)) {
+    throw createDocumentStorageError({
+      message: "Document storage keys must be provided as an array.",
+
+      publicMessage:
+        "The supporting documents could not be prepared for deletion.",
+
+      code: "INVALID_DOCUMENT_STORAGE_KEYS",
+    });
+  }
+
+  const normalizedStorageKeys = [
+    ...new Set(
+      storageKeys
+        .map((storageKey) =>
+          typeof storageKey === "string" ? storageKey.trim() : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+
+  const emptyResult = {
+    requested: 0,
+    deleted: 0,
+    failed: 0,
+    missing: 0,
+    deletedKeys: [],
+    missingKeys: [],
+    failures: [],
+  };
+
+  if (normalizedStorageKeys.length === 0) {
+    return emptyResult;
+  }
+
+  const database = await openDocumentDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(DOCUMENT_FILE_STORE, "readwrite");
+
+    const store = transaction.objectStore(DOCUMENT_FILE_STORE);
+
+    const deletedKeys = [];
+
+    const missingKeys = [];
+
+    const failures = [];
+
+    let hasSettled = false;
+
+    const closeDatabase = () => {
+      try {
+        database.close();
+      } catch {
+        /*
+         * The operation has already completed.
+         */
+      }
+    };
+
+    const rejectDeletion = (cause = null) => {
+      if (hasSettled) {
+        return;
+      }
+
+      hasSettled = true;
+
+      closeDatabase();
+
+      const error = createDocumentStorageError({
+        message: "One or more supporting documents could not be deleted.",
+
+        publicMessage:
+          "The education record was preserved because its supporting documents could not be removed.",
+
+        code: "DOCUMENT_BULK_DELETE_FAILED",
+
+        cause,
+      });
+
+      error.cleanup = {
+        requested: normalizedStorageKeys.length,
+
+        /*
+         * An aborted transaction rolls back successful
+         * delete requests, so the committed count is zero.
+         */
+
+        deleted: 0,
+
+        failed: Math.max(failures.length, 1),
+
+        missing: 0,
+
+        deletedKeys: [],
+
+        missingKeys: [],
+
+        failures:
+          failures.length > 0
+            ? failures
+            : [
+                {
+                  storageKey: "",
+                  message:
+                    cause?.message ||
+                    "The IndexedDB deletion transaction failed.",
+                },
+              ],
+      };
+
+      reject(error);
+    };
+
+    normalizedStorageKeys.forEach((storageKey) => {
+      const getRequest = store.get(storageKey);
+
+      getRequest.onsuccess = () => {
+        if (!getRequest.result) {
+          missingKeys.push(storageKey);
+          return;
+        }
+
+        const deleteRequest = store.delete(storageKey);
+
+        deleteRequest.onsuccess = () => {
+          deletedKeys.push(storageKey);
+        };
+
+        deleteRequest.onerror = () => {
+          failures.push({
+            storageKey,
+
+            message:
+              deleteRequest.error?.message ||
+              "The document could not be deleted.",
+          });
+
+          try {
+            transaction.abort();
+          } catch {
+            rejectDeletion(deleteRequest.error);
+          }
+        };
+      };
+
+      getRequest.onerror = () => {
+        failures.push({
+          storageKey,
+
+          message:
+            getRequest.error?.message ||
+            "The document could not be checked before deletion.",
+        });
+
+        try {
+          transaction.abort();
+        } catch {
+          rejectDeletion(getRequest.error);
+        }
+      };
+    });
+
+    transaction.oncomplete = () => {
+      if (hasSettled) {
+        return;
+      }
+
+      hasSettled = true;
+
+      closeDatabase();
+
+      resolve({
+        requested: normalizedStorageKeys.length,
+
+        /*
+         * Missing files are considered successfully
+         * cleaned because nothing remains in IndexedDB.
+         */
+
+        deleted: deletedKeys.length + missingKeys.length,
+
+        failed: 0,
+
+        missing: missingKeys.length,
+
+        deletedKeys,
+
+        missingKeys,
+
+        failures: [],
+      });
+    };
+
+    transaction.onerror = (event) => {
+      event.preventDefault();
+
+      rejectDeletion(transaction.error);
+    };
+
+    transaction.onabort = () => {
+      rejectDeletion(transaction.error);
+    };
+  });
+}
+
+/*
+ * =========================================
  * Delete Record Files
  * =========================================
  */

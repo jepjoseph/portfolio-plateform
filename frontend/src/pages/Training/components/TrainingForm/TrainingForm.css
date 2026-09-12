@@ -1,0 +1,383 @@
+/*
+ * =========================================
+ * Training Form
+ * =========================================
+ */
+
+.training-form {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  overflow: visible;
+}
+
+/*
+ * =========================================
+ * Form Sections
+ * =========================================
+ */
+
+.training-form-section {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-form-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.training-form-section-header > span {
+  width: 4px;
+  min-height: 42px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.training-form-section-header > div {
+  min-width: 0;
+}
+
+.training-form-section-header small {
+  color: var(--accent-hover);
+  font-size: 0.54rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.training-form-section-header h3 {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.training-form-section-header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  line-height: 1.5;
+}
+
+/*
+ * =========================================
+ * Field Grid
+ * =========================================
+ */
+
+.training-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.training-form-field {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.training-form-field > span {
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.training-form-field > span small {
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+}
+
+.training-form-field input,
+.training-form-field select,
+.training-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.67rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.training-form-field input,
+.training-form-field select {
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.training-form-field textarea {
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.training-form-field input:hover,
+.training-form-field select:hover,
+.training-form-field textarea:hover {
+  border-color: var(--border-hover);
+}
+
+.training-form-field input:focus,
+.training-form-field select:focus,
+.training-form-field textarea:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.04);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.training-form-field input:disabled,
+.training-form-field select:disabled,
+.training-form-field textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.training-form-field select option {
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+
+.training-form-field > small[role="alert"] {
+  color: #f87171;
+  font-size: 0.57rem;
+}
+
+.training-form-wide {
+  grid-column: 1 / -1;
+}
+
+/*
+ * =========================================
+ * Checkboxes
+ * =========================================
+ */
+
+.training-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+  cursor: pointer;
+}
+
+.training-form-checkbox input {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.training-form-checkbox input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.training-form-visibility {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/*
+ * =========================================
+ * Validation Messages
+ * =========================================
+ */
+
+.training-form-submit-error {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.06);
+  color: #f87171;
+  font-size: 0.64rem;
+}
+
+.training-form-warnings {
+  padding: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 9px;
+  background: rgba(245, 158, 11, 0.045);
+}
+
+.training-form-warnings strong {
+  color: #fbbf24;
+  font-size: 0.65rem;
+}
+
+.training-form-warnings ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+/*
+ * =========================================
+ * Form Footer
+ * =========================================
+ */
+
+.training-form-footer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(11, 15, 25, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.training-form-footer > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.training-form-footer > div:first-child span {
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.training-form-footer > div:first-child strong {
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+}
+
+.training-form-footer > div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.training-form-footer button {
+  min-height: 37px;
+  padding: 0 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.64rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.training-form-footer button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.training-form-footer button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.training-form-footer .training-form-submit {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.training-form-footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 820px) {
+  .training-form-visibility {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .training-form {
+    padding: 12px;
+  }
+
+  .training-form-section {
+    padding: 14px;
+  }
+
+  .training-form-grid,
+  .training-form-visibility {
+    grid-template-columns: 1fr;
+  }
+
+  .training-form-wide {
+    grid-column: auto;
+  }
+
+  .training-form-footer {
+    bottom: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .training-form-footer > div:last-child {
+    display: grid;
+  }
+
+  .training-form-footer button {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .training-form-field input,
+  .training-form-field select,
+  .training-form-field textarea,
+  .training-form-footer button {
+    transition: none;
+  }
+}

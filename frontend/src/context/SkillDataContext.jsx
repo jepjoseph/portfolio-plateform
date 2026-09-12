@@ -58,6 +58,11 @@ function normalizeSkillContextError(error) {
 
     usage: error?.usage && typeof error.usage === "object" ? error.usage : null,
 
+    details:
+      error?.details && typeof error.details === "object"
+        ? error.details
+        : null,
+
     originalError: error,
   };
 }

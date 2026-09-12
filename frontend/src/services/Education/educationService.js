@@ -6,6 +6,8 @@ import {
   updateEducationModel,
 } from "../../models/educationModel.js";
 
+import { deleteStoredDocuments } from "../Documents/documentStorage.js";
+
 import {
   assertValidEducation,
   validateEducation,
@@ -303,6 +305,30 @@ export async function restoreEducation(educationId) {
 
 /*
  * =========================================
+ * Supporting Document Keys
+ * =========================================
+ */
+
+function getEducationDocumentStorageKeys(education) {
+  const supportingDocuments = Array.isArray(education?.supportingDocuments)
+    ? education.supportingDocuments
+    : [];
+
+  return [
+    ...new Set(
+      supportingDocuments
+        .map((document) =>
+          typeof document?.storageKey === "string"
+            ? document.storageKey.trim()
+            : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/*
+ * =========================================
  * Delete Education
  * =========================================
  */
@@ -320,6 +346,11 @@ export async function deleteEducation(educationId) {
     });
   }
 
+  /*
+   * Step 1: Locate the record before deleting
+   * either its metadata or document binaries.
+   */
+
   const records = readStoredEducation();
 
   const recordToDelete = records.find(
@@ -330,20 +361,152 @@ export async function deleteEducation(educationId) {
     throw createEducationNotFoundError(educationId);
   }
 
+  const credentialName =
+    recordToDelete.credential?.name || "Unnamed Credential";
+
+  const institutionName =
+    recordToDelete.institution?.name || "Institution not provided";
+
+  /*
+   * Step 2: Collect unique valid IndexedDB keys.
+   * Documents using external fileUrl values do not
+   * belong to IndexedDB and are not deleted here.
+   */
+
+  const documentStorageKeys = getEducationDocumentStorageKeys(recordToDelete);
+
+  let documentCleanup;
+
+  /*
+   * Step 3: Delete binary documents first.
+   *
+   * deleteStoredDocuments() uses one IndexedDB
+   * transaction. If it fails, the transaction is
+   * aborted and the Education metadata is preserved.
+   */
+
+  try {
+    documentCleanup = await deleteStoredDocuments(documentStorageKeys);
+  } catch (cleanupError) {
+    throw createEducationServiceError({
+      message:
+        `Education record "${educationId}" was preserved because ` +
+        "its supporting-document cleanup failed.",
+
+      publicMessage:
+        cleanupError?.publicMessage ||
+        "The education record was not deleted because its supporting documents could not be removed.",
+
+      code: "EDUCATION_DOCUMENT_CLEANUP_FAILED",
+
+      status: 500,
+
+      details: {
+        educationId,
+
+        credentialName,
+
+        institutionName,
+
+        phase: "document-cleanup",
+
+        recordPreserved: true,
+
+        documentStorageKeys,
+
+        documents: cleanupError?.cleanup || {
+          requested: documentStorageKeys.length,
+          deleted: 0,
+          failed: documentStorageKeys.length,
+          missing: 0,
+          deletedKeys: [],
+          missingKeys: [],
+          failures: [],
+        },
+
+        originalErrorCode: cleanupError?.code || "DOCUMENT_BULK_DELETE_FAILED",
+      },
+    });
+  }
+
+  /*
+   * Step 4: Delete Education metadata only after
+   * the IndexedDB transaction completes successfully.
+   */
+
   const remainingRecords = records.filter(
     (education) => education.id !== educationId,
   );
 
-  replaceStoredEducation(remainingRecords);
+  try {
+    replaceStoredEducation(remainingRecords);
+  } catch (storageError) {
+    /*
+     * IndexedDB and localStorage cannot share one
+     * browser transaction. At this point the binary
+     * files are gone, but the Education metadata may
+     * still exist. Report this explicitly so a future
+     * backend can support true transactional deletion.
+     */
+
+    throw createEducationServiceError({
+      message:
+        `Supporting documents for Education record "${educationId}" were ` +
+        "deleted, but its localStorage metadata could not be removed.",
+
+      publicMessage:
+        "The supporting documents were removed, but the education record could not be fully deleted. Try the operation again.",
+
+      code: "EDUCATION_DELETE_PARTIAL",
+
+      status: 500,
+
+      details: {
+        educationId,
+
+        credentialName,
+
+        institutionName,
+
+        phase: "metadata-deletion",
+
+        recordMayRemain: true,
+
+        documentsDeleted: true,
+
+        documents: documentCleanup,
+
+        deletedDocumentStorageKeys: documentCleanup.deletedKeys,
+
+        missingDocumentStorageKeys: documentCleanup.missingKeys,
+
+        originalErrorCode: storageError?.code || "EDUCATION_STORAGE_ERROR",
+      },
+    });
+  }
+
+  /*
+   * Step 5: Return the complete deletion result.
+   */
 
   return {
     id: educationId,
 
-    credentialName: recordToDelete.credential.name,
+    credentialName,
 
-    institutionName: recordToDelete.institution.name,
+    institutionName,
 
     deleted: true,
+
+    documents: {
+      requested: documentCleanup.requested,
+
+      deleted: documentCleanup.deleted,
+
+      failed: documentCleanup.failed,
+
+      failures: documentCleanup.failures,
+    },
   };
 }
 

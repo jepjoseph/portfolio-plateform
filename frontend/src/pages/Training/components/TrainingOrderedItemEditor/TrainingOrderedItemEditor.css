@@ -1,0 +1,378 @@
+/*
+ * =========================================
+ * Training Ordered Editor
+ * =========================================
+ */
+
+.training-ordered-editor {
+  display: grid;
+  gap: 18px;
+}
+
+/*
+ * =========================================
+ * Editor Form
+ * =========================================
+ */
+
+.training-ordered-editor-form {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-ordered-editor-field {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.training-ordered-editor-wide {
+  grid-column: 1 / -1;
+}
+
+.training-ordered-editor-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.training-ordered-editor-label label {
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.training-ordered-editor-label label small {
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 500;
+}
+
+.training-ordered-editor-label > span {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.57rem;
+}
+
+.training-ordered-editor input,
+.training-ordered-editor textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.68rem;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.training-ordered-editor input {
+  min-height: 40px;
+  padding: 0 11px;
+}
+
+.training-ordered-editor textarea {
+  padding: 10px 11px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.training-ordered-editor input:focus,
+.training-ordered-editor textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.training-ordered-editor input:disabled,
+.training-ordered-editor textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Form Footer
+ * =========================================
+ */
+
+.training-ordered-editor-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.training-ordered-editor-form-footer > small {
+  color: var(--text-muted);
+  font-size: 0.59rem;
+}
+
+.training-ordered-editor-form-footer > div,
+.training-ordered-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/*
+ * =========================================
+ * Buttons
+ * =========================================
+ */
+
+.training-ordered-editor button {
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.61rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.training-ordered-editor button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.training-ordered-editor button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.training-ordered-editor .training-ordered-editor-add {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.training-ordered-editor-remove:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.07);
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Errors
+ * =========================================
+ */
+
+.training-ordered-editor-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.59rem;
+  line-height: 1.5;
+}
+
+/*
+ * =========================================
+ * List
+ * =========================================
+ */
+
+.training-ordered-editor-list {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+}
+
+.training-ordered-editor-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-ordered-editor-item--error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.training-ordered-editor-order {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.training-ordered-editor-order > span {
+  color: var(--accent-hover);
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+
+.training-ordered-editor-order > div {
+  display: grid;
+  gap: 3px;
+}
+
+.training-ordered-editor-order button {
+  width: 27px;
+  min-height: 25px;
+  padding: 0;
+}
+
+.training-ordered-editor-content {
+  min-width: 0;
+}
+
+.training-ordered-editor-content > span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.53rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.training-ordered-editor-content > strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.training-ordered-editor-content > small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  line-height: 1.45;
+}
+
+.training-ordered-editor-content > small b {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.training-ordered-editor-content > p {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.training-ordered-editor-content
+  > .training-ordered-editor-item-error {
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.training-ordered-editor-empty {
+  padding: 30px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.training-ordered-editor-empty > span {
+  color: var(--accent-hover);
+}
+
+.training-ordered-editor-empty h4 {
+  margin: 8px 0 0;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.training-ordered-editor-empty p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 680px) {
+  .training-ordered-editor-form {
+    grid-template-columns: 1fr;
+  }
+
+  .training-ordered-editor-wide {
+    grid-column: auto;
+  }
+
+  .training-ordered-editor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .training-ordered-editor-order {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .training-ordered-editor-order > div {
+    display: flex;
+  }
+
+  .training-ordered-editor-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .training-ordered-editor-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .training-ordered-editor-form-footer > div,
+  .training-ordered-editor-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .training-ordered-editor-form-footer button,
+  .training-ordered-editor-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .training-ordered-editor input,
+  .training-ordered-editor textarea,
+  .training-ordered-editor button {
+    transition: none;
+  }
+}

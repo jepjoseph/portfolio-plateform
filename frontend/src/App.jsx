@@ -9,6 +9,7 @@ import PublicPortfolio from "./pages/Portfolio/PortfolioPublic/PortfolioPublic";
 import Projects from "./pages/Projects/Projects";
 import Experience from "./pages/Experience/Experience";
 import Education from "./pages/Education/Education";
+import Training from "./pages/Training/Training";
 import Skills from "./pages/skills/Skills";
 import Resumes from "./pages/Resumes/Resumes";
 import Profile from "./pages/Profile/Profile";
@@ -48,6 +49,14 @@ function App() {
         {
           path: "education",
           element: <Education />,
+        },
+        {
+          path: "education",
+          element: <Education />,
+        },
+        {
+          path: "training",
+          element: <Training />,
         },
         {
           path: "skills",
