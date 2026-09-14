@@ -282,6 +282,7 @@
   line-height: 1.58;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 /*
@@ -322,6 +323,7 @@
   line-height: 1.48;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /*

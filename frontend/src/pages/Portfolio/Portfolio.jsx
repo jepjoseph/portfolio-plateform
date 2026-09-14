@@ -1,11 +1,17 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { usePortfolioDraft } from "../../context/PortfolioDraftContext";
 import { useProfileData } from "../../context/ProfileDataContext";
 import { useResumeData } from "../../context/ResumeDataContext";
+import { useProjectData } from "../../context/ProjectDataContext.jsx";
+
+import { createPublicProject } from "../../models/projectModel.js";
 
 import { buildSelectedProfile } from "../../services/Portfolio/profileSelectionUtils";
 import { savePortfolio } from "../../services/Portfolio/portfolioService";
+
+import { sortProjects } from "../../services/Project/projectUtils.js";
 
 import PortfolioAboutBuilder from "./components/PortfolioAboutBuilder/PortfolioAboutBuilder";
 
@@ -16,8 +22,49 @@ import PortfolioPageHeader from "./components/PortfolioPageHeader/PortfolioPageH
 import ProfileInformationSelector from "./components/ProfileInformationSelector/ProfileInformationSelector";
 import Skills from "./components/Skills/Skills";
 import PortfolioHeroSettings from "./components/PortfolioHeroSettings/PortfolioHeroSettings";
+import PortfolioProjects from "./components/Projects/Projects";
 
 import "./Portfolio.css";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/*
+ * =========================================
+ * Selected Project IDs
+ * =========================================
+ *
+ * New portfolio drafts store only Project IDs.
+ * Older drafts may contain complete Project
+ * objects, so both formats are supported.
+ */
+
+function getSelectedProjectIds(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const projectIds = values
+    .map((value) =>
+      typeof value === "string" ? getText(value) : getText(value?.id),
+    )
+    .filter(Boolean);
+
+  return [...new Set(projectIds)];
+}
+
+/*
+ * =========================================
+ * Portfolio Editor
+ * =========================================
+ */
 
 function Portfolio() {
   const navigate = useNavigate();
@@ -26,26 +73,80 @@ function Portfolio() {
 
   const { savedResumes } = useResumeData();
 
+  const { projects: projectLibrary, isLoading: areProjectsLoading } =
+    useProjectData();
+
   const { portfolioDraft, updateDraftField, saveStatus, setSaveStatus } =
     usePortfolioDraft();
 
   const {
     profileSelections = [],
+
     heroSettings = {},
+
     about = {
       text: "",
       meta: {},
     },
+
     experiences = [],
     education = [],
     skills = [],
     certifications = [],
+    projects = [],
+
     sectionVisibility = {},
+
     isPublished = false,
   } = portfolioDraft;
 
+  /*
+   * =========================================
+   * Selected Project Identifiers
+   * =========================================
+   */
+
+  const selectedProjectIds = useMemo(
+    () => getSelectedProjectIds(projects),
+    [projects],
+  );
+
+  /*
+   * =========================================
+   * Section Visibility
+   * =========================================
+   */
+
   const isSectionVisible = (sectionName) =>
     sectionVisibility[sectionName] !== false;
+
+  /*
+   * =========================================
+   * Public Project Selection
+   * =========================================
+   *
+   * Deleted, missing, and archived Projects
+   * must not appear in preview or public output.
+   *
+   * createPublicProject removes private fields,
+   * private media, private documents, and any
+   * sections disabled by Project visibility.
+   */
+
+  const buildPublicProjectSelection = () => {
+    const selectedIdSet = new Set(selectedProjectIds);
+
+    const selectedProjects = (
+      Array.isArray(projectLibrary) ? projectLibrary : []
+    ).filter(
+      (project) =>
+        selectedIdSet.has(project.id) && project.recordStatus !== "archived",
+    );
+
+    const orderedProjects = sortProjects(selectedProjects, "newest-started");
+
+    return orderedProjects.map((project) => createPublicProject(project));
+  };
 
   /*
    * =========================================
@@ -61,10 +162,20 @@ function Portfolio() {
         (resume) => resume.id === heroSettings.featuredResumeId,
       ) || null;
 
+    const publicProjects = buildPublicProjectSelection();
+
     return {
       ...portfolioDraft,
 
       selectedProfile,
+
+      /*
+       * The editor draft contains IDs, while
+       * preview and published output contain
+       * public-safe Project snapshots.
+       */
+
+      projects: publicProjects,
 
       featuredResume: featuredResume?.isShownOnPortfolio
         ? featuredResume
@@ -122,6 +233,22 @@ function Portfolio() {
       setSaveStatus("error");
     }
   };
+
+  /*
+   * =========================================
+   * Update Selected Projects
+   * =========================================
+   */
+
+  const handleSelectedProjectsChange = (projectIds) => {
+    updateDraftField("projects", getSelectedProjectIds(projectIds));
+  };
+
+  /*
+   * =========================================
+   * Render
+   * =========================================
+   */
 
   return (
     <main className="portfolio-page">
@@ -206,6 +333,16 @@ function Portfolio() {
             onChange={(valueOrUpdater) =>
               updateDraftField("skills", valueOrUpdater)
             }
+          />
+        )}
+
+        {isSectionVisible("projects") && (
+          <PortfolioProjects
+            projects={Array.isArray(projectLibrary) ? projectLibrary : []}
+            selectedProjectIds={selectedProjectIds}
+            isLoading={areProjectsLoading}
+            disabled={saveStatus === "saving"}
+            onChange={handleSelectedProjectsChange}
           />
         )}
 

@@ -1,28 +1,161 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-//import PortfolioView from "../../../components/PortfolioView/PortfolioView";
 import PortfolioView from "../PortfolioView/PortfolioView";
 
 import "./PortfolioPreview.css";
 
+/*
+ * =========================================
+ * Preview Storage
+ * =========================================
+ */
+
+const PORTFOLIO_PREVIEW_STORAGE_KEY = "portfolio-preview";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : null;
+}
+
+/*
+ * =========================================
+ * Read Portfolio Preview
+ * =========================================
+ */
+
+function readPortfolioPreview() {
+  if (
+    typeof window === "undefined" ||
+    !window.sessionStorage
+  ) {
+    return {
+      portfolio: null,
+      error:
+        "Portfolio preview storage is unavailable in this browser.",
+    };
+  }
+
+  let storedDraft = "";
+
+  try {
+    storedDraft =
+      window.sessionStorage.getItem(
+        PORTFOLIO_PREVIEW_STORAGE_KEY,
+      ) || "";
+  } catch (error) {
+    console.error("Unable to access portfolio preview storage:", error);
+
+    return {
+      portfolio: null,
+      error:
+        "The portfolio preview could not be accessed in this browser.",
+    };
+  }
+
+  if (!storedDraft) {
+    return {
+      portfolio: null,
+      error:
+        "No portfolio preview was found. Return to the editor and select Preview again.",
+    };
+  }
+
+  try {
+    const parsedDraft = getObject(JSON.parse(storedDraft));
+
+    if (!parsedDraft) {
+      return {
+        portfolio: null,
+        error: "The stored portfolio preview is invalid.",
+      };
+    }
+
+    if (!parsedDraft.username || !parsedDraft.slug) {
+      return {
+        portfolio: null,
+        error:
+          "The stored portfolio preview does not contain a valid username and portfolio slug.",
+      };
+    }
+
+    return {
+      portfolio: parsedDraft,
+      error: "",
+    };
+  } catch (error) {
+    console.error("Unable to parse portfolio preview:", error);
+
+    return {
+      portfolio: null,
+      error:
+        "The stored portfolio preview is corrupted. Return to the editor and create it again.",
+    };
+  }
+}
+
+/*
+ * =========================================
+ * Portfolio Preview
+ * =========================================
+ */
+
 function PortfolioPreview() {
   const navigate = useNavigate();
 
-  const storedDraft = sessionStorage.getItem("portfolio-preview");
+  const [previewState] = useState(readPortfolioPreview);
 
-  let portfolio = null;
+  const { portfolio, error } = previewState;
 
-  try {
-    portfolio = storedDraft ? JSON.parse(storedDraft) : null;
-  } catch (error) {
-    console.error("Unable to read portfolio preview:", error);
+  /*
+   * =========================================
+   * Browser Page Title
+   * =========================================
+   */
 
-    portfolio = null;
-  }
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+
+    const previousTitle = document.title;
+
+    const portfolioOwner =
+      portfolio?.selectedProfile?.selectedName ||
+      portfolio?.username ||
+      "";
+
+    document.title = portfolioOwner
+      ? `Preview: ${portfolioOwner} | Professional Portfolio`
+      : "Portfolio Preview";
+
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [portfolio]);
+
+  /*
+   * =========================================
+   * Return to Editor
+   * =========================================
+   */
 
   const handleBackToEditor = () => {
     navigate("/portfolio");
   };
+
+  /*
+   * =========================================
+   * Missing or Invalid Preview
+   * =========================================
+   */
 
   if (!portfolio) {
     return (
@@ -30,9 +163,12 @@ function PortfolioPreview() {
         <div>
           <span>Preview Unavailable</span>
 
-          <h1>No portfolio draft was found</h1>
+          <h1>No portfolio preview is available</h1>
 
-          <p>Return to the portfolio editor and select Preview again.</p>
+          <p>
+            {error ||
+              "Return to the portfolio editor and select Preview again."}
+          </p>
 
           <button type="button" onClick={handleBackToEditor}>
             Return to Portfolio Editor
@@ -42,13 +178,24 @@ function PortfolioPreview() {
     );
   }
 
+  /*
+   * =========================================
+   * Preview
+   * =========================================
+   */
+
   return (
     <div className="portfolio-preview-page">
-      <aside className="portfolio-preview-toolbar">
+      <aside
+        className="portfolio-preview-toolbar"
+        aria-label="Portfolio preview controls"
+      >
         <div>
           <span>Preview Mode</span>
 
-          <p>This is how your public portfolio will appear.</p>
+          <p>
+            This is how your public portfolio will appear after publication.
+          </p>
         </div>
 
         <button type="button" onClick={handleBackToEditor}>
@@ -56,7 +203,10 @@ function PortfolioPreview() {
         </button>
       </aside>
 
-      <PortfolioView portfolio={portfolio} mode="preview" />
+      <PortfolioView
+        portfolio={portfolio}
+        mode="preview"
+      />
     </div>
   );
 }

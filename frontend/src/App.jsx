@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useRoutes } from "react-router-dom";
 
 import DashboardLayout from "./layouts/DashboardLayout/DashboardLayout";
@@ -15,13 +16,89 @@ import Resumes from "./pages/Resumes/Resumes";
 import Profile from "./pages/Profile/Profile";
 import Certifications from "./pages/Certifications/Certifications";
 
-function App() {
+import { useSkillData } from "./context/SkillDataContext.jsx";
+import { useExperienceData } from "./context/ExperienceDataContext.jsx";
+import { useEducationData } from "./context/EducationDataContext.jsx";
+import { useTrainingData } from "./context/TrainingDataContext.jsx";
+import { useCertificationData } from "./context/CertificationDataContext.jsx";
+
+/*
+ * =========================================
+ * Projects Route Integration
+ * =========================================
+ */
+
+function ProjectsRoute() {
+  const { skills, isLoading: areSkillsLoading } = useSkillData();
+
+  const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
+
+  const { educationRecords, isLoading: isEducationLoading } =
+    useEducationData();
+
+  const { trainingRecords, isLoading: isTrainingLoading } = useTrainingData();
+
+  const { certifications, isLoading: areCertificationsLoading } =
+    useCertificationData();
+
   /*
-   * =========================================
-   * Private Dashboard Routes
-   * =========================================
+   * Include active and archived records.
+   *
+   * Existing Project relationships must remain
+   * available even when their source record is
+   * later archived.
    */
+
+  const relationshipCollections = useMemo(
+    () => ({
+      skills: Array.isArray(skills) ? skills : [],
+
+      experiences: Array.isArray(experiences) ? experiences : [],
+
+      educationRecords: Array.isArray(educationRecords) ? educationRecords : [],
+
+      trainingRecords: Array.isArray(trainingRecords) ? trainingRecords : [],
+
+      certifications: Array.isArray(certifications) ? certifications : [],
+
+      isLoading:
+        areSkillsLoading ||
+        areExperiencesLoading ||
+        isEducationLoading ||
+        isTrainingLoading ||
+        areCertificationsLoading,
+    }),
+    [
+      skills,
+      experiences,
+      educationRecords,
+      trainingRecords,
+      certifications,
+      areSkillsLoading,
+      areExperiencesLoading,
+      isEducationLoading,
+      isTrainingLoading,
+      areCertificationsLoading,
+    ],
+  );
+
+  return <Projects relationshipCollections={relationshipCollections} />;
+}
+
+/*
+ * =========================================
+ * Application
+ * =========================================
+ */
+
+function App() {
   const routes = useRoutes([
+    /*
+     * =========================================
+     * Private Dashboard Routes
+     * =========================================
+     */
+
     {
       path: "/",
       element: <DashboardLayout />,
@@ -40,15 +117,11 @@ function App() {
         },
         {
           path: "projects",
-          element: <Projects />,
+          element: <ProjectsRoute />,
         },
         {
           path: "experience",
           element: <Experience />,
-        },
-        {
-          path: "education",
-          element: <Education />,
         },
         {
           path: "education",
@@ -81,9 +154,6 @@ function App() {
      * =========================================
      * Portfolio Preview
      * =========================================
-     *
-     * This route does not use DashboardLayout.
-     * It displays the portfolio like a public page.
      */
 
     {

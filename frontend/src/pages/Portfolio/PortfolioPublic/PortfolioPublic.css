@@ -1,3 +1,7 @@
+/* =========================================
+   Public Portfolio Page
+   ========================================= */
+
 .portfolio-public-page {
   min-height: 100vh;
   overflow-x: hidden;
@@ -6,12 +10,17 @@
     var(--bg-primary);
 }
 
+/* =========================================
+   Loading and Error State
+   ========================================= */
+
 .portfolio-public-status {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  box-sizing: border-box;
   padding: 24px;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -24,10 +33,16 @@
 }
 
 .portfolio-public-status p {
+  max-width: 520px;
   margin: 9px 0 0;
   color: var(--text-secondary);
   font-size: 0.82rem;
+  line-height: 1.55;
 }
+
+/* =========================================
+   Loading Indicator
+   ========================================= */
 
 .portfolio-public-loader {
   width: 34px;
@@ -44,6 +59,10 @@
     transform: rotate(360deg);
   }
 }
+
+/* =========================================
+   Reduced Motion
+   ========================================= */
 
 @media (prefers-reduced-motion: reduce) {
   .portfolio-public-loader {

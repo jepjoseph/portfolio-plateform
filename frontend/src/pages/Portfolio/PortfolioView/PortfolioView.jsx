@@ -1,7 +1,31 @@
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  getProjectCategoryLabel,
+  getProjectLifecycleStatusLabel,
+  getProjectOwnershipLabel,
+} from "../../../config/projectConfig.js";
+
+import {
+  createProjectAssetUrl,
+  revokeProjectAssetUrl,
+} from "../../../services/Project/projectAssetStorage.js";
+
+import {
+  getProjectDateRange,
+  getProjectFeaturedMedia,
+} from "../../../services/Project/projectUtils.js";
+
 import PortfolioHero from "../components/PortfolioHero/PortfolioHero";
 import PortfolioNavigation from "../components/PortfolioNavigation/PortfolioNavigation";
 
 import "./PortfolioView.css";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
 
 function getExternalUrl(value) {
   const normalizedValue = String(value || "").trim();
@@ -34,13 +58,31 @@ function getImageUrl(picture) {
   return picture?.imageUrl || picture?.fileUrl || picture?.url || "";
 }
 
+function getNestedValue(source, path) {
+  return String(path || "")
+    .split(".")
+    .reduce((currentValue, fieldName) => {
+      if (
+        currentValue === null ||
+        currentValue === undefined ||
+        typeof currentValue !== "object"
+      ) {
+        return undefined;
+      }
+
+      return currentValue[fieldName];
+    }, source);
+}
+
 function getItemText(item, fields = []) {
   if (typeof item === "string") {
     return item.trim();
   }
 
   for (const field of fields) {
-    const value = item?.[field];
+    const value = field.includes(".")
+      ? getNestedValue(item, field)
+      : item?.[field];
 
     if (typeof value === "string" && value.trim()) {
       return value.trim();
@@ -49,6 +91,12 @@ function getItemText(item, fields = []) {
 
   return "";
 }
+
+/*
+ * =========================================
+ * Portfolio View
+ * =========================================
+ */
 
 function PortfolioView({ portfolio, mode = "public" }) {
   if (!portfolio) {
@@ -195,13 +243,31 @@ function PortfolioView({ portfolio, mode = "public" }) {
         )}
 
         {isSectionVisible("projects") && projects.length > 0 && (
-          <PortfolioListSection
-            id="projects"
-            eyebrow="Selected Work"
-            title="Projects"
-            items={projects}
-            type="project"
-          />
+          <section id="projects" className="portfolio-view-section">
+            <header className="portfolio-view-section-header">
+              <span>Selected Work</span>
+
+              <h2>Projects</h2>
+
+              <p>
+                Professional case studies demonstrating technical capability,
+                problem solving, implementation, and measurable results.
+              </p>
+            </header>
+
+            <div
+              className="portfolio-view-projects"
+              role="list"
+              aria-label="Portfolio Projects"
+            >
+              {projects.map((project, index) => (
+                <PortfolioProjectEntry
+                  key={project?.id || `project-${index}`}
+                  project={project}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {isSectionVisible("education") && education.length > 0 && (
@@ -417,6 +483,206 @@ function PortfolioView({ portfolio, mode = "public" }) {
   );
 }
 
+/*
+ * =========================================
+ * Portfolio Project Entry
+ * =========================================
+ */
+
+function PortfolioProjectEntry({ project }) {
+  const featuredMedia = useMemo(
+    () => getProjectFeaturedMedia(project),
+    [project],
+  );
+
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaError, setMediaError] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+    let createdUrl = "";
+
+    setMediaUrl("");
+    setMediaError(false);
+
+    if (!featuredMedia?.storageKey) {
+      setMediaUrl(featuredMedia?.externalUrl || "");
+
+      return undefined;
+    }
+
+    createProjectAssetUrl(featuredMedia.storageKey)
+      .then((url) => {
+        createdUrl = url;
+
+        if (isActive) {
+          setMediaUrl(url);
+        } else {
+          revokeProjectAssetUrl(url);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setMediaError(true);
+        }
+      });
+
+    return () => {
+      isActive = false;
+
+      revokeProjectAssetUrl(createdUrl);
+    };
+  }, [featuredMedia?.storageKey, featuredMedia?.externalUrl]);
+
+  const title = project?.title || "Untitled Project";
+
+  const organizationName =
+    project?.organization?.name || project?.organization?.clientName || "";
+
+  const summary =
+    project?.presentation?.shortSummary ||
+    project?.solution?.overview ||
+    project?.problem?.statement ||
+    "";
+
+  const liveUrl =
+    project?.links?.liveUrl ||
+    project?.links?.caseStudyUrl ||
+    project?.links?.repositoryUrl ||
+    "";
+
+  const technologies = Array.isArray(project?.technologies)
+    ? project.technologies.filter((technology) => technology?.name).slice(0, 6)
+    : [];
+
+  const skillCount = Array.isArray(project?.skillRelationships)
+    ? project.skillRelationships.length
+    : 0;
+
+  const isVideo =
+    featuredMedia?.type === "video" ||
+    featuredMedia?.mimeType?.startsWith("video/");
+
+  return (
+    <article className="portfolio-view-project" role="listitem">
+      <div className="portfolio-view-project-media">
+        {mediaUrl && !mediaError && isVideo && (
+          <video
+            src={mediaUrl}
+            muted
+            playsInline
+            preload="metadata"
+            onError={() => setMediaError(true)}
+            aria-label={`Video preview for ${title}`}
+          />
+        )}
+
+        {mediaUrl && !mediaError && !isVideo && (
+          <img
+            src={mediaUrl}
+            alt={
+              featuredMedia?.altText ||
+              featuredMedia?.caption ||
+              featuredMedia?.name ||
+              `${title} preview`
+            }
+            onError={() => setMediaError(true)}
+          />
+        )}
+
+        {(!mediaUrl || mediaError) && (
+          <div className="portfolio-view-project-placeholder">
+            <small>Project</small>
+
+            <strong>{title.slice(0, 1).toUpperCase()}</strong>
+          </div>
+        )}
+
+        {project?.presentation?.isFeatured && (
+          <span className="portfolio-view-project-featured">Featured</span>
+        )}
+      </div>
+
+      <div className="portfolio-view-project-content">
+        <div className="portfolio-view-project-labels">
+          <span>{getProjectCategoryLabel(project?.category)}</span>
+
+          <span>
+            {getProjectLifecycleStatusLabel(project?.lifecycleStatus)}
+          </span>
+        </div>
+
+        <header>
+          <h3>{title}</h3>
+
+          <p>
+            {project?.role || "Role not specified"}
+
+            {organizationName && ` · ${organizationName}`}
+          </p>
+        </header>
+
+        {summary && <p className="portfolio-view-project-summary">{summary}</p>}
+
+        <div className="portfolio-view-project-details">
+          {project?.dates && (
+            <span>
+              <small>Timeline</small>
+
+              <strong>{getProjectDateRange(project)}</strong>
+            </span>
+          )}
+
+          <span>
+            <small>Ownership</small>
+
+            <strong>{getProjectOwnershipLabel(project?.ownership)}</strong>
+          </span>
+
+          {skillCount > 0 && (
+            <span>
+              <small>Related Skills</small>
+
+              <strong>{skillCount}</strong>
+            </span>
+          )}
+        </div>
+
+        {technologies.length > 0 && (
+          <div
+            className="portfolio-view-project-technologies"
+            aria-label="Project technologies"
+          >
+            {technologies.map((technology) => (
+              <span key={technology.id || technology.name}>
+                {technology.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {liveUrl && (
+          <a
+            className="portfolio-view-project-link"
+            href={getExternalUrl(liveUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View Project
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
+      </div>
+    </article>
+  );
+}
+
+/*
+ * =========================================
+ * Generic Portfolio List
+ * =========================================
+ */
+
 function PortfolioListSection({ id, eyebrow, title, items, type }) {
   return (
     <section id={id} className="portfolio-view-section">
@@ -439,38 +705,83 @@ function PortfolioListSection({ id, eyebrow, title, items, type }) {
   );
 }
 
+/*
+ * =========================================
+ * Generic Portfolio Entry
+ * =========================================
+ */
+
 function PortfolioEntry({ item, type }) {
   const configuration = {
     experience: {
-      title: getItemText(item, ["position", "title", "role"]),
-      subtitle: getItemText(item, ["company", "organization", "employer"]),
-    },
+      title: getItemText(item, [
+        "position.title",
+        "jobTitle",
+        "position",
+        "title",
+        "role",
+      ]),
 
-    project: {
-      title: getItemText(item, ["name", "title"]),
-      subtitle: getItemText(item, ["organization", "role"]),
+      subtitle: getItemText(item, [
+        "organization.name",
+        "company",
+        "organization",
+        "employer",
+      ]),
     },
 
     education: {
-      title: getItemText(item, ["degree", "program", "title"]),
-      subtitle: getItemText(item, ["institution", "school", "organization"]),
+      title: getItemText(item, [
+        "credential.name",
+        "degree",
+        "program",
+        "title",
+      ]),
+
+      subtitle: getItemText(item, [
+        "institution.name",
+        "institution",
+        "school",
+        "organization",
+      ]),
     },
 
     certification: {
       title: getItemText(item, ["name", "title"]),
-      subtitle: getItemText(item, ["issuingOrganization", "organization"]),
+
+      subtitle: getItemText(item, [
+        "issuingOrganization.name",
+        "issuingOrganization",
+        "organization",
+      ]),
     },
-  }[type];
+  }[type] || {
+    title: "",
+    subtitle: "",
+  };
 
-  const description = getItemText(item, ["description", "summary"]);
+  const description = getItemText(item, [
+    "description",
+    "summary",
+    "responsibilities",
+  ]);
 
-  const location = getItemText(item, ["location"]);
+  const location = getItemText(item, ["location.displayValue", "location"]);
 
-  const startDate = getItemText(item, ["startDate", "issueDate"]);
+  const startDate = getItemText(item, [
+    "dates.startDate",
+    "startDate",
+    "issueDate",
+  ]);
 
-  const endDate = item?.isCurrent
+  const isCurrent =
+    item?.dates?.isCurrent === true ||
+    item?.isCurrent === true ||
+    item?.current === true;
+
+  const endDate = isCurrent
     ? "Present"
-    : getItemItemText(item, ["endDate", "expirationDate"]);
+    : getItemText(item, ["dates.endDate", "endDate", "expirationDate"]);
 
   const url = getItemText(item, [
     "url",
@@ -506,6 +817,12 @@ function PortfolioEntry({ item, type }) {
     </article>
   );
 }
+
+/*
+ * =========================================
+ * Social Icons
+ * =========================================
+ */
 
 function getSocialIcon(type) {
   const icons = {

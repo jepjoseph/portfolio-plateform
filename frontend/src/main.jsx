@@ -12,6 +12,7 @@ import { SkillDataProvider } from "./context/SkillDataContext.jsx";
 import { EducationDataProvider } from "./context/EducationDataContext.jsx";
 import { TrainingDataProvider } from "./context/TrainingDataContext.jsx";
 import { CertificationDataProvider } from "./context/CertificationDataContext.jsx";
+import { ProjectDataProvider } from "./context/ProjectDataContext.jsx";
 
 import "./styles/global.css";
 
@@ -26,7 +27,9 @@ createRoot(document.getElementById("root")).render(
                 <EducationDataProvider>
                   <TrainingDataProvider>
                     <CertificationDataProvider>
-                      <App />
+                      <ProjectDataProvider>
+                        <App />
+                      </ProjectDataProvider>
                     </CertificationDataProvider>
                   </TrainingDataProvider>
                 </EducationDataProvider>

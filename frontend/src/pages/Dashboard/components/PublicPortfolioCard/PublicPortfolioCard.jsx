@@ -1,99 +1,292 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import "./PublicPortfolioCard.css";
 
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function formatUpdatedDate(value) {
+  const timestamp = new Date(value || "").getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return "Not published yet";
+  }
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(timestamp));
+  } catch {
+    return "Recently updated";
+  }
+}
+
+function getPlatformOrigin(platformUrl) {
+  const suppliedUrl = getText(platformUrl);
+
+  if (suppliedUrl) {
+    return suppliedUrl.startsWith("http://") ||
+      suppliedUrl.startsWith("https://")
+      ? suppliedUrl.replace(/\/+$/, "")
+      : `https://${suppliedUrl.replace(/\/+$/, "")}`;
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return "";
+}
+
+/*
+ * =========================================
+ * Public Portfolio Card
+ * =========================================
+ */
+
 function PublicPortfolioCard({
-  username,
-  isLive = true,
-  platformUrl = "yourplatform.com",
+  username = "",
+  portfolioSlug = "",
+  portfolioName = "Professional Portfolio",
+  isLive = false,
+  updatedAt = "",
+  projectCount = 0,
+  resumeCount = 0,
+  platformUrl = "",
+  isLoading = false,
 }) {
-  const navigate = useNavigate();
+  const [copyStatus, setCopyStatus] = useState("idle");
 
-  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef(null);
 
-  const portfolioPath = `/u/${username}`;
-  const portfolioUrl = `${platformUrl}${portfolioPath}`;
+  const normalizedUsername = getText(username);
+
+  const normalizedSlug = getText(portfolioSlug);
+
+  const hasPortfolioIdentity = Boolean(normalizedUsername && normalizedSlug);
+
+  const portfolioPath = hasPortfolioIdentity
+    ? `/portfolio/${encodeURIComponent(
+        normalizedUsername,
+      )}/${encodeURIComponent(normalizedSlug)}`
+    : "";
+
+  const portfolioUrl = useMemo(() => {
+    if (!portfolioPath) {
+      return "";
+    }
+
+    const origin = getPlatformOrigin(platformUrl);
+
+    return origin ? `${origin}${portfolioPath}` : portfolioPath;
+  }, [platformUrl, portfolioPath]);
+
+  const canOpenPortfolio = isLive && hasPortfolioIdentity && !isLoading;
+
+  const publishedDate = formatUpdatedDate(updatedAt);
+
+  /*
+   * =========================================
+   * Clear Copy Timer
+   * =========================================
+   */
+
+  useEffect(
+    () => () => {
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  /*
+   * =========================================
+   * Copy Portfolio URL
+   * =========================================
+   */
 
   const handleCopy = async () => {
+    if (!portfolioUrl || !canOpenPortfolio) {
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(`https://${portfolioUrl}`);
+      if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+        throw new Error("Clipboard access is unavailable.");
+      }
 
-      setCopied(true);
+      await navigator.clipboard.writeText(portfolioUrl);
 
-      setTimeout(() => {
-        setCopied(false);
+      setCopyStatus("copied");
+
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopyStatus("idle");
       }, 2000);
     } catch (error) {
-      console.error("Failed to copy portfolio URL:", error);
+      console.error("Unable to copy portfolio URL:", error);
+
+      setCopyStatus("error");
+
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopyStatus("idle");
+      }, 2500);
     }
   };
 
-  const handleViewPortfolio = () => {
-    navigate(portfolioPath);
-  };
+  /*
+   * =========================================
+   * Render
+   * =========================================
+   */
 
   return (
     <article className="public-portfolio-card dashboard-card">
-      {/* =========================================
-          Header
-          ========================================= */}
-
-      <div className="dashboard-card-header">
+      <header className="dashboard-card-header">
         <div>
-          <span className="dashboard-card-eyebrow">Public Profile</span>
+          <span className="dashboard-card-eyebrow">Public Presence</span>
 
           <h3>Your Portfolio</h3>
         </div>
 
-        <span className={`portfolio-status ${isLive ? "live" : "offline"}`}>
-          <span className="portfolio-status-dot">●</span>
+        <span
+          className={`portfolio-status ${
+            isLive ? "portfolio-status--live" : "portfolio-status--offline"
+          }`}
+        >
+          <span className="portfolio-status-dot" aria-hidden="true" />
 
-          {isLive ? "Live" : "Offline"}
+          {isLoading ? "Loading" : isLive ? "Published" : "Draft"}
+        </span>
+      </header>
+
+      <p className="dashboard-card-description">
+        {isLive
+          ? "Your professional portfolio is published and available through its public URL."
+          : "Complete and publish your portfolio to create a shareable professional presence."}
+      </p>
+
+      <div className="public-portfolio-information">
+        <span>
+          <small>Portfolio</small>
+
+          <strong>{getText(portfolioName) || "Professional Portfolio"}</strong>
+        </span>
+
+        <span>
+          <small>Projects</small>
+
+          <strong>{Number(projectCount) || 0}</strong>
+        </span>
+
+        <span>
+          <small>Résumés</small>
+
+          <strong>{Number(resumeCount) || 0}</strong>
+        </span>
+
+        <span>
+          <small>Last Published</small>
+
+          <strong>{isLive ? publishedDate : "Not published"}</strong>
         </span>
       </div>
 
-      {/* =========================================
-          Description
-          ========================================= */}
-
-      <p className="dashboard-card-description">
-        Your professional portfolio is available publicly through your unique
-        profile URL.
-      </p>
-
-      {/* =========================================
-          Portfolio URL
-          ========================================= */}
-
-      <div className="portfolio-url">
-        <span className="portfolio-url-text" title={`https://${portfolioUrl}`}>
-          {portfolioUrl}
+      <div
+        className={`portfolio-url ${
+          !canOpenPortfolio ? "portfolio-url--disabled" : ""
+        }`}
+      >
+        <span className="portfolio-url-text" title={portfolioUrl}>
+          {portfolioUrl || "Publish the portfolio to create its public URL"}
         </span>
 
         <button
           type="button"
-          className={`portfolio-copy-button ${copied ? "copied" : ""}`}
+          className={`portfolio-copy-button ${
+            copyStatus === "copied" ? "portfolio-copy-button--copied" : ""
+          } ${copyStatus === "error" ? "portfolio-copy-button--error" : ""}`}
           onClick={handleCopy}
-          aria-label={copied ? "Portfolio URL copied" : "Copy portfolio URL"}
-          title={copied ? "Copied" : "Copy portfolio URL"}
+          disabled={!canOpenPortfolio}
+          aria-label={
+            copyStatus === "copied"
+              ? "Portfolio URL copied"
+              : copyStatus === "error"
+                ? "Portfolio URL could not be copied"
+                : "Copy portfolio URL"
+          }
+          title={
+            copyStatus === "copied"
+              ? "Copied"
+              : copyStatus === "error"
+                ? "Copy unsuccessful"
+                : "Copy portfolio URL"
+          }
         >
-          {copied ? "✓" : "⧉"}
+          {copyStatus === "copied" ? "✓" : copyStatus === "error" ? "!" : "⧉"}
         </button>
       </div>
 
-      {/* =========================================
-          View Portfolio
-          ========================================= */}
+      {copyStatus === "copied" && (
+        <p
+          className="portfolio-copy-message portfolio-copy-message--success"
+          role="status"
+        >
+          Portfolio URL copied.
+        </p>
+      )}
 
-      <button
-        type="button"
-        className="dashboard-primary-button"
-        onClick={handleViewPortfolio}
-        disabled={!isLive}
-      >
-        {isLive ? "View Public Portfolio" : "Portfolio Offline"}
-      </button>
+      {copyStatus === "error" && (
+        <p
+          className="portfolio-copy-message portfolio-copy-message--error"
+          role="alert"
+        >
+          The URL could not be copied. You can select it manually.
+        </p>
+      )}
+
+      <footer className="public-portfolio-actions">
+        <Link to="/portfolio">
+          {isLive ? "Edit Portfolio" : "Complete Portfolio"}
+        </Link>
+
+        {canOpenPortfolio ? (
+          <a
+            href={portfolioPath}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="public-portfolio-primary-action"
+          >
+            View Public Portfolio
+            <span aria-hidden="true">↗</span>
+          </a>
+        ) : (
+          <span
+            className="public-portfolio-primary-action public-portfolio-primary-action--disabled"
+            aria-disabled="true"
+          >
+            Portfolio Not Published
+          </span>
+        )}
+      </footer>
     </article>
   );
 }

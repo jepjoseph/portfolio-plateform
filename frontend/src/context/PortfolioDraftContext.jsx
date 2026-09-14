@@ -73,7 +73,7 @@ const INITIAL_PORTFOLIO_DRAFT = {
     education: true,
     skills: true,
     certifications: true,
-    projects: false,
+    projects: true,
     resume: true,
   },
 

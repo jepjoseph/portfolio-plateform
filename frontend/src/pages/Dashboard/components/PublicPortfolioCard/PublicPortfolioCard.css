@@ -4,6 +4,8 @@
 
 .public-portfolio-card {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* =========================================
@@ -12,46 +14,78 @@
 
 .portfolio-status {
   display: inline-flex;
-
   align-items: center;
-
-  gap: 5px;
-
+  gap: 6px;
   flex-shrink: 0;
-
   padding: 5px 9px;
-
-  border: 1px solid rgba(34, 197, 94, 0.16);
-
+  border: 1px solid var(--border-color);
   border-radius: 999px;
-
-  background: rgba(34, 197, 94, 0.08);
-
-  color: var(--success);
-
-  font-size: 0.68rem;
-
-  font-weight: 700;
-
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 750;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 .portfolio-status-dot {
-  font-size: 0.55rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
 
-  filter: drop-shadow(0 0 5px rgba(34, 197, 94, 0.7));
+.portfolio-status--live {
+  border-color: rgba(34, 197, 94, 0.18);
+  background: rgba(34, 197, 94, 0.08);
+  color: #4ade80;
+}
+
+.portfolio-status--live .portfolio-status-dot {
+  box-shadow: 0 0 7px rgba(34, 197, 94, 0.7);
+}
+
+.portfolio-status--offline {
+  border-color: rgba(245, 158, 11, 0.16);
+  background: rgba(245, 158, 11, 0.06);
+  color: #fbbf24;
 }
 
 /* =========================================
-   Offline Status
+   Portfolio Information
    ========================================= */
 
-.portfolio-status.offline {
-  border-color: rgba(148, 163, 184, 0.14);
+.public-portfolio-information {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 17px;
+}
 
-  background: rgba(148, 163, 184, 0.06);
+.public-portfolio-information > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.018);
+}
 
+.public-portfolio-information small {
   color: var(--text-muted);
+  font-size: 0.49rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.public-portfolio-information strong {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* =========================================
@@ -59,24 +93,16 @@
    ========================================= */
 
 .portfolio-url {
-  display: flex;
-
-  align-items: center;
-
-  gap: 10px;
-
   width: 100%;
-
-  margin-top: 18px;
-
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  margin-top: 14px;
   padding: 8px 8px 8px 12px;
-
   border: 1px solid var(--border-color);
-
   border-radius: var(--radius-md);
-
   background: rgba(0, 0, 0, 0.18);
-
   transition:
     border-color var(--transition),
     background var(--transition);
@@ -84,8 +110,11 @@
 
 .portfolio-url:hover {
   border-color: var(--border-hover);
-
   background: rgba(255, 255, 255, 0.025);
+}
+
+.portfolio-url--disabled {
+  opacity: 0.65;
 }
 
 /* =========================================
@@ -94,21 +123,13 @@
 
 .portfolio-url-text {
   min-width: 0;
-
   flex: 1;
-
   overflow: hidden;
-
   color: var(--text-secondary);
-
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-
-  font-size: 0.72rem;
-
+  font-size: 0.64rem;
   line-height: 1.4;
-
   text-overflow: ellipsis;
-
   white-space: nowrap;
 }
 
@@ -118,27 +139,19 @@
 
 .portfolio-copy-button {
   width: 32px;
-
   height: 32px;
-
   display: grid;
-
   place-items: center;
-
   flex-shrink: 0;
-
+  padding: 0;
   border: 1px solid transparent;
-
   border-radius: 8px;
-
   background: rgba(255, 255, 255, 0.05);
-
   color: var(--text-secondary);
-
-  font-size: 0.85rem;
-
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
   cursor: pointer;
-
   transition:
     background var(--transition),
     border-color var(--transition),
@@ -146,104 +159,122 @@
     transform var(--transition);
 }
 
-.portfolio-copy-button:hover {
-  background: var(--accent-soft);
-
+.portfolio-copy-button:hover:not(:disabled) {
   border-color: rgba(99, 102, 241, 0.2);
-
+  background: var(--accent-soft);
   color: var(--text-primary);
-
   transform: translateY(-1px);
 }
 
-.portfolio-copy-button:active {
-  transform: translateY(0);
+.portfolio-copy-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* =========================================
-   Copied State
-   ========================================= */
+.portfolio-copy-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
-.portfolio-copy-button.copied {
-  background: rgba(34, 197, 94, 0.1);
-
+.portfolio-copy-button--copied {
   border-color: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+}
 
-  color: var(--success);
+.portfolio-copy-button--error {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+
+.portfolio-copy-message {
+  margin: 7px 0 0;
+  font-size: 0.56rem;
+}
+
+.portfolio-copy-message--success {
+  color: #4ade80;
+}
+
+.portfolio-copy-message--error {
+  color: #f87171;
 }
 
 /* =========================================
-   Primary Button
+   Actions
    ========================================= */
 
-.public-portfolio-card .dashboard-primary-button {
-  width: 100%;
+.public-portfolio-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: auto;
+  padding-top: 16px;
+}
 
-  min-height: 42px;
-
-  margin-top: 14px;
-
-  padding: 0 16px;
-
-  border: none;
-
+.public-portfolio-actions > a,
+.public-portfolio-primary-action {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-
-  background: linear-gradient(135deg, var(--accent), #4f46e5);
-
-  color: #ffffff;
-
-  font-family: inherit;
-
-  font-size: 0.82rem;
-
-  font-weight: 600;
-
-  cursor: pointer;
-
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
   transition:
-    transform var(--transition),
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition),
     box-shadow var(--transition),
-    opacity var(--transition);
+    transform var(--transition);
 }
 
-.public-portfolio-card .dashboard-primary-button:hover:not(:disabled) {
+.public-portfolio-actions > a:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.065);
+  color: var(--text-primary);
   transform: translateY(-1px);
-
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
 }
 
-.public-portfolio-card .dashboard-primary-button:active:not(:disabled) {
-  transform: translateY(0);
+.public-portfolio-actions .public-portfolio-primary-action {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
 }
 
-.public-portfolio-card .dashboard-primary-button:disabled {
+.public-portfolio-actions .public-portfolio-primary-action:hover {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent-hover), #4338ca);
+  color: #ffffff;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.24);
+}
+
+.public-portfolio-actions > a:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+.public-portfolio-primary-action--disabled {
   opacity: 0.45;
-
   cursor: not-allowed;
 }
 
 /* =========================================
-   Tablet
-   ========================================= */
-
-@media (max-width: 900px) {
-  .portfolio-url-text {
-    font-size: 0.7rem;
-  }
-}
-
-/* =========================================
-   Mobile
+   Responsive
    ========================================= */
 
 @media (max-width: 700px) {
   .portfolio-url {
     padding-left: 10px;
-  }
-
-  .portfolio-url-text {
-    font-size: 0.68rem;
   }
 
   .portfolio-copy-button {
@@ -252,18 +283,22 @@
   }
 }
 
-/* =========================================
-   Small Mobile
-   ========================================= */
-
 @media (max-width: 480px) {
-  .portfolio-url-text {
-    font-size: 0.64rem;
+  .public-portfolio-information,
+  .public-portfolio-actions {
+    grid-template-columns: 1fr;
   }
 
   .portfolio-status {
     padding: 4px 7px;
+    font-size: 0.54rem;
+  }
+}
 
-    font-size: 0.62rem;
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-url,
+  .portfolio-copy-button,
+  .public-portfolio-actions > a {
+    transition: none;
   }
 }

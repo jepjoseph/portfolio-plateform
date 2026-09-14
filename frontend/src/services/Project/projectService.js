@@ -288,14 +288,33 @@ async function prepareProjectAssets(
     );
 
     /*
-     * A featured staged upload replaces the
-     * previous featured item. Otherwise, the
-     * existing featured selection is retained.
+     * A staged upload selected in the Media
+     * Editor must take priority. Before upload,
+     * its ID cannot be resolved by normalizeProject
+     * because it is not yet part of project.media.
      */
 
     const uploadedFeaturedMedia = storedMedia.metadata.find(
-      (mediaItem) => mediaItem.isFeatured && mediaItem.status !== "archived",
+      (mediaItem) => mediaItem.isFeatured && isEligibleFeaturedMedia(mediaItem),
     );
+
+    const requestedFeaturedMediaId = getText(
+      project.presentation?.featuredMediaId,
+    );
+
+    const featuredMedia =
+      uploadedFeaturedMedia ||
+      completeMedia.find(
+        (mediaItem) =>
+          mediaItem.id === requestedFeaturedMediaId &&
+          isEligibleFeaturedMedia(mediaItem),
+      ) ||
+      completeMedia.find(
+        (mediaItem) =>
+          mediaItem.isFeatured && isEligibleFeaturedMedia(mediaItem),
+      ) ||
+      completeMedia.find(isEligibleFeaturedMedia) ||
+      null;
 
     const existingMedia = getArray(project.media).map((mediaItem) => ({
       ...mediaItem,
@@ -304,19 +323,6 @@ async function prepareProjectAssets(
     }));
 
     const completeMedia = [...existingMedia, ...storedMedia.metadata];
-
-    const featuredMedia =
-      uploadedFeaturedMedia ||
-      completeMedia.find(
-        (mediaItem) =>
-          mediaItem.id === project.presentation?.featuredMediaId &&
-          mediaItem.status !== "archived",
-      ) ||
-      completeMedia.find(
-        (mediaItem) => mediaItem.isFeatured && mediaItem.status !== "archived",
-      ) ||
-      completeMedia.find((mediaItem) => mediaItem.status !== "archived") ||
-      null;
 
     const preparedProject = normalizeProject({
       ...project,

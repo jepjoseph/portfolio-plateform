@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 
-import {
-  ProjectDataProvider,
-  useProjectData,
-} from "../../context/ProjectDataContext.jsx";
+import { useProjectData } from "../../context/ProjectDataContext.jsx";
 
 import {
   getProjectStatistics,
@@ -34,7 +31,7 @@ const DEFAULT_PROJECT_SORT = "newest-started";
  * =========================================
  */
 
-function ProjectsContent({ relationshipCollections = {} }) {
+function Projects({ relationshipCollections = {} }) {
   const {
     projects,
     isLoading,
@@ -601,20 +598,6 @@ function ProjectsContent({ relationshipCollections = {} }) {
         />
       )}
     </main>
-  );
-}
-
-/*
- * =========================================
- * Projects Page Provider
- * =========================================
- */
-
-function Projects(props) {
-  return (
-    <ProjectDataProvider>
-      <ProjectsContent {...props} />
-    </ProjectDataProvider>
   );
 }
 

@@ -1,41 +1,112 @@
 /* =========================================
-   Statistics
+   Statistics Section
    ========================================= */
 
-.statistics {
+.statistics-section {
+  min-width: 0;
   display: grid;
-
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-
-  gap: 16px;
-
-  width: 100%;
-
-  margin-top: 24px;
-  margin-bottom: 24px;
+  gap: 15px;
+  margin-top: 20px;
 }
 
 /* =========================================
-   Tablet
+   Header
    ========================================= */
 
-@media (max-width: 1100px) {
+.statistics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.statistics-header > div {
+  min-width: 0;
+}
+
+.statistics-header > div > span {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.statistics-header h2 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.statistics-header p {
+  max-width: 690px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.statistics-header > strong {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-size: 0.56rem;
+}
+
+/* =========================================
+   Statistics Grid
+   ========================================= */
+
+.statistics {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* =========================================
+   Empty State
+   ========================================= */
+
+.statistics-empty {
+  padding: 24px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 1200px) {
+  .statistics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
   .statistics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* =========================================
-   Mobile
-   ========================================= */
+@media (max-width: 560px) {
+  .statistics-header {
+    flex-direction: column;
+  }
 
-@media (max-width: 700px) {
+  .statistics-header > strong {
+    align-self: flex-start;
+  }
+
   .statistics {
     grid-template-columns: 1fr;
-
-    gap: 12px;
-
-    margin-top: 20px;
-    margin-bottom: 20px;
   }
 }

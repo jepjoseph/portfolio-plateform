@@ -671,6 +671,22 @@ export function createEmptyProject() {
 
 /*
  * =========================================
+ * Featured Media Eligibility
+ * =========================================
+ */
+
+function isEligibleFeaturedMedia(mediaItem) {
+  return Boolean(
+    mediaItem &&
+    mediaItem.status !== "archived" &&
+    mediaItem.visibility !== "private" &&
+    (normalizeText(mediaItem.storageKey, 500) ||
+      normalizeText(mediaItem.externalUrl, PROJECT_FIELD_LIMITS.url)),
+  );
+}
+
+/*
+ * =========================================
  * Project Normalization
  * =========================================
  */
@@ -734,10 +750,10 @@ export function normalizeProject(value = {}) {
   const featuredMedia =
     media.find(
       (item) =>
-        item.id === requestedFeaturedMediaId && item.status !== "archived",
+        item.id === requestedFeaturedMediaId && isEligibleFeaturedMedia(item),
     ) ||
-    media.find((item) => item.isFeatured && item.status !== "archived") ||
-    media.find((item) => item.status !== "archived") ||
+    media.find((item) => item.isFeatured && isEligibleFeaturedMedia(item)) ||
+    media.find(isEligibleFeaturedMedia) ||
     null;
 
   /*
