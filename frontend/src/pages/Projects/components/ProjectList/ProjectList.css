@@ -1,0 +1,157 @@
+/*
+ * =========================================
+ * Project List
+ * =========================================
+ */
+
+.project-list {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.project-list-entry {
+  min-width: 0;
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.project-list-empty {
+  min-height: 260px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 9px;
+  padding: 36px 18px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(99, 102, 241, 0.055),
+      transparent 48%
+    ),
+    rgba(255, 255, 255, 0.012);
+  text-align: center;
+}
+
+.project-list-empty-visual {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 3px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 15px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.project-list-empty-visual span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.project-list-empty > strong {
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.project-list-empty > p {
+  max-width: 500px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  line-height: 1.55;
+}
+
+.project-list-empty > button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 5px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
+}
+
+.project-list-empty > button span {
+  font-size: 0.85rem;
+}
+
+.project-list-empty > button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.18);
+  transform: translateY(-1px);
+}
+
+.project-list-empty > button:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+.project-list-empty > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Busy State
+ * =========================================
+ */
+
+.project-list[aria-busy="true"] {
+  pointer-events: none;
+}
+
+.project-list[aria-busy="true"] .project-list-entry {
+  opacity: 0.72;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 650px) {
+  .project-list {
+    gap: 12px;
+  }
+
+  .project-list-empty {
+    min-height: 230px;
+    padding: 30px 15px;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .project-list-empty > button {
+    transition: none;
+  }
+}

@@ -648,17 +648,23 @@ export function TrainingDataProvider({ children }) {
    * =========================================
    */
 
-  const validateTrainingDraft = useCallback(async (trainingData) => {
-    try {
-      return await validateTrainingDraftService(trainingData);
-    } catch (validationError) {
-      console.error("Unable to validate training record:", validationError);
+  const validateTrainingDraft = useCallback(
+    async (trainingData, validationOptions = {}) => {
+      try {
+        return await validateTrainingDraftService(
+          trainingData,
+          validationOptions,
+        );
+      } catch (validationError) {
+        console.error("Unable to validate training record:", validationError);
 
-      setError(normalizeTrainingContextError(validationError));
+        setError(normalizeTrainingContextError(validationError));
 
-      throw validationError;
-    }
-  }, []);
+        throw validationError;
+      }
+    },
+    [],
+  );
 
   /*
    * =========================================
@@ -761,7 +767,9 @@ export function TrainingDataProvider({ children }) {
         (training) =>
           training.completion?.certificateEarned === true ||
           Boolean(training.completion?.credentialId) ||
-          Boolean(training.completion?.credentialUrl),
+          Boolean(training.completion?.credentialUrl) ||
+          (Array.isArray(training.certificationRelationships) &&
+            training.certificationRelationships.length > 0),
       ).length,
 
       withSkills: activeTrainingRecords.filter(

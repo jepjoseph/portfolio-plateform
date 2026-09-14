@@ -15,6 +15,10 @@
   border-bottom: 1px solid var(--border-color);
 }
 
+.training-library-header > div {
+  min-width: 0;
+}
+
 .training-library-header > div > span {
   color: var(--accent-hover);
   font-size: 0.55rem;
@@ -45,6 +49,7 @@
   color: var(--accent-hover);
   font-size: 0.56rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .training-library-controls {
@@ -74,6 +79,7 @@
   width: 100%;
   min-width: 0;
   min-height: 38px;
+  box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -82,12 +88,27 @@
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.63rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.training-library-search input:hover,
+.training-library-select select:hover {
+  border-color: var(--border-hover);
 }
 
 .training-library-search input:focus,
 .training-library-select select:focus {
   border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.04);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.training-library-select select option {
+  background: var(--surface-color);
+  color: var(--text-primary);
 }
 
 .training-library-filter-grid {
@@ -140,6 +161,23 @@
   font-family: inherit;
   font-size: 0.59rem;
   cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.training-library-controls footer button:hover,
+.training-library-state button:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.training-library-controls footer button:focus-visible,
+.training-library-state button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .training-library-list {
@@ -158,6 +196,7 @@
 .training-library-loading > span {
   width: 15px;
   height: 15px;
+  flex-shrink: 0;
   border: 2px solid rgba(99, 102, 241, 0.2);
   border-top-color: var(--accent);
   border-radius: 50%;
@@ -252,5 +291,12 @@
 @media (prefers-reduced-motion: reduce) {
   .training-library-loading > span {
     animation: none;
+  }
+
+  .training-library-search input,
+  .training-library-select select,
+  .training-library-controls footer button,
+  .training-library-state button {
+    transition: none;
   }
 }

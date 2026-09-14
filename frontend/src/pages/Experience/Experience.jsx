@@ -6,7 +6,6 @@ import {
   getExperienceOrganizationName,
   getExperiencePositionTitle,
   getExperienceStatistics,
-  sortExperiences,
 } from "../../services/Experience/experienceUtils.js";
 
 import ExperienceDashboard from "./components/ExperienceDashboard/ExperienceDashboard.jsx";
@@ -37,9 +36,7 @@ function Experience() {
   } = useExperienceData();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-
   const [editingExperienceId, setEditingExperienceId] = useState(null);
-
   const [showArchived, setShowArchived] = useState(false);
 
   /*
@@ -53,13 +50,14 @@ function Experience() {
     [experiences],
   );
 
-  const displayedExperiences = useMemo(() => {
-    const selectedCollection = showArchived
-      ? archivedExperiences
-      : activeExperiences;
+  /*
+   * ExperienceList is responsible for search,
+   * filtering, and sorting.
+   */
 
-    return sortExperiences(selectedCollection, "newest");
-  }, [showArchived, activeExperiences, archivedExperiences]);
+  const selectedExperiences = showArchived
+    ? archivedExperiences
+    : activeExperiences;
 
   const editingExperience = useMemo(
     () =>
@@ -80,13 +78,22 @@ function Experience() {
   const handleAddExperience = () => {
     setEditingExperienceId(null);
     setIsFormOpen(true);
+
     clearError();
     resetSaveStatus();
+
+    window.requestAnimationFrame(() => {
+      document.querySelector(".experience-page-form")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const handleCloseForm = () => {
     setEditingExperienceId(null);
     setIsFormOpen(false);
+
     clearError();
     resetSaveStatus();
   };
@@ -110,7 +117,7 @@ function Experience() {
 
   /*
    * =========================================
-   * Library Actions
+   * Edit Experience
    * =========================================
    */
 
@@ -129,6 +136,12 @@ function Experience() {
     });
   };
 
+  /*
+   * =========================================
+   * Archive Experience
+   * =========================================
+   */
+
   const handleArchiveExperience = async (experience) => {
     try {
       await archiveExperience(experience.id);
@@ -143,6 +156,12 @@ function Experience() {
     }
   };
 
+  /*
+   * =========================================
+   * Restore Experience
+   * =========================================
+   */
+
   const handleRestoreExperience = async (experience) => {
     try {
       await restoreExperience(experience.id);
@@ -153,13 +172,20 @@ function Experience() {
     }
   };
 
+  /*
+   * =========================================
+   * Delete Experience
+   * =========================================
+   */
+
   const handleDeleteExperience = async (experience) => {
     const positionTitle = getExperiencePositionTitle(experience);
 
     const organizationName = getExperienceOrganizationName(experience);
 
     const shouldDelete = window.confirm(
-      `Permanently delete "${positionTitle}" at "${organizationName}"?\n\nThis action cannot be undone.`,
+      `Permanently delete "${positionTitle}" at "${organizationName}"?\n\n` +
+        "This action cannot be undone.",
     );
 
     if (!shouldDelete) {
@@ -188,7 +214,11 @@ function Experience() {
   const handleToggleArchived = () => {
     setShowArchived((currentValue) => !currentValue);
 
+    setEditingExperienceId(null);
+    setIsFormOpen(false);
+
     clearError();
+    resetSaveStatus();
   };
 
   /*
@@ -221,10 +251,6 @@ function Experience() {
 
       <ExperienceDashboard statistics={statistics} isLoading={isLoading} />
 
-      {/* =====================================
-          Global Error
-          ===================================== */}
-
       {error && (
         <section
           className="experience-page-message experience-page-message--error"
@@ -241,10 +267,6 @@ function Experience() {
           </button>
         </section>
       )}
-
-      {/* =====================================
-          Save Status
-          ===================================== */}
 
       {saveStatus === "success" && (
         <section
@@ -275,15 +297,10 @@ function Experience() {
 
           <div>
             <strong>Saving experience</strong>
-
             <p>Your experience information is being updated.</p>
           </div>
         </section>
       )}
-
-      {/* =====================================
-          Form Area
-          ===================================== */}
 
       {isFormOpen && (
         <section className="experience-page-form">
@@ -321,10 +338,6 @@ function Experience() {
         </section>
       )}
 
-      {/* =====================================
-          Experience Library
-          ===================================== */}
-
       <section
         className="experience-page-library"
         aria-labelledby="experience-library-title"
@@ -347,8 +360,8 @@ function Experience() {
           </div>
 
           <span className="experience-page-library-count">
-            {displayedExperiences.length}{" "}
-            {displayedExperiences.length === 1 ? "Experience" : "Experiences"}
+            {selectedExperiences.length}{" "}
+            {selectedExperiences.length === 1 ? "Experience" : "Experiences"}
           </span>
         </header>
 
@@ -384,7 +397,7 @@ function Experience() {
 
         {!isLoading &&
           loadStatus !== "error" &&
-          displayedExperiences.length === 0 && (
+          selectedExperiences.length === 0 && (
             <div className="experience-page-empty">
               <div aria-hidden="true">{showArchived ? "□" : "✦"}</div>
 
@@ -410,9 +423,10 @@ function Experience() {
 
         {!isLoading &&
           loadStatus !== "error" &&
-          displayedExperiences.length > 0 && (
+          selectedExperiences.length > 0 && (
             <ExperienceList
-              experiences={displayedExperiences}
+              key={showArchived ? "archived" : "active"}
+              experiences={selectedExperiences}
               operation={operation}
               onEdit={handleEditExperience}
               onArchive={handleArchiveExperience}

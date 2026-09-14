@@ -10,10 +10,9 @@ import { deleteStoredDocuments } from "../Documents/documentStorage.js";
 
 import { assertValidTraining, validateTraining } from "./trainingValidation.js";
 
-import {
-  readStoredTraining,
-  replaceStoredTraining,
-} from "./trainingStorage.js";
+import { readStoredTraining } from "./trainingStorage.js";
+
+import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
 
 function createTrainingServiceError({
   message,
@@ -139,9 +138,16 @@ export async function createTraining(trainingData) {
     });
   }
 
-  replaceStoredTraining([training, ...records]);
+  const transaction = saveTrainingWithCertificationSync({
+    trainingRecords: [training, ...records],
 
-  return training;
+    changedTrainingIds: [training.id],
+  });
+
+  return (
+    transaction.trainingRecords.find((record) => record.id === training.id) ||
+    training
+  );
 }
 
 export async function updateTraining(trainingId, updates = {}) {
@@ -214,9 +220,17 @@ export async function updateTraining(trainingId, updates = {}) {
 
   nextRecords[recordIndex] = updatedTraining;
 
-  replaceStoredTraining(nextRecords);
+  const transaction = saveTrainingWithCertificationSync({
+    trainingRecords: nextRecords,
 
-  return updatedTraining;
+    changedTrainingIds: [updatedTraining.id],
+  });
+
+  return (
+    transaction.trainingRecords.find(
+      (record) => record.id === updatedTraining.id,
+    ) || updatedTraining
+  );
 }
 
 export async function archiveTraining(trainingId) {
@@ -269,55 +283,40 @@ export async function deleteTraining(trainingId) {
 
   const storageKeys = getTrainingDocumentStorageKeys(recordToDelete);
 
-  let documentCleanup;
-
-  try {
-    documentCleanup = await deleteStoredDocuments(storageKeys);
-  } catch (cleanupError) {
-    throw createTrainingServiceError({
-      message: `Training "${trainingId}" was preserved because document cleanup failed.`,
-
-      publicMessage:
-        cleanupError?.publicMessage ||
-        "The training record was not deleted because its documents could not be removed.",
-
-      code: "TRAINING_DOCUMENT_CLEANUP_FAILED",
-
-      status: 500,
-
-      details: {
-        trainingId,
-        trainingTitle: recordToDelete.title,
-        recordPreserved: true,
-        documents: cleanupError?.cleanup || null,
-      },
-    });
-  }
-
   const remainingRecords = records.filter(
     (training) => training.id !== trainingId,
   );
 
+  /*
+   * Remove Training metadata and reciprocal
+   * Certification links first.
+   */
+
+  saveTrainingWithCertificationSync({
+    trainingRecords: remainingRecords,
+
+    deletedTrainingIds: [trainingId],
+  });
+
+  let documentCleanup = null;
+
   try {
-    replaceStoredTraining(remainingRecords);
-  } catch (storageError) {
-    throw createTrainingServiceError({
-      message: `Documents for Training "${trainingId}" were deleted, but its metadata could not be removed.`,
+    documentCleanup = await deleteStoredDocuments(storageKeys);
+  } catch (cleanupError) {
+    /*
+     * Metadata and relationships are already
+     * consistently deleted. Failed binary cleanup
+     * can be handled later as orphan maintenance.
+     */
 
-      publicMessage:
-        "The documents were removed, but the training record could not be fully deleted. Try again.",
-
-      code: "TRAINING_DELETE_PARTIAL",
-
-      status: 500,
-
-      details: {
-        trainingId,
-        trainingTitle: recordToDelete.title,
-        documents: documentCleanup,
-        originalError: storageError,
-      },
-    });
+    documentCleanup = {
+      completed: false,
+      storageKeys,
+      error:
+        cleanupError?.publicMessage ||
+        cleanupError?.message ||
+        "Document cleanup failed.",
+    };
   }
 
   return {
@@ -329,19 +328,30 @@ export async function deleteTraining(trainingId) {
   };
 }
 
-export async function validateTrainingDraft(trainingData) {
-  return validateTraining(createTrainingCandidate(trainingData));
+export async function validateTrainingDraft(
+  trainingData,
+  validationOptions = {},
+) {
+  return validateTraining(
+    createTrainingCandidate(trainingData),
+    validationOptions,
+  );
 }
 
 export async function replaceTrainingRecords(trainingValues) {
   if (!Array.isArray(trainingValues)) {
     throw createTrainingServiceError({
       message: "The replacement Training Library must be an array.",
+
       publicMessage: "The Training Library has an invalid format.",
+
       code: "INVALID_TRAINING_COLLECTION",
+
       status: 400,
     });
   }
+
+  const currentRecords = readStoredTraining();
 
   const validatedRecords = trainingValues.map((value) => {
     const candidate = createTrainingCandidate(value);
@@ -351,5 +361,23 @@ export async function replaceTrainingRecords(trainingValues) {
     return normalizeTraining(candidate);
   });
 
-  return replaceStoredTraining(normalizeTrainingCollection(validatedRecords));
+  const normalizedRecords = normalizeTrainingCollection(validatedRecords);
+
+  const nextTrainingIds = new Set(
+    normalizedRecords.map((training) => training.id),
+  );
+
+  const deletedTrainingIds = currentRecords
+    .map((training) => training.id)
+    .filter((trainingId) => !nextTrainingIds.has(trainingId));
+
+  const transaction = saveTrainingWithCertificationSync({
+    trainingRecords: normalizedRecords,
+
+    changedTrainingIds: normalizedRecords.map((training) => training.id),
+
+    deletedTrainingIds,
+  });
+
+  return transaction.trainingRecords;
 }

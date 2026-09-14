@@ -1,30 +1,476 @@
+/*
+ * =========================================
+ * Projects Page
+ * =========================================
+ */
+
 .projects-page {
-  padding: 32px;
-
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-
-  background: var(--surface-color);
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 20px;
 }
 
-.projects-page p {
-  margin: 0 0 8px;
+/*
+ * =========================================
+ * Page Header
+ * =========================================
+ */
 
-  color: var(--accent-color);
+.projects-page-header {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.08),
+    rgba(255, 255, 255, 0.015)
+  );
+}
 
-  font-size: 0.72rem;
-  font-weight: 700;
+.projects-page-heading {
+  min-width: 0;
+  max-width: 700px;
+}
 
+.projects-page-heading > span,
+.projects-page-editor > header span,
+.projects-page-library > header span {
+  color: var(--accent-hover);
+  font-size: 0.58rem;
+  font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.projects-page h2 {
-  margin: 0 0 8px;
+.projects-page-heading h1 {
+  margin: 5px 0 0;
+  color: var(--text-primary);
+  font-size: clamp(1.2rem, 2vw, 1.65rem);
+  line-height: 1.2;
+}
 
+.projects-page-heading p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.71rem;
+  line-height: 1.6;
+}
+
+.projects-page-header-actions {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 13px;
+}
+
+/*
+ * =========================================
+ * Statistics
+ * =========================================
+ */
+
+.projects-page-statistics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(62px, auto));
+  gap: 8px;
+}
+
+.projects-page-statistics > span {
+  min-width: 62px;
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.projects-page-statistics strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+/*
+ * =========================================
+ * Primary Actions
+ * =========================================
+ */
+
+.projects-page-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.projects-page-primary-actions button {
+  min-height: 39px;
+  padding: 0 13px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.projects-page-primary-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.projects-page-archive-button {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+}
+
+.projects-page-archive-button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
 }
 
-.projects-page span {
+.projects-page-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+}
+
+.projects-page-add-button > span {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.projects-page-primary-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Page Messages
+ * =========================================
+ */
+
+.projects-page-message {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 15px;
+  border-radius: var(--radius-md);
+}
+
+.projects-page-message--error {
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.07);
+}
+
+.projects-page-message--warning {
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.projects-page-message strong {
+  color: var(--text-primary);
+  font-size: 0.68rem;
+}
+
+.projects-page-message--error strong {
+  color: #f87171;
+}
+
+.projects-page-message--warning strong {
+  color: #fbbf24;
+}
+
+.projects-page-message p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+  line-height: 1.5;
+}
+
+.projects-page-message ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.projects-page-message > button {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
   color: var(--text-muted);
+  font: inherit;
+  font-size: 0.59rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/*
+ * =========================================
+ * Editor and Library Containers
+ * =========================================
+ */
+
+.projects-page-editor,
+.projects-page-library {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+}
+
+.projects-page-editor > header,
+.projects-page-library > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.projects-page-editor > header > div,
+.projects-page-library > header > div {
+  min-width: 0;
+}
+
+.projects-page-editor > header h2,
+.projects-page-library > header h2 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.projects-page-editor > header p,
+.projects-page-library > header p {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  line-height: 1.55;
+}
+
+.projects-page-editor > header > button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.projects-page-editor > header > button:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.07);
+  color: #f87171;
+}
+
+.projects-page-library {
+  display: grid;
+  gap: 18px;
+}
+
+/*
+ * =========================================
+ * Loading and Error States
+ * =========================================
+ */
+
+.projects-page-state {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 32px 18px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+.projects-page-state strong {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.projects-page-state p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.projects-page-state button {
+  min-height: 35px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.61rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/*
+ * =========================================
+ * Archived Restore Actions
+ * =========================================
+ */
+
+.projects-page-archive-actions {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.045);
+}
+
+.projects-page-archive-actions > header strong {
+  color: #fbbf24;
+  font-size: 0.67rem;
+}
+
+.projects-page-archive-actions > header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+
+.projects-page-archive-actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.projects-page-archive-actions button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.07);
+  color: #fbbf24;
+  font: inherit;
+  font-size: 0.59rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.projects-page-archive-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Focus
+ * =========================================
+ */
+
+.projects-page button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 900px) {
+  .projects-page-header {
+    display: grid;
+  }
+
+  .projects-page-header-actions {
+    justify-items: stretch;
+  }
+
+  .projects-page-primary-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 620px) {
+  .projects-page-header,
+  .projects-page-editor,
+  .projects-page-library {
+    padding: 15px;
+  }
+
+  .projects-page-statistics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .projects-page-message {
+    display: grid;
+  }
+
+  .projects-page-message > button {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 430px) {
+  .projects-page-primary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .projects-page-primary-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .projects-page-archive-actions > div {
+    display: grid;
+  }
+
+  .projects-page-archive-actions button {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .projects-page-primary-actions button {
+    transition: none;
+  }
 }

@@ -40,6 +40,65 @@
 
 /*
  * =========================================
+ * Evidence Source
+ * =========================================
+ */
+
+.training-document-editor-source {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.training-document-editor-source label {
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.training-document-editor-source select {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.66rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.training-document-editor-source select:hover {
+  border-color: var(--border-hover);
+}
+
+.training-document-editor-source select:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.04);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.training-document-editor-source select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.training-document-editor-source select option {
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+
+/*
+ * =========================================
  * Upload Form
  * =========================================
  */
@@ -147,6 +206,30 @@
 
 /*
  * =========================================
+ * Certification Picker
+ * =========================================
+ */
+
+.training-document-editor-certification-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(99, 102, 241, 0.24);
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.045);
+}
+
+.training-document-editor-link-certification {
+  min-height: 40px !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+/*
+ * =========================================
  * Selected File
  * =========================================
  */
@@ -201,6 +284,10 @@
 
 .training-document-editor-error {
   margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.055);
   color: #f87171;
   font-size: 0.6rem;
 }
@@ -268,6 +355,132 @@
   border-color: rgba(99, 102, 241, 0.28);
   background: var(--accent);
   color: #ffffff;
+}
+
+/*
+ * =========================================
+ * Collection Headings
+ * =========================================
+ */
+
+.training-document-editor-linked,
+.training-document-editor-documents {
+  display: grid;
+  gap: 10px;
+}
+
+.training-document-editor-subheading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.training-document-editor-subheading > div {
+  min-width: 0;
+}
+
+.training-document-editor-subheading small {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.training-document-editor-subheading h4 {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.training-document-editor-subheading > span {
+  min-width: 25px;
+  min-height: 25px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+
+/*
+ * =========================================
+ * Certification List
+ * =========================================
+ */
+
+.training-document-editor-certification-list {
+  display: grid;
+  gap: 9px;
+}
+
+.training-document-editor-certification-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.035);
+}
+
+.training-document-editor-certification-item--error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.training-document-editor-certification-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-hover);
+  font-size: 0.78rem;
+}
+
+.training-document-editor-certification-content {
+  min-width: 0;
+}
+
+.training-document-editor-certification-content > strong {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.training-document-editor-certification-content > small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+.training-document-editor-certification-content > p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  line-height: 1.45;
+}
+
+.training-document-editor-label-warning {
+  background: rgba(245, 158, 11, 0.11) !important;
+  color: #fbbf24 !important;
+}
+
+.training-document-editor-label-error {
+  background: rgba(239, 68, 68, 0.11) !important;
+  color: #f87171 !important;
 }
 
 /*
@@ -376,7 +589,10 @@
   white-space: pre-wrap;
 }
 
-.training-document-editor-content > .training-document-editor-field-error {
+.training-document-editor-content > .training-document-editor-field-error,
+.training-document-editor-certification-content
+  > .training-document-editor-field-error {
+  margin-top: 6px;
   color: #f87171;
 }
 
@@ -430,12 +646,112 @@
 
 /*
  * =========================================
+ * Create Certification
+ * =========================================
+ */
+
+.training-document-editor-create-certification {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(34, 197, 94, 0.035);
+}
+
+.training-document-editor-create-heading small {
+  display: block;
+  color: #4ade80;
+  font-size: 0.52rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.training-document-editor-create-heading h4 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.training-document-editor-create-heading p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+.training-document-editor-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.training-document-editor-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.training-document-editor-checkbox input {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.training-document-editor-checkbox input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.training-document-editor-create-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border-color);
+}
+
+.training-document-editor-create-footer > small {
+  max-width: 520px;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+  line-height: 1.5;
+}
+
+.training-document-editor-create-footer > div {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.training-document-editor-create-button {
+  min-height: 38px !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+  background: rgba(34, 197, 94, 0.85) !important;
+  color: #ffffff !important;
+}
+
+.training-document-editor-create-button:hover:not(:disabled) {
+  background: #22c55e !important;
+}
+
+/*
+ * =========================================
  * Responsive
  * =========================================
  */
 
 @media (max-width: 700px) {
-  .training-document-editor-form {
+  .training-document-editor-form,
+  .training-document-editor-certification-picker {
     grid-template-columns: 1fr;
   }
 
@@ -443,7 +759,12 @@
     grid-column: auto;
   }
 
-  .training-document-editor-item {
+  .training-document-editor-link-certification {
+    width: 100%;
+  }
+
+  .training-document-editor-item,
+  .training-document-editor-certification-item {
     grid-template-columns: 1fr;
   }
 
@@ -458,6 +779,23 @@
 
   .training-document-editor-actions {
     justify-content: flex-start;
+  }
+
+  .training-document-editor-create-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .training-document-editor-create-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .training-document-editor-create-footer > div {
+    display: grid;
+  }
+
+  .training-document-editor-create-footer button {
+    width: 100%;
   }
 }
 
@@ -488,6 +826,7 @@
   .training-document-editor-field input,
   .training-document-editor-field select,
   .training-document-editor-field textarea,
+  .training-document-editor-source select,
   .training-document-editor button {
     transition: none;
   }

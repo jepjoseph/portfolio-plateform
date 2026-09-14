@@ -1,0 +1,310 @@
+/*
+ * =========================================
+ * Document Viewer Backdrop
+ * =========================================
+ */
+
+.certification-document-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 7, 18, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/*
+ * =========================================
+ * Document Viewer
+ * =========================================
+ */
+
+.certification-document-viewer {
+  width: min(1100px, 100%);
+  height: min(820px, calc(100vh - 48px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * =========================================
+ * Header and Footer
+ * =========================================
+ */
+
+.certification-document-viewer > header,
+.certification-document-viewer > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 17px;
+}
+
+.certification-document-viewer > header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.certification-document-viewer > header > div {
+  min-width: 0;
+}
+
+.certification-document-viewer > footer {
+  border-top: 1px solid var(--border-color);
+}
+
+.certification-document-viewer header span {
+  color: var(--accent-hover);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.certification-document-viewer h2 {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.certification-document-viewer-description {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.59rem;
+}
+
+.certification-document-viewer header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.certification-document-viewer header button:hover {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+
+.certification-document-viewer header button:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+/*
+ * =========================================
+ * Viewer Content
+ * =========================================
+ */
+
+.certification-document-viewer-content {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.certification-document-viewer-content iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+.certification-document-viewer-content img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/*
+ * =========================================
+ * Viewer States
+ * =========================================
+ */
+
+.certification-document-viewer-state {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  max-width: 460px;
+  padding: 30px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.certification-document-viewer-state > strong {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.certification-document-viewer-state p {
+  margin: 7px 0 0;
+  line-height: 1.5;
+}
+
+.certification-document-viewer-state--error > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.09);
+  color: #f87171;
+  font-weight: 800;
+}
+
+.certification-document-viewer-loader {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: certification-viewer-spin 0.75s linear infinite;
+}
+
+.certification-document-viewer-file-icon {
+  width: 68px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+@keyframes certification-viewer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * =========================================
+ * Download Buttons
+ * =========================================
+ */
+
+.certification-document-viewer footer > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.certification-document-viewer footer > div {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.certification-document-viewer footer button,
+.certification-document-viewer-inline-download {
+  min-height: 37px;
+  padding: 0 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.certification-document-viewer footer button:hover:not(:disabled),
+.certification-document-viewer-inline-download:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.certification-document-viewer footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.certification-document-viewer footer .certification-document-viewer-download,
+.certification-document-viewer-inline-download {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.certification-document-viewer-inline-download {
+  margin-top: 16px;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 600px) {
+  .certification-document-viewer-backdrop {
+    padding: 10px;
+  }
+
+  .certification-document-viewer {
+    height: calc(100vh - 20px);
+  }
+
+  .certification-document-viewer > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .certification-document-viewer footer > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .certification-document-viewer footer button {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .certification-document-viewer-loader {
+    animation: none;
+  }
+
+  .certification-document-viewer button {
+    transition: none;
+  }
+}

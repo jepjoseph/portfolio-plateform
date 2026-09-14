@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 
 import { useTrainingData } from "../../context/TrainingDataContext.jsx";
+import { useCertificationData } from "../../context/CertificationDataContext.jsx";
+
 import TrainingForm from "./components/TrainingForm/TrainingForm.jsx";
 import TrainingLibrary from "./components/TrainingLibrary/TrainingLibrary.jsx";
 
@@ -34,6 +36,13 @@ function Training() {
     clearError,
     resetSaveStatus,
   } = useTrainingData();
+
+  const {
+    certifications,
+    isLoading: areCertificationsLoading,
+    createCertification,
+    synchronizeCertifications,
+  } = useCertificationData();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -111,27 +120,92 @@ function Training() {
 
   /*
    * =========================================
+   * Create Certification from Training
+   * =========================================
+   */
+
+  const handleCreateCertificationFromTraining = async ({
+    certificationData,
+    file = null,
+  }) => {
+    const documentUploads = file
+      ? [
+          {
+            file,
+
+            documentType: "certificate",
+
+            name: certificationData.name || file.name.replace(/\.[^.]+$/, ""),
+
+            description: "Certificate added from the Training editor.",
+
+            isPrimary: true,
+
+            metadata: {
+              documentType: "certificate",
+
+              name: certificationData.name || file.name.replace(/\.[^.]+$/, ""),
+
+              description: "Certificate added from the Training editor.",
+
+              isPrimary: true,
+            },
+          },
+        ]
+      : [];
+
+    /*
+     * Do not add the draft Training relationship here.
+     *
+     * A new Training has not been saved yet, so the
+     * relationship transaction service would not be
+     * able to find it in Training storage.
+     *
+     * TrainingForm links the returned Certification to
+     * its draft. Saving the Training then creates the
+     * reciprocal relationship.
+     */
+
+    const createdCertification = await createCertification(certificationData, {
+      documentUploads,
+
+      /*
+       * The new Certification has no Training
+       * relationships yet, so validation does not need
+       * to resolve the unsaved Training draft.
+       */
+
+      trainingRecords: null,
+    });
+
+    if (!createdCertification?.id) {
+      const error = new Error(
+        "The Certification was created without a valid identifier.",
+      );
+
+      error.publicMessage =
+        "The Certification was created, but it could not be linked to the Training.";
+
+      throw error;
+    }
+
+    return createdCertification;
+  };
+
+  /*
+   * =========================================
    * Save Training
    * =========================================
    */
 
   const handleSaveTraining = async (trainingData) => {
-    /*
-     * editingTrainingId determines whether the form
-     * creates a new record or updates an existing one.
-     */
-
     if (editingTrainingId) {
       await updateTraining(editingTrainingId, trainingData);
     } else {
       await createTraining(trainingData);
     }
 
-    /*
-     * These lines run only after a successful save.
-     * If the operation throws, TrainingForm catches
-     * the error and keeps the form open.
-     */
+    await Promise.resolve(synchronizeCertifications());
 
     setEditingTrainingId(null);
     setIsFormOpen(false);
@@ -146,6 +220,8 @@ function Training() {
   const handleArchiveTraining = async (training) => {
     try {
       await archiveTraining(training.id);
+
+      await Promise.resolve(synchronizeCertifications());
 
       if (editingTrainingId === training.id) {
         handleCloseForm();
@@ -166,6 +242,8 @@ function Training() {
   const handleRestoreTraining = async (training) => {
     try {
       await restoreTraining(training.id);
+
+      await Promise.resolve(synchronizeCertifications());
     } catch {
       /*
        * TrainingDataContext displays the error.
@@ -195,6 +273,8 @@ function Training() {
 
     try {
       await deleteTraining(training.id);
+
+      await Promise.resolve(synchronizeCertifications());
 
       if (editingTrainingId === training.id) {
         handleCloseForm();
@@ -344,9 +424,12 @@ function Training() {
 
           <TrainingForm
             initialTraining={editingTraining}
+            certifications={certifications}
+            isCertificationDataLoading={areCertificationsLoading}
             isSaving={saveStatus === "saving"}
             onSubmit={handleSaveTraining}
             onCancel={handleCloseForm}
+            onCreateCertification={handleCreateCertificationFromTraining}
           />
         </section>
       )}

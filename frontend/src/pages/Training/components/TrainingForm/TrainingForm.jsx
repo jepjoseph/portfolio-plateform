@@ -12,6 +12,7 @@ import {
 
 import {
   createEmptyTraining,
+  createTrainingCertificationRelationship,
   createTrainingInstructor,
   createTrainingOutcome,
   createTrainingTopic,
@@ -98,9 +99,12 @@ const LEARNING_OUTCOME_FIELDS = [
 
 function TrainingForm({
   initialTraining = null,
+  certifications = [],
+  isCertificationDataLoading = false,
   isSaving = false,
   onSubmit,
   onCancel,
+  onCreateCertification,
 }) {
   const [formData, setFormData] = useState(() =>
     initialTraining
@@ -133,8 +137,11 @@ function TrainingForm({
   }, [initialTraining]);
 
   const validationSummary = useMemo(
-    () => getTrainingValidationSummary(formData),
-    [formData],
+    () =>
+      getTrainingValidationSummary(formData, {
+        certifications,
+      }),
+    [formData, certifications],
   );
 
   /*
@@ -257,6 +264,184 @@ function TrainingForm({
 
   /*
    * =========================================
+   * Certification Relationships
+   * =========================================
+   */
+
+  const handleCertificationToggle = async (certification, shouldBeLinked) => {
+    const certificationId =
+      typeof certification?.id === "string" ? certification.id.trim() : "";
+
+    if (!certificationId) {
+      const error = new Error(
+        "The selected Certification does not have a valid identifier.",
+      );
+
+      error.publicMessage =
+        "The selected Certification could not be identified.";
+
+      throw error;
+    }
+
+    const currentRelationships = Array.isArray(
+      formData.certificationRelationships,
+    )
+      ? formData.certificationRelationships
+      : [];
+
+    const relationshipAlreadyExists = currentRelationships.some(
+      (relationship) =>
+        relationship?.certificationId === certificationId ||
+        relationship?.certificationRecordId === certificationId,
+    );
+
+    if (shouldBeLinked && relationshipAlreadyExists) {
+      const error = new Error(
+        `Certification "${certificationId}" is already linked.`,
+      );
+
+      error.publicMessage =
+        "This Certification is already linked to the Training.";
+
+      throw error;
+    }
+
+    const maximumCertifications =
+      TRAINING_FIELD_LIMITS.maximumRelatedCertifications ?? Infinity;
+
+    if (
+      shouldBeLinked &&
+      currentRelationships.length >= maximumCertifications
+    ) {
+      const error = new Error(
+        `The Training cannot have more than ${maximumCertifications} linked Certifications.`,
+      );
+
+      error.publicMessage = `Link no more than ${maximumCertifications} Certifications.`;
+
+      throw error;
+    }
+
+    setFormData((currentData) => {
+      const relationships = Array.isArray(
+        currentData.certificationRelationships,
+      )
+        ? currentData.certificationRelationships
+        : [];
+
+      const remainingRelationships = relationships.filter(
+        (relationship) =>
+          relationship?.certificationId !== certificationId &&
+          relationship?.certificationRecordId !== certificationId,
+      );
+
+      const nextRelationships = shouldBeLinked
+        ? [
+            ...remainingRelationships,
+
+            createTrainingCertificationRelationship(
+              certification,
+              remainingRelationships.length,
+            ),
+          ]
+        : remainingRelationships;
+
+      const orderedRelationships = nextRelationships.map(
+        (relationship, index) => ({
+          ...relationship,
+          order: index,
+        }),
+      );
+
+      const credentialId =
+        typeof certification?.credential?.credentialId === "string"
+          ? certification.credential.credentialId.trim()
+          : typeof certification?.credential?.id === "string"
+            ? certification.credential.id.trim()
+            : "";
+
+      const credentialUrl =
+        typeof certification?.credential?.verificationUrl === "string"
+          ? certification.credential.verificationUrl.trim()
+          : typeof certification?.credential?.url === "string"
+            ? certification.credential.url.trim()
+            : "";
+
+      return {
+        ...currentData,
+
+        certificationRelationships: orderedRelationships,
+
+        /*
+         * Preserve this legacy collection until every
+         * consumer uses certificationRelationships.
+         */
+
+        relatedCertificationIds: orderedRelationships
+          .map(
+            (relationship) =>
+              relationship?.certificationId ||
+              relationship?.certificationRecordId,
+          )
+          .filter(Boolean),
+
+        completion: {
+          ...currentData.completion,
+
+          /*
+           * Any linked Certification is evidence that
+           * this Training has a Certification relationship.
+           */
+
+          certificateEarned: shouldBeLinked
+            ? true
+            : currentData.completion?.certificateEarned === true,
+
+          /*
+           * Fill empty Training credential fields from
+           * the linked Certification without overwriting
+           * manually entered information.
+           */
+
+          credentialId:
+            shouldBeLinked && !currentData.completion?.credentialId
+              ? credentialId
+              : currentData.completion?.credentialId || "",
+
+          credentialUrl:
+            shouldBeLinked && !currentData.completion?.credentialUrl
+              ? credentialUrl
+              : currentData.completion?.credentialUrl || "",
+        },
+      };
+    });
+
+    setFieldErrors((currentErrors) => {
+      const nextErrors = {
+        ...currentErrors,
+      };
+
+      Object.keys(nextErrors).forEach((field) => {
+        if (
+          field === "certificationRelationships" ||
+          field === "relatedCertificationIds" ||
+          field === "completion.certificateEarned" ||
+          field === "completion.credentialId" ||
+          field === "completion.credentialUrl" ||
+          field.startsWith("certificationRelationships.")
+        ) {
+          delete nextErrors[field];
+        }
+      });
+
+      return nextErrors;
+    });
+
+    setSubmitError("");
+  };
+
+  /*
+   * =========================================
    * Submission
    * =========================================
    */
@@ -264,7 +449,9 @@ function TrainingForm({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const validation = validateTraining(formData);
+    const validation = validateTraining(formData, {
+      certifications,
+    });
 
     setFieldErrors(validation.fieldErrors || {});
     setWarnings(validation.warnings || []);
@@ -783,11 +970,16 @@ function TrainingForm({
       <TrainingDocumentEditor
         trainingId={formData.id}
         documents={formData.supportingDocuments}
+        certifications={certifications}
+        certificationRelationships={formData.certificationRelationships}
+        isCertificationDataLoading={isCertificationDataLoading}
         fieldErrors={fieldErrors}
         disabled={isSaving}
         onChange={(supportingDocuments) =>
           updateTopLevel("supportingDocuments", supportingDocuments)
         }
+        onCertificationChange={handleCertificationToggle}
+        onCreateCertification={onCreateCertification}
       />
 
       {/* Record Management */}
@@ -813,6 +1005,7 @@ function TrainingForm({
             ["showLearningOutcomes", "Show learning outcomes"],
             ["showSkills", "Show related skills"],
             ["showCredential", "Show credential information"],
+            ["showCertifications", "Show linked Certifications"],
             ["showSupportingDocuments", "Show supporting documents"],
           ].map(([field, label]) => (
             <label key={field} className="training-form-checkbox">

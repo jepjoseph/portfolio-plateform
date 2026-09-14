@@ -1,0 +1,233 @@
+/*
+ * =========================================
+ * Certification Library
+ * =========================================
+ */
+
+.certification-library {
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
+}
+
+/*
+ * =========================================
+ * Header
+ * =========================================
+ */
+
+.certification-library-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.certification-library-header > div {
+  min-width: 0;
+}
+
+.certification-library-header > div > span {
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.certification-library-header h2 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.certification-library-header p {
+  max-width: 680px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
+.certification-library-count {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+}
+
+/*
+ * =========================================
+ * Search and Filters
+ * =========================================
+ */
+
+.certification-library-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(120px, 1fr));
+  gap: 9px;
+  margin: 17px 0;
+}
+
+.certification-library-controls label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.certification-library-controls label > span {
+  color: var(--text-muted);
+  font-size: 0.53rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.certification-library-controls input,
+.certification-library-controls select {
+  width: 100%;
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.65rem;
+}
+
+.certification-library-controls select {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.certification-library-controls select option {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.certification-library-controls input:focus,
+.certification-library-controls select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/*
+ * =========================================
+ * Certification List
+ * =========================================
+ */
+
+.certification-library-list {
+  display: grid;
+  gap: 10px;
+}
+
+/*
+ * =========================================
+ * Loading, Empty, and Error States
+ * =========================================
+ */
+
+.certification-library-state {
+  min-height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 9px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.certification-library-state strong {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.certification-library-state p {
+  max-width: 480px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.certification-library-state button {
+  min-height: 37px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.certification-library-loader {
+  width: 25px;
+  height: 25px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: certification-library-spin 0.75s linear infinite;
+}
+
+@keyframes certification-library-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 1000px) {
+  .certification-library-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .certification-library-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .certification-library {
+    padding: 17px;
+  }
+
+  .certification-library-header {
+    flex-direction: column;
+  }
+
+  .certification-library-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .certification-library-search {
+    grid-column: auto;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .certification-library-loader {
+    animation: none;
+  }
+}

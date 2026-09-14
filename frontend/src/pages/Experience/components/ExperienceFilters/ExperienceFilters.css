@@ -1,0 +1,226 @@
+/*
+ * =========================================
+ * Experience Filters
+ * =========================================
+ */
+
+.experience-filters {
+  display: grid;
+  gap: 13px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/*
+ * =========================================
+ * Search
+ * =========================================
+ */
+
+.experience-filters-search,
+.experience-filters-select {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.experience-filters-search > span,
+.experience-filters-select > span {
+  color: var(--text-muted);
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.experience-filters-search input,
+.experience-filters-select select {
+  width: 100%;
+  min-width: 0;
+  min-height: 39px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.63rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.experience-filters-search input:hover,
+.experience-filters-select select:hover {
+  border-color: var(--border-hover);
+}
+
+.experience-filters-search input:focus,
+.experience-filters-select select:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.04);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.experience-filters-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.experience-filters-select select {
+  cursor: pointer;
+}
+
+.experience-filters-select select option {
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+
+/*
+ * =========================================
+ * Select Grid
+ * =========================================
+ */
+
+.experience-filters-select-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+
+/*
+ * =========================================
+ * Boolean Filters
+ * =========================================
+ */
+
+.experience-filters-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.experience-filters-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+  cursor: pointer;
+}
+
+.experience-filters-options input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/*
+ * =========================================
+ * Footer
+ * =========================================
+ */
+
+.experience-filters-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border-color);
+}
+
+.experience-filters-footer > span {
+  color: var(--text-muted);
+  font-size: 0.59rem;
+}
+
+.experience-filters-footer strong {
+  color: var(--text-secondary);
+}
+
+.experience-filters-footer button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.59rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.experience-filters-footer button:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.experience-filters-footer button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 1150px) {
+  .experience-filters-select-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .experience-filters-select-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .experience-filters {
+    padding: 13px;
+  }
+
+  .experience-filters-select-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-filters-options {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .experience-filters-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .experience-filters-footer button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-filters-search input,
+  .experience-filters-select select,
+  .experience-filters-footer button {
+    transition: none;
+  }
+}

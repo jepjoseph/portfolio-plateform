@@ -1,0 +1,368 @@
+/*
+ * =========================================
+ * Relationship Editor
+ * =========================================
+ */
+
+.project-relationship-editor {
+  min-width: 0;
+}
+
+/*
+ * =========================================
+ * Relationship Tabs
+ * =========================================
+ */
+
+.project-relationship-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.project-relationship-tabs button {
+  min-height: 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.61rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.project-relationship-tabs button:hover:not(:disabled),
+.project-relationship-tabs .project-relationship-tab--active {
+  border-color: rgba(99, 102, 241, 0.32);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.project-relationship-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.project-relationship-tabs button small {
+  min-width: 19px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: inherit;
+  font-size: 0.51rem;
+  text-align: center;
+}
+
+.project-relationship-tabs button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Relationship Panel
+ * =========================================
+ */
+
+.project-relationship-panel {
+  min-width: 0;
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.project-relationship-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.project-relationship-panel h4,
+.project-relationship-selected h5 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.73rem;
+}
+
+.project-relationship-panel header p,
+.project-relationship-selected header p {
+  max-width: 690px;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.59rem;
+  line-height: 1.5;
+}
+
+.project-relationship-panel > header > strong {
+  flex-shrink: 0;
+  color: var(--accent-hover);
+  font-size: 0.59rem;
+}
+
+/*
+ * =========================================
+ * Search
+ * =========================================
+ */
+
+.project-relationship-search {
+  display: grid;
+  gap: 6px;
+}
+
+.project-relationship-search > span {
+  color: var(--text-secondary);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+/*
+ * =========================================
+ * Available Options
+ * =========================================
+ */
+
+.project-relationship-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 330px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.project-relationship-option {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.014);
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    opacity var(--transition);
+}
+
+.project-relationship-option:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.project-relationship-option--selected {
+  border-color: rgba(99, 102, 241, 0.34);
+  background: var(--accent-soft);
+}
+
+.project-relationship-option--archived {
+  opacity: 0.62;
+}
+
+.project-relationship-option > input {
+  width: 15px;
+  height: 15px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.project-relationship-option > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.project-relationship-option strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+}
+
+.project-relationship-option small {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.56rem;
+}
+
+.project-relationship-option em {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-muted);
+  font-size: 0.49rem;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.project-relationship-state {
+  padding: 22px 14px;
+  border: 1px dashed var(--border-color);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+/*
+ * =========================================
+ * Selected Relationship Context
+ * =========================================
+ */
+
+.project-relationship-selected {
+  display: grid;
+  gap: 10px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border-color);
+}
+
+.project-relationship-context {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.project-relationship-context > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-relationship-context > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.project-relationship-context > header strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+.project-relationship-context > header small {
+  color: #fbbf24;
+  font-size: 0.55rem;
+  line-height: 1.4;
+}
+
+.project-relationship-context > header button {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #f87171;
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-relationship-context > header button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.project-relationship-context > label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.project-relationship-context > label > span {
+  color: var(--text-secondary);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.project-relationship-context textarea {
+  min-height: 72px;
+}
+
+.project-relationship-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.59rem;
+  line-height: 1.45;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 720px) {
+  .project-relationship-options {
+    grid-template-columns: 1fr;
+  }
+
+  .project-relationship-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-relationship-tabs button {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 430px) {
+  .project-relationship-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .project-relationship-option {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .project-relationship-option em {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .project-relationship-context > header {
+    display: grid;
+  }
+
+  .project-relationship-context > header button {
+    justify-self: start;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .project-relationship-tabs button,
+  .project-relationship-option {
+    transition: none;
+  }
+}

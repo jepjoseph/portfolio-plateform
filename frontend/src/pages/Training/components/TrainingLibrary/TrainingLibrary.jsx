@@ -8,6 +8,7 @@ import {
 } from "../../../../config/trainingConfig.js";
 
 import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+import { useCertificationData } from "../../../../context/CertificationDataContext.jsx";
 
 import { prepareTrainingCollection } from "../../../../services/Training/trainingUtils.js";
 
@@ -21,6 +22,7 @@ const DEFAULT_FILTERS = {
   completionStatus: "all",
   deliveryFormat: "all",
   hasCredential: false,
+  hasCertification: false,
   hasSkills: false,
   hasDocuments: false,
 };
@@ -42,10 +44,11 @@ function TrainingLibrary({
 
   const { skillsById } = useSkillData();
 
+  const { certifications, isLoading: isCertificationDataLoading } =
+    useCertificationData();
+
   const [query, setQuery] = useState("");
-
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
-
   const [sortOption, setSortOption] = useState("newest");
 
   useEffect(() => {
@@ -54,7 +57,17 @@ function TrainingLibrary({
     setSortOption("newest");
   }, [showArchived]);
 
-  const displayedTraining = useMemo(
+  const certificationsById = useMemo(
+    () =>
+      new Map(
+        (Array.isArray(certifications) ? certifications : [])
+          .filter((certification) => certification?.id)
+          .map((certification) => [certification.id, certification]),
+      ),
+    [certifications],
+  );
+
+  const preparedTraining = useMemo(
     () =>
       prepareTrainingCollection({
         trainingRecords,
@@ -65,6 +78,24 @@ function TrainingLibrary({
     [trainingRecords, query, filters, sortOption],
   );
 
+  /*
+   * Keep Certification filtering here until
+   * prepareTrainingCollection supports the
+   * certificationRelationships field directly.
+   */
+
+  const displayedTraining = useMemo(
+    () =>
+      filters.hasCertification
+        ? preparedTraining.filter(
+            (training) =>
+              Array.isArray(training.certificationRelationships) &&
+              training.certificationRelationships.length > 0,
+          )
+        : preparedTraining,
+    [preparedTraining, filters.hasCertification],
+  );
+
   const hasActiveFilters =
     Boolean(query.trim()) ||
     filters.trainingType !== "all" ||
@@ -72,6 +103,7 @@ function TrainingLibrary({
     filters.completionStatus !== "all" ||
     filters.deliveryFormat !== "all" ||
     filters.hasCredential ||
+    filters.hasCertification ||
     filters.hasSkills ||
     filters.hasDocuments;
 
@@ -214,6 +246,17 @@ function TrainingLibrary({
             <label>
               <input
                 type="checkbox"
+                checked={filters.hasCertification}
+                onChange={(event) =>
+                  updateFilter("hasCertification", event.target.checked)
+                }
+              />
+              Has linked Certification
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
                 checked={filters.hasSkills}
                 onChange={(event) =>
                   updateFilter("hasSkills", event.target.checked)
@@ -255,7 +298,6 @@ function TrainingLibrary({
 
           <div>
             <strong>Loading Training Library</strong>
-
             <p>Retrieving your training records.</p>
           </div>
         </div>
@@ -266,7 +308,6 @@ function TrainingLibrary({
           <span aria-hidden="true">!</span>
 
           <h3>Training could not be loaded</h3>
-
           <p>Check browser storage and try again.</p>
 
           <button type="button" onClick={onRetry}>
@@ -318,14 +359,16 @@ function TrainingLibrary({
         <div className="training-library-list">
           {displayedTraining.map((training) => {
             const isWorking =
-              operation.trainingId === training.id &&
-              operation.status === "loading";
+              operation?.trainingId === training.id &&
+              operation?.status === "loading";
 
             return (
               <TrainingItem
                 key={training.id}
                 training={training}
                 skillsById={skillsById}
+                certificationsById={certificationsById}
+                isCertificationDataLoading={isCertificationDataLoading}
                 isWorking={isWorking}
                 onEdit={onEdit}
                 onArchive={onArchive}

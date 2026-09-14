@@ -76,6 +76,15 @@ function validateOrder(collector, field, value) {
 
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
 
+const CERTIFICATION_SNAPSHOT_LIMITS = Object.freeze({
+  name: 160,
+  issuingOrganizationName: 160,
+  certificationType: 100,
+  credentialState: 100,
+});
+
+const VALID_CERTIFICATION_STATES = new Set(["active", "expired", "planned"]);
+
 function isValidDate(value) {
   const text = getText(value);
 
@@ -125,6 +134,60 @@ function isValidUrl(value) {
   } catch {
     return false;
   }
+}
+
+/*
+ * =========================================
+ * Certification Helpers
+ * =========================================
+ */
+
+function getCertificationRelationships(training) {
+  if (Array.isArray(training?.certificationRelationships)) {
+    return training.certificationRelationships;
+  }
+
+  /*
+   * Support Training model version 1, which stored
+   * only related Certification IDs.
+   */
+
+  return getArray(training?.relatedCertificationIds).map(
+    (certificationId, index) => ({
+      certificationId:
+        typeof certificationId === "string"
+          ? certificationId
+          : certificationId?.id || "",
+
+      order: index,
+
+      snapshot: {},
+    }),
+  );
+}
+
+function getCertificationIdSet(certifications) {
+  return new Set(
+    getArray(certifications)
+      .map((certification) => getText(certification?.id))
+      .filter(Boolean),
+  );
+}
+
+function findCertificationById(certifications, certificationId) {
+  return getArray(certifications).find(
+    (certification) => getText(certification?.id) === certificationId,
+  );
+}
+
+function getCertificationState(certification) {
+  return getText(
+    certification?.credential?.state || certification?.credentialState,
+  );
+}
+
+function normalizeComparisonText(value) {
+  return getText(value).normalize("NFKC").toLocaleLowerCase();
 }
 
 function validateRequiredInformation(collector, training) {
@@ -351,6 +414,7 @@ function validateCompletion(collector, training) {
 
   if (
     completion.certificateEarned === true &&
+    getCertificationRelationships(training).length === 0 &&
     !getText(completion.credentialId) &&
     !getText(completion.credentialUrl) &&
     getArray(training.supportingDocuments).length === 0
@@ -525,6 +589,406 @@ function validateSkillRelationships(collector, training) {
   });
 }
 
+/*
+ * =========================================
+ * Certification Relationships
+ * =========================================
+ */
+
+function validateCertificationRelationships(
+  collector,
+  training,
+  certifications,
+  shouldCheckCertifications,
+) {
+  const relationships = getCertificationRelationships(training);
+
+  const availableCertificationIds = getCertificationIdSet(certifications);
+
+  const usedCertificationIds = new Set();
+
+  if (
+    relationships.length > TRAINING_FIELD_LIMITS.maximumRelatedCertifications
+  ) {
+    collector.addError(
+      "certificationRelationships",
+      `Link no more than ${TRAINING_FIELD_LIMITS.maximumRelatedCertifications} Certifications.`,
+      "too_many_certification_relationships",
+    );
+  }
+
+  relationships.forEach((relationship, index) => {
+    const item = getObject(relationship);
+
+    const certificationId = getText(
+      item.certificationId || item.certificationRecordId || item.credentialId,
+    );
+
+    const snapshot = getObject(item.snapshot);
+
+    const certificationIdField = `certificationRelationships.${index}.certificationId`;
+
+    const snapshotField = `certificationRelationships.${index}.snapshot`;
+
+    if (!certificationId) {
+      collector.addError(
+        certificationIdField,
+        "Select a valid Certification Library record.",
+        "certification_id_required",
+      );
+
+      return;
+    }
+
+    const comparisonId = certificationId.toLocaleLowerCase();
+
+    if (usedCertificationIds.has(comparisonId)) {
+      collector.addError(
+        certificationIdField,
+        "This Certification has already been linked.",
+        "duplicate_certification_relationship",
+      );
+    } else {
+      usedCertificationIds.add(comparisonId);
+    }
+
+    validateOrder(
+      collector,
+      `certificationRelationships.${index}.order`,
+      item.order,
+    );
+
+    /*
+     * Readable snapshot validation
+     */
+
+    const snapshotName = getText(
+      snapshot.name ||
+        snapshot.title ||
+        item.nameSnapshot ||
+        item.certificationName,
+    );
+
+    const snapshotIssuer = getText(
+      snapshot.issuingOrganizationName ||
+        snapshot.issuerName ||
+        item.issuingOrganizationName,
+    );
+
+    const snapshotType = getText(
+      snapshot.certificationType || snapshot.type || item.certificationType,
+    );
+
+    const snapshotState = getText(
+      snapshot.credentialState || snapshot.state || item.credentialState,
+    );
+
+    if (!snapshotName) {
+      collector.addError(
+        `${snapshotField}.name`,
+        "Store the Certification name snapshot with this relationship.",
+        "certification_snapshot_required",
+      );
+    }
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.name`,
+      snapshotName,
+      CERTIFICATION_SNAPSHOT_LIMITS.name,
+      "Certification snapshot name",
+    );
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.issuingOrganizationName`,
+      snapshotIssuer,
+      CERTIFICATION_SNAPSHOT_LIMITS.issuingOrganizationName,
+      "Certification issuer snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.certificationType`,
+      snapshotType,
+      CERTIFICATION_SNAPSHOT_LIMITS.certificationType,
+      "Certification type snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.credentialState`,
+      snapshotState,
+      CERTIFICATION_SNAPSHOT_LIMITS.credentialState,
+      "Certification state snapshot",
+    );
+
+    if (snapshotState && !VALID_CERTIFICATION_STATES.has(snapshotState)) {
+      collector.addError(
+        `${snapshotField}.credentialState`,
+        "The Certification snapshot must use an active, expired, or planned credential state.",
+        "invalid_certification_snapshot_state",
+      );
+    }
+
+    const snapshotIssueDate = getText(snapshot.issueDate);
+
+    const snapshotExpirationDate = getText(snapshot.expirationDate);
+
+    if (snapshotIssueDate && !isValidDate(snapshotIssueDate)) {
+      collector.addError(
+        `${snapshotField}.issueDate`,
+        "The Certification snapshot has an invalid issue date.",
+        "invalid_certification_snapshot_date",
+      );
+    }
+
+    if (snapshotExpirationDate && !isValidDate(snapshotExpirationDate)) {
+      collector.addError(
+        `${snapshotField}.expirationDate`,
+        "The Certification snapshot has an invalid expiration date.",
+        "invalid_certification_snapshot_date",
+      );
+    }
+
+    /*
+     * Central Certification Library validation only
+     * runs when the caller supplies the collection.
+     */
+
+    if (
+      shouldCheckCertifications &&
+      !availableCertificationIds.has(certificationId)
+    ) {
+      collector.addError(
+        certificationIdField,
+        "This linked Certification no longer exists in the Certification Library.",
+        "certification_not_found",
+      );
+    }
+
+    const savedCertification = shouldCheckCertifications
+      ? findCertificationById(certifications, certificationId)
+      : null;
+
+    if (
+      savedCertification &&
+      snapshotName &&
+      normalizeComparisonText(snapshotName) !==
+        normalizeComparisonText(savedCertification.name)
+    ) {
+      collector.addWarning(
+        `${snapshotField}.name`,
+        `The saved snapshot does not match the current Certification name "${savedCertification.name}". It will be refreshed when the relationship is synchronized.`,
+        "stale_certification_snapshot",
+      );
+    }
+
+    if (savedCertification?.status === "archived") {
+      collector.addWarning(
+        certificationIdField,
+        `"${savedCertification.name || snapshotName}" is archived in the Certification Library.`,
+        "linked_certification_archived",
+      );
+    }
+  });
+
+  validateCertificateEarnedConsistency(
+    collector,
+    training,
+    relationships,
+    certifications,
+    shouldCheckCertifications,
+  );
+}
+
+/*
+ * =========================================
+ * Certificate-Earned Consistency
+ * =========================================
+ */
+
+function validateCertificateEarnedConsistency(
+  collector,
+  training,
+  relationships,
+  certifications,
+  shouldCheckCertifications,
+) {
+  const completion = getObject(training.completion);
+
+  const certificateEarned = completion.certificateEarned === true;
+
+  const credentialId = getText(completion.credentialId);
+
+  const credentialUrl = getText(completion.credentialUrl);
+
+  const linkedCertifications = relationships
+    .map((relationship) => {
+      const item = getObject(relationship);
+
+      const certificationId = getText(
+        item.certificationId || item.certificationRecordId || item.credentialId,
+      );
+
+      const savedCertification = shouldCheckCertifications
+        ? findCertificationById(certifications, certificationId)
+        : null;
+
+      const snapshot = getObject(item.snapshot);
+
+      return {
+        certificationId,
+
+        certification: savedCertification,
+
+        state: getText(
+          getCertificationState(savedCertification) ||
+            snapshot.credentialState ||
+            snapshot.state ||
+            item.credentialState,
+        ),
+      };
+    })
+    .filter((entry) => entry.certificationId);
+
+  const linkedIssuedCertifications = linkedCertifications.filter(
+    (entry) => entry.state === "active" || entry.state === "expired",
+  );
+
+  const linkedPlannedCertifications = linkedCertifications.filter(
+    (entry) => entry.state === "planned",
+  );
+
+  /*
+   * An active or expired Certification represents
+   * an issued credential, so Training should indicate
+   * that a certificate was earned.
+   */
+
+  if (linkedIssuedCertifications.length > 0 && !certificateEarned) {
+    collector.addError(
+      "completion.certificateEarned",
+      "Mark the certificate as earned because this Training is linked to an active or expired Certification.",
+      "linked_certification_not_marked_earned",
+    );
+  }
+
+  /*
+   * A Training linked only to planned credentials
+   * should not claim the certificate was earned.
+   */
+
+  if (
+    certificateEarned &&
+    linkedCertifications.length > 0 &&
+    linkedIssuedCertifications.length === 0 &&
+    linkedPlannedCertifications.length > 0
+  ) {
+    collector.addError(
+      "completion.certificateEarned",
+      "A planned Certification has not been earned yet.",
+      "planned_certification_marked_earned",
+    );
+  }
+
+  /*
+   * Existing Training records may already contain
+   * credential details without a central relationship.
+   * Keep this as a warning so those records can still
+   * be opened and migrated.
+   */
+
+  if (certificateEarned && linkedCertifications.length === 0) {
+    collector.addWarning(
+      "certificationRelationships",
+      "This Training indicates that a certificate was earned, but it is not linked to the Certification Library.",
+      "earned_certificate_not_linked",
+    );
+  }
+
+  /*
+   * Credential information should not be entered when
+   * Training explicitly says that no certificate was
+   * earned, unless the linked credential is planned.
+   */
+
+  if (
+    !certificateEarned &&
+    (credentialId || credentialUrl) &&
+    linkedPlannedCertifications.length === 0
+  ) {
+    collector.addError(
+      "completion.certificateEarned",
+      "Mark the certificate as earned or remove the credential information.",
+      "credential_without_earned_certificate",
+    );
+  }
+
+  /*
+   * When linked Certification records are available,
+   * compare legacy Training credential fields with the
+   * central Certification Library values.
+   */
+
+  if (shouldCheckCertifications && linkedCertifications.length > 0) {
+    const savedCredentialIds = linkedCertifications
+      .map((entry) => getText(entry.certification?.credential?.credentialId))
+      .filter(Boolean);
+
+    const savedVerificationUrls = linkedCertifications
+      .map((entry) => getText(entry.certification?.credential?.verificationUrl))
+      .filter(Boolean);
+
+    if (
+      credentialId &&
+      savedCredentialIds.length > 0 &&
+      !savedCredentialIds.some(
+        (savedCredentialId) =>
+          normalizeComparisonText(savedCredentialId) ===
+          normalizeComparisonText(credentialId),
+      )
+    ) {
+      collector.addWarning(
+        "completion.credentialId",
+        "The Training credential ID does not match any linked Certification record.",
+        "credential_id_relationship_mismatch",
+      );
+    }
+
+    if (
+      credentialUrl &&
+      savedVerificationUrls.length > 0 &&
+      !savedVerificationUrls.some(
+        (savedUrl) =>
+          normalizeComparisonText(savedUrl) ===
+          normalizeComparisonText(credentialUrl),
+      )
+    ) {
+      collector.addWarning(
+        "completion.credentialUrl",
+        "The Training credential URL does not match any linked Certification record.",
+        "credential_url_relationship_mismatch",
+      );
+    }
+
+    if (
+      certificateEarned &&
+      !credentialId &&
+      !credentialUrl &&
+      savedCredentialIds.length === 0 &&
+      savedVerificationUrls.length === 0 &&
+      getArray(training.supportingDocuments).length === 0
+    ) {
+      collector.addWarning(
+        "completion.certificateEarned",
+        "Consider adding a credential ID, verification URL, or certificate document to the linked Certification.",
+        "missing_linked_credential_evidence",
+      );
+    }
+  }
+}
+
 function validateDocuments(collector, training) {
   const documents = getArray(training.supportingDocuments);
   const identities = new Set();
@@ -639,7 +1103,10 @@ export function createTrainingFieldErrorMap(errors = []) {
   }, {});
 }
 
-export function validateTraining(trainingValue) {
+export function validateTraining(
+  trainingValue,
+  { certifications = null } = {},
+) {
   const training = getObject(trainingValue);
 
   const collector = createCollector();
@@ -652,6 +1119,14 @@ export function validateTraining(trainingValue) {
   validateLocation(collector, training);
   validateTrainingDetails(collector, training);
   validateSkillRelationships(collector, training);
+
+  validateCertificationRelationships(
+    collector,
+    training,
+    getArray(certifications),
+    Array.isArray(certifications),
+  );
+
   validateDocuments(collector, training);
   validateSupportingInformation(collector, training);
 
@@ -663,8 +1138,8 @@ export function validateTraining(trainingValue) {
   };
 }
 
-export function assertValidTraining(training) {
-  const validation = validateTraining(training);
+export function assertValidTraining(training, options = {}) {
+  const validation = validateTraining(training, options);
 
   if (validation.isValid) {
     return validation;
@@ -687,8 +1162,8 @@ export function assertValidTraining(training) {
   throw error;
 }
 
-export function getTrainingValidationSummary(training) {
-  const validation = validateTraining(training);
+export function getTrainingValidationSummary(training, options = {}) {
+  const validation = validateTraining(training, options);
 
   if (!validation.isValid) {
     return `${validation.errors.length} ${

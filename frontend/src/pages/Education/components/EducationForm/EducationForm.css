@@ -1,3 +1,9 @@
+/*
+ * =========================================
+ * Education Form
+ * =========================================
+ */
+
 .education-form {
   position: relative;
   min-width: 0;
@@ -5,16 +11,44 @@
   gap: 18px;
   padding: 18px;
   overflow: visible;
+
+  /*
+   * Start automatic section numbering.
+   */
+
+  counter-reset: education-form-section;
 }
 
+/*
+ * =========================================
+ * Form Sections
+ * =========================================
+ */
+
 .education-form-section {
+  min-width: 0;
   display: grid;
   gap: 16px;
   padding: 18px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.018);
+
+  /*
+   * Every Education section increases the counter.
+   *
+   * This includes child editors when their root
+   * element uses education-form-section.
+   */
+
+  counter-increment: education-form-section;
 }
+
+/*
+ * =========================================
+ * Section Header
+ * =========================================
+ */
 
 .education-form-section-header {
   display: flex;
@@ -23,10 +57,30 @@
 }
 
 .education-form-section-header > span {
-  width: 4px;
-  min-height: 42px;
-  border-radius: 999px;
-  background: var(--accent);
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+/*
+ * Insert 01, 02, 03, and so on automatically.
+ */
+
+.education-form-section-header > span::before {
+  content: counter(education-form-section, decimal-leading-zero);
+}
+
+.education-form-section-header > div {
+  min-width: 0;
+  flex: 1;
 }
 
 .education-form-section-header small {

@@ -1,0 +1,516 @@
+/*
+ * =========================================
+ * Project Item
+ * =========================================
+ */
+
+.project-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    210px
+    minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
+}
+
+.project-item:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.027);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.project-item--featured {
+  border-color: rgba(99, 102, 241, 0.32);
+}
+
+.project-item--archived {
+  opacity: 0.78;
+}
+
+/*
+ * =========================================
+ * Project Preview
+ * =========================================
+ */
+
+.project-item-preview {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.project-item-preview img,
+.project-item-preview video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 320ms ease;
+}
+
+.project-item:hover .project-item-preview img,
+.project-item:hover .project-item-preview video {
+  transform: scale(1.025);
+}
+
+/*
+ * =========================================
+ * Placeholder
+ * =========================================
+ */
+
+.project-item-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(99, 102, 241, 0.16),
+      transparent 55%
+    ),
+    linear-gradient(145deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.48));
+}
+
+.project-item-placeholder small {
+  color: var(--text-muted);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.project-item-placeholder strong {
+  color: var(--accent-hover);
+  font-size: 2.3rem;
+  line-height: 1;
+}
+
+.project-item-placeholder span {
+  color: var(--text-muted);
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+
+/*
+ * =========================================
+ * Preview Labels
+ * =========================================
+ */
+
+.project-item-featured-label,
+.project-item-video-label {
+  position: absolute;
+  top: 10px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(5, 7, 13, 0.78);
+  color: #ffffff;
+  font-size: 0.5rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.project-item-featured-label {
+  left: 10px;
+  color: #c4b5fd;
+}
+
+.project-item-video-label {
+  right: 10px;
+}
+
+/*
+ * =========================================
+ * Media Button
+ * =========================================
+ */
+
+.project-item-media-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-height: 33px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(5, 7, 13, 0.82);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.57rem;
+  font-weight: 750;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.project-item-media-button:hover:not(:disabled) {
+  border-color: rgba(99, 102, 241, 0.65);
+  background: rgba(79, 70, 229, 0.88);
+}
+
+.project-item-media-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.project-item-media-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Project Content
+ * =========================================
+ */
+
+.project-item-content {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 17px;
+}
+
+.project-item-header {
+  min-width: 0;
+}
+
+.project-item-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-item-labels > span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.49rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.project-item-labels .project-item-award-label {
+  background: rgba(245, 158, 11, 0.09);
+  color: #fbbf24;
+}
+
+.project-item-labels .project-item-archived-label {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-muted);
+}
+
+/*
+ * =========================================
+ * Project Title
+ * =========================================
+ */
+
+.project-item-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.project-item-title-row > div {
+  min-width: 0;
+}
+
+.project-item-title-row h3 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.project-item-role {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.project-item-position {
+  flex-shrink: 0;
+  color: rgba(148, 163, 184, 0.42);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+/*
+ * =========================================
+ * Summary
+ * =========================================
+ */
+
+.project-item-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  line-height: 1.58;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/*
+ * =========================================
+ * Problem and Solution Preview
+ * =========================================
+ */
+
+.project-item-story {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-item-story > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.055);
+}
+
+.project-item-story strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.project-item-story p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.57rem;
+  line-height: 1.48;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/*
+ * =========================================
+ * Metadata
+ * =========================================
+ */
+
+.project-item-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.project-item-metadata > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.015);
+  color: var(--text-muted);
+  font-size: 0.54rem;
+}
+
+.project-item-metadata strong {
+  color: var(--text-secondary);
+  font-size: 0.53rem;
+}
+
+/*
+ * =========================================
+ * Technologies
+ * =========================================
+ */
+
+.project-item-technologies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-item-technologies span {
+  padding: 4px 7px;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.045);
+  color: var(--text-secondary);
+  font-size: 0.53rem;
+}
+
+/*
+ * =========================================
+ * Actions
+ * =========================================
+ */
+
+.project-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.project-item-actions button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.project-item-actions button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text-primary);
+}
+
+.project-item-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.project-item-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-item-actions .project-item-view-button {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.project-item-actions .project-item-view-button:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-hover);
+  color: #ffffff;
+}
+
+.project-item-actions .project-item-archive-button {
+  color: #fbbf24;
+}
+
+.project-item-actions .project-item-restore-button {
+  color: #4ade80;
+}
+
+.project-item-actions .project-item-delete-button {
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 760px) {
+  .project-item {
+    grid-template-columns:
+      180px
+      minmax(0, 1fr);
+  }
+
+  .project-item-story {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .project-item {
+    grid-template-columns: 1fr;
+  }
+
+  .project-item-preview {
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .project-item-placeholder {
+    min-height: 0;
+  }
+
+  .project-item-content {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 430px) {
+  .project-item-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .project-item-actions button {
+    width: 100%;
+  }
+
+  .project-item-metadata > span {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .project-item,
+  .project-item-preview img,
+  .project-item-preview video,
+  .project-item-media-button,
+  .project-item-actions button {
+    transition: none;
+  }
+}

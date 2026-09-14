@@ -1,30 +1,263 @@
+/*
+ * =========================================
+ * Certifications Page
+ * =========================================
+ */
+
 .certifications-page {
-  padding: 32px;
-
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-
-  background: var(--surface-color);
+  width: 100%;
+  max-width: 1500px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0 auto;
+  color: var(--text-primary);
 }
 
-.certifications-page p {
-  margin: 0 0 8px;
+/*
+ * =========================================
+ * Status Messages
+ * =========================================
+ */
 
-  color: var(--accent-color);
+.certifications-page-message {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
 
-  font-size: 0.72rem;
+.certifications-page-message > div {
+  min-width: 0;
+}
+
+.certifications-page-message strong {
+  display: block;
+  color: inherit;
+  font-size: 0.76rem;
   font-weight: 700;
+}
 
+.certifications-page-message p {
+  margin: 4px 0 0;
+  color: inherit;
+  font-size: 0.69rem;
+  line-height: 1.5;
+  opacity: 0.88;
+}
+
+.certifications-page-message ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: inherit;
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.certifications-page-message button {
+  min-height: 32px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.certifications-page-message--error {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+}
+
+.certifications-page-message--success {
+  border-color: rgba(34, 197, 94, 0.26);
+  background: rgba(34, 197, 94, 0.08);
+  color: #86efac;
+}
+
+.certifications-page-message--warning {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.07);
+  color: #fcd34d;
+}
+
+.certifications-page-message--saving {
+  justify-content: flex-start;
+  border-color: rgba(99, 102, 241, 0.25);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+/*
+ * =========================================
+ * Saving Spinner
+ * =========================================
+ */
+
+.certifications-page-message-loader {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 2px solid rgba(99, 102, 241, 0.22);
+  border-top-color: var(--accent-hover);
+  border-radius: 50%;
+  animation: certifications-page-spin 0.75s linear infinite;
+}
+
+@keyframes certifications-page-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * =========================================
+ * Certification Form Container
+ * =========================================
+ */
+
+.certifications-page-form {
+  position: relative;
+  width: 100%;
+  padding: 24px;
+  overflow: visible;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.14);
+  scroll-margin-top: 20px;
+}
+
+.certifications-page-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 19px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.certifications-page-form-header > div {
+  min-width: 0;
+}
+
+.certifications-page-form-header > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-hover);
+  font-size: 0.62rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.certifications-page h2 {
-  margin: 0 0 8px;
-
+.certifications-page-form-header h2 {
+  margin: 0;
   color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
-.certifications-page span {
+.certifications-page-form-header p {
+  max-width: 720px;
+  margin: 7px 0 0;
   color: var(--text-muted);
+  font-size: 0.73rem;
+  line-height: 1.55;
+}
+
+.certifications-page-form-close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.certifications-page-form-close:hover {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+
+.certifications-page-form-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 760px) {
+  .certifications-page {
+    gap: 16px;
+  }
+
+  .certifications-page-form {
+    padding: 20px;
+  }
+
+  .certifications-page-form-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .certifications-page-message {
+    flex-direction: column;
+  }
+
+  .certifications-page-message button {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .certifications-page-form {
+    padding: 16px;
+  }
+
+  .certifications-page-message button {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .certifications-page-message-loader {
+    animation: none;
+  }
+
+  .certifications-page-form-close {
+    transition: none;
+  }
 }

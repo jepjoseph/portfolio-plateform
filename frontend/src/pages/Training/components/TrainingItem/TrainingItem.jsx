@@ -1,9 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { getSkillCategoryLabel } from "../../../../config/skillConfig.js";
-
 import { getDocumentVisibilityLabel } from "../../../../config/documentConfig.js";
-
 import { getTrainingDocumentTypeLabel } from "../../../../config/trainingConfig.js";
 
 import {
@@ -30,12 +28,6 @@ import {
 } from "../../../../services/Training/trainingUtils.js";
 
 import "./TrainingItem.css";
-
-/*
- * =========================================
- * Helpers
- * =========================================
- */
 
 function getText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -71,15 +63,29 @@ function formatTrainingLocation(training) {
   );
 }
 
-/*
- * =========================================
- * Training Item
- * =========================================
- */
+function getCredentialStateLabel(state) {
+  const normalizedState = getText(state);
+
+  if (!normalizedState) {
+    return "Unspecified";
+  }
+
+  return normalizedState
+    .split("-")
+    .filter(Boolean)
+    .map(
+      (word) =>
+        word.charAt(0).toLocaleUpperCase() +
+        word.slice(1).toLocaleLowerCase(),
+    )
+    .join(" ");
+}
 
 function TrainingItem({
   training,
   skillsById = new Map(),
+  certificationsById = new Map(),
+  isCertificationDataLoading = false,
   isWorking = false,
   onEdit,
   onArchive,
@@ -87,52 +93,123 @@ function TrainingItem({
   onDelete,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-
   const [workingDocumentId, setWorkingDocumentId] = useState("");
-
   const [documentError, setDocumentError] = useState("");
+
+  const certificationRelationships = useMemo(() => {
+    const relationships = getOrderedItems(
+      training?.certificationRelationships,
+    );
+
+    return relationships
+      .map((relationship, index) => {
+        const certificationId = getText(
+          relationship?.certificationId ||
+            relationship?.certificationRecordId,
+        );
+
+        const libraryCertification =
+          certificationsById instanceof Map
+            ? certificationsById.get(certificationId)
+            : certificationsById?.[certificationId];
+
+        const snapshot =
+          relationship?.snapshot &&
+          typeof relationship.snapshot === "object" &&
+          !Array.isArray(relationship.snapshot)
+            ? relationship.snapshot
+            : {};
+
+        return {
+          id:
+            getText(relationship?.id) ||
+            certificationId ||
+            `certification-relationship-${index}`,
+
+          certificationId,
+
+          name:
+            getText(libraryCertification?.name) ||
+            getText(snapshot.name) ||
+            getText(relationship?.nameSnapshot) ||
+            "Unavailable Certification",
+
+          issuerName:
+            getText(libraryCertification?.issuingOrganization?.name) ||
+            getText(snapshot.issuingOrganizationName) ||
+            getText(snapshot.issuerName) ||
+            getText(relationship?.issuerNameSnapshot) ||
+            "Issuing organization unavailable",
+
+          credentialState:
+            getText(libraryCertification?.credential?.state) ||
+            getText(snapshot.credentialState) ||
+            getText(relationship?.credentialStateSnapshot),
+
+          credentialId:
+            getText(libraryCertification?.credential?.credentialId) ||
+            getText(snapshot.credentialId) ||
+            getText(relationship?.credentialIdSnapshot),
+
+          verificationUrl:
+            getText(libraryCertification?.credential?.verificationUrl) ||
+            getText(snapshot.verificationUrl) ||
+            getText(relationship?.verificationUrlSnapshot),
+
+          issueDate:
+            getText(libraryCertification?.dates?.issueDate) ||
+            getText(snapshot.issueDate) ||
+            getText(relationship?.issueDateSnapshot),
+
+          expirationDate:
+            getText(libraryCertification?.dates?.expirationDate) ||
+            getText(snapshot.expirationDate) ||
+            getText(relationship?.expirationDateSnapshot),
+
+          doesNotExpire:
+            libraryCertification?.dates?.doesNotExpire === true ||
+            snapshot.doesNotExpire === true,
+
+          isArchived: libraryCertification?.status === "archived",
+
+          isMissing:
+            Boolean(certificationId) &&
+            !libraryCertification &&
+            !isCertificationDataLoading,
+        };
+      })
+      .filter(
+        (relationship) =>
+          relationship.certificationId ||
+          relationship.name !== "Unavailable Certification",
+      );
+  }, [
+    training?.certificationRelationships,
+    certificationsById,
+    isCertificationDataLoading,
+  ]);
 
   if (!training) {
     return null;
   }
 
   const title = getTrainingTitle(training);
-
   const providerName = getTrainingProviderName(training);
-
   const trainingType = getTrainingTypeDisplay(training);
-
   const providerType = getTrainingProviderTypeDisplay(training);
-
   const completionStatus = getTrainingCompletionStatusDisplay(training);
-
   const deliveryFormat = getTrainingDeliveryFormatDisplay(training);
-
   const source = getTrainingSourceDisplay(training);
-
   const dateRange = formatTrainingDateRange(training);
-
   const location = formatTrainingLocation(training);
-
   const completeness = getTrainingCompleteness(training);
-
   const isArchived = training.status === "archived";
 
   const instructors = getOrderedItems(training.instructors);
-
   const topics = getOrderedItems(training.topics);
-
   const learningOutcomes = getOrderedItems(training.learningOutcomes);
-
   const skillRelationships = getOrderedItems(training.skillRelationships);
-
   const supportingDocuments = getOrderedItems(training.supportingDocuments);
-
-  /*
-   * =========================================
-   * Document URL
-   * =========================================
-   */
 
   const getDocumentUrl = async (trainingDocument) => {
     if (trainingDocument.fileUrl) {
@@ -157,12 +234,6 @@ function TrainingItem({
       temporary: true,
     };
   };
-
-  /*
-   * =========================================
-   * Preview
-   * =========================================
-   */
 
   const handlePreviewDocument = async (trainingDocument) => {
     try {
@@ -197,12 +268,6 @@ function TrainingItem({
     }
   };
 
-  /*
-   * =========================================
-   * Download
-   * =========================================
-   */
-
   const handleDownloadDocument = async (trainingDocument) => {
     try {
       setDocumentError("");
@@ -213,14 +278,11 @@ function TrainingItem({
       const link = window.document.createElement("a");
 
       link.href = url;
-
       link.download =
         trainingDocument.fileName || trainingDocument.name || "document";
-
       link.rel = "noopener";
 
       window.document.body.appendChild(link);
-
       link.click();
       link.remove();
 
@@ -254,8 +316,16 @@ function TrainingItem({
         <div className="training-item-heading">
           <div className="training-item-labels">
             <span>{trainingType}</span>
-
             <span>{completionStatus}</span>
+
+            {certificationRelationships.length > 0 && (
+              <span className="training-item-certification-label">
+                {certificationRelationships.length}{" "}
+                {certificationRelationships.length === 1
+                  ? "Certification"
+                  : "Certifications"}
+              </span>
+            )}
 
             {training.dates?.isCurrent && (
               <span className="training-item-current-label">Current</span>
@@ -267,7 +337,6 @@ function TrainingItem({
           </div>
 
           <h3>{title}</h3>
-
           <p>{providerName}</p>
 
           <div className="training-item-metadata">
@@ -340,7 +409,6 @@ function TrainingItem({
           aria-live="polite"
         >
           <span aria-hidden="true" />
-
           <small>Updating training record...</small>
         </div>
       )}
@@ -352,19 +420,12 @@ function TrainingItem({
 
             <div className="training-item-detail-grid">
               <Detail label="Training Title" value={title} />
-
               <Detail label="Training Type" value={trainingType} />
-
               <Detail label="Provider" value={providerName} />
-
               <Detail label="Provider Type" value={providerType} />
-
               <Detail label="Completion Status" value={completionStatus} />
-
               <Detail label="Delivery Format" value={deliveryFormat} />
-
               <Detail label="Dates" value={dateRange} />
-
               <Detail label="Location" value={location} />
 
               <Detail
@@ -490,7 +551,6 @@ function TrainingItem({
                   return (
                     <article key={relationship.id}>
                       <span>{getSkillCategoryLabel(category)}</span>
-
                       <strong>{skillName}</strong>
 
                       {!librarySkill && relationship.skillId && (
@@ -502,6 +562,113 @@ function TrainingItem({
               </div>
             </section>
           )}
+
+          <section className="training-item-detail-section">
+            <SectionTitle
+              title="Linked Certifications"
+              count={certificationRelationships.length}
+            />
+
+            {isCertificationDataLoading ? (
+              <p className="training-item-empty-detail">
+                Loading Certification Library…
+              </p>
+            ) : certificationRelationships.length > 0 ? (
+              <div className="training-item-certifications">
+                {certificationRelationships.map((certification) => (
+                  <article
+                    key={certification.id}
+                    className={`${certification.isArchived ? "training-item-certification--archived" : ""} ${
+                      certification.isMissing
+                        ? "training-item-certification--missing"
+                        : ""
+                    }`}
+                  >
+                    <div className="training-item-certification-icon">◇</div>
+
+                    <div className="training-item-certification-content">
+                      <div className="training-item-certification-labels">
+                        <span>Certification</span>
+
+                        {certification.credentialState && (
+                          <span
+                            className={`training-item-certification-state training-item-certification-state--${certification.credentialState}`}
+                          >
+                            {getCredentialStateLabel(
+                              certification.credentialState,
+                            )}
+                          </span>
+                        )}
+
+                        {certification.isArchived && (
+                          <span className="training-item-certification-warning">
+                            Archived
+                          </span>
+                        )}
+
+                        {certification.isMissing && (
+                          <span className="training-item-certification-error">
+                            Missing record
+                          </span>
+                        )}
+                      </div>
+
+                      <strong>{certification.name}</strong>
+                      <small>{certification.issuerName}</small>
+
+                      <div className="training-item-certification-metadata">
+                        {certification.issueDate && (
+                          <span>Issued {certification.issueDate}</span>
+                        )}
+
+                        {certification.doesNotExpire ? (
+                          <span>Does not expire</span>
+                        ) : (
+                          certification.expirationDate && (
+                            <span>
+                              Expires {certification.expirationDate}
+                            </span>
+                          )
+                        )}
+
+                        {certification.credentialId && (
+                          <span>
+                            Credential ID: {certification.credentialId}
+                          </span>
+                        )}
+                      </div>
+
+                      {certification.isMissing && (
+                        <p>
+                          The Certification record is unavailable. The saved
+                          Training relationship snapshot is being displayed.
+                        </p>
+                      )}
+                    </div>
+
+                    {certification.verificationUrl && (
+                      <div className="training-item-certification-actions">
+                        <a
+                          className="training-item-link"
+                          href={getWebsiteUrl(
+                            certification.verificationUrl,
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Verify
+                        </a>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="training-item-empty-detail">
+                No Certifications are linked to this Training.
+              </p>
+            )}
+          </section>
 
           <section className="training-item-detail-section">
             <SectionTitle
@@ -580,7 +747,7 @@ function TrainingItem({
               </div>
             ) : (
               <p className="training-item-empty-detail">
-                No supporting documents are attached.
+                No Training documents are attached.
               </p>
             )}
 
@@ -595,7 +762,6 @@ function TrainingItem({
             <section className="training-item-private-notes">
               <header>
                 <span>Private Notes</span>
-
                 <small>Not public</small>
               </header>
 
@@ -607,7 +773,6 @@ function TrainingItem({
             <header>
               <div>
                 <span>Record Quality</span>
-
                 <strong>{completeness.label}</strong>
               </div>
 
@@ -661,12 +826,6 @@ function TrainingItem({
   );
 }
 
-/*
- * =========================================
- * Supporting Components
- * =========================================
- */
-
 function Detail({ label, value }) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -675,7 +834,6 @@ function Detail({ label, value }) {
   return (
     <div className="training-item-detail">
       <span>{label}</span>
-
       <strong>{value}</strong>
     </div>
   );
@@ -691,7 +849,12 @@ function SectionTitle({ title, count }) {
   );
 }
 
-function OrderedDetails({ title, items, getTitle, getDescription = () => "" }) {
+function OrderedDetails({
+  title,
+  items,
+  getTitle,
+  getDescription = () => "",
+}) {
   return (
     <section className="training-item-detail-section">
       <SectionTitle title={title} count={items.length} />

@@ -11,6 +11,11 @@
   gap: 18px;
   padding: 18px;
   overflow: visible;
+
+  /*
+   * Begin automatic section numbering.
+   */
+  counter-reset: training-form-section;
 }
 
 /*
@@ -27,6 +32,11 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.018);
+
+  /*
+   * Every form section advances the number.
+   */
+  counter-increment: training-form-section;
 }
 
 .training-form-section-header {
@@ -36,15 +46,29 @@
 }
 
 .training-form-section-header > span {
-  width: 4px;
-  min-height: 42px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+/*
+ * Display 01, 02, 03, and so forth.
+ */
+.training-form-section-header > span::before {
+  content: counter(training-form-section, decimal-leading-zero);
 }
 
 .training-form-section-header > div {
   min-width: 0;
+  flex: 1;
 }
 
 .training-form-section-header small {
@@ -204,6 +228,141 @@
 
 /*
  * =========================================
+ * Certification Relationships
+ * =========================================
+ */
+
+.training-form-certification-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.training-form-certification-option {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.015);
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.training-form-certification-option:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.training-form-certification-option--selected {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: var(--accent-soft);
+}
+
+.training-form-certification-option--archived {
+  opacity: 0.65;
+}
+
+.training-form-certification-option > input {
+  width: 15px;
+  height: 15px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.training-form-certification-option > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.training-form-certification-option > span:nth-child(2) > strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+.training-form-certification-option > span:nth-child(2) > small {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.57rem;
+}
+
+.training-form-certification-state-label,
+.training-form-certification-archived-label {
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.training-form-certification-state-label--active {
+  background: rgba(34, 197, 94, 0.09);
+  color: #4ade80;
+}
+
+.training-form-certification-state-label--expired {
+  background: rgba(245, 158, 11, 0.09);
+  color: #fbbf24;
+}
+
+.training-form-certification-state-label--planned {
+  background: rgba(56, 189, 248, 0.09);
+  color: #67e8f9;
+}
+
+.training-form-certification-archived-label {
+  grid-column: 2 / -1;
+  justify-self: start;
+  background: rgba(245, 158, 11, 0.09);
+  color: #fbbf24;
+}
+
+.training-form-certification-state {
+  padding: 16px;
+  border: 1px dashed var(--border-color);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  text-align: center;
+}
+
+.training-form-certification-state strong {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.training-form-certification-state p {
+  margin: 5px 0 0;
+  line-height: 1.5;
+}
+
+.training-form-certification-summary {
+  margin: 0;
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.training-form-certification-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.06);
+  color: #f87171;
+  font-size: 0.61rem;
+}
+
+/*
+ * =========================================
  * Validation Messages
  * =========================================
  */
@@ -356,6 +515,10 @@
     bottom: 8px;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .training-form-certification-list {
+    grid-template-columns: 1fr;
   }
 
   .training-form-footer > div:last-child {

@@ -17,7 +17,7 @@ import { isValidDocumentVisibility } from "../config/documentConfig.js";
  * =========================================
  */
 
-export const TRAINING_MODEL_VERSION = 1;
+export const TRAINING_MODEL_VERSION = 2;
 
 /*
  * =========================================
@@ -322,6 +322,179 @@ function normalizeTrainingSkillRelationships(values) {
 
 /*
  * =========================================
+ * Certification Relationship
+ * =========================================
+ */
+
+export function createTrainingCertificationRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          certificationId: value,
+        }
+      : value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
+
+  const snapshot =
+    source.snapshot &&
+    typeof source.snapshot === "object" &&
+    !Array.isArray(source.snapshot)
+      ? source.snapshot
+      : {};
+
+  /*
+   * When a complete Certification record is supplied,
+   * its id is the Certification id.
+   *
+   * When an existing relationship is supplied,
+   * source.id is the relationship id and
+   * source.certificationId identifies the Certification.
+   */
+
+  const certificationId = normalizeText(
+    source.certificationId ||
+      source.credentialId ||
+      source.certificationRecordId ||
+      source.id,
+    200,
+  );
+
+  const relationshipId =
+    normalizeText(
+      source.relationshipId || (source.certificationId ? source.id : ""),
+      200,
+    ) || createTrainingId("training-certification");
+
+  return {
+    id: relationshipId,
+
+    certificationId,
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0
+        ? source.order
+        : order,
+
+    snapshot: {
+      name: normalizeText(
+        snapshot.name ||
+          snapshot.title ||
+          source.certificationName ||
+          source.name ||
+          source.title,
+        160,
+      ),
+
+      issuingOrganizationName: normalizeText(
+        snapshot.issuingOrganizationName ||
+          snapshot.issuerName ||
+          source.issuingOrganizationName ||
+          source.issuerName ||
+          source.issuingOrganization?.name,
+        160,
+      ),
+
+      certificationType: normalizeText(
+        snapshot.certificationType || snapshot.type || source.certificationType,
+        100,
+      ),
+
+      credentialState: normalizeText(
+        snapshot.credentialState ||
+          snapshot.state ||
+          source.credentialState ||
+          source.credential?.state,
+        100,
+      ),
+
+      issueDate: normalizeDate(
+        snapshot.issueDate || source.issueDate || source.dates?.issueDate,
+      ),
+
+      expirationDate: normalizeDate(
+        snapshot.expirationDate ||
+          source.expirationDate ||
+          source.dates?.expirationDate,
+      ),
+
+      doesNotExpire: normalizeBoolean(
+        snapshot.doesNotExpire ??
+          source.doesNotExpire ??
+          source.dates?.doesNotExpire,
+        false,
+      ),
+    },
+  };
+}
+
+function normalizeTrainingCertificationRelationships(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const usedCertificationIds = new Set();
+
+  return values.reduce((relationships, value) => {
+    const relationship = createTrainingCertificationRelationship(
+      value,
+      relationships.length,
+    );
+
+    if (!relationship.certificationId) {
+      return relationships;
+    }
+
+    const comparisonId = relationship.certificationId.toLocaleLowerCase();
+
+    if (usedCertificationIds.has(comparisonId)) {
+      return relationships;
+    }
+
+    if (
+      relationships.length >= TRAINING_FIELD_LIMITS.maximumRelatedCertifications
+    ) {
+      return relationships;
+    }
+
+    usedCertificationIds.add(comparisonId);
+
+    relationships.push({
+      ...relationship,
+      order: relationships.length,
+    });
+
+    return relationships;
+  }, []);
+}
+
+export function getTrainingCertificationRelationships(training) {
+  return normalizeTrainingCertificationRelationships(
+    training?.certificationRelationships || training?.relatedCertificationIds,
+  );
+}
+
+export function getTrainingCertificationIds(training) {
+  return getTrainingCertificationRelationships(training).map(
+    (relationship) => relationship.certificationId,
+  );
+}
+
+export function isCertificationLinkedToTraining(training, certificationId) {
+  const normalizedCertificationId = normalizeText(certificationId, 200);
+
+  if (!normalizedCertificationId) {
+    return false;
+  }
+
+  return getTrainingCertificationRelationships(training).some(
+    (relationship) =>
+      relationship.certificationId === normalizedCertificationId,
+  );
+}
+
+/*
+ * =========================================
  * Supporting Document
  * =========================================
  */
@@ -476,6 +649,25 @@ export function createEmptyTraining() {
 
     relatedEducationIds: [],
 
+    /*
+     * Canonical Certification relationships.
+     *
+     * Each relationship includes the Certification ID
+     * and a readable snapshot so Training can still show
+     * useful information if the Certification record is
+     * temporarily unavailable.
+     */
+
+    certificationRelationships: [],
+
+    /*
+     * Legacy compatibility field.
+     *
+     * This is derived from certificationRelationships
+     * during normalization and should not be edited
+     * independently by new components.
+     */
+
     relatedCertificationIds: [],
 
     relatedExperienceIds: [],
@@ -495,6 +687,7 @@ export function createEmptyTraining() {
       showLearningOutcomes: true,
       showSkills: true,
       showCredential: true,
+      showCertifications: true,
       showSupportingDocuments: false,
     },
 
@@ -606,6 +799,22 @@ export function normalizeTraining(value = {}) {
     completionStatus === "in-progress" ||
     normalizeBoolean(dates.isCurrent, false);
 
+  /*
+   * Version 1 records stored only Certification IDs.
+   * Version 2 stores complete relationship objects.
+   */
+
+  const certificationRelationshipSource = Array.isArray(
+    source.certificationRelationships,
+  )
+    ? source.certificationRelationships
+    : source.relatedCertificationIds;
+
+  const certificationRelationships =
+    normalizeTrainingCertificationRelationships(
+      certificationRelationshipSource,
+    );
+
   return {
     modelVersion: TRAINING_MODEL_VERSION,
 
@@ -709,9 +918,15 @@ export function normalizeTraining(value = {}) {
       TRAINING_FIELD_LIMITS.maximumRelatedEducation,
     ),
 
-    relatedCertificationIds: normalizeIdentifierList(
-      source.relatedCertificationIds,
-      TRAINING_FIELD_LIMITS.maximumRelatedCertifications,
+    certificationRelationships,
+
+    /*
+     * Keep the previous ID list synchronized for
+     * services or saved records still using model v1.
+     */
+
+    relatedCertificationIds: certificationRelationships.map(
+      (relationship) => relationship.certificationId,
     ),
 
     relatedExperienceIds: normalizeIdentifierList(
@@ -783,6 +998,11 @@ export function normalizeTraining(value = {}) {
       showCredential: normalizeBoolean(
         visibility.showCredential,
         defaults.visibility.showCredential,
+      ),
+
+      showCertifications: normalizeBoolean(
+        visibility.showCertifications,
+        defaults.visibility.showCertifications,
       ),
 
       showSupportingDocuments: normalizeBoolean(
@@ -871,6 +1091,12 @@ export function updateTrainingModel(currentTraining, updates = {}) {
       ...safeUpdates.completion,
     },
 
+    certificationRelationships:
+      safeUpdates.certificationRelationships ??
+      currentTraining?.certificationRelationships ??
+      currentTraining?.relatedCertificationIds ??
+      [],
+
     visibility: {
       ...currentTraining?.visibility,
       ...safeUpdates.visibility,
@@ -918,10 +1144,40 @@ export function normalizeTrainingCollection(values) {
 export function createPublicTraining(value) {
   const training = normalizeTraining(value);
 
-  const { privateInformation, sourceContext, ...publicTraining } = training;
+  const {
+    privateInformation,
+    sourceContext,
+    relatedCertificationIds,
+    ...publicTraining
+  } = training;
 
   return {
     ...publicTraining,
+
+    certificationRelationships: publicTraining.visibility.showCertifications
+      ? publicTraining.certificationRelationships.map((relationship) => ({
+          id: relationship.id,
+          certificationId: relationship.certificationId,
+          order: relationship.order,
+
+          snapshot: {
+            name: relationship.snapshot.name,
+
+            issuingOrganizationName:
+              relationship.snapshot.issuingOrganizationName,
+
+            certificationType: relationship.snapshot.certificationType,
+
+            credentialState: relationship.snapshot.credentialState,
+
+            issueDate: relationship.snapshot.issueDate,
+
+            expirationDate: relationship.snapshot.expirationDate,
+
+            doesNotExpire: relationship.snapshot.doesNotExpire,
+          },
+        }))
+      : [],
 
     supportingDocuments: publicTraining.visibility.showSupportingDocuments
       ? publicTraining.supportingDocuments.filter(

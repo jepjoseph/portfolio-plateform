@@ -13,6 +13,11 @@
   gap: 16px;
   margin-top: 18px;
   overflow: visible;
+
+  /*
+   * Begin automatic section numbering.
+   */
+  counter-reset: skill-form-section;
 }
 
 /*
@@ -32,12 +37,23 @@
   transition:
     border-color var(--transition),
     background var(--transition);
+
+  /*
+   * Every form section advances the number.
+   */
+  counter-increment: skill-form-section;
 }
 
 .skill-form-section:focus-within {
   border-color: rgba(99, 102, 241, 0.3);
   background: rgba(99, 102, 241, 0.025);
 }
+
+/*
+ * =========================================
+ * Section Header
+ * =========================================
+ */
 
 .skill-form-section-header {
   display: flex;
@@ -47,15 +63,29 @@
 }
 
 .skill-form-section-header > span {
-  width: 4px;
-  min-height: 46px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--accent), #4f46e5);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+/*
+ * Display 01, 02, 03, and so forth.
+ */
+.skill-form-section-header > span::before {
+  content: counter(skill-form-section, decimal-leading-zero);
 }
 
 .skill-form-section-header > div {
   min-width: 0;
+  flex: 1;
 }
 
 .skill-form-section-header small {

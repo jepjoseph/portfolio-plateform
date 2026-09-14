@@ -1,0 +1,420 @@
+/*
+ * =========================================
+ * Document Upload
+ * =========================================
+ */
+
+.project-document-upload {
+  position: relative;
+  min-height: 104px;
+  display: grid;
+  place-items: center;
+  padding: 17px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.025);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    opacity var(--transition);
+}
+
+.project-document-upload:hover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.055);
+}
+
+.project-document-upload:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.project-document-upload--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-document-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.project-document-upload > span {
+  display: grid;
+  gap: 5px;
+}
+
+.project-document-upload strong {
+  color: var(--accent-hover);
+  font-size: 0.7rem;
+}
+
+.project-document-upload small {
+  color: var(--text-muted);
+  font-size: 0.59rem;
+  line-height: 1.45;
+}
+
+.project-document-upload em {
+  color: var(--text-secondary);
+  font-size: 0.55rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+/*
+ * =========================================
+ * Messages
+ * =========================================
+ */
+
+.project-document-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.06);
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+.project-document-empty {
+  padding: 18px;
+  border: 1px dashed var(--border-color);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+/*
+ * =========================================
+ * Document List
+ * =========================================
+ */
+
+.project-document-list {
+  display: grid;
+  gap: 9px;
+}
+
+.project-document-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    160px;
+  align-items: start;
+  gap: 11px;
+  padding: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.project-document-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.51rem;
+  font-weight: 800;
+}
+
+.project-document-content {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.project-document-file {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.project-document-file strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+}
+
+.project-document-file small {
+  color: var(--text-muted);
+  font-size: 0.55rem;
+}
+
+/*
+ * =========================================
+ * Document Fields
+ * =========================================
+ */
+
+.project-document-fields,
+.project-document-controls {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.project-document-fields > label,
+.project-document-controls > label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.project-document-fields label > span,
+.project-document-controls label > span {
+  color: var(--text-muted);
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.project-document-fields textarea {
+  min-height: 64px;
+}
+
+/*
+ * =========================================
+ * Document Controls
+ * =========================================
+ */
+
+.project-document-controls button {
+  min-height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.project-document-controls button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.project-document-controls .project-document-remove {
+  border-color: rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+}
+
+.project-document-controls .project-document-remove:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.42);
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.project-document-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Document Preview
+ * =========================================
+ */
+
+.project-document-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(3, 6, 15, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.project-document-preview {
+  width: min(100%, 1050px);
+  height: min(88vh, 820px);
+  min-height: 420px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--border-hover);
+  border-radius: 14px;
+  background: var(--surface-color);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+}
+
+.project-document-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.project-document-preview > header > div {
+  min-width: 0;
+}
+
+.project-document-preview > header small {
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.project-document-preview > header h4 {
+  overflow-wrap: anywhere;
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.project-document-preview > header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.project-document-preview-content {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.project-document-preview-content iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+}
+
+.project-document-preview-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.project-document-preview > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 11px 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+.project-document-preview > footer a {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 0.59rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.project-document-preview > footer a:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 700px) {
+  .project-document-row {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr);
+  }
+
+  .project-document-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-document-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-document-controls {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .project-document-preview-backdrop {
+    padding: 8px;
+  }
+
+  .project-document-preview {
+    height: 94vh;
+    min-height: 0;
+  }
+
+  .project-document-preview > footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .project-document-preview > footer a {
+    justify-content: center;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .project-document-upload,
+  .project-document-controls button {
+    transition: none;
+  }
+}

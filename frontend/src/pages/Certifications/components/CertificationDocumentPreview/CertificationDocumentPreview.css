@@ -1,0 +1,187 @@
+/*
+ * =========================================
+ * Certification Document Preview
+ * =========================================
+ */
+
+.certification-document-preview {
+  position: relative;
+  width: 156px;
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.certification-document-preview:hover {
+  border-color: var(--border-hover);
+}
+
+.certification-document-preview:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+/*
+ * =========================================
+ * Image and PDF
+ * =========================================
+ */
+
+.certification-document-preview img,
+.certification-document-preview object {
+  width: 100%;
+  height: 112px;
+  display: block;
+  border: 0;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.certification-document-preview object {
+  background: #ffffff;
+}
+
+/*
+ * =========================================
+ * File Placeholder
+ * =========================================
+ */
+
+.certification-document-preview-file {
+  width: 54px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.certification-document-preview-file--error {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * View Overlay
+ * =========================================
+ */
+
+.certification-document-preview-overlay {
+  position: absolute;
+  inset: auto 7px 7px;
+  padding: 6px;
+  border-radius: 7px;
+  background: rgba(11, 15, 25, 0.9);
+  color: #ffffff;
+  font-size: 0.56rem;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity var(--transition),
+    transform var(--transition);
+}
+
+.certification-document-preview:hover .certification-document-preview-overlay,
+.certification-document-preview:focus-visible
+  .certification-document-preview-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/*
+ * =========================================
+ * Loading
+ * =========================================
+ */
+
+.certification-document-preview-loader {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: certification-preview-spin 0.7s linear infinite;
+}
+
+@keyframes certification-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * =========================================
+ * Empty State
+ * =========================================
+ */
+
+.certification-document-preview--empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+  cursor: default;
+}
+
+.certification-document-preview--empty > span {
+  font-size: 1.2rem;
+}
+
+.certification-document-preview--empty strong {
+  font-size: 0.57rem;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 620px) {
+  .certification-document-preview {
+    width: 100%;
+    min-height: 150px;
+  }
+
+  .certification-document-preview img,
+  .certification-document-preview object {
+    height: 150px;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .certification-document-preview,
+  .certification-document-preview-overlay {
+    transition: none;
+  }
+
+  .certification-document-preview-loader {
+    animation: none;
+  }
+}

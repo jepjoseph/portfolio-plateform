@@ -1,0 +1,332 @@
+/*
+ * =========================================
+ * Project Filters
+ * =========================================
+ */
+
+.project-filters {
+  min-width: 0;
+  display: grid;
+  gap: 15px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+/*
+ * =========================================
+ * Filter Header
+ * =========================================
+ */
+
+.project-filters-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.project-filters-header > div {
+  min-width: 0;
+}
+
+.project-filters-header > div > span {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.53rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-filters-header h3 {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.project-filters-header p {
+  max-width: 670px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+
+.project-filters-header > strong {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.57rem;
+}
+
+/*
+ * =========================================
+ * Search and Sort
+ * =========================================
+ */
+
+.project-filters-primary {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1fr)
+    minmax(190px, 250px);
+  gap: 12px;
+}
+
+.project-filters-search {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.project-filters-search > span,
+.project-filter-select > span {
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.project-filters-search > div {
+  position: relative;
+  min-width: 0;
+}
+
+.project-filters-search > div > span {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  z-index: 1;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.project-filters-search input {
+  width: 100%;
+  min-height: 41px;
+  box-sizing: border-box;
+  padding: 0 38px 0 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.68rem;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.project-filters-search input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.72;
+}
+
+.project-filters-search input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.project-filters-search input:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.025);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.project-filters-search input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-filters-search button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.project-filters-search button:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.09);
+  color: #f87171;
+}
+
+/*
+ * =========================================
+ * Filter Grid
+ * =========================================
+ */
+
+.project-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.project-filter-select {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.project-filter-select select {
+  width: 100%;
+  min-height: 41px;
+  box-sizing: border-box;
+  padding: 0 32px 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--text-primary);
+  color-scheme: dark;
+  font-family: inherit;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+
+.project-filter-select select:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.project-filter-select select:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.025);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.project-filter-select select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-filter-select select option {
+  background: #111827;
+  color: #f9fafb;
+}
+
+/*
+ * =========================================
+ * Filter Footer
+ * =========================================
+ */
+
+.project-filters-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.project-filters-footer p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.61rem;
+}
+
+.project-filters-footer p strong {
+  color: var(--text-secondary);
+}
+
+.project-filters-footer button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 0.61rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-filters-footer button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.project-filters-footer button:focus-visible,
+.project-filters-search button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.project-filters-footer button:disabled,
+.project-filters-search button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 950px) {
+  .project-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .project-filters-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-filters-header > strong {
+    align-self: flex-start;
+  }
+
+  .project-filters-primary,
+  .project-filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-filters-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .project-filters input,
+  .project-filters select,
+  .project-filters button {
+    transition: none;
+  }
+}
