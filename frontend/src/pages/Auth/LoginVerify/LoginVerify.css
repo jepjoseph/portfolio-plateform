@@ -1,0 +1,354 @@
+/* =========================================
+   Login Verification Page
+   ========================================= */
+
+.login-verify-page {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 30px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.022),
+      rgba(255, 255, 255, 0.006)
+    ),
+    var(--bg-card);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
+}
+
+/* =========================================
+   Header
+   ========================================= */
+
+.login-verify-header {
+  margin-bottom: 21px;
+}
+
+.login-verify-eyebrow {
+  display: block;
+  color: var(--accent-hover);
+  font-size: 0.63rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.login-verify-header h2 {
+  margin: 8px 0 0;
+  color: var(--text-primary);
+  font-size: 1.55rem;
+  font-weight: 740;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.login-verify-header p {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.65;
+}
+
+.login-verify-header p strong {
+  color: var(--text-primary);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
+   Verification Summary
+   ========================================= */
+
+.login-verify-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.login-verify-summary > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.login-verify-summary span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.57rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.login-verify-summary strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.login-verify-summary .login-verify-expired {
+  color: #f87171;
+}
+
+/* =========================================
+   Alert
+   ========================================= */
+
+.login-verify-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 12px 13px;
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.055);
+}
+
+.login-verify-alert > span {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.login-verify-alert strong {
+  display: block;
+  color: #fca5a5;
+  font-size: 0.7rem;
+}
+
+.login-verify-alert p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Form
+   ========================================= */
+
+.login-verify-form {
+  display: grid;
+  gap: 19px;
+}
+
+.login-verify-code-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.login-verify-code-fieldset legend {
+  margin-bottom: 9px;
+  color: var(--text-secondary);
+  font-size: 0.69rem;
+  font-weight: 650;
+}
+
+.login-verify-code-inputs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.login-verify-code-inputs input {
+  width: 100%;
+  min-width: 0;
+  height: 52px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 11px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text-primary);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 1.15rem;
+  font-weight: 760;
+  text-align: center;
+  caret-color: var(--accent-hover);
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
+}
+
+.login-verify-code-inputs input:focus {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.055);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  transform: translateY(-1px);
+}
+
+.login-verify-code-inputs--error input {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.login-verify-code-inputs input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.login-verify-field-error {
+  display: block;
+  margin-top: 7px;
+  color: #f87171;
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+/* =========================================
+   Submit
+   ========================================= */
+
+.login-verify-submit {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.77rem;
+  font-weight: 680;
+  cursor: pointer;
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    opacity var(--transition);
+}
+
+.login-verify-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(99, 102, 241, 0.26);
+}
+
+.login-verify-submit:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+.login-verify-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* =========================================
+   Spinner
+   ========================================= */
+
+.login-verify-spinner {
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: login-verify-spin 0.7s linear infinite;
+}
+
+@keyframes login-verify-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================
+   Help
+   ========================================= */
+
+.login-verify-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 21px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-color);
+}
+
+.login-verify-help p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+}
+
+.login-verify-help a {
+  color: var(--accent-hover);
+  font-size: 0.63rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.login-verify-help a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 520px) {
+  .login-verify-page {
+    padding: 23px 20px;
+  }
+
+  .login-verify-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .login-verify-code-inputs {
+    gap: 6px;
+  }
+
+  .login-verify-code-inputs input {
+    height: 47px;
+    border-radius: 9px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 370px) {
+  .login-verify-code-inputs {
+    gap: 4px;
+  }
+
+  .login-verify-code-inputs input {
+    height: 43px;
+  }
+}
+
+/* =========================================
+   Reduced Motion
+   ========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .login-verify-code-inputs input,
+  .login-verify-submit {
+    transition: none;
+  }
+
+  .login-verify-spinner {
+    animation: none;
+  }
+}
