@@ -1,6 +1,31 @@
+import { useLocation, useNavigate } from "react-router-dom";
+
 import { Link, Outlet } from "react-router-dom";
 
+import PublicNavigation from "../../components/PublicNavigation/PublicNavigation.jsx";
+
+import {
+  ROUTE_TRANSITION_DURATION_MS,
+  runRouteTransition,
+} from "../../utils/routeTransition.js";
+
 import "./AuthLayout.css";
+
+/*
+ * =========================================
+ * Modified Click Detection
+ * =========================================
+ */
+
+function isModifiedNavigation(event) {
+  return (
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  );
+}
 
 /*
  * =========================================
@@ -9,10 +34,87 @@ import "./AuthLayout.css";
  */
 
 function AuthLayout() {
+  const navigate = useNavigate();
+
+  const location = useLocation();
+
   const currentYear = new Date().getFullYear();
 
+  /*
+   * =========================================
+   * Transition to Destination
+   * =========================================
+   */
+
+  function transitionToDestination(destination) {
+    runRouteTransition(
+      () => {
+        navigate(destination);
+      },
+      {
+        name: "reveal-from-left",
+
+        duration: ROUTE_TRANSITION_DURATION_MS,
+      },
+    );
+  }
+
+  /*
+   * =========================================
+   * Home Navigation
+   * =========================================
+   */
+
+  function handleHomeNavigation(event) {
+    if (isModifiedNavigation(event)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    transitionToDestination("/");
+  }
+
+  function handlePublicNavigation(event, navigationItem) {
+    if (navigationItem?.path === "/") {
+      handleHomeNavigation(event);
+    }
+  }
+
+  /*
+   * =========================================
+   * Go Back
+   * =========================================
+   *
+   * location.key is "default" when the page
+   * was opened directly and there may be no
+   * safe application history entry.
+   */
+
+  function handleGoBack() {
+    runRouteTransition(
+      () => {
+        if (location.key === "default") {
+          navigate("/");
+        } else {
+          navigate(-1);
+        }
+      },
+      {
+        name: "reveal-from-left",
+
+        duration: ROUTE_TRANSITION_DURATION_MS,
+      },
+    );
+  }
+
   return (
-    <div className="auth-layout">
+    <div
+      className="auth-layout"
+      style={{
+        "--auth-transition-duration": `${ROUTE_TRANSITION_DURATION_MS}ms`,
+      }}
+    >
       {/*
        * =====================================
        * Platform Presentation
@@ -20,11 +122,19 @@ function AuthLayout() {
        */}
 
       <aside className="auth-layout-presentation">
+        <div className="auth-layout-presentation-home">
+          <PublicNavigation
+            variant="auth"
+            onNavigate={handlePublicNavigation}
+          />
+        </div>
+
         <div className="auth-layout-presentation-content">
           <Link
             to="/"
             className="auth-layout-brand"
             aria-label="Portfolio Platform home"
+            onClick={handleHomeNavigation}
           >
             <span className="auth-layout-brand-mark" aria-hidden="true">
               PP
@@ -110,16 +220,27 @@ function AuthLayout() {
 
       {/*
        * =====================================
-       * Authentication Content
+       * Authentication Area
        * =====================================
        */}
 
       <main className="auth-layout-main">
         <header className="auth-layout-main-header">
-          <Link to="/" className="auth-layout-back-link">
+          <div className="auth-layout-mobile-home">
+            <PublicNavigation
+              variant="auth"
+              onNavigate={handlePublicNavigation}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="auth-layout-back-button"
+            onClick={handleGoBack}
+          >
             <span aria-hidden="true">←</span>
-            Return to homepage
-          </Link>
+            Go back
+          </button>
         </header>
 
         <div className="auth-layout-content">
@@ -128,6 +249,7 @@ function AuthLayout() {
               to="/"
               className="auth-layout-brand"
               aria-label="Portfolio Platform home"
+              onClick={handleHomeNavigation}
             >
               <span className="auth-layout-brand-mark" aria-hidden="true">
                 PP

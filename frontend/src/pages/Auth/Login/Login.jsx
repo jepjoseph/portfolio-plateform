@@ -98,7 +98,9 @@ function Login() {
 
   const { beginPasswordLogin, operation, clearError } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() =>
+    typeof location.state?.email === "string" ? location.state.email : "",
+  );
 
   const [password, setPassword] = useState("");
 
@@ -238,6 +240,13 @@ function Login() {
   return (
     <section className="login-page" aria-labelledby="login-title">
       <header className="login-page-header">
+        {location.state?.message ? (
+          <div className="login-page-success" role="status">
+            <span aria-hidden="true">✓</span>
+
+            <p>{location.state.message}</p>
+          </div>
+        ) : null}
         <span className="login-page-eyebrow">Welcome back</span>
 
         <h2 id="login-title">Sign in to your account</h2>

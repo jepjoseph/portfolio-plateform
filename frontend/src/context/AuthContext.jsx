@@ -9,11 +9,14 @@ import {
 } from "react";
 
 import {
+  completeRegistration as completeRegistrationService,
   getCurrentSession,
   logout as logoutService,
   refreshSession,
   requestPasswordLogin,
+  requestRegistrationOtp,
   verifyLoginOtp,
+  verifyRegistrationOtp,
 } from "../services/Auth/authService.js";
 
 /*
@@ -42,6 +45,12 @@ export const AUTH_OPERATION = Object.freeze({
   IDLE: "idle",
 
   RESTORING: "restoring",
+
+  REQUESTING_REGISTRATION: "requesting-registration",
+
+  VERIFYING_REGISTRATION: "verifying-registration",
+
+  COMPLETING_REGISTRATION: "completing-registration",
 
   REQUESTING_LOGIN: "requesting-login",
 
@@ -275,6 +284,117 @@ export function AuthProvider({ children }) {
       }
     }
   }, [applyAuthentication, clearAuthentication]);
+
+  /*
+   * =========================================
+   * Begin Registration
+   * =========================================
+   *
+   * This creates a registration challenge and
+   * requests delivery of the registration OTP.
+   * It does not authenticate the browser.
+   */
+
+  const beginRegistration = useCallback(async ({ email }) => {
+    if (isMountedRef.current) {
+      setOperation(AUTH_OPERATION.REQUESTING_REGISTRATION);
+
+      setError(null);
+    }
+
+    try {
+      return await requestRegistrationOtp({
+        email,
+      });
+    } catch (registrationError) {
+      if (isMountedRef.current) {
+        setError(registrationError);
+      }
+
+      throw registrationError;
+    } finally {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+  }, []);
+
+  /*
+   * =========================================
+   * Verify Registration OTP
+   * =========================================
+   *
+   * Successful verification returns a
+   * short-lived continuation token. It does
+   * not create the account or session yet.
+   */
+
+  const verifyRegistration = useCallback(async ({ challengeId, otp }) => {
+    if (isMountedRef.current) {
+      setOperation(AUTH_OPERATION.VERIFYING_REGISTRATION);
+
+      setError(null);
+    }
+
+    try {
+      return await verifyRegistrationOtp({
+        challengeId,
+
+        otp,
+      });
+    } catch (verificationError) {
+      if (isMountedRef.current) {
+        setError(verificationError);
+      }
+
+      throw verificationError;
+    } finally {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+  }, []);
+
+  /*
+   * =========================================
+   * Complete Registration
+   * =========================================
+   *
+   * This creates the user, initial profile,
+   * settings and standard user role. It does
+   * not create an authenticated session.
+   */
+
+  const finishRegistration = useCallback(
+    async ({ challengeId, continuationToken, password }) => {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.COMPLETING_REGISTRATION);
+
+        setError(null);
+      }
+
+      try {
+        return await completeRegistrationService({
+          challengeId,
+
+          continuationToken,
+
+          password,
+        });
+      } catch (registrationError) {
+        if (isMountedRef.current) {
+          setError(registrationError);
+        }
+
+        throw registrationError;
+      } finally {
+        if (isMountedRef.current) {
+          setOperation(AUTH_OPERATION.IDLE);
+        }
+      }
+    },
+    [],
+  );
 
   /*
    * =========================================
@@ -536,6 +656,12 @@ export function AuthProvider({ children }) {
 
       restoreAuthentication,
 
+      beginRegistration,
+
+      verifyRegistration,
+
+      finishRegistration,
+
       beginPasswordLogin,
 
       completeLogin,
@@ -563,6 +689,7 @@ export function AuthProvider({ children }) {
       isInitializing,
       isBusy,
       restoreAuthentication,
+      beginRegistration,
       beginPasswordLogin,
       completeLogin,
       refreshAuthentication,

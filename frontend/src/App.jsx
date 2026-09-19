@@ -2,13 +2,25 @@ import { useMemo } from "react";
 
 import { Navigate, useRoutes } from "react-router-dom";
 
+import PublicLayout from "./layouts/PublicLayout/PublicLayout";
 import AuthLayout from "./layouts/AuthLayout/AuthLayout";
 import DashboardLayout from "./layouts/DashboardLayout/DashboardLayout";
 
 import GuestRoute from "./routes/GuestRoute";
+import ProtectedRoute from "./routes/ProtectedRoute";
+
+import Home from "./pages/Public/Home/Home";
+import About from "./pages/Public/About/About";
+import HowItWorks from "./pages/Public/HowItWorks/HowItWorks";
+import Opportunities from "./pages/Public/Opportunities/Opportunities";
+import Support from "./pages/Public/Support/Support";
+import Contact from "./pages/Public/Contact/Contact";
 
 import Login from "./pages/Auth/Login/Login";
 import LoginVerify from "./pages/Auth/LoginVerify/LoginVerify";
+import Register from "./pages/Auth/Register/Register";
+import RegisterVerify from "./pages/Auth/RegisterVerify/RegisterVerify";
+import SetPassword from "./pages/Auth/SetPassword/SetPassword";
 
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Portfolio from "./pages/Portfolio/Portfolio";
@@ -51,14 +63,6 @@ function ProjectsRoute() {
 
   const { certifications, isLoading: areCertificationsLoading } =
     useCertificationData();
-
-  /*
-   * Include active and archived records.
-   *
-   * Existing Project relationships must
-   * remain available even when their source
-   * record is later archived.
-   */
 
   const relationshipCollections = useMemo(
     () => ({
@@ -106,11 +110,63 @@ function App() {
   const routes = useRoutes([
     /*
      * =====================================
+     * Public Home
+     * =====================================
+     */
+
+    {
+      path: "/",
+      element: <PublicLayout />,
+
+      children: [
+        {
+          index: true,
+          element: <Home />,
+        },
+
+        {
+          path: "about",
+          element: <About />,
+        },
+
+        {
+          path: "how-it-works",
+          element: <HowItWorks />,
+        },
+
+        {
+          path: "opportunities",
+          element: <Opportunities />,
+        },
+
+        {
+          path: "support",
+          element: <Support />,
+        },
+
+        {
+          path: "contact",
+          element: <Contact />,
+        },
+
+        /*
+         * Future public routes:
+         *
+         * about
+         * how-it-works
+         * opportunities
+         * support
+         * contact
+         * privacy
+         * terms
+         */
+      ],
+    },
+
+    /*
+     * =====================================
      * Authentication Routes
      * =====================================
-     *
-     * GuestRoute redirects an already
-     * authenticated user to /dashboard.
      */
 
     {
@@ -131,14 +187,27 @@ function App() {
 
             {
               path: "login",
-
               element: <Login />,
             },
 
             {
               path: "login/verify",
-
               element: <LoginVerify />,
+            },
+
+            {
+              path: "register",
+              element: <Register />,
+            },
+
+            {
+              path: "register/verify",
+              element: <RegisterVerify />,
+            },
+
+            {
+              path: "set-password",
+              element: <SetPassword />,
             },
           ],
         },
@@ -147,108 +216,87 @@ function App() {
 
     /*
      * =====================================
-     * Dashboard Routes
+     * Protected Application
      * =====================================
-     *
-     * These routes remain temporarily
-     * unprotected until browser login has
-     * been tested successfully.
      */
 
     {
-      path: "/",
-
-      element: <DashboardLayout />,
+      element: <ProtectedRoute />,
 
       children: [
         {
-          index: true,
+          element: <DashboardLayout />,
 
-          element: <Dashboard />,
+          children: [
+            {
+              path: "dashboard",
+              element: <Dashboard />,
+            },
+
+            {
+              path: "portfolio",
+              element: <Portfolio />,
+            },
+
+            {
+              path: "projects",
+              element: <ProjectsRoute />,
+            },
+
+            {
+              path: "experience",
+              element: <Experience />,
+            },
+
+            {
+              path: "education",
+              element: <Education />,
+            },
+
+            {
+              path: "training",
+              element: <Training />,
+            },
+
+            {
+              path: "skills",
+              element: <Skills />,
+            },
+
+            {
+              path: "resumes",
+              element: <Resumes />,
+            },
+
+            {
+              path: "profile",
+              element: <Profile />,
+            },
+
+            {
+              path: "certifications",
+              element: <Certifications />,
+            },
+          ],
         },
 
-        {
-          path: "dashboard",
-
-          element: <Dashboard />,
-        },
-
-        {
-          path: "portfolio",
-
-          element: <Portfolio />,
-        },
+        /*
+         * Preview contains private draft
+         * information and must be protected,
+         * but does not use DashboardLayout.
+         */
 
         {
-          path: "projects",
-
-          element: <ProjectsRoute />,
-        },
-
-        {
-          path: "experience",
-
-          element: <Experience />,
-        },
-
-        {
-          path: "education",
-
-          element: <Education />,
-        },
-
-        {
-          path: "training",
-
-          element: <Training />,
-        },
-
-        {
-          path: "skills",
-
-          element: <Skills />,
-        },
-
-        {
-          path: "resumes",
-
-          element: <Resumes />,
-        },
-
-        {
-          path: "profile",
-
-          element: <Profile />,
-        },
-
-        {
-          path: "certifications",
-
-          element: <Certifications />,
+          path: "portfolio/preview",
+          element: <PortfolioPreview />,
         },
       ],
     },
 
     /*
      * =====================================
-     * Portfolio Preview
-     * =====================================
-     */
-
-    {
-      path: "/portfolio/preview",
-
-      element: <PortfolioPreview />,
-    },
-
-    /*
-     * =====================================
      * Public Portfolio
      * =====================================
-     *
-     * Example:
-     *
-     * /portfolio/jean-pierre-joseph/software-engineer
      */
 
     {

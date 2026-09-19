@@ -1,14 +1,17 @@
 /* =========================================
-   Login Page
+   Registration Page
    ========================================= */
 
-.login-page {
+.register-page {
   width: 100%;
+
   box-sizing: border-box;
+
   padding: 30px;
-  margin-top: 30%;
+
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+
   background:
     linear-gradient(
       145deg,
@@ -16,73 +19,92 @@
       rgba(255, 255, 255, 0.006)
     ),
     var(--bg-card);
+
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
 }
 
 /* =========================================
-   Header
+   Page Header
    ========================================= */
 
-.login-page-header {
+.register-page-header {
   margin-bottom: 25px;
 }
 
-.login-page-eyebrow {
+.register-page-eyebrow {
   display: block;
+
   color: var(--accent-hover);
+
   font-size: 0.63rem;
   font-weight: 750;
+
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.login-page-header h2 {
+.register-page-header h2 {
   margin: 8px 0 0;
+
   color: var(--text-primary);
+
   font-size: 1.55rem;
   font-weight: 740;
   line-height: 1.25;
+
   letter-spacing: -0.025em;
 }
 
-.login-page-header p {
+.register-page-header p {
   margin: 10px 0 0;
+
   color: var(--text-secondary);
+
   font-size: 0.76rem;
   line-height: 1.65;
 }
 
 /* =========================================
-   Alert
+   Error Alert
    ========================================= */
 
-.login-page-alert {
+.register-page-alert {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+
   margin-bottom: 18px;
   padding: 12px 13px;
+
   border: 1px solid rgba(239, 68, 68, 0.18);
   border-radius: var(--radius-md);
+
   background: rgba(239, 68, 68, 0.055);
 }
 
-.login-page-alert > span {
+.register-page-alert > span {
   width: 20px;
   height: 20px;
+
   display: grid;
   place-items: center;
+
   flex-shrink: 0;
+
   border-radius: 50%;
+
   background: rgba(239, 68, 68, 0.12);
   color: #f87171;
+
   font-size: 0.65rem;
   font-weight: 800;
 }
 
-.login-page-alert p {
+.register-page-alert p {
   margin: 1px 0 0;
+
   color: #fca5a5;
+
   font-size: 0.7rem;
   line-height: 1.5;
 }
@@ -91,188 +113,210 @@
    Form
    ========================================= */
 
-.login-form {
+.register-form {
   display: grid;
   gap: 18px;
 }
 
-.login-field {
+.register-field {
   min-width: 0;
 }
 
-.login-field > label,
-.login-label-row label {
+.register-field > label {
   color: var(--text-secondary);
+
   font-size: 0.69rem;
   font-weight: 650;
 }
 
-.login-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-}
-
-.login-label-row a {
-  color: var(--accent-hover);
-  font-size: 0.63rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.login-label-row a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 /* =========================================
-   Input Shell
+   Input
    ========================================= */
 
-.login-input-shell {
+.register-input-shell {
   min-height: 46px;
+
   display: flex;
   align-items: center;
   gap: 10px;
+
   box-sizing: border-box;
+
   margin-top: 7px;
   padding: 0 12px;
+
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+
   background: rgba(0, 0, 0, 0.16);
+
   transition:
     border-color var(--transition),
     background var(--transition),
     box-shadow var(--transition);
 }
 
-.login-input-shell:focus-within {
+.register-input-shell:focus-within {
   border-color: var(--accent);
+
   background: rgba(255, 255, 255, 0.025);
+
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.login-input-shell--error {
+.register-input-shell--error {
   border-color: rgba(239, 68, 68, 0.5);
 }
 
-.login-input-shell--error:focus-within {
+.register-input-shell--error:focus-within {
   border-color: #ef4444;
+
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-.login-input-icon {
+.register-input-icon {
   width: 18px;
+
   flex-shrink: 0;
+
   color: var(--text-muted);
+
   font-size: 0.7rem;
   text-align: center;
 }
 
-.login-input-shell input {
+.register-input-shell input {
   min-width: 0;
   min-height: 44px;
+
   flex: 1;
+
   padding: 0;
+
   border: none;
   outline: none;
+
   background: transparent;
   color: var(--text-primary);
+
   font-family: inherit;
   font-size: 0.76rem;
 }
 
-.login-input-shell input::placeholder {
+.register-input-shell input::placeholder {
   color: var(--text-muted);
 }
 
-.login-input-shell input:disabled {
+.register-input-shell input:disabled {
   cursor: wait;
   opacity: 0.65;
-}
-
-/* =========================================
-   Password Toggle
-   ========================================= */
-
-.login-password-toggle {
-  flex-shrink: 0;
-  padding: 5px 7px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 0.6rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.login-password-toggle:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-}
-
-.login-password-toggle:focus-visible {
-  outline: 2px solid var(--accent-hover);
-  outline-offset: 2px;
-}
-
-.login-password-toggle:disabled {
-  cursor: wait;
-  opacity: 0.5;
 }
 
 /* =========================================
    Field Error
    ========================================= */
 
-.login-field-error {
+.register-field-error {
   display: block;
+
   margin-top: 6px;
+
   color: #f87171;
+
   font-size: 0.62rem;
   line-height: 1.45;
+}
+
+/* =========================================
+   Email Information
+   ========================================= */
+
+.register-email-information {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+
+  padding: 11px 12px;
+
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: var(--radius-md);
+
+  background: rgba(99, 102, 241, 0.035);
+}
+
+.register-email-information > span {
+  width: 18px;
+  height: 18px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+
+  font-size: 0.55rem;
+  font-weight: 800;
+}
+
+.register-email-information p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.62rem;
+  line-height: 1.55;
 }
 
 /* =========================================
    Submit
    ========================================= */
 
-.login-submit-button {
+.register-submit-button {
   min-height: 46px;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
+
   margin-top: 3px;
   padding: 0 18px;
+
   border: 1px solid transparent;
   border-radius: var(--radius-md);
+
   background: linear-gradient(135deg, var(--accent), #4f46e5);
+
   color: #ffffff;
+
   font-family: inherit;
   font-size: 0.77rem;
   font-weight: 680;
+
   cursor: pointer;
+
   transition:
     transform var(--transition),
     box-shadow var(--transition),
     opacity var(--transition);
 }
 
-.login-submit-button:hover:not(:disabled) {
+.register-submit-button:hover:not(:disabled) {
   transform: translateY(-1px);
+
   box-shadow: 0 10px 28px rgba(99, 102, 241, 0.26);
 }
 
-.login-submit-button:focus-visible {
+.register-submit-button:focus-visible {
   outline: 2px solid var(--accent-hover);
   outline-offset: 3px;
 }
 
-.login-submit-button:disabled {
+.register-submit-button:disabled {
   cursor: wait;
   opacity: 0.65;
 }
@@ -281,17 +325,20 @@
    Loading Spinner
    ========================================= */
 
-.login-button-spinner {
+.register-button-spinner {
   width: 15px;
   height: 15px;
+
   box-sizing: border-box;
+
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #ffffff;
   border-radius: 50%;
-  animation: login-button-spin 0.7s linear infinite;
+
+  animation: register-button-spin 0.7s linear infinite;
 }
 
-@keyframes login-button-spin {
+@keyframes register-button-spin {
   to {
     transform: rotate(360deg);
   }
@@ -301,7 +348,7 @@
    Divider
    ========================================= */
 
-.login-page-divider {
+.register-page-divider {
   display: grid;
   grid-template-columns:
     minmax(20px, 1fr)
@@ -309,98 +356,65 @@
     minmax(20px, 1fr);
   align-items: center;
   gap: 11px;
+
   margin: 23px 0 16px;
 }
 
-.login-page-divider > span {
+.register-page-divider > span {
   height: 1px;
+
   background: var(--border-color);
 }
 
-.login-page-divider p {
+.register-page-divider p {
   margin: 0;
+
   color: var(--text-muted);
+
   font-size: 0.61rem;
 }
 
 /* =========================================
-   Create Account
+   Sign-In Link
    ========================================= */
 
-.login-create-account {
+.register-sign-in-link {
   min-height: 42px;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   width: 100%;
+
   box-sizing: border-box;
+
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+
   background: rgba(255, 255, 255, 0.02);
   color: var(--text-secondary);
+
   font-size: 0.72rem;
   font-weight: 650;
   text-decoration: none;
+
   transition:
     border-color var(--transition),
     background var(--transition),
     color var(--transition);
 }
 
-.login-create-account:hover {
+.register-sign-in-link:hover {
   border-color: var(--border-hover);
+
   background: rgba(255, 255, 255, 0.045);
   color: var(--text-primary);
 }
 
-.login-create-account:focus-visible {
+.register-sign-in-link:focus-visible {
   outline: 2px solid var(--accent-hover);
   outline-offset: 3px;
-}
-
-/* =========================================
-   Success Message
-   ========================================= */
-
-.login-page-success {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-
-  margin-bottom: 18px;
-  padding: 12px 13px;
-
-  border: 1px solid rgba(34, 197, 94, 0.18);
-  border-radius: var(--radius-md);
-
-  background: rgba(34, 197, 94, 0.055);
-}
-
-.login-page-success > span {
-  width: 20px;
-  height: 20px;
-
-  display: grid;
-  place-items: center;
-
-  flex-shrink: 0;
-
-  border-radius: 50%;
-
-  background: rgba(34, 197, 94, 0.12);
-  color: var(--success);
-
-  font-size: 0.62rem;
-  font-weight: 800;
-}
-
-.login-page-success p {
-  margin: 1px 0 0;
-
-  color: var(--text-secondary);
-
-  font-size: 0.7rem;
-  line-height: 1.5;
 }
 
 /* =========================================
@@ -408,11 +422,11 @@
    ========================================= */
 
 @media (max-width: 520px) {
-  .login-page {
+  .register-page {
     padding: 23px 20px;
   }
 
-  .login-page-header h2 {
+  .register-page-header h2 {
     font-size: 1.35rem;
   }
 }
@@ -422,13 +436,13 @@
    ========================================= */
 
 @media (prefers-reduced-motion: reduce) {
-  .login-input-shell,
-  .login-submit-button,
-  .login-create-account {
+  .register-input-shell,
+  .register-submit-button,
+  .register-sign-in-link {
     transition: none;
   }
 
-  .login-button-spinner {
+  .register-button-spinner {
     animation: none;
   }
 }

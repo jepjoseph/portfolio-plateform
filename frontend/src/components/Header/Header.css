@@ -4,21 +4,19 @@
 
 .dashboard-header {
   position: sticky;
-
   top: 0;
-
   z-index: 100;
 
-  height: var(--header-height);
+  min-height: var(--header-height);
 
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
   align-items: center;
-  justify-content: space-between;
+  gap: 24px;
 
   padding: 0 28px;
 
   background: rgba(7, 10, 18, 0.78);
-
   border-bottom: 1px solid var(--border-color);
 
   backdrop-filter: blur(18px);
@@ -32,41 +30,40 @@
 .header-left {
   display: flex;
   align-items: center;
-
-  gap: 16px;
-
+  gap: 14px;
   min-width: 0;
 }
 
-.header-title {
+.header-brand {
   display: flex;
   flex-direction: column;
-
   min-width: 0;
 }
 
-.header-eyebrow {
-  margin: 0;
-
-  color: var(--text-muted);
-
-  font-size: 0.68rem;
-  font-weight: 600;
-
-  text-transform: uppercase;
-
-  letter-spacing: 0.1em;
+.header-brand-name {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.header-title h1 {
-  margin: 2px 0 0;
+.header-brand-subtitle {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
-  color: var(--text-primary);
+/* =========================================
+   Header Center
+   ========================================= */
 
-  font-size: 1.15rem;
-  font-weight: 650;
-
-  letter-spacing: -0.02em;
+.header-center {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
 }
 
 /* =========================================
@@ -78,20 +75,17 @@
 
   width: 40px;
   height: 40px;
-
   padding: 0;
 
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
   gap: 5px;
 
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
 
   background: rgba(255, 255, 255, 0.035);
-
   color: var(--text-primary);
 
   cursor: pointer;
@@ -104,9 +98,7 @@
 
 .header-menu-button:hover {
   background: rgba(255, 255, 255, 0.07);
-
   border-color: var(--border-hover);
-
   transform: translateY(-1px);
 }
 
@@ -116,12 +108,9 @@
 
 .header-menu-button span {
   display: block;
-
   width: 18px;
   height: 2px;
-
   border-radius: 2px;
-
   background: var(--text-primary);
 }
 
@@ -132,10 +121,9 @@
 .header-right {
   display: flex;
   align-items: center;
-
+  justify-content: flex-end;
   gap: 14px;
-
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 /* =========================================
@@ -155,11 +143,9 @@
   border-radius: var(--radius-md);
 
   background: rgba(255, 255, 255, 0.035);
-
   color: var(--text-secondary);
 
   font-size: 1rem;
-
   cursor: pointer;
 
   transition:
@@ -171,11 +157,8 @@
 
 .header-icon-button:hover {
   background: var(--accent-soft);
-
   border-color: var(--border-hover);
-
   color: var(--text-primary);
-
   transform: translateY(-1px);
 }
 
@@ -190,13 +173,9 @@
 .header-profile {
   display: flex;
   align-items: center;
-
   gap: 10px;
+  min-width: 0;
 }
-
-/* =========================================
-   Avatar
-   ========================================= */
 
 .header-avatar {
   width: 38px;
@@ -204,7 +183,6 @@
 
   display: grid;
   place-items: center;
-
   flex-shrink: 0;
 
   border-radius: 50%;
@@ -212,40 +190,41 @@
   background: linear-gradient(135deg, var(--accent), #06b6d4);
 
   color: white;
-
   font-size: 0.78rem;
   font-weight: 700;
 
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
 }
 
-/* =========================================
-   User Information
-   ========================================= */
-
 .header-user {
   display: flex;
   flex-direction: column;
-
   gap: 2px;
-
   min-width: 0;
 }
 
 .header-user-name {
+  max-width: 190px;
+  overflow: hidden;
+
   color: var(--text-primary);
 
   font-size: 0.85rem;
   font-weight: 600;
 
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .header-user-role {
+  max-width: 190px;
+  overflow: hidden;
+
   color: var(--text-muted);
 
   font-size: 0.72rem;
 
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -255,11 +234,17 @@
 
 @media (max-width: 1100px) {
   .dashboard-header {
+    grid-template-columns: 1fr auto;
+    gap: 18px;
     padding: 0 24px;
   }
 
   .header-menu-button {
     display: flex;
+  }
+
+  .header-center {
+    display: none;
   }
 }
 
@@ -291,17 +276,16 @@
 
 @media (max-width: 600px) {
   .dashboard-header {
-    height: 64px;
-
+    min-height: 64px;
     padding: 0 16px;
   }
 
-  .header-title h1 {
-    font-size: 1rem;
+  .header-brand-name {
+    font-size: 0.88rem;
   }
 
-  .header-eyebrow {
-    font-size: 0.6rem;
+  .header-brand-subtitle {
+    font-size: 0.57rem;
   }
 
   .header-icon-button {
@@ -312,12 +296,17 @@
   .header-avatar {
     width: 34px;
     height: 34px;
-
     font-size: 0.7rem;
   }
 
   .header-menu-button {
     width: 38px;
     height: 38px;
+  }
+}
+
+@media (max-width: 390px) {
+  .header-icon-button {
+    display: none;
   }
 }
