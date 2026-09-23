@@ -31,7 +31,7 @@ function About() {
             Portfolio Platform combines structured career management with
             responsible AI assistance. It helps people organize their
             experience, communicate their value, and generate professional
-            résumés and portfolios without losing control of their story.
+            resumes and portfolios without losing control of their story.
           </p>
 
           <div className="about-hero-actions">
@@ -69,7 +69,7 @@ function About() {
 
           <div className="about-visual-card about-visual-card--portfolio">
             <span>AI-assisted generation</span>
-            <strong>Résumé and portfolio drafts in one click</strong>
+            <strong>Resume and portfolio drafts in one click</strong>
 
             <div className="about-visual-projects">
               <i />
@@ -94,7 +94,7 @@ function About() {
 
         <div className="about-mission-content">
           <p>
-            Career information is often scattered across résumés, applications,
+            Career information is often scattered across resumes, applications,
             online profiles, documents, and personal files. Portfolio Platform
             brings it into one reusable workspace.
           </p>
@@ -134,7 +134,7 @@ function About() {
             <h3>AI assists throughout the workspace</h3>
             <p>
               Receive contextual help with profiles, achievements, projects,
-              skills, résumés, and portfolios.
+              skills, resumes, and portfolios.
             </p>
           </article>
 
@@ -228,7 +228,7 @@ function About() {
           <h2>Organize once. Improve with AI. Present with confidence.</h2>
 
           <p>
-            Build your professional record and turn it into a résumé or
+            Build your professional record and turn it into a resume or
             portfolio whenever the next opportunity appears.
           </p>
         </div>

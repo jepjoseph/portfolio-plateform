@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -17,31 +17,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAXIMUM_EMAIL_LENGTH = 320;
 
 const MAXIMUM_PASSWORD_LENGTH = 256;
-
-/*
- * =========================================
- * Safe Return Destination
- * =========================================
- */
-
-function getSafeReturnTo(value) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  const destination = value.trim();
-
-  if (
-    !destination.startsWith("/") ||
-    destination.startsWith("//") ||
-    destination.includes("://") ||
-    destination.startsWith("/auth")
-  ) {
-    return "";
-  }
-
-  return destination;
-}
 
 /*
  * =========================================
@@ -111,11 +86,6 @@ function Login() {
   const [submissionError, setSubmissionError] = useState("");
 
   const isSubmitting = operation === AUTH_OPERATION.REQUESTING_LOGIN;
-
-  const returnTo = useMemo(
-    () => getSafeReturnTo(location.state?.returnTo),
-    [location.state],
-  );
 
   /*
    * =========================================
@@ -218,8 +188,6 @@ function Login() {
           expiresAt: result.expiresAt,
 
           maximumAttempts: result.maximumAttempts,
-
-          returnTo: returnTo || "/dashboard",
         },
       });
     } catch (error) {

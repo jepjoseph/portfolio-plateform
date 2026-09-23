@@ -15,6 +15,9 @@ import HowItWorks from "./pages/Public/HowItWorks/HowItWorks";
 import Opportunities from "./pages/Public/Opportunities/Opportunities";
 import Support from "./pages/Public/Support/Support";
 import Contact from "./pages/Public/Contact/Contact";
+import Privacy from "./pages/Public/Privacy/Privacy";
+import Terms from "./pages/Public/Terms/Terms";
+import NotFound from "./pages/Public/NotFound/NotFound";
 
 import Login from "./pages/Auth/Login/Login";
 import LoginVerify from "./pages/Auth/LoginVerify/LoginVerify";
@@ -34,6 +37,7 @@ import Skills from "./pages/skills/Skills";
 import Resumes from "./pages/Resumes/Resumes";
 import Profile from "./pages/Profile/Profile";
 import Certifications from "./pages/Certifications/Certifications";
+import Settings from "./pages/Settings/Settings";
 
 import { useSkillData } from "./context/SkillDataContext.jsx";
 
@@ -149,17 +153,20 @@ function App() {
           element: <Contact />,
         },
 
-        /*
-         * Future public routes:
-         *
-         * about
-         * how-it-works
-         * opportunities
-         * support
-         * contact
-         * privacy
-         * terms
-         */
+        {
+          path: "privacy",
+          element: <Privacy />,
+        },
+
+        {
+          path: "terms",
+          element: <Terms />,
+        },
+
+        {
+          path: "*",
+          element: <NotFound />,
+        },
       ],
     },
 
@@ -276,6 +283,11 @@ function App() {
             {
               path: "certifications",
               element: <Certifications />,
+            },
+
+            {
+              path: "settings",
+              element: <Settings />,
             },
           ],
         },

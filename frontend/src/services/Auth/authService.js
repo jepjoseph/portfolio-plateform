@@ -160,6 +160,28 @@ export async function requestPasswordLogin({ email, password }, options = {}) {
 }
 
 /*
+ * POST /api/auth/login/resend
+ */
+
+export async function resendLoginOtp(
+  { challengeId },
+
+  options = {},
+) {
+  const response = await apiPost(
+    "/auth/login/resend",
+
+    {
+      challengeId: normalizeChallengeId(challengeId),
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
  * POST /api/auth/login/verify
  *
  * A successful response causes the browser
@@ -291,6 +313,8 @@ const authService = Object.freeze({
   completeRegistration,
 
   requestPasswordLogin,
+
+  resendLoginOtp,
 
   verifyLoginOtp,
 

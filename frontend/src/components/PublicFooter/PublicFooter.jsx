@@ -43,9 +43,8 @@ function PublicFooter() {
             <h2>Legal</h2>
 
             <nav aria-label="Footer legal navigation">
-              <span aria-disabled="true">Privacy</span>
-
-              <span aria-disabled="true">Terms</span>
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/terms">Terms</Link>
             </nav>
           </section>
         </div>

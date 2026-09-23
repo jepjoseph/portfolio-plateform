@@ -408,7 +408,7 @@ function Training() {
               </h2>
 
               <p>
-                Create a reusable training record for résumés, portfolios,
+                Create a reusable training record for resumes, portfolios,
                 certifications, experiences, and future projects.
               </p>
             </div>

@@ -276,7 +276,7 @@ function Skills() {
 
               <p>
                 Create a reusable Skill Library record for Experiences,
-                Education, Training, Résumés, and Portfolios.
+                Education, Training, Resumes, and Portfolios.
               </p>
             </div>
 

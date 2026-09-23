@@ -1,8 +1,10 @@
-import { createRef, useEffect, useMemo, useRef, useState } from "react";
+import { createRef, useEffect, useRef, useState } from "react";
 
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+
+import { resendLoginOtp } from "../../../services/Auth/authService.js";
 
 import "./LoginVerify.css";
 
@@ -16,30 +18,9 @@ const OTP_LENGTH = 6;
 
 const OTP_PATTERN = /^\d{6}$/;
 
-/*
- * =========================================
- * Safe Return Destination
- * =========================================
- */
+const DEFAULT_OTP_LIFETIME_MS = 10 * 60 * 1000;
 
-function getSafeReturnTo(value) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  const destination = value.trim();
-
-  if (
-    !destination.startsWith("/") ||
-    destination.startsWith("//") ||
-    destination.includes("://") ||
-    destination.startsWith("/auth")
-  ) {
-    return "";
-  }
-
-  return destination;
-}
+const DEFAULT_RESEND_COOLDOWN_MS = 60 * 1000;
 
 /*
  * =========================================
@@ -80,27 +61,27 @@ function LoginVerify() {
 
   const { completeLogin, operation, clearError } = useAuth();
 
+  /*
+   * =========================================
+   * Navigation State
+   * =========================================
+   */
+
   const challengeId =
     typeof location.state?.challengeId === "string"
       ? location.state.challengeId.trim()
       : "";
 
   const maskedEmail =
-    typeof location.state?.email === "string"
-      ? location.state.email
+    typeof location.state?.email === "string" && location.state.email.trim()
+      ? location.state.email.trim()
       : "your verified email address";
 
-  const expirationTime = useMemo(
-    () => getExpirationTime(location.state?.expiresAt),
-    [location.state?.expiresAt],
-  );
-
-  const maximumAttempts = Number(location.state?.maximumAttempts) || 5;
-
-  const returnTo = useMemo(
-    () => getSafeReturnTo(location.state?.returnTo) || "/dashboard",
-    [location.state?.returnTo],
-  );
+  /*
+   * =========================================
+   * Component State
+   * =========================================
+   */
 
   const [digits, setDigits] = useState(() => Array(OTP_LENGTH).fill(""));
 
@@ -108,7 +89,36 @@ function LoginVerify() {
 
   const [submissionError, setSubmissionError] = useState("");
 
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [resendMessage, setResendMessage] = useState("");
+
+  const [isResending, setIsResending] = useState(false);
+
+  /*
+   * currentTime must be declared before any
+   * calculation that uses it.
+   */
+
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  const [expirationTime, setExpirationTime] = useState(() => {
+    return (
+      getExpirationTime(location.state?.expiresAt) ||
+      Date.now() + DEFAULT_OTP_LIFETIME_MS
+    );
+  });
+
+  const [resendAvailableAt, setResendAvailableAt] = useState(() => {
+    return (
+      getExpirationTime(location.state?.resendAvailableAt) ||
+      Date.now() + DEFAULT_RESEND_COOLDOWN_MS
+    );
+  });
+
+  const [maximumAttempts, setMaximumAttempts] = useState(() => {
+    const attempts = Number(location.state?.maximumAttempts);
+
+    return Number.isInteger(attempts) && attempts > 0 ? attempts : 5;
+  });
 
   const inputRefs = useRef(
     Array.from(
@@ -119,14 +129,34 @@ function LoginVerify() {
     ),
   );
 
+  /*
+   * =========================================
+   * Derived State
+   * =========================================
+   */
+
   const isSubmitting = operation === AUTH_OPERATION.VERIFYING_LOGIN;
 
   const remainingMilliseconds = expirationTime
     ? expirationTime - currentTime
-    : null;
+    : 0;
 
-  const isExpired =
-    remainingMilliseconds !== null && remainingMilliseconds <= 0;
+  const isExpired = remainingMilliseconds <= 0;
+
+  const resendRemainingMilliseconds = resendAvailableAt
+    ? resendAvailableAt - currentTime
+    : 0;
+
+  const resendRemainingSeconds = Math.max(
+    0,
+    Math.ceil(resendRemainingMilliseconds / 1000),
+  );
+
+  const canResend =
+    Boolean(challengeId) &&
+    resendRemainingSeconds === 0 &&
+    !isResending &&
+    !isSubmitting;
 
   const verificationCode = digits.join("");
 
@@ -148,15 +178,16 @@ function LoginVerify() {
 
   /*
    * =========================================
-   * Countdown
+   * Countdown Timer
    * =========================================
+   *
+   * This timer updates both:
+   *
+   * 1. OTP expiration countdown
+   * 2. Resend cooldown countdown
    */
 
   useEffect(() => {
-    if (!expirationTime || isExpired) {
-      return undefined;
-    }
-
     const intervalId = window.setInterval(() => {
       setCurrentTime(Date.now());
     }, 1000);
@@ -164,7 +195,7 @@ function LoginVerify() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [expirationTime, isExpired]);
+  }, []);
 
   /*
    * =========================================
@@ -184,7 +215,7 @@ function LoginVerify() {
    * =========================================
    */
 
-  const handleDigitChange = (index, value) => {
+  function handleDigitChange(index, value) {
     const numericValue = String(value).replace(/\D/g, "").slice(-1);
 
     setDigits((currentDigits) => {
@@ -199,10 +230,12 @@ function LoginVerify() {
 
     setSubmissionError("");
 
+    setResendMessage("");
+
     if (numericValue && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.current?.focus();
     }
-  };
+  }
 
   /*
    * =========================================
@@ -210,7 +243,7 @@ function LoginVerify() {
    * =========================================
    */
 
-  const handleDigitKeyDown = (index, event) => {
+  function handleDigitKeyDown(index, event) {
     if (event.key === "Backspace" && !digits[index] && index > 0) {
       inputRefs.current[index - 1]?.current?.focus();
 
@@ -221,6 +254,8 @@ function LoginVerify() {
       event.preventDefault();
 
       inputRefs.current[index - 1]?.current?.focus();
+
+      return;
     }
 
     if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
@@ -228,7 +263,7 @@ function LoginVerify() {
 
       inputRefs.current[index + 1]?.current?.focus();
     }
-  };
+  }
 
   /*
    * =========================================
@@ -236,7 +271,7 @@ function LoginVerify() {
    * =========================================
    */
 
-  const handlePaste = (event) => {
+  function handlePaste(event) {
     const pastedValue = event.clipboardData
       .getData("text")
       .replace(/\D/g, "")
@@ -260,21 +295,112 @@ function LoginVerify() {
 
     setSubmissionError("");
 
+    setResendMessage("");
+
     const focusIndex = Math.min(pastedValue.length, OTP_LENGTH) - 1;
 
     inputRefs.current[Math.max(focusIndex, 0)]?.current?.focus();
-  };
+  }
 
   /*
    * =========================================
-   * Submit
+   * Resend Login OTP
    * =========================================
    */
 
-  const handleSubmit = async (event) => {
+  async function handleResendCode() {
+    if (!canResend) {
+      return;
+    }
+
+    clearError();
+
+    setIsResending(true);
+
+    setSubmissionError("");
+
+    setFieldError("");
+
+    setResendMessage("");
+
+    try {
+      const result = await resendLoginOtp({
+        challengeId,
+      });
+
+      const now = Date.now();
+
+      const nextExpirationTime = getExpirationTime(result?.expiresAt);
+
+      const nextResendAvailableTime = getExpirationTime(
+        result?.resendAvailableAt,
+      );
+
+      setExpirationTime(nextExpirationTime || now + DEFAULT_OTP_LIFETIME_MS);
+
+      setResendAvailableAt(
+        nextResendAvailableTime || now + DEFAULT_RESEND_COOLDOWN_MS,
+      );
+
+      const nextMaximumAttempts = Number(result?.maximumAttempts);
+
+      if (Number.isInteger(nextMaximumAttempts) && nextMaximumAttempts > 0) {
+        setMaximumAttempts(nextMaximumAttempts);
+      }
+
+      /*
+       * The previous OTP is no longer valid.
+       * Remove any digits already entered.
+       */
+
+      setDigits(Array(OTP_LENGTH).fill(""));
+
+      setCurrentTime(now);
+
+      setResendMessage(
+        result?.message || "A new verification code was sent to your email.",
+      );
+
+      window.setTimeout(() => {
+        inputRefs.current[0]?.current?.focus();
+      }, 0);
+    } catch (error) {
+      /*
+       * The backend can return a retry delay
+       * when the resend cooldown is active.
+       */
+
+      const retryAfterSeconds = Number(error?.details?.retryAfterSeconds);
+
+      const retryAt = getExpirationTime(error?.details?.resendAvailableAt);
+
+      if (retryAt) {
+        setResendAvailableAt(retryAt);
+      } else if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+        setResendAvailableAt(Date.now() + retryAfterSeconds * 1000);
+      }
+
+      setCurrentTime(Date.now());
+
+      setSubmissionError(
+        error?.message ||
+          "A new verification code could not be sent. Please try again.",
+      );
+    } finally {
+      setIsResending(false);
+    }
+  }
+
+  /*
+   * =========================================
+   * Verify Login OTP
+   * =========================================
+   */
+
+  async function handleSubmit(event) {
     event.preventDefault();
 
-    if (isSubmitting || isExpired) {
+    if (isSubmitting || isResending || isExpired) {
       return;
     }
 
@@ -283,6 +409,8 @@ function LoginVerify() {
     setFieldError("");
 
     setSubmissionError("");
+
+    setResendMessage("");
 
     if (!OTP_PATTERN.test(verificationCode)) {
       setFieldError("Enter the complete six-digit verification code.");
@@ -303,7 +431,12 @@ function LoginVerify() {
         otp: verificationCode,
       });
 
-      navigate(returnTo, {
+      /*
+       * Every successful new login starts
+       * on the main dashboard.
+       */
+
+      navigate("/dashboard", {
         replace: true,
       });
     } catch (error) {
@@ -323,12 +456,16 @@ function LoginVerify() {
         inputRefs.current[0]?.current?.focus();
       }, 0);
     }
-  };
+  }
 
   /*
-   * A challenge exists only in navigation
-   * state. Reloading or directly opening this
-   * route returns the visitor to login.
+   * =========================================
+   * Missing Login Challenge
+   * =========================================
+   *
+   * The challenge exists only in navigation
+   * state. Reloading this page returns the
+   * visitor to the login page.
    */
 
   if (!challengeId) {
@@ -337,12 +474,17 @@ function LoginVerify() {
         to="/auth/login"
         replace
         state={{
-          returnTo,
           message: "Start by entering your email and password.",
         }}
       />
     );
   }
+
+  /*
+   * =========================================
+   * Page
+   * =========================================
+   */
 
   return (
     <section className="login-verify-page" aria-labelledby="login-verify-title">
@@ -361,9 +503,7 @@ function LoginVerify() {
           <span>Code expires in</span>
 
           <strong className={isExpired ? "login-verify-expired" : ""}>
-            {expirationTime
-              ? formatRemainingTime(remainingMilliseconds)
-              : "10:00"}
+            {formatRemainingTime(remainingMilliseconds)}
           </strong>
         </div>
 
@@ -381,19 +521,34 @@ function LoginVerify() {
           <div>
             <strong>This code has expired</strong>
 
-            <p>Return to sign in to request a new verification code.</p>
+            <p>
+              Request a new verification code below or return to the sign-in
+              page.
+            </p>
           </div>
         </div>
       ) : null}
 
-      {submissionError && !isExpired ? (
+      {submissionError ? (
         <div className="login-verify-alert" role="alert">
           <span aria-hidden="true">!</span>
 
           <div>
-            <strong>Verification unsuccessful</strong>
+            <strong>Request unsuccessful</strong>
 
             <p>{submissionError}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {resendMessage ? (
+        <div className="login-verify-success" role="status" aria-live="polite">
+          <span aria-hidden="true">✓</span>
+
+          <div>
+            <strong>New code sent</strong>
+
+            <p>{resendMessage}</p>
           </div>
         </div>
       ) : null}
@@ -401,7 +556,7 @@ function LoginVerify() {
       <form className="login-verify-form" onSubmit={handleSubmit} noValidate>
         <fieldset
           className="login-verify-code-fieldset"
-          disabled={isSubmitting || isExpired}
+          disabled={isSubmitting || isResending || isExpired}
         >
           <legend>Verification code</legend>
 
@@ -418,7 +573,7 @@ function LoginVerify() {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength="1"
+                maxLength={1}
                 value={digit}
                 onChange={(event) => {
                   handleDigitChange(index, event.target.value);
@@ -445,7 +600,7 @@ function LoginVerify() {
         <button
           type="submit"
           className="login-verify-submit"
-          disabled={isSubmitting || isExpired}
+          disabled={isSubmitting || isResending || isExpired}
         >
           {isSubmitting ? (
             <>
@@ -464,13 +619,22 @@ function LoginVerify() {
       <div className="login-verify-help">
         <p>Did not receive the code?</p>
 
-        <Link
-          to="/auth/login"
-          replace
-          state={{
-            returnTo,
+        <button
+          type="button"
+          className="login-verify-resend"
+          onClick={() => {
+            void handleResendCode();
           }}
+          disabled={!canResend}
         >
+          {isResending
+            ? "Sending..."
+            : resendRemainingSeconds > 0
+              ? `Resend in ${resendRemainingSeconds}s`
+              : "Resend Code"}
+        </button>
+
+        <Link to="/auth/login" replace>
           Return to sign in
         </Link>
       </div>

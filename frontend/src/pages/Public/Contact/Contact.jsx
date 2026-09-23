@@ -69,9 +69,9 @@ const requestCategories = [
   },
   {
     value: "resume",
-    label: "Résumé assistance",
+    label: "Resume assistance",
     description:
-      "Résumé creation, generation, customization, preview, or export.",
+      "Resume creation, generation, customization, preview, or export.",
   },
   {
     value: "portfolio",
@@ -1039,7 +1039,7 @@ function Contact() {
             <h3>Account and technical support</h3>
 
             <p>
-              Login, verification, session, profile, résumé, portfolio, and
+              Login, verification, session, profile, resume, portfolio, and
               application problems.
             </p>
           </article>

@@ -22,7 +22,7 @@ const productDemonstrations = [
     label: "Dashboard",
     title: "See your professional progress",
     description:
-      "Review your profile, recent activity, career records, résumés, and portfolio from one organized workspace.",
+      "Review your profile, recent activity, career records, resumes, and portfolio from one organized workspace.",
     media: "/media/demos/dashboard-ai.gif",
   },
   {
@@ -68,9 +68,9 @@ const productDemonstrations = [
   {
     id: "resume",
     label: "One-click generation",
-    title: "Generate a targeted résumé",
+    title: "Generate a targeted resume",
     description:
-      "Use your structured career information to produce a focused résumé draft for a specific opportunity.",
+      "Use your structured career information to produce a focused resume draft for a specific opportunity.",
     media: "/media/demos/resume-ai.gif",
   },
 ];
@@ -225,7 +225,7 @@ function Home() {
 
           <p>
             Organize your career information once, receive intelligent guidance
-            throughout every section, and generate a tailored résumé or
+            throughout every section, and generate a tailored resume or
             professional portfolio in one click.
           </p>
 
@@ -275,10 +275,10 @@ function Home() {
         <article>
           <span aria-hidden="true">02</span>
 
-          <h2>Generate targeted résumés</h2>
+          <h2>Generate targeted resumes</h2>
 
           <p>
-            Transform your structured career records into a focused résumé draft
+            Transform your structured career records into a focused resume draft
             for a role or opportunity in one click.
           </p>
         </article>

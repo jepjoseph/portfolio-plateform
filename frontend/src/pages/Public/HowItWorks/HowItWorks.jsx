@@ -79,15 +79,15 @@ const workflowSections = [
   },
   {
     id: "resume",
-    eyebrow: "06 · Résumé generation",
-    title: "Generate a focused résumé in one click.",
+    eyebrow: "06 · Resume generation",
+    title: "Generate a focused resume in one click.",
     description:
-      "Choose a target role and relevant career records. AI prepares a tailored résumé draft using information already in your workspace.",
+      "Choose a target role and relevant career records. AI prepares a tailored resume draft using information already in your workspace.",
     media: "/media/demos/resume-ai.gif",
     instructions: [
       "Choose the target opportunity.",
       "Select relevant career information.",
-      "Generate the résumé draft.",
+      "Generate the resume draft.",
       "Review, customize, and export it.",
     ],
   },
@@ -213,7 +213,7 @@ function HowItWorks() {
         <p>
           Portfolio Platform helps you complete every part of your professional
           workspace. AI can improve your content along the way, then generate a
-          focused résumé or professional portfolio using the information you
+          focused resume or professional portfolio using the information you
           have approved.
         </p>
 
@@ -292,7 +292,7 @@ function HowItWorks() {
           <p>
             AI may help prepare content, but information in your authenticated
             workspace is not automatically public. You decide what belongs in a
-            résumé, what appears in your portfolio, and when anything is
+            resume, what appears in your portfolio, and when anything is
             published.
           </p>
         </div>
@@ -336,7 +336,7 @@ function HowItWorks() {
 
           <p>
             Keep your career information current so AI can help you prepare
-            relevant résumés and portfolios whenever opportunities appear.
+            relevant resumes and portfolios whenever opportunities appear.
           </p>
         </div>
 

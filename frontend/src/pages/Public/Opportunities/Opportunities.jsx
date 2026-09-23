@@ -86,7 +86,7 @@ const aiDiscoverySteps = [
     number: "04",
     title: "Prepare your application materials",
     description:
-      "Use your existing records to generate a focused résumé, portfolio selection, or application draft for the opportunity.",
+      "Use your existing records to generate a focused resume, portfolio selection, or application draft for the opportunity.",
   },
 ];
 
@@ -374,7 +374,7 @@ function Opportunities() {
             <span>03</span>
             <strong>Generate with AI</strong>
             <p>
-              Prepare a targeted résumé or portfolio draft using your approved
+              Prepare a targeted resume or portfolio draft using your approved
               information.
             </p>
           </article>

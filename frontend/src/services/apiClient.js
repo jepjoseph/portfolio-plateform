@@ -9,6 +9,54 @@ const DEFAULT_API_ORIGIN = "http://localhost:5000";
 const DEFAULT_TIMEOUT_MS = 30000;
 
 /*
+ * =========================================
+ * Authentication Session Event
+ * =========================================
+ */
+
+export const AUTH_SESSION_INVALID_EVENT =
+  "portfolio-platform:auth-session-invalid";
+
+const INVALID_SESSION_CODES = new Set([
+  "AUTHENTICATION_REQUIRED",
+  "SESSION_REFRESH_TOKEN_INVALID",
+  "SESSION_NOT_FOUND",
+  "SESSION_REFRESH_CONFLICT",
+]);
+
+/*
+ * =========================================
+ * Invalid Session Notification
+ * =========================================
+ */
+
+function notifyInvalidAuthenticationSession(error) {
+  if (
+    typeof window === "undefined" ||
+    (Number(error?.status) !== 401 &&
+      error?.code !== "SESSION_REFRESH_CONFLICT")
+  ) {
+    return;
+  }
+
+  if (!INVALID_SESSION_CODES.has(error?.code)) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+      detail: {
+        status: error.status,
+
+        code: error.code,
+
+        message: error.message,
+      },
+    }),
+  );
+}
+
+/*
  * VITE_API_BASE_URL may be configured as:
  *
  * http://localhost:5000
@@ -237,7 +285,7 @@ async function parseResponseBody(response) {
  */
 
 function createResponseError({ response, data, method, url }) {
-  return new ApiError({
+  const error = new ApiError({
     message: data?.message || `The server returned HTTP ${response.status}.`,
 
     status: response.status,
@@ -254,6 +302,10 @@ function createResponseError({ response, data, method, url }) {
 
     url,
   });
+
+  notifyInvalidAuthenticationSession(error);
+
+  return error;
 }
 
 /*

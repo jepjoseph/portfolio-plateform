@@ -19,6 +19,8 @@ import {
   verifyRegistrationOtp,
 } from "../services/Auth/authService.js";
 
+import { AUTH_SESSION_INVALID_EVENT } from "../services/apiClient.js";
+
 /*
  * =========================================
  * Authentication Status
@@ -223,6 +225,42 @@ export function AuthProvider({ children }) {
 
   /*
    * =========================================
+   * Invalid Session Events
+   * =========================================
+   *
+   * Protected API requests dispatch this event
+   * when the server reports that the current
+   * session was revoked, expired, or invalid.
+   */
+
+  useEffect(() => {
+    function handleInvalidSession() {
+      clearAuthentication();
+
+      if (isMountedRef.current) {
+        setError(null);
+
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+
+    window.addEventListener(
+      AUTH_SESSION_INVALID_EVENT,
+
+      handleInvalidSession,
+    );
+
+    return () => {
+      window.removeEventListener(
+        AUTH_SESSION_INVALID_EVENT,
+
+        handleInvalidSession,
+      );
+    };
+  }, [clearAuthentication]);
+
+  /*
+   * =========================================
    * Restore Existing Session
    * =========================================
    *
@@ -284,6 +322,54 @@ export function AuthProvider({ children }) {
       }
     }
   }, [applyAuthentication, clearAuthentication]);
+
+  /*
+   * =========================================
+   * Revalidate Returning Browsers
+   * =========================================
+   *
+   * If another device revoked this browser's
+   * session, returning to this tab triggers a
+   * server validation before continued use.
+   */
+
+  useEffect(() => {
+    function revalidateAuthentication() {
+      if (!isMountedRef.current || status !== AUTH_STATUS.AUTHENTICATED) {
+        return;
+      }
+
+      void restoreAuthentication();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        revalidateAuthentication();
+      }
+    }
+
+    window.addEventListener("focus", revalidateAuthentication);
+
+    document.addEventListener(
+      "visibilitychange",
+
+      handleVisibilityChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+
+        revalidateAuthentication,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+
+        handleVisibilityChange,
+      );
+    };
+  }, [status, restoreAuthentication]);
 
   /*
    * =========================================
@@ -680,21 +766,41 @@ export function AuthProvider({ children }) {
     }),
     [
       user,
+
       roles,
+
       session,
+
       status,
+
       operation,
+
       error,
+
       isAuthenticated,
+
       isInitializing,
+
       isBusy,
+
       restoreAuthentication,
+
       beginRegistration,
+
+      verifyRegistration,
+
+      finishRegistration,
+
       beginPasswordLogin,
+
       completeLogin,
+
       refreshAuthentication,
+
       logout,
+
       hasRole,
+
       clearError,
     ],
   );

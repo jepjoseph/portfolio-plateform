@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 
 import { AUTH_STATUS, useAuth } from "../context/AuthContext.jsx";
 
@@ -15,8 +15,6 @@ import "./RouteGuards.css";
  */
 
 function ProtectedRoute({ children = null }) {
-  const location = useLocation();
-
   const {
     status,
     error,
@@ -41,7 +39,7 @@ function ProtectedRoute({ children = null }) {
   }
 
   /*
-   * A backend/network failure is different
+   * A backend or network failure is different
    * from an ordinary signed-out state.
    */
 
@@ -71,20 +69,14 @@ function ProtectedRoute({ children = null }) {
     );
   }
 
-  if (!isAuthenticated) {
-    const returnTo = [location.pathname, location.search, location.hash].join(
-      "",
-    );
+  /*
+   * Do not preserve the previous protected
+   * location. A future successful login will
+   * always begin at /dashboard.
+   */
 
-    return (
-      <Navigate
-        to="/auth/login"
-        replace
-        state={{
-          returnTo,
-        }}
-      />
-    );
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login" replace />;
   }
 
   return children || <Outlet />;
