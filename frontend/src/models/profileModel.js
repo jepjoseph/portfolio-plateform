@@ -160,7 +160,7 @@ export function createEmptyProfilePicture() {
      */
 
     imageUrl: "",
-    blobName: "",
+    storageKey: "",
 
     fileName: "",
     fileType: "",
@@ -346,9 +346,9 @@ function normalizeProfilePicture(value, index) {
         PROFILE_FIELD_LIMITS.imageUrl,
       );
 
-  const blobName = useDefaultAvatar
+  const storageKey = useDefaultAvatar
     ? ""
-    : normalizeText(source.blobName, PROFILE_FIELD_LIMITS.fileName);
+    : normalizeText(source.storageKey, PROFILE_FIELD_LIMITS.storageKey);
 
   const fileName = useDefaultAvatar
     ? ""
@@ -382,7 +382,7 @@ function normalizeProfilePicture(value, index) {
     type: normalizeText(source.type, 100),
 
     imageUrl,
-    blobName,
+    storageKey,
 
     fileName,
     fileType,

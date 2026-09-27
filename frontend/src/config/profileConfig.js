@@ -79,7 +79,8 @@ export const PROFILE_FIELD_LIMITS = {
 
   fileName: 255,
   fileType: 100,
-  imageUrl: 5_000_000,
+  storageKey: 255,
+  imageUrl: 2048,
 
   maximumProfessionalTitles: 20,
   maximumEmails: 20,
@@ -113,9 +114,7 @@ export const PROFILE_PICTURE_UPLOAD_CONFIG = {
    * Azure Blob Storage will later replace Base64.
    */
 
-  maximumLocalFileSize: 3 * 1024 * 1024,
-
-  maximumProductionFileSize: 20 * 1024 * 1024,
+  maxFileSize: 20 * 1024 * 1024,
 };
 
 /*
@@ -427,7 +426,7 @@ export const CONTACT_INFORMATION_CONFIG = {
 
     allowedFileTypes: PROFILE_PICTURE_UPLOAD_CONFIG.allowedFileTypes,
 
-    maxFileSize: PROFILE_PICTURE_UPLOAD_CONFIG.maximumLocalFileSize,
+    maxFileSize: PROFILE_PICTURE_UPLOAD_CONFIG.maxFileSize,
 
     maximumItems: PROFILE_FIELD_LIMITS.maximumProfilePictures,
 

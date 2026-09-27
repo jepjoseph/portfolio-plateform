@@ -91,6 +91,7 @@ function createProfilePicture(order = 0) {
     id: createId("profile-picture"),
     type: "",
     imageUrl: "",
+    storageKey: "",
     fileName: "",
     fileType: "",
     fileSize: 0,
@@ -313,6 +314,8 @@ function cleanProfilePictures(profilePictures = []) {
       ...picture,
 
       imageUrl: useDefaultAvatar ? "" : imageUrl,
+
+      storageKey: useDefaultAvatar ? "" : getText(picture.storageKey),
 
       fileName: useDefaultAvatar ? "" : getText(picture.fileName),
 

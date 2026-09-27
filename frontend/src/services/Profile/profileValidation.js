@@ -611,10 +611,6 @@ function validateContactCollection(collector, profile, category) {
  * =========================================
  */
 
-function isDataImageUrl(value) {
-  return /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(value);
-}
-
 function isRemoteImageUrl(value) {
   try {
     const parsedUrl = new URL(value);
@@ -623,22 +619,6 @@ function isRemoteImageUrl(value) {
   } catch {
     return false;
   }
-}
-
-function getMaximumLocalPictureSize() {
-  return (
-    Number(PROFILE_PICTURE_UPLOAD_CONFIG.maximumLocalFileSize) ||
-    Number(PROFILE_PICTURE_UPLOAD_CONFIG.maxFileSize) ||
-    0
-  );
-}
-
-function getMaximumProductionPictureSize() {
-  return (
-    Number(PROFILE_PICTURE_UPLOAD_CONFIG.maximumProductionFileSize) ||
-    Number(PROFILE_PICTURE_UPLOAD_CONFIG.maxFileSize) ||
-    0
-  );
 }
 
 function validatePictureDimension(collector, field, value, label) {
@@ -735,10 +715,10 @@ function validateProfilePictures(collector, profile) {
      */
 
     if (imageUrl) {
-      if (!isDataImageUrl(imageUrl) && !isRemoteImageUrl(imageUrl)) {
+      if (!isRemoteImageUrl(imageUrl)) {
         collector.addError(
           `${fieldPrefix}.imageUrl`,
-          "The picture must contain a valid uploaded image or remote image URL.",
+          "The picture must contain a valid image URL.",
           "invalid_image_url",
         );
       }
@@ -753,10 +733,10 @@ function validateProfilePictures(collector, profile) {
 
       validateTextLength(
         collector,
-        `${fieldPrefix}.blobName`,
-        picture.blobName,
-        PROFILE_FIELD_LIMITS.fileName,
-        "Picture storage name",
+        `${fieldPrefix}.storageKey`,
+        picture.storageKey,
+        PROFILE_FIELD_LIMITS.storageKey,
+        "Picture storage key",
       );
 
       validateTextLength(
@@ -800,33 +780,14 @@ function validateProfilePictures(collector, profile) {
             "invalid_file_size",
           );
         } else {
-          const maximumLocalFileSize = getMaximumLocalPictureSize();
+          const maximumFileSize =
+            Number(PROFILE_PICTURE_UPLOAD_CONFIG.maxFileSize) || 0;
 
-          const maximumProductionFileSize = getMaximumProductionPictureSize();
-
-          if (
-            isDataImageUrl(imageUrl) &&
-            maximumLocalFileSize > 0 &&
-            numericFileSize > maximumLocalFileSize
-          ) {
-            collector.addError(
-              `${fieldPrefix}.fileSize`,
-              `Local pictures must be ${Math.round(
-                maximumLocalFileSize / 1024 / 1024,
-              )} MB or smaller.`,
-              "file_too_large",
-            );
-          }
-
-          if (
-            !isDataImageUrl(imageUrl) &&
-            maximumProductionFileSize > 0 &&
-            numericFileSize > maximumProductionFileSize
-          ) {
+          if (maximumFileSize > 0 && numericFileSize > maximumFileSize) {
             collector.addError(
               `${fieldPrefix}.fileSize`,
               `Pictures must be ${Math.round(
-                maximumProductionFileSize / 1024 / 1024,
+                maximumFileSize / 1024 / 1024,
               )} MB or smaller.`,
               "file_too_large",
             );
@@ -860,7 +821,7 @@ function validateProfilePictures(collector, profile) {
 
     if (useDefaultAvatar) {
       const hasUploadedFileMetadata = Boolean(
-        getText(picture.blobName) ||
+        getText(picture.storageKey) ||
         getText(picture.fileName) ||
         getText(picture.fileType) ||
         Number(picture.fileSize) > 0 ||

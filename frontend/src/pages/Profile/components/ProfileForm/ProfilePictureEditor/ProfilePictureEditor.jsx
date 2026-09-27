@@ -7,6 +7,8 @@ import {
   getProfilePictureUrl,
 } from "../../../../../services/Profile/profileUtils.js";
 
+import { uploadProfilePicture } from "../../../../../services/Profile/profileService.js";
+
 import "./ProfilePictureEditor.css";
 
 /*
@@ -14,22 +16,6 @@ import "./ProfilePictureEditor.css";
  * Helpers
  * =========================================
  */
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("The selected picture could not be read."));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
 
 function formatFileSize(fileSize) {
   const numericFileSize = Number(fileSize);
@@ -182,12 +168,13 @@ function ProfilePictureEditor({
     try {
       setProcessingPictureId(pictureId);
 
-      const imageUrl = await readFileAsDataUrl(file);
+      const uploadedPicture = await uploadProfilePicture(file);
 
-      onChange?.(pictureId, "imageUrl", imageUrl);
-      onChange?.(pictureId, "fileName", file.name);
-      onChange?.(pictureId, "fileType", file.type);
-      onChange?.(pictureId, "fileSize", file.size);
+      onChange?.(pictureId, "imageUrl", uploadedPicture.imageUrl);
+      onChange?.(pictureId, "storageKey", uploadedPicture.storageKey);
+      onChange?.(pictureId, "fileName", uploadedPicture.fileName);
+      onChange?.(pictureId, "fileType", uploadedPicture.fileType);
+      onChange?.(pictureId, "fileSize", uploadedPicture.fileSize);
 
       /*
        * Uploading a picture disables the default-avatar
@@ -225,7 +212,7 @@ function ProfilePictureEditor({
     }
 
     onChange?.(pictureId, "imageUrl", "");
-    onChange?.(pictureId, "blobName", "");
+    onChange?.(pictureId, "storageKey", "");
     onChange?.(pictureId, "fileName", "");
     onChange?.(pictureId, "fileType", "");
     onChange?.(pictureId, "fileSize", 0);
@@ -425,7 +412,7 @@ function ProfilePictureEditor({
                       >
                         <span>
                           {isProcessing
-                            ? "Processing Picture..."
+                            ? "Uploading Picture..."
                             : pictureUrl
                               ? "Replace Picture"
                               : "Choose Picture"}

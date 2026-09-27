@@ -1,4 +1,4 @@
-import { apiGet, apiPut } from "../apiClient.js";
+import { apiGet, apiPost, apiPut } from "../apiClient.js";
 import {
   createEmptyProfessionalTitle,
   createEmptyProfile,
@@ -77,6 +77,33 @@ export async function getProfile(options = {}) {
   return normalizeProfile(normalizeResponse(response).profile);
 }
 
+export async function uploadProfilePicture(file, options = {}) {
+  if (!(file instanceof File)) {
+    throw createServiceError(
+      "A profile picture file is required.",
+      "PROFILE_PICTURE_FILE_REQUIRED",
+    );
+  }
+
+  const formData = new FormData();
+
+  formData.append("picture", file);
+
+  const response = await apiPost("/profile/pictures/upload", formData, options);
+
+  const picture = response?.picture;
+
+  if (!picture?.imageUrl || !picture?.storageKey) {
+    throw createServiceError(
+      "The server returned an invalid profile picture upload response.",
+      "PROFILE_PICTURE_UPLOAD_RESPONSE_INVALID",
+      502,
+    );
+  }
+
+  return picture;
+}
+
 export async function updateProfile(profileData, options = {}) {
   return save(profileData, options);
 }
@@ -122,7 +149,11 @@ function createItem(collectionName, values) {
   };
 }
 
-export async function addProfileItem(collectionName, values = {}, options = {}) {
+export async function addProfileItem(
+  collectionName,
+  values = {},
+  options = {},
+) {
   assertCollection(collectionName);
   const profile = await getProfile(options);
   const item = createItem(collectionName, {
@@ -133,76 +164,153 @@ export async function addProfileItem(collectionName, values = {}, options = {}) 
     { ...profile, [collectionName]: [...profile[collectionName], item] },
     options,
   );
-  return { item: updatedProfile[collectionName].find((entry) => entry.id === item.id), profile: updatedProfile };
+  return {
+    item: updatedProfile[collectionName].find((entry) => entry.id === item.id),
+    profile: updatedProfile,
+  };
 }
 
-export async function updateProfileItem(collectionName, itemId, updates = {}, options = {}) {
+export async function updateProfileItem(
+  collectionName,
+  itemId,
+  updates = {},
+  options = {},
+) {
   assertCollection(collectionName);
   const profile = await getProfile(options);
   let found = false;
   const collection = profile[collectionName].map((item) => {
     if (item.id !== itemId) return item;
     found = true;
-    return { ...item, ...updates, id: item.id, createdAt: item.createdAt, updatedAt: new Date().toISOString() };
+    return {
+      ...item,
+      ...updates,
+      id: item.id,
+      createdAt: item.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
   });
-  if (!found) throw createServiceError("The requested Profile information could not be found.", "PROFILE_ITEM_NOT_FOUND", 404);
-  const updatedProfile = await save({ ...profile, [collectionName]: collection }, options);
-  return { item: updatedProfile[collectionName].find((item) => item.id === itemId), profile: updatedProfile };
+  if (!found)
+    throw createServiceError(
+      "The requested Profile information could not be found.",
+      "PROFILE_ITEM_NOT_FOUND",
+      404,
+    );
+  const updatedProfile = await save(
+    { ...profile, [collectionName]: collection },
+    options,
+  );
+  return {
+    item: updatedProfile[collectionName].find((item) => item.id === itemId),
+    profile: updatedProfile,
+  };
 }
 
-export async function replaceProfileCollection(collectionName, values, options = {}) {
+export async function replaceProfileCollection(
+  collectionName,
+  values,
+  options = {},
+) {
   assertCollection(collectionName);
   const profile = await getProfile(options);
   return save({ ...profile, [collectionName]: values }, options);
 }
 
-export async function reorderProfileCollection(collectionName, orderedItemIds, options = {}) {
+export async function reorderProfileCollection(
+  collectionName,
+  orderedItemIds,
+  options = {},
+) {
   assertCollection(collectionName);
   const profile = await getProfile(options);
   const positions = new Map(orderedItemIds.map((id, index) => [id, index]));
   const collection = [...profile[collectionName]]
-    .sort((a, b) => (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER))
+    .sort(
+      (a, b) =>
+        (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    )
     .map((item, order) => ({ ...item, order }));
   return save({ ...profile, [collectionName]: collection }, options);
 }
 
-export async function setPrimaryProfileItem(collectionName, itemId, options = {}) {
+export async function setPrimaryProfileItem(
+  collectionName,
+  itemId,
+  options = {},
+) {
   assertCollection(collectionName);
   const profile = await getProfile(options);
-  const item = profile[collectionName].find((value) => value.id === itemId && value.status === "active");
-  if (!item) throw createServiceError("Only an active Profile item can be primary.", "PROFILE_PRIMARY_ITEM_INVALID");
-  const updatedProfile = await save({
-    ...profile,
-    preferences: { ...profile.preferences, [PRIMARY_BY_COLLECTION[collectionName]]: itemId },
-  }, options);
+  const item = profile[collectionName].find(
+    (value) => value.id === itemId && value.status === "active",
+  );
+  if (!item)
+    throw createServiceError(
+      "Only an active Profile item can be primary.",
+      "PROFILE_PRIMARY_ITEM_INVALID",
+    );
+  const updatedProfile = await save(
+    {
+      ...profile,
+      preferences: {
+        ...profile.preferences,
+        [PRIMARY_BY_COLLECTION[collectionName]]: itemId,
+      },
+    },
+    options,
+  );
   return { item, profile: updatedProfile };
 }
 
 export function archiveProfileItem(collectionName, itemId, options = {}) {
-  return updateProfileItem(collectionName, itemId, { status: "archived" }, options);
+  return updateProfileItem(
+    collectionName,
+    itemId,
+    { status: "archived" },
+    options,
+  );
 }
 
 export function restoreProfileItem(collectionName, itemId, options = {}) {
-  return updateProfileItem(collectionName, itemId, { status: "active" }, options);
+  return updateProfileItem(
+    collectionName,
+    itemId,
+    { status: "active" },
+    options,
+  );
 }
 
 export async function deleteProfileItem(collectionName, itemId, options = {}) {
   assertCollection(collectionName);
   const profile = await getProfile(options);
-  const collection = profile[collectionName].filter((item) => item.id !== itemId).map((item, order) => ({ ...item, order }));
-  if (collection.length === profile[collectionName].length) throw createServiceError("The requested Profile information could not be found.", "PROFILE_ITEM_NOT_FOUND", 404);
+  const collection = profile[collectionName]
+    .filter((item) => item.id !== itemId)
+    .map((item, order) => ({ ...item, order }));
+  if (collection.length === profile[collectionName].length)
+    throw createServiceError(
+      "The requested Profile information could not be found.",
+      "PROFILE_ITEM_NOT_FOUND",
+      404,
+    );
   const preferenceName = PRIMARY_BY_COLLECTION[collectionName];
   const preferences = { ...profile.preferences };
   if (preferences[preferenceName] === itemId) {
-    preferences[preferenceName] = collection.find((item) => item.status === "active")?.id || "";
+    preferences[preferenceName] =
+      collection.find((item) => item.status === "active")?.id || "";
   }
-  const updatedProfile = await save({ ...profile, [collectionName]: collection, preferences }, options);
+  const updatedProfile = await save(
+    { ...profile, [collectionName]: collection, preferences },
+    options,
+  );
   return { deleted: true, itemId, profile: updatedProfile };
 }
 
 export async function updateProfileVisibility(updates, options = {}) {
   const profile = await getProfile(options);
-  return save({ ...profile, visibility: { ...profile.visibility, ...updates } }, options);
+  return save(
+    { ...profile, visibility: { ...profile.visibility, ...updates } },
+    options,
+  );
 }
 
 export async function archiveProfile(options = {}) {
@@ -242,4 +350,3 @@ export async function createInitialProfile(initialValues = {}, options = {}) {
 export const PROFILE_COLLECTION_PRIMARY_PREFERENCES = {
   ...PRIMARY_BY_COLLECTION,
 };
-
