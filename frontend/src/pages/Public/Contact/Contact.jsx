@@ -33,7 +33,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * parentheses, spaces, or hyphens in it.
  */
 
-const PUBLIC_CONTACT_EMAIL = "jeanpierre.joseph5@gmail.com";
+const PUBLIC_CONTACT_EMAIL = "support@portfolio.motich.com";
 
 const PUBLIC_CONTACT_PHONE_DISPLAY = "+1 (954) 795-7778";
 
