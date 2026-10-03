@@ -1,10 +1,8 @@
-import {
-  forwardRef,
-  useId,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Profile\components\ProfileForm\ProfilePictureEditor\ProfilePictureEditor.jsx
+============================================================
+
+import { useId, useState } from "react";
 
 import { PROFILE_PICTURE_UPLOAD_CONFIG } from "../../../../../config/profileConfig.js";
 
@@ -13,10 +11,7 @@ import {
   getProfilePictureUrl,
 } from "../../../../../services/Profile/profileUtils.js";
 
-import {
-  deleteUncommittedProfilePicture,
-  uploadProfilePicture,
-} from "../../../../../services/Profile/profileService.js";
+import { uploadProfilePicture } from "../../../../../services/Profile/profileService.js";
 
 import "./ProfilePictureEditor.css";
 
@@ -73,43 +68,20 @@ function getFieldError(fieldErrors, picture, index, field) {
  * =========================================
  */
 
-const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
-  {
-    profilePictures = [],
-    defaultAvatarText = "P",
-    fieldErrors = {},
-    disabled = false,
-    onAdd,
-    onChange,
-    onRemove,
-  },
-  ref,
-) {
+function ProfilePictureEditor({
+  profilePictures = [],
+  defaultAvatarText = "P",
+  fieldErrors = {},
+  disabled = false,
+  onAdd,
+  onChange,
+  onRemove,
+}) {
   const sectionTitleId = useId();
 
   const [fileErrors, setFileErrors] = useState({});
 
   const [processingPictureId, setProcessingPictureId] = useState("");
-
-  const pendingStorageKeysRef = useRef(new Map());
-
-  useImperativeHandle(ref, () => ({
-    async cleanupPendingUploads() {
-      const pendingStorageKeys = [...pendingStorageKeysRef.current.values()];
-
-      pendingStorageKeysRef.current.clear();
-
-      await Promise.allSettled(
-        pendingStorageKeys.map((storageKey) =>
-          deleteUncommittedProfilePicture(storageKey),
-        ),
-      );
-    },
-
-    markPendingUploadsCommitted() {
-      pendingStorageKeysRef.current.clear();
-    },
-  }));
 
   const activePictures = Array.isArray(profilePictures)
     ? profilePictures.filter((picture) => picture?.status !== "archived")
@@ -200,12 +172,7 @@ const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
     try {
       setProcessingPictureId(pictureId);
 
-      const previousPendingStorageKey =
-        pendingStorageKeysRef.current.get(pictureId) || "";
-
       const uploadedPicture = await uploadProfilePicture(file);
-
-      pendingStorageKeysRef.current.set(pictureId, uploadedPicture.storageKey);
 
       onChange?.(pictureId, "imageUrl", uploadedPicture.imageUrl);
       onChange?.(pictureId, "storageKey", uploadedPicture.storageKey);
@@ -219,20 +186,6 @@ const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
        */
 
       onChange?.(pictureId, "useDefaultAvatar", false);
-
-      if (
-        previousPendingStorageKey &&
-        previousPendingStorageKey !== uploadedPicture.storageKey
-      ) {
-        deleteUncommittedProfilePicture(previousPendingStorageKey).catch(
-          (cleanupError) => {
-            console.warn(
-              "Temporary profile picture cleanup failed.",
-              cleanupError,
-            );
-          },
-        );
-      }
 
       clearFileError(pictureId);
     } catch (error) {
@@ -262,22 +215,6 @@ const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
       return;
     }
 
-    const pendingStorageKey =
-      pendingStorageKeysRef.current.get(pictureId) || "";
-
-    if (pendingStorageKey) {
-      pendingStorageKeysRef.current.delete(pictureId);
-
-      deleteUncommittedProfilePicture(pendingStorageKey).catch(
-        (cleanupError) => {
-          console.warn(
-            "Temporary profile picture cleanup failed.",
-            cleanupError,
-          );
-        },
-      );
-    }
-
     onChange?.(pictureId, "imageUrl", "");
     onChange?.(pictureId, "storageKey", "");
     onChange?.(pictureId, "fileName", "");
@@ -288,31 +225,6 @@ const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
     onChange?.(pictureId, "useDefaultAvatar", true);
 
     clearFileError(pictureId);
-  };
-
-  const handleRemovePicture = (pictureId) => {
-    if (disabled) {
-      return;
-    }
-
-    const pendingStorageKey =
-      pendingStorageKeysRef.current.get(pictureId) || "";
-
-    if (pendingStorageKey) {
-      pendingStorageKeysRef.current.delete(pictureId);
-
-      deleteUncommittedProfilePicture(pendingStorageKey).catch(
-        (cleanupError) => {
-          console.warn(
-            "Temporary profile picture cleanup failed.",
-            cleanupError,
-          );
-        },
-      );
-    }
-
-    clearFileError(pictureId);
-    onRemove?.(pictureId);
   };
 
   const handleCancelDefaultAvatar = (pictureId) => {
@@ -438,7 +350,7 @@ const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
                   <button
                     type="button"
                     className="profile-picture-editor-remove-button"
-                    onClick={() => handleRemovePicture(picture.id)}
+                    onClick={() => onRemove?.(picture.id)}
                     disabled={disabled || isProcessing}
                     aria-label={`Remove picture record ${index + 1}`}
                     title="Remove picture record"
@@ -663,6 +575,70 @@ const ProfilePictureEditor = forwardRef(function ProfilePictureEditor(
       )}
     </section>
   );
-});
+}
 
 export default ProfilePictureEditor;
+
+============================================================
+FILE: .\backend\src\services\Service\profileService.js
+============================================================
+
+import {
+  findProfileByUserId,
+  replaceProfileByUserId,
+} from "../../repositories/profileRepository.js";
+
+function createProfileError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+  error.name = "ProfileServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProfileError({
+      message: "An authenticated user ID is required.",
+      code: "PROFILE_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Profile.",
+    });
+  }
+
+  return userId.trim();
+}
+
+export async function getAuthenticatedProfile({ userId }) {
+  const profile = await findProfileByUserId(assertUserId(userId));
+
+  if (!profile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return profile;
+}
+
+export async function updateAuthenticatedProfile({ userId, profile }) {
+  const updatedProfile = await replaceProfileByUserId(
+    assertUserId(userId),
+    profile,
+  );
+
+  if (!updatedProfile) {
+    throw createProfileError({
+      message: "The authenticated user Profile could not be updated.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return updatedProfile;
+}

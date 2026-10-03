@@ -1,0 +1,435 @@
+
+============================================================
+FILE: .\backend\src\repositories\profileRepository.js
+============================================================
+
+import { getDatabasePool, sql } from "../config/database.js";
+
+const CONTACT_CATEGORIES = [
+  "emails",
+  "phones",
+  "websites",
+  "locations",
+  "socialLinks",
+];
+
+function toIso(value) {
+  return value instanceof Date ? value.toISOString() : String(value || "");
+}
+
+function createEmptyCollections() {
+  return {
+    emails: [],
+    phones: [],
+    websites: [],
+    locations: [],
+    socialLinks: [],
+  };
+}
+
+function mapProfile({ profileRow, titleRows, contactRows, pictureRows }) {
+  if (!profileRow) return null;
+
+  const contacts = createEmptyCollections();
+
+  for (const row of contactRows) {
+    if (!contacts[row.category]) continue;
+
+    contacts[row.category].push({
+      id: row.item_id,
+      type: row.contact_type,
+      value: row.contact_value,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    });
+  }
+
+  return {
+    modelVersion: 1,
+    id: profileRow.user_id,
+    userId: profileRow.user_id,
+    firstName: profileRow.first_name,
+    middleName: profileRow.middle_name,
+    lastName: profileRow.last_name,
+    professionalTitles: titleRows.map((row) => ({
+      id: row.item_id,
+      name: row.title_name,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    ...contacts,
+    profilePictures: pictureRows.map((row) => ({
+      id: row.item_id,
+      type: row.picture_type,
+      imageUrl: row.image_url,
+      storageKey: row.blob_name,
+      fileName: row.file_name,
+      fileType: row.file_type,
+      fileSize: Number(row.file_size),
+      useDefaultAvatar: Boolean(row.use_default_avatar),
+      width: row.image_width === null ? null : Number(row.image_width),
+      height: row.image_height === null ? null : Number(row.image_height),
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    preferences: {
+      primaryProfessionalTitleId:
+        profileRow.primary_professional_title_id || "",
+      primaryEmailId: profileRow.primary_email_id || "",
+      primaryPhoneId: profileRow.primary_phone_id || "",
+      primaryWebsiteId: profileRow.primary_website_id || "",
+      primaryLocationId: profileRow.primary_location_id || "",
+      primarySocialLinkId: profileRow.primary_social_link_id || "",
+      primaryProfilePictureId: profileRow.primary_profile_picture_id || "",
+    },
+    visibility: {
+      isPublic: profileRow.profile_visibility === "public",
+    },
+    status: profileRow.profile_status,
+    createdAt: toIso(profileRow.created_at),
+    updatedAt: toIso(profileRow.updated_at),
+  };
+}
+
+async function readProfile(executor, userId) {
+  const profileResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT
+        user_id,
+        first_name,
+        middle_name,
+        last_name,
+        profile_visibility,
+        profile_status,
+        primary_professional_title_id,
+        primary_email_id,
+        primary_phone_id,
+        primary_website_id,
+        primary_location_id,
+        primary_social_link_id,
+        primary_profile_picture_id,
+        created_at,
+        updated_at
+      FROM dbo.user_profiles
+      WHERE user_id = @userId;
+    `);
+
+  const profileRow = profileResult.recordset[0];
+  if (!profileRow) return null;
+
+  const titleResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, title_name, description, display_order,
+             item_status, created_at, updated_at
+      FROM dbo.user_profile_professional_titles
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  const contactResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, category, contact_type, contact_value, description,
+             display_order, item_status, created_at, updated_at
+      FROM dbo.user_profile_contacts
+      WHERE user_id = @userId
+      ORDER BY category, display_order, created_at;
+    `);
+
+  const pictureResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, picture_type, image_url, blob_name, file_name,
+             file_type, file_size, use_default_avatar, image_width,
+             image_height, description, display_order, item_status,
+             created_at, updated_at
+      FROM dbo.user_profile_pictures
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  return mapProfile({
+    profileRow,
+    titleRows: titleResult.recordset,
+    contactRows: contactResult.recordset,
+    pictureRows: pictureResult.recordset,
+  });
+}
+
+export async function findProfileByUserId(userId) {
+  const pool = await getDatabasePool();
+  return readProfile(pool, userId);
+}
+
+async function insertTitle(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("name", sql.NVarChar(200), item.name)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_professional_titles
+      (user_id, item_id, title_name, description, display_order,
+       item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @name, @description, @displayOrder,
+       @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertContact(transaction, userId, category, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("category", sql.NVarChar(30), category)
+    .input("contactType", sql.NVarChar(30), item.type)
+    .input("contactValue", sql.NVarChar(2048), item.value)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_contacts
+      (user_id, item_id, category, contact_type, contact_value, description,
+       display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @category, @contactType, @contactValue, @description,
+       @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertPicture(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("pictureType", sql.NVarChar(100), item.type)
+    .input("imageUrl", sql.NVarChar(2048), item.imageUrl)
+    .input("storageKey", sql.NVarChar(255), item.storageKey)
+    .input("fileName", sql.NVarChar(255), item.fileName)
+    .input("fileType", sql.NVarChar(100), item.fileType)
+    .input("fileSize", sql.BigInt, item.fileSize)
+    .input("useDefaultAvatar", sql.Bit, item.useDefaultAvatar)
+    .input("imageWidth", sql.Int, item.width)
+    .input("imageHeight", sql.Int, item.height)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_pictures
+      (user_id, item_id, picture_type, image_url, blob_name, file_name,
+       file_type, file_size, use_default_avatar, image_width, image_height,
+       description, display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @pictureType, @imageUrl, @storageKey, @fileName,
+       @fileType, @fileSize, @useDefaultAvatar, @imageWidth, @imageHeight,
+       @description, @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+export async function replaceProfileByUserId(userId, profile) {
+  const pool = await getDatabasePool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+  try {
+    const updateResult = await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("firstName", sql.NVarChar(100), profile.firstName)
+      .input("middleName", sql.NVarChar(100), profile.middleName)
+      .input("lastName", sql.NVarChar(100), profile.lastName)
+      .input(
+        "visibility",
+        sql.NVarChar(20),
+        profile.visibility.isPublic ? "public" : "private",
+      )
+      .input("profileStatus", sql.NVarChar(20), profile.status)
+      .input(
+        "primaryTitle",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfessionalTitleId || null,
+      )
+      .input(
+        "primaryEmail",
+        sql.NVarChar(200),
+        profile.preferences.primaryEmailId || null,
+      )
+      .input(
+        "primaryPhone",
+        sql.NVarChar(200),
+        profile.preferences.primaryPhoneId || null,
+      )
+      .input(
+        "primaryWebsite",
+        sql.NVarChar(200),
+        profile.preferences.primaryWebsiteId || null,
+      )
+      .input(
+        "primaryLocation",
+        sql.NVarChar(200),
+        profile.preferences.primaryLocationId || null,
+      )
+      .input(
+        "primarySocial",
+        sql.NVarChar(200),
+        profile.preferences.primarySocialLinkId || null,
+      )
+      .input(
+        "primaryPicture",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfilePictureId || null,
+      ).query(`
+        UPDATE dbo.user_profiles
+        SET first_name = @firstName,
+            middle_name = @middleName,
+            last_name = @lastName,
+            display_name = LTRIM(RTRIM(CONCAT(@firstName, N' ', NULLIF(@middleName, N''), N' ', @lastName))),
+            profile_visibility = @visibility,
+            profile_status = @profileStatus,
+            primary_professional_title_id = @primaryTitle,
+            primary_email_id = @primaryEmail,
+            primary_phone_id = @primaryPhone,
+            primary_website_id = @primaryWebsite,
+            primary_location_id = @primaryLocation,
+            primary_social_link_id = @primarySocial,
+            primary_profile_picture_id = @primaryPicture,
+            updated_at = SYSUTCDATETIME()
+        WHERE user_id = @userId;
+      `);
+
+    if (!updateResult.rowsAffected[0]) {
+      await transaction.rollback();
+      return null;
+    }
+
+    await new sql.Request(transaction).input(
+      "userId",
+      sql.UniqueIdentifier,
+      userId,
+    ).query(`
+        DELETE FROM dbo.user_profile_professional_titles WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_contacts WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_pictures WHERE user_id = @userId;
+      `);
+
+    for (const item of profile.professionalTitles) {
+      await insertTitle(transaction, userId, item);
+    }
+
+    for (const category of CONTACT_CATEGORIES) {
+      for (const item of profile[category]) {
+        await insertContact(transaction, userId, category, item);
+      }
+    }
+
+    for (const item of profile.profilePictures) {
+      await insertPicture(transaction, userId, item);
+    }
+
+    await transaction.commit();
+    return findProfileByUserId(userId);
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Profile transaction rollback failed:", rollbackError);
+    }
+
+    throw error;
+  }
+}
+
+============================================================
+FILE: .\backend\src\services\Service\profileService.js
+============================================================
+
+import {
+  findProfileByUserId,
+  replaceProfileByUserId,
+} from "../../repositories/profileRepository.js";
+
+function createProfileError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+  error.name = "ProfileServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProfileError({
+      message: "An authenticated user ID is required.",
+      code: "PROFILE_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Profile.",
+    });
+  }
+
+  return userId.trim();
+}
+
+export async function getAuthenticatedProfile({ userId }) {
+  const profile = await findProfileByUserId(assertUserId(userId));
+
+  if (!profile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return profile;
+}
+
+export async function updateAuthenticatedProfile({ userId, profile }) {
+  const updatedProfile = await replaceProfileByUserId(
+    assertUserId(userId),
+    profile,
+  );
+
+  if (!updatedProfile) {
+    throw createProfileError({
+      message: "The authenticated user Profile could not be updated.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return updatedProfile;
+}

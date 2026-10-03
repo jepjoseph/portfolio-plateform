@@ -1,11 +1,5 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+﻿===== ProfileForm.jsx =====
+import { useEffect, useMemo, useState } from "react";
 
 import NameEditor from "./NameEditor/NameEditor.jsx";
 import ProfilePictureEditor from "./ProfilePictureEditor/ProfilePictureEditor.jsx";
@@ -356,25 +350,16 @@ function reindexCollection(items = []) {
  * =========================================
  */
 
-const ProfileForm = forwardRef(function ProfileForm(
-  { profile, isSaving = false, fieldErrors = {}, onSave, onCancel },
-  ref,
-) {
+function ProfileForm({
+  profile,
+  isSaving = false,
+  fieldErrors = {},
+  onSave,
+  onCancel,
+}) {
   const [formData, setFormData] = useState(() => getInitialFormData(profile));
 
   const [submitError, setSubmitError] = useState("");
-
-  const profilePictureEditorRef = useRef(null);
-
-  useImperativeHandle(ref, () => ({
-    async cleanupPendingProfilePictures() {
-      await profilePictureEditorRef.current?.cleanupPendingUploads();
-    },
-
-    markPendingProfilePicturesCommitted() {
-      profilePictureEditorRef.current?.markPendingUploadsCommitted();
-    },
-  }));
 
   /*
    * =========================================
@@ -651,10 +636,6 @@ const ProfileForm = forwardRef(function ProfileForm(
     handleRemoveInformation("socialLinks", socialLinkId);
   };
 
-  const handleCancel = () => {
-    onCancel?.();
-  };
-
   /*
    * =========================================
    * Submit
@@ -723,7 +704,7 @@ const ProfileForm = forwardRef(function ProfileForm(
 
           <p>
             Update the reusable identity, professional, contact, and media
-            information available to your portfolios and résumés.
+            information available to your portfolios and rÃ©sumÃ©s.
           </p>
         </div>
 
@@ -746,7 +727,6 @@ const ProfileForm = forwardRef(function ProfileForm(
       />
 
       <ProfilePictureEditor
-        ref={profilePictureEditorRef}
         profilePictures={activeCollections.profilePictures}
         defaultAvatarText={getProfileInitials(formData, "P")}
         fieldErrors={fieldErrors}
@@ -843,7 +823,7 @@ const ProfileForm = forwardRef(function ProfileForm(
         <button
           type="button"
           className="profile-form-cancel-button"
-          onClick={handleCancel}
+          onClick={onCancel}
           disabled={isSaving}
         >
           Cancel
@@ -859,6 +839,41 @@ const ProfileForm = forwardRef(function ProfileForm(
       </footer>
     </form>
   );
-});
+}
 
 export default ProfileForm;
+
+===== Profile page references to ProfileForm =====
+
+  frontend\src\pages\Profile\Profile.jsx:1:import { useMemo, useState } from "react";
+  frontend\src\pages\Profile\Profile.jsx:2:
+  frontend\src\pages\Profile\Profile.jsx:3:import ProfileDetails from "./components/ProfileDetails/ProfileDetails.jsx";
+> frontend\src\pages\Profile\Profile.jsx:4:import ProfileForm from "./components/ProfileForm/ProfileForm.jsx";
+  frontend\src\pages\Profile\Profile.jsx:5:
+  frontend\src\pages\Profile\Profile.jsx:6:import { useProfileData } from "../../context/ProfileDataContext.jsx";
+  frontend\src\pages\Profile\Profile.jsx:7:
+  frontend\src\pages\Profile\Profile.jsx:8:import {
+  frontend\src\pages\Profile\Profile.jsx:9:  getProfileDisplaySummary,
+  frontend\src\pages\Profile\Profile.jsx:10:  getProfileStatistics,
+  frontend\src\pages\Profile\Profile.jsx:11:} from "../../services/Profile/profileUtils.js";
+  frontend\src\pages\Profile\Profile.jsx:12:
+  frontend\src\pages\Profile\Profile.jsx:13:import ProfileDashboard from "./components/ProfileDashboard/ProfileDashboard.jsx";
+  frontend\src\pages\Profile\Profile.jsx:14:import ProfilePageHeader from "./components/ProfilePageHeader/ProfilePageHeader.jsx";
+  frontend\src\pages\Profile\Profile.jsx:251:          ===================================== */}
+  frontend\src\pages\Profile\Profile.jsx:252:
+  frontend\src\pages\Profile\Profile.jsx:253:      {profile && (
+  frontend\src\pages\Profile\Profile.jsx:254:        <div className="profile-page-content">
+  frontend\src\pages\Profile\Profile.jsx:255:          {isEditing ? (
+> frontend\src\pages\Profile\Profile.jsx:256:            <ProfileForm
+  frontend\src\pages\Profile\Profile.jsx:257:              profile={profile}
+  frontend\src\pages\Profile\Profile.jsx:258:              isSaving={isSaving}
+  frontend\src\pages\Profile\Profile.jsx:259:              fieldErrors={error?.fieldErrors || {}}
+  frontend\src\pages\Profile\Profile.jsx:260:              onSave={handleSave}
+  frontend\src\pages\Profile\Profile.jsx:261:              onCancel={handleCancel}
+  frontend\src\pages\Profile\Profile.jsx:262:            />
+  frontend\src\pages\Profile\Profile.jsx:263:          ) : (
+  frontend\src\pages\Profile\Profile.jsx:264:            <ProfileDetails
+  frontend\src\pages\Profile\Profile.jsx:265:              profile={profile}
+  frontend\src\pages\Profile\Profile.jsx:266:              onEdit={handleEdit}
+
+

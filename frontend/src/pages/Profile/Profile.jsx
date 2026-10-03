@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import ProfileDetails from "./components/ProfileDetails/ProfileDetails.jsx";
 import ProfileForm from "./components/ProfileForm/ProfileForm.jsx";
@@ -34,6 +34,7 @@ function Profile() {
 
   const [isEditing, setIsEditing] = useState(false);
 
+  const profileFormRef = useRef(null);
   /*
    * =========================================
    * Derived Information
@@ -63,7 +64,9 @@ function Profile() {
     resetSaveStatus();
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    await profileFormRef.current?.cleanupPendingProfilePictures();
+
     setIsEditing(false);
     clearError();
     resetSaveStatus();
@@ -79,6 +82,8 @@ function Profile() {
     try {
       await updateProfile(updatedProfile);
 
+      profileFormRef.current?.markPendingProfilePicturesCommitted();
+
       setIsEditing(false);
     } catch (saveError) {
       /*
@@ -87,9 +92,14 @@ function Profile() {
        *
        * Keep the form open so the user does not
        * lose the submitted information.
+       *
+       * Rethrow so ProfileForm knows the save failed
+       * and does not mark pending uploads as committed.
        */
 
       console.error("Unable to save Profile:", saveError);
+
+      throw saveError;
     }
   };
 
@@ -254,6 +264,7 @@ function Profile() {
         <div className="profile-page-content">
           {isEditing ? (
             <ProfileForm
+              ref={profileFormRef}
               profile={profile}
               isSaving={isSaving}
               fieldErrors={error?.fieldErrors || {}}

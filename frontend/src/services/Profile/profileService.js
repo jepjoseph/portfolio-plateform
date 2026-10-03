@@ -1,4 +1,5 @@
-import { apiGet, apiPost, apiPut } from "../apiClient.js";
+import { apiDelete, apiGet, apiPost, apiPut } from "../apiClient.js";
+
 import {
   createEmptyProfessionalTitle,
   createEmptyProfile,
@@ -102,6 +103,27 @@ export async function uploadProfilePicture(file, options = {}) {
   }
 
   return picture;
+}
+
+export async function deleteUncommittedProfilePicture(
+  storageKey,
+  options = {},
+) {
+  const normalizedStorageKey = String(storageKey || "").trim();
+
+  if (!normalizedStorageKey) {
+    throw createServiceError(
+      "A profile picture storage key is required.",
+      "PROFILE_PICTURE_STORAGE_KEY_REQUIRED",
+    );
+  }
+
+  return apiDelete("/profile/pictures/upload", {
+    ...options,
+    body: {
+      storageKey: normalizedStorageKey,
+    },
+  });
 }
 
 export async function updateProfile(profileData, options = {}) {

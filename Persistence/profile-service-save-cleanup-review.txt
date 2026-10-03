@@ -1,0 +1,119 @@
+============================================================
+FILE: .\backend\src\services\Service\profileService.js
+============================================================
+
+import {
+  findProfileByUserId,
+  replaceProfileByUserId,
+} from "../../repositories/profileRepository.js";
+
+import { deleteOwnedProfilePicture } from "../Storage/profilePictureStorageService.js";
+
+function createProfileError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+  error.name = "ProfileServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProfileError({
+      message: "An authenticated user ID is required.",
+      code: "PROFILE_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Profile.",
+    });
+  }
+
+  return userId.trim();
+}
+
+export async function getAuthenticatedProfile({ userId }) {
+  const profile = await findProfileByUserId(assertUserId(userId));
+
+  if (!profile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return profile;
+}
+
+export async function updateAuthenticatedProfile({ userId, profile }) {
+  const updatedProfile = await replaceProfileByUserId(
+    assertUserId(userId),
+    profile,
+  );
+
+  if (!updatedProfile) {
+    throw createProfileError({
+      message: "The authenticated user Profile could not be updated.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return updatedProfile;
+}
+
+export async function deleteUncommittedProfilePicture({ userId, storageKey }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  const normalizedStorageKey = String(storageKey || "").trim();
+
+  if (!normalizedStorageKey) {
+    throw createProfileError({
+      message: "A profile-picture storage key is required for cleanup.",
+      code: "PROFILE_PICTURE_STORAGE_KEY_REQUIRED",
+      status: 400,
+      publicMessage: "The profile picture could not be removed.",
+    });
+  }
+
+  /*
+   * Load the currently committed profile before touching
+   * the filesystem.
+   */
+
+  const currentProfile = await findProfileByUserId(authenticatedUserId);
+
+  if (!currentProfile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  /*
+   * Never allow this cleanup operation to delete a file
+   * that is currently referenced by the persisted profile.
+   */
+
+  const isCommitted = currentProfile.profilePictures.some(
+    (picture) =>
+      String(picture.storageKey || "").trim() === normalizedStorageKey,
+  );
+
+  if (isCommitted) {
+    throw createProfileError({
+      message:
+        "The requested profile picture is currently referenced by the persisted Profile.",
+      code: "PROFILE_PICTURE_IS_COMMITTED",
+      status: 409,
+      publicMessage:
+        "A saved profile picture cannot be removed as a temporary upload.",
+    });
+  }
+
+  return deleteOwnedProfilePicture(authenticatedUserId, normalizedStorageKey);
+}

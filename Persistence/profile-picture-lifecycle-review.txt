@@ -1,0 +1,918 @@
+
+============================================================
+FILE: frontend\src\components\Profile\ProfilePictureEditor\ProfilePictureEditor.jsx
+============================================================
+
+[FILE NOT FOUND]
+
+============================================================
+FILE: frontend\src\services\Profile\profileService.js
+============================================================
+
+import { apiGet, apiPost, apiPut } from "../apiClient.js";
+import {
+  createEmptyProfessionalTitle,
+  createEmptyProfile,
+  createEmptyProfileInformationItem,
+  createEmptyProfilePicture,
+  normalizeProfile,
+} from "../../models/profileModel.js";
+import { assertValidProfile, validateProfile } from "./profileValidation.js";
+import { isProfileCollectionName } from "../../config/profileConfig.js";
+
+const PRIMARY_BY_COLLECTION = {
+  professionalTitles: "primaryProfessionalTitleId",
+  emails: "primaryEmailId",
+  phones: "primaryPhoneId",
+  websites: "primaryWebsiteId",
+  locations: "primaryLocationId",
+  socialLinks: "primarySocialLinkId",
+  profilePictures: "primaryProfilePictureId",
+};
+
+function normalizeResponse(response) {
+  return {
+    status: response?.status || "success",
+    message: response?.message || "",
+    ...(response?.data || {}),
+  };
+}
+
+function createServiceError(message, code, status = 400) {
+  const error = new Error(message);
+  error.name = "ProfileServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+function assertCollection(collectionName) {
+  if (!isProfileCollectionName(collectionName)) {
+    throw createServiceError(
+      "The requested Profile information category is invalid.",
+      "INVALID_PROFILE_COLLECTION",
+    );
+  }
+}
+
+function toUpdatePayload(profileValue) {
+  const profile = normalizeProfile(profileValue);
+
+  return {
+    firstName: profile.firstName,
+    middleName: profile.middleName,
+    lastName: profile.lastName,
+    professionalTitles: profile.professionalTitles,
+    emails: profile.emails,
+    phones: profile.phones,
+    websites: profile.websites,
+    locations: profile.locations,
+    socialLinks: profile.socialLinks,
+    profilePictures: profile.profilePictures,
+    preferences: profile.preferences,
+    visibility: profile.visibility,
+    status: profile.status,
+  };
+}
+
+async function save(profileValue, options = {}) {
+  const payload = toUpdatePayload(profileValue);
+  assertValidProfile(normalizeProfile(profileValue));
+  const response = await apiPut("/profile/me", payload, options);
+  return normalizeProfile(normalizeResponse(response).profile);
+}
+
+export async function getProfile(options = {}) {
+  const response = await apiGet("/profile/me", options);
+  return normalizeProfile(normalizeResponse(response).profile);
+}
+
+export async function uploadProfilePicture(file, options = {}) {
+  if (!(file instanceof File)) {
+    throw createServiceError(
+      "A profile picture file is required.",
+      "PROFILE_PICTURE_FILE_REQUIRED",
+    );
+  }
+
+  const formData = new FormData();
+
+  formData.append("picture", file);
+
+  const response = await apiPost("/profile/pictures/upload", formData, options);
+
+  const picture = response?.picture;
+
+  if (!picture?.imageUrl || !picture?.storageKey) {
+    throw createServiceError(
+      "The server returned an invalid profile picture upload response.",
+      "PROFILE_PICTURE_UPLOAD_RESPONSE_INVALID",
+      502,
+    );
+  }
+
+  return picture;
+}
+
+export async function updateProfile(profileData, options = {}) {
+  return save(profileData, options);
+}
+
+export async function updateProfileIdentity(updates, options = {}) {
+  const profile = await getProfile(options);
+  return save({ ...profile, ...updates }, options);
+}
+
+export async function getProfileCollection(collectionName, options = {}) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  return profile[collectionName];
+}
+
+export async function getProfileItem(collectionName, itemId, options = {}) {
+  const collection = await getProfileCollection(collectionName, options);
+  const item = collection.find((value) => value.id === itemId);
+
+  if (!item) {
+    throw createServiceError(
+      "The requested Profile information could not be found.",
+      "PROFILE_ITEM_NOT_FOUND",
+      404,
+    );
+  }
+
+  return item;
+}
+
+function createItem(collectionName, values) {
+  if (collectionName === "professionalTitles") {
+    return { ...createEmptyProfessionalTitle(), ...values };
+  }
+
+  if (collectionName === "profilePictures") {
+    return { ...createEmptyProfilePicture(), ...values };
+  }
+
+  return {
+    ...createEmptyProfileInformationItem(collectionName),
+    ...values,
+  };
+}
+
+export async function addProfileItem(
+  collectionName,
+  values = {},
+  options = {},
+) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  const item = createItem(collectionName, {
+    ...values,
+    order: profile[collectionName].length,
+  });
+  const updatedProfile = await save(
+    { ...profile, [collectionName]: [...profile[collectionName], item] },
+    options,
+  );
+  return {
+    item: updatedProfile[collectionName].find((entry) => entry.id === item.id),
+    profile: updatedProfile,
+  };
+}
+
+export async function updateProfileItem(
+  collectionName,
+  itemId,
+  updates = {},
+  options = {},
+) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  let found = false;
+  const collection = profile[collectionName].map((item) => {
+    if (item.id !== itemId) return item;
+    found = true;
+    return {
+      ...item,
+      ...updates,
+      id: item.id,
+      createdAt: item.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  if (!found)
+    throw createServiceError(
+      "The requested Profile information could not be found.",
+      "PROFILE_ITEM_NOT_FOUND",
+      404,
+    );
+  const updatedProfile = await save(
+    { ...profile, [collectionName]: collection },
+    options,
+  );
+  return {
+    item: updatedProfile[collectionName].find((item) => item.id === itemId),
+    profile: updatedProfile,
+  };
+}
+
+export async function replaceProfileCollection(
+  collectionName,
+  values,
+  options = {},
+) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  return save({ ...profile, [collectionName]: values }, options);
+}
+
+export async function reorderProfileCollection(
+  collectionName,
+  orderedItemIds,
+  options = {},
+) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  const positions = new Map(orderedItemIds.map((id, index) => [id, index]));
+  const collection = [...profile[collectionName]]
+    .sort(
+      (a, b) =>
+        (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    )
+    .map((item, order) => ({ ...item, order }));
+  return save({ ...profile, [collectionName]: collection }, options);
+}
+
+export async function setPrimaryProfileItem(
+  collectionName,
+  itemId,
+  options = {},
+) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  const item = profile[collectionName].find(
+    (value) => value.id === itemId && value.status === "active",
+  );
+  if (!item)
+    throw createServiceError(
+      "Only an active Profile item can be primary.",
+      "PROFILE_PRIMARY_ITEM_INVALID",
+    );
+  const updatedProfile = await save(
+    {
+      ...profile,
+      preferences: {
+        ...profile.preferences,
+        [PRIMARY_BY_COLLECTION[collectionName]]: itemId,
+      },
+    },
+    options,
+  );
+  return { item, profile: updatedProfile };
+}
+
+export function archiveProfileItem(collectionName, itemId, options = {}) {
+  return updateProfileItem(
+    collectionName,
+    itemId,
+    { status: "archived" },
+    options,
+  );
+}
+
+export function restoreProfileItem(collectionName, itemId, options = {}) {
+  return updateProfileItem(
+    collectionName,
+    itemId,
+    { status: "active" },
+    options,
+  );
+}
+
+export async function deleteProfileItem(collectionName, itemId, options = {}) {
+  assertCollection(collectionName);
+  const profile = await getProfile(options);
+  const collection = profile[collectionName]
+    .filter((item) => item.id !== itemId)
+    .map((item, order) => ({ ...item, order }));
+  if (collection.length === profile[collectionName].length)
+    throw createServiceError(
+      "The requested Profile information could not be found.",
+      "PROFILE_ITEM_NOT_FOUND",
+      404,
+    );
+  const preferenceName = PRIMARY_BY_COLLECTION[collectionName];
+  const preferences = { ...profile.preferences };
+  if (preferences[preferenceName] === itemId) {
+    preferences[preferenceName] =
+      collection.find((item) => item.status === "active")?.id || "";
+  }
+  const updatedProfile = await save(
+    { ...profile, [collectionName]: collection, preferences },
+    options,
+  );
+  return { deleted: true, itemId, profile: updatedProfile };
+}
+
+export async function updateProfileVisibility(updates, options = {}) {
+  const profile = await getProfile(options);
+  return save(
+    { ...profile, visibility: { ...profile.visibility, ...updates } },
+    options,
+  );
+}
+
+export async function archiveProfile(options = {}) {
+  const profile = await getProfile(options);
+  return save({ ...profile, status: "archived" }, options);
+}
+
+export async function restoreProfile(options = {}) {
+  const profile = await getProfile(options);
+  return save({ ...profile, status: "active" }, options);
+}
+
+export async function validateProfileDraft(profileData) {
+  return validateProfile(normalizeProfile(profileData));
+}
+
+export async function resetProfile() {
+  throw createServiceError(
+    "Database Profiles cannot be reset without explicit account confirmation.",
+    "PROFILE_RESET_NOT_AVAILABLE",
+    409,
+  );
+}
+
+export async function deleteProfile() {
+  throw createServiceError(
+    "The account Profile cannot be deleted independently from its user account.",
+    "PROFILE_DELETE_NOT_AVAILABLE",
+    409,
+  );
+}
+
+export async function createInitialProfile(initialValues = {}, options = {}) {
+  return save({ ...createEmptyProfile(), ...initialValues }, options);
+}
+
+export const PROFILE_COLLECTION_PRIMARY_PREFERENCES = {
+  ...PRIMARY_BY_COLLECTION,
+};
+
+============================================================
+FILE: backend\src\routes\profileRoutes.js
+============================================================
+
+import { uploadProfilePicture } from "../middleware/profile/profilePictureUploadMiddleware.js";
+import { validateProfilePicture } from "../middleware/profile/profilePictureValidationMiddleware.js";
+
+import { Router } from "express";
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+import {
+  getMyProfile,
+  updateMyProfile,
+  uploadProfilePictureController,
+} from "../controllers/profileController.js";
+
+const router = Router();
+
+router.use(requireAuthentication);
+
+router.post(
+  "/pictures/upload",
+  uploadProfilePicture,
+  validateProfilePicture,
+  uploadProfilePictureController,
+);
+
+router.get("/me", getMyProfile);
+router.put("/me", updateMyProfile);
+
+export default router;
+
+============================================================
+FILE: backend\src\controllers\profileController.js
+============================================================
+
+import crypto from "node:crypto";
+import path from "node:path";
+import { getEnvironment } from "../config/environment.js";
+
+import {
+  getAuthenticatedProfile,
+  updateAuthenticatedProfile,
+} from "../services/Service/profileService.js";
+import { parseProfileUpdate } from "../schemas/profileSchemas.js";
+
+const environment = getEnvironment();
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+export async function getMyProfile(request, response, next) {
+  try {
+    const profile = await getAuthenticatedProfile({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile retrieved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProfile(request, response, next) {
+  try {
+    const profileInput = parseProfileUpdate(request.body);
+
+    const profile = await updateAuthenticatedProfile({
+      userId: request.auth.userId,
+      profile: profileInput,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile saved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadProfilePictureController(request, response, next) {
+  try {
+    const userId = String(request.auth?.userId || "").trim();
+    const uploadedFile = request.profilePictureFile;
+
+    if (!userId) {
+      const error = new Error(
+        "Authenticated user ID is unavailable during profile-picture upload.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_UPLOAD_USER_INVALID";
+      error.status = 401;
+      error.publicMessage =
+        "Your session could not be verified for this upload.";
+
+      throw error;
+    }
+
+    if (!uploadedFile?.filename) {
+      const error = new Error("Verified profile-picture file is unavailable.");
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_FILE_UNAVAILABLE";
+      error.status = 400;
+      error.publicMessage = "The profile picture could not be processed.";
+
+      throw error;
+    }
+
+    const publicBaseUrl = environment.PROFILE_PICTURE_PUBLIC_BASE_URL;
+
+    if (!publicBaseUrl) {
+      const error = new Error(
+        "PROFILE_PICTURE_PUBLIC_BASE_URL is not configured.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_PUBLIC_URL_NOT_CONFIGURED";
+      error.status = 503;
+      error.publicMessage =
+        "Profile-picture storage is temporarily unavailable.";
+
+      throw error;
+    }
+
+    const safeUserDirectory = crypto
+      .createHash("sha256")
+      .update(userId)
+      .digest("hex");
+
+    /*
+     * storageKey is intentionally relative.
+     *
+     * Example:
+     * abc123.../550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * Never return the physical D:\ or UNC path.
+     */
+    const storageKey = [safeUserDirectory, uploadedFile.filename].join("/");
+
+    const imageUrl = `${publicBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
+
+    return response.status(201).json({
+      picture: {
+        imageUrl,
+        storageKey,
+
+        /*
+         * originalname is the filename supplied by the
+         * browser, while filename is our generated UUID.
+         */
+        fileName: path.basename(uploadedFile.originalname),
+
+        fileType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.size,
+        useDefaultAvatar: false,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+============================================================
+FILE: backend\src\services\profileService.js
+============================================================
+
+[FILE NOT FOUND]
+
+============================================================
+FILE: backend\src\repositories\profileRepository.js
+============================================================
+
+import { getDatabasePool, sql } from "../config/database.js";
+
+const CONTACT_CATEGORIES = [
+  "emails",
+  "phones",
+  "websites",
+  "locations",
+  "socialLinks",
+];
+
+function toIso(value) {
+  return value instanceof Date ? value.toISOString() : String(value || "");
+}
+
+function createEmptyCollections() {
+  return {
+    emails: [],
+    phones: [],
+    websites: [],
+    locations: [],
+    socialLinks: [],
+  };
+}
+
+function mapProfile({ profileRow, titleRows, contactRows, pictureRows }) {
+  if (!profileRow) return null;
+
+  const contacts = createEmptyCollections();
+
+  for (const row of contactRows) {
+    if (!contacts[row.category]) continue;
+
+    contacts[row.category].push({
+      id: row.item_id,
+      type: row.contact_type,
+      value: row.contact_value,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    });
+  }
+
+  return {
+    modelVersion: 1,
+    id: profileRow.user_id,
+    userId: profileRow.user_id,
+    firstName: profileRow.first_name,
+    middleName: profileRow.middle_name,
+    lastName: profileRow.last_name,
+    professionalTitles: titleRows.map((row) => ({
+      id: row.item_id,
+      name: row.title_name,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    ...contacts,
+    profilePictures: pictureRows.map((row) => ({
+      id: row.item_id,
+      type: row.picture_type,
+      imageUrl: row.image_url,
+      storageKey: row.blob_name,
+      fileName: row.file_name,
+      fileType: row.file_type,
+      fileSize: Number(row.file_size),
+      useDefaultAvatar: Boolean(row.use_default_avatar),
+      width: row.image_width === null ? null : Number(row.image_width),
+      height: row.image_height === null ? null : Number(row.image_height),
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    preferences: {
+      primaryProfessionalTitleId:
+        profileRow.primary_professional_title_id || "",
+      primaryEmailId: profileRow.primary_email_id || "",
+      primaryPhoneId: profileRow.primary_phone_id || "",
+      primaryWebsiteId: profileRow.primary_website_id || "",
+      primaryLocationId: profileRow.primary_location_id || "",
+      primarySocialLinkId: profileRow.primary_social_link_id || "",
+      primaryProfilePictureId: profileRow.primary_profile_picture_id || "",
+    },
+    visibility: {
+      isPublic: profileRow.profile_visibility === "public",
+    },
+    status: profileRow.profile_status,
+    createdAt: toIso(profileRow.created_at),
+    updatedAt: toIso(profileRow.updated_at),
+  };
+}
+
+async function readProfile(executor, userId) {
+  const profileResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT
+        user_id,
+        first_name,
+        middle_name,
+        last_name,
+        profile_visibility,
+        profile_status,
+        primary_professional_title_id,
+        primary_email_id,
+        primary_phone_id,
+        primary_website_id,
+        primary_location_id,
+        primary_social_link_id,
+        primary_profile_picture_id,
+        created_at,
+        updated_at
+      FROM dbo.user_profiles
+      WHERE user_id = @userId;
+    `);
+
+  const profileRow = profileResult.recordset[0];
+  if (!profileRow) return null;
+
+  const titleResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, title_name, description, display_order,
+             item_status, created_at, updated_at
+      FROM dbo.user_profile_professional_titles
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  const contactResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, category, contact_type, contact_value, description,
+             display_order, item_status, created_at, updated_at
+      FROM dbo.user_profile_contacts
+      WHERE user_id = @userId
+      ORDER BY category, display_order, created_at;
+    `);
+
+  const pictureResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, picture_type, image_url, blob_name, file_name,
+             file_type, file_size, use_default_avatar, image_width,
+             image_height, description, display_order, item_status,
+             created_at, updated_at
+      FROM dbo.user_profile_pictures
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  return mapProfile({
+    profileRow,
+    titleRows: titleResult.recordset,
+    contactRows: contactResult.recordset,
+    pictureRows: pictureResult.recordset,
+  });
+}
+
+export async function findProfileByUserId(userId) {
+  const pool = await getDatabasePool();
+  return readProfile(pool, userId);
+}
+
+async function insertTitle(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("name", sql.NVarChar(200), item.name)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_professional_titles
+      (user_id, item_id, title_name, description, display_order,
+       item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @name, @description, @displayOrder,
+       @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertContact(transaction, userId, category, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("category", sql.NVarChar(30), category)
+    .input("contactType", sql.NVarChar(30), item.type)
+    .input("contactValue", sql.NVarChar(2048), item.value)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_contacts
+      (user_id, item_id, category, contact_type, contact_value, description,
+       display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @category, @contactType, @contactValue, @description,
+       @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertPicture(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("pictureType", sql.NVarChar(100), item.type)
+    .input("imageUrl", sql.NVarChar(2048), item.imageUrl)
+    .input("storageKey", sql.NVarChar(255), item.storageKey)
+    .input("fileName", sql.NVarChar(255), item.fileName)
+    .input("fileType", sql.NVarChar(100), item.fileType)
+    .input("fileSize", sql.BigInt, item.fileSize)
+    .input("useDefaultAvatar", sql.Bit, item.useDefaultAvatar)
+    .input("imageWidth", sql.Int, item.width)
+    .input("imageHeight", sql.Int, item.height)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_pictures
+      (user_id, item_id, picture_type, image_url, blob_name, file_name,
+       file_type, file_size, use_default_avatar, image_width, image_height,
+       description, display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @pictureType, @imageUrl, @storageKey, @fileName,
+       @fileType, @fileSize, @useDefaultAvatar, @imageWidth, @imageHeight,
+       @description, @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+export async function replaceProfileByUserId(userId, profile) {
+  const pool = await getDatabasePool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+  try {
+    const updateResult = await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("firstName", sql.NVarChar(100), profile.firstName)
+      .input("middleName", sql.NVarChar(100), profile.middleName)
+      .input("lastName", sql.NVarChar(100), profile.lastName)
+      .input(
+        "visibility",
+        sql.NVarChar(20),
+        profile.visibility.isPublic ? "public" : "private",
+      )
+      .input("profileStatus", sql.NVarChar(20), profile.status)
+      .input(
+        "primaryTitle",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfessionalTitleId || null,
+      )
+      .input(
+        "primaryEmail",
+        sql.NVarChar(200),
+        profile.preferences.primaryEmailId || null,
+      )
+      .input(
+        "primaryPhone",
+        sql.NVarChar(200),
+        profile.preferences.primaryPhoneId || null,
+      )
+      .input(
+        "primaryWebsite",
+        sql.NVarChar(200),
+        profile.preferences.primaryWebsiteId || null,
+      )
+      .input(
+        "primaryLocation",
+        sql.NVarChar(200),
+        profile.preferences.primaryLocationId || null,
+      )
+      .input(
+        "primarySocial",
+        sql.NVarChar(200),
+        profile.preferences.primarySocialLinkId || null,
+      )
+      .input(
+        "primaryPicture",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfilePictureId || null,
+      ).query(`
+        UPDATE dbo.user_profiles
+        SET first_name = @firstName,
+            middle_name = @middleName,
+            last_name = @lastName,
+            display_name = LTRIM(RTRIM(CONCAT(@firstName, N' ', NULLIF(@middleName, N''), N' ', @lastName))),
+            profile_visibility = @visibility,
+            profile_status = @profileStatus,
+            primary_professional_title_id = @primaryTitle,
+            primary_email_id = @primaryEmail,
+            primary_phone_id = @primaryPhone,
+            primary_website_id = @primaryWebsite,
+            primary_location_id = @primaryLocation,
+            primary_social_link_id = @primarySocial,
+            primary_profile_picture_id = @primaryPicture,
+            updated_at = SYSUTCDATETIME()
+        WHERE user_id = @userId;
+      `);
+
+    if (!updateResult.rowsAffected[0]) {
+      await transaction.rollback();
+      return null;
+    }
+
+    await new sql.Request(transaction).input(
+      "userId",
+      sql.UniqueIdentifier,
+      userId,
+    ).query(`
+        DELETE FROM dbo.user_profile_professional_titles WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_contacts WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_pictures WHERE user_id = @userId;
+      `);
+
+    for (const item of profile.professionalTitles) {
+      await insertTitle(transaction, userId, item);
+    }
+
+    for (const category of CONTACT_CATEGORIES) {
+      for (const item of profile[category]) {
+        await insertContact(transaction, userId, category, item);
+      }
+    }
+
+    for (const item of profile.profilePictures) {
+      await insertPicture(transaction, userId, item);
+    }
+
+    await transaction.commit();
+    return findProfileByUserId(userId);
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Profile transaction rollback failed:", rollbackError);
+    }
+
+    throw error;
+  }
+}

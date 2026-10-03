@@ -1,0 +1,112 @@
+============================================================
+FILE: .\backend\test\services\profileService.test.js
+============================================================
+
+import assert from "node:assert/strict";
+import { describe, it, mock } from "node:test";
+
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+
+const USER_DIRECTORY =
+  "bd7662a5d11f30e6b8e5fbf5b5dcf7a8f78a0f83e1a2a9a66f6cde9b5e2e34a1";
+
+const COMMITTED_STORAGE_KEY = `${USER_DIRECTORY}/committed-picture.jpg`;
+
+const TEMPORARY_STORAGE_KEY = `${USER_DIRECTORY}/temporary-picture.jpg`;
+
+let repositoryProfile;
+let deletedPictureInput;
+
+mock.module("../../src/repositories/profileRepository.js", {
+  exports: {
+    async findProfileByUserId() {
+      return repositoryProfile;
+    },
+
+    async replaceProfileByUserId() {
+      throw new Error(
+        "replaceProfileByUserId should not be called by these cleanup tests.",
+      );
+    },
+  },
+});
+
+mock.module("../../src/services/Storage/profilePictureStorageService.js", {
+  exports: {
+    async deleteOwnedProfilePicture(userId, storageKey) {
+      deletedPictureInput = {
+        userId,
+        storageKey,
+      };
+
+      return {
+        deleted: true,
+        storageKey,
+      };
+    },
+  },
+});
+
+const { deleteUncommittedProfilePicture } =
+  await import("../../src/services/Service/profileService.js");
+
+function createProfile(storageKeys = []) {
+  return {
+    userId: USER_ID,
+
+    profilePictures: storageKeys.map((storageKey, index) => ({
+      id: `picture-${index + 1}`,
+      storageKey,
+    })),
+  };
+}
+
+describe("profileService profile-picture cleanup", () => {
+  it("deletes an uncommitted profile picture", async () => {
+    repositoryProfile = createProfile([COMMITTED_STORAGE_KEY]);
+
+    deletedPictureInput = null;
+
+    const result = await deleteUncommittedProfilePicture({
+      userId: USER_ID,
+      storageKey: TEMPORARY_STORAGE_KEY,
+    });
+
+    assert.deepEqual(deletedPictureInput, {
+      userId: USER_ID,
+      storageKey: TEMPORARY_STORAGE_KEY,
+    });
+
+    assert.deepEqual(result, {
+      deleted: true,
+      storageKey: TEMPORARY_STORAGE_KEY,
+    });
+  });
+
+  it("does not delete a committed profile picture", async () => {
+    repositoryProfile = createProfile([COMMITTED_STORAGE_KEY]);
+
+    deletedPictureInput = null;
+
+    await assert.rejects(
+      () =>
+        deleteUncommittedProfilePicture({
+          userId: USER_ID,
+          storageKey: COMMITTED_STORAGE_KEY,
+        }),
+      (error) => {
+        assert.equal(error.code, "PROFILE_PICTURE_IS_COMMITTED");
+
+        assert.equal(error.status, 409);
+
+        return true;
+      },
+    );
+
+    assert.equal(
+      deletedPictureInput,
+      null,
+      "Committed profile picture must not reach filesystem deletion.",
+    );
+  });
+});
