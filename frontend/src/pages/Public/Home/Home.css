@@ -12,7 +12,7 @@
    ========================================= */
 
 .public-home-hero {
-  width: min(100%, 1220px);
+  width: min(90%, 1220px);
   margin: 0 auto;
   padding: clamp(75px, 11vh, 125px) 0 72px;
 }
