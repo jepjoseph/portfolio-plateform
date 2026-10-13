@@ -1,0 +1,1059 @@
+========== backend\src\middleware\authenticationMiddleware.js ==========
+import { getAuthenticatedSession } from "../services/Service/sessionService.js";
+
+import {
+  clearRefreshTokenCookie,
+  getRefreshTokenFromRequest,
+} from "../security/sessionCookieSecurity.js";
+
+/*
+ * =========================================
+ * Authentication Error
+ * =========================================
+ */
+
+function createAuthenticationError({
+  message,
+  code = "AUTHENTICATION_REQUIRED",
+  status = 401,
+  publicMessage = "You must sign in to access this resource.",
+}) {
+  const error = new Error(message);
+
+  error.name = "AuthenticationError";
+
+  error.code = code;
+
+  error.status = status;
+
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Invalid Session Errors
+ * =========================================
+ */
+
+function shouldClearSessionCookie(error) {
+  const invalidSessionCodes = new Set([
+    "SESSION_REFRESH_TOKEN_INVALID",
+    "SESSION_NOT_FOUND",
+    "SESSION_REFRESH_CONFLICT",
+  ]);
+
+  return invalidSessionCodes.has(error?.code);
+}
+
+/*
+ * =========================================
+ * Safely Clear Refresh Cookie
+ * =========================================
+ */
+
+function safelyClearRefreshTokenCookie(response) {
+  try {
+    clearRefreshTokenCookie(response);
+  } catch (error) {
+    console.error(
+      "Unable to clear refresh-token cookie during authentication:",
+      error,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Normalize Roles
+ * =========================================
+ */
+
+function normalizeRoles(roles) {
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      roles
+        .map((role) =>
+          typeof role === "string" ? role.trim().toLowerCase() : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/*
+ * =========================================
+ * Create Request Authentication
+ * =========================================
+ */
+
+function createRequestAuthentication({ user, roles, session }) {
+  if (!user?.id || !session?.id) {
+    throw createAuthenticationError({
+      message:
+        "The resolved session does not contain a valid user and session.",
+
+      code: "AUTHENTICATION_CONTEXT_INVALID",
+
+      status: 500,
+
+      publicMessage: "Your session could not be verified.",
+    });
+  }
+
+  const normalizedRoles = Object.freeze(normalizeRoles(roles));
+
+  return Object.freeze({
+    isAuthenticated: true,
+
+    userId: user.id,
+
+    sessionId: session.id,
+
+    user,
+
+    roles: normalizedRoles,
+
+    session,
+  });
+}
+
+/*
+ * =========================================
+ * Require Authentication
+ * =========================================
+ *
+ * Resolves the HttpOnly refresh-token cookie,
+ * validates the database session and places
+ * public-safe identity information on:
+ *
+ * request.auth
+ *
+ * This middleware validates the session but
+ * does not rotate its refresh token.
+ */
+
+export async function requireAuthentication(request, response, next) {
+  /*
+   * Protected responses must not be cached
+   * or shared between authenticated users.
+   */
+
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  response.vary("Cookie");
+
+  try {
+    const refreshToken = getRefreshTokenFromRequest(request);
+
+    if (!refreshToken) {
+      throw createAuthenticationError({
+        message: "The request does not contain a refresh-token cookie.",
+
+        code: "AUTHENTICATION_REQUIRED",
+
+        status: 401,
+
+        publicMessage: "You must sign in to access this resource.",
+      });
+    }
+
+    const authentication = await getAuthenticatedSession({
+      refreshToken,
+    });
+
+    request.auth = createRequestAuthentication(authentication);
+
+    return next();
+  } catch (error) {
+    if (shouldClearSessionCookie(error)) {
+      safelyClearRefreshTokenCookie(response);
+    }
+
+    return next(error);
+  }
+}
+
+========== backend\src\controllers\profileController.js ==========
+import path from "node:path";
+import { getEnvironment } from "../config/environment.js";
+
+import {
+  deleteUncommittedProfilePicture,
+  getAuthenticatedProfile,
+  updateAuthenticatedProfile,
+} from "../services/Service/profileService.js";
+
+import { createProfilePictureStorageKey } from "../services/Storage/profilePictureStorageService.js";
+
+import { parseProfileUpdate } from "../schemas/profileSchemas.js";
+
+const environment = getEnvironment();
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+export async function getMyProfile(request, response, next) {
+  try {
+    const profile = await getAuthenticatedProfile({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile retrieved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProfile(request, response, next) {
+  try {
+    const profileInput = parseProfileUpdate(request.body);
+
+    const profile = await updateAuthenticatedProfile({
+      userId: request.auth.userId,
+      profile: profileInput,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile saved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadProfilePictureController(request, response, next) {
+  try {
+    const userId = String(request.auth?.userId || "").trim();
+    const uploadedFile = request.profilePictureFile;
+
+    if (!userId) {
+      const error = new Error(
+        "Authenticated user ID is unavailable during profile-picture upload.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_UPLOAD_USER_INVALID";
+      error.status = 401;
+      error.publicMessage =
+        "Your session could not be verified for this upload.";
+
+      throw error;
+    }
+
+    if (!uploadedFile?.filename) {
+      const error = new Error("Verified profile-picture file is unavailable.");
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_FILE_UNAVAILABLE";
+      error.status = 400;
+      error.publicMessage = "The profile picture could not be processed.";
+
+      throw error;
+    }
+
+    const publicBaseUrl = environment.PROFILE_PICTURE_PUBLIC_BASE_URL;
+
+    if (!publicBaseUrl) {
+      const error = new Error(
+        "PROFILE_PICTURE_PUBLIC_BASE_URL is not configured.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_PUBLIC_URL_NOT_CONFIGURED";
+      error.status = 503;
+      error.publicMessage =
+        "Profile-picture storage is temporarily unavailable.";
+
+      throw error;
+    }
+
+    /*
+     * storageKey is intentionally relative.
+     *
+     * Example:
+     * abc123.../550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * Never return the physical D:\ or UNC path.
+     */
+    const storageKey = createProfilePictureStorageKey(
+      userId,
+      uploadedFile.filename,
+    );
+
+    const imageUrl = `${publicBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
+
+    return response.status(201).json({
+      picture: {
+        imageUrl,
+        storageKey,
+
+        /*
+         * originalname is the filename supplied by the
+         * browser, while filename is our generated UUID.
+         */
+        fileName: path.basename(uploadedFile.originalname),
+
+        fileType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.size,
+        useDefaultAvatar: false,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteProfilePictureController(request, response, next) {
+  try {
+    const result = await deleteUncommittedProfilePicture({
+      userId: request.auth.userId,
+      storageKey: request.body?.storageKey,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: result.deleted
+        ? "Temporary profile picture removed successfully."
+        : "Temporary profile picture was already removed.",
+      data: {
+        storageKey: result.storageKey,
+        deleted: result.deleted,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========== backend\src\services\profileService.js ==========
+NOT FOUND: backend\src\services\profileService.js
+
+========== backend\src\repositories\profileRepository.js ==========
+import { getDatabasePool, sql } from "../config/database.js";
+
+const CONTACT_CATEGORIES = [
+  "emails",
+  "phones",
+  "websites",
+  "locations",
+  "socialLinks",
+];
+
+function toIso(value) {
+  return value instanceof Date ? value.toISOString() : String(value || "");
+}
+
+function createEmptyCollections() {
+  return {
+    emails: [],
+    phones: [],
+    websites: [],
+    locations: [],
+    socialLinks: [],
+  };
+}
+
+function mapProfile({ profileRow, titleRows, contactRows, pictureRows }) {
+  if (!profileRow) return null;
+
+  const contacts = createEmptyCollections();
+
+  for (const row of contactRows) {
+    if (!contacts[row.category]) continue;
+
+    contacts[row.category].push({
+      id: row.item_id,
+      type: row.contact_type,
+      value: row.contact_value,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    });
+  }
+
+  return {
+    modelVersion: 1,
+    id: profileRow.user_id,
+    userId: profileRow.user_id,
+    firstName: profileRow.first_name,
+    middleName: profileRow.middle_name,
+    lastName: profileRow.last_name,
+    professionalTitles: titleRows.map((row) => ({
+      id: row.item_id,
+      name: row.title_name,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    ...contacts,
+    profilePictures: pictureRows.map((row) => ({
+      id: row.item_id,
+      type: row.picture_type,
+      imageUrl: row.image_url,
+      storageKey: row.blob_name,
+      fileName: row.file_name,
+      fileType: row.file_type,
+      fileSize: Number(row.file_size),
+      useDefaultAvatar: Boolean(row.use_default_avatar),
+      width: row.image_width === null ? null : Number(row.image_width),
+      height: row.image_height === null ? null : Number(row.image_height),
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    preferences: {
+      primaryProfessionalTitleId:
+        profileRow.primary_professional_title_id || "",
+      primaryEmailId: profileRow.primary_email_id || "",
+      primaryPhoneId: profileRow.primary_phone_id || "",
+      primaryWebsiteId: profileRow.primary_website_id || "",
+      primaryLocationId: profileRow.primary_location_id || "",
+      primarySocialLinkId: profileRow.primary_social_link_id || "",
+      primaryProfilePictureId: profileRow.primary_profile_picture_id || "",
+    },
+    visibility: {
+      isPublic: profileRow.profile_visibility === "public",
+    },
+    status: profileRow.profile_status,
+    createdAt: toIso(profileRow.created_at),
+    updatedAt: toIso(profileRow.updated_at),
+  };
+}
+
+async function readProfile(executor, userId) {
+  const profileResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT
+        user_id,
+        first_name,
+        middle_name,
+        last_name,
+        profile_visibility,
+        profile_status,
+        primary_professional_title_id,
+        primary_email_id,
+        primary_phone_id,
+        primary_website_id,
+        primary_location_id,
+        primary_social_link_id,
+        primary_profile_picture_id,
+        created_at,
+        updated_at
+      FROM dbo.user_profiles
+      WHERE user_id = @userId;
+    `);
+
+  const profileRow = profileResult.recordset[0];
+  if (!profileRow) return null;
+
+  const titleResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, title_name, description, display_order,
+             item_status, created_at, updated_at
+      FROM dbo.user_profile_professional_titles
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  const contactResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, category, contact_type, contact_value, description,
+             display_order, item_status, created_at, updated_at
+      FROM dbo.user_profile_contacts
+      WHERE user_id = @userId
+      ORDER BY category, display_order, created_at;
+    `);
+
+  const pictureResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, picture_type, image_url, blob_name, file_name,
+             file_type, file_size, use_default_avatar, image_width,
+             image_height, description, display_order, item_status,
+             created_at, updated_at
+      FROM dbo.user_profile_pictures
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  return mapProfile({
+    profileRow,
+    titleRows: titleResult.recordset,
+    contactRows: contactResult.recordset,
+    pictureRows: pictureResult.recordset,
+  });
+}
+
+export async function findProfileByUserId(userId) {
+  const pool = await getDatabasePool();
+  return readProfile(pool, userId);
+}
+
+async function insertTitle(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("name", sql.NVarChar(200), item.name)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_professional_titles
+      (user_id, item_id, title_name, description, display_order,
+       item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @name, @description, @displayOrder,
+       @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertContact(transaction, userId, category, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("category", sql.NVarChar(30), category)
+    .input("contactType", sql.NVarChar(30), item.type)
+    .input("contactValue", sql.NVarChar(2048), item.value)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_contacts
+      (user_id, item_id, category, contact_type, contact_value, description,
+       display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @category, @contactType, @contactValue, @description,
+       @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertPicture(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("pictureType", sql.NVarChar(100), item.type)
+    .input("imageUrl", sql.NVarChar(2048), item.imageUrl)
+    .input("storageKey", sql.NVarChar(255), item.storageKey)
+    .input("fileName", sql.NVarChar(255), item.fileName)
+    .input("fileType", sql.NVarChar(100), item.fileType)
+    .input("fileSize", sql.BigInt, item.fileSize)
+    .input("useDefaultAvatar", sql.Bit, item.useDefaultAvatar)
+    .input("imageWidth", sql.Int, item.width)
+    .input("imageHeight", sql.Int, item.height)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_pictures
+      (user_id, item_id, picture_type, image_url, blob_name, file_name,
+       file_type, file_size, use_default_avatar, image_width, image_height,
+       description, display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @pictureType, @imageUrl, @storageKey, @fileName,
+       @fileType, @fileSize, @useDefaultAvatar, @imageWidth, @imageHeight,
+       @description, @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+export async function replaceProfileByUserId(userId, profile) {
+  const pool = await getDatabasePool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+  try {
+    const updateResult = await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("firstName", sql.NVarChar(100), profile.firstName)
+      .input("middleName", sql.NVarChar(100), profile.middleName)
+      .input("lastName", sql.NVarChar(100), profile.lastName)
+      .input(
+        "visibility",
+        sql.NVarChar(20),
+        profile.visibility.isPublic ? "public" : "private",
+      )
+      .input("profileStatus", sql.NVarChar(20), profile.status)
+      .input(
+        "primaryTitle",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfessionalTitleId || null,
+      )
+      .input(
+        "primaryEmail",
+        sql.NVarChar(200),
+        profile.preferences.primaryEmailId || null,
+      )
+      .input(
+        "primaryPhone",
+        sql.NVarChar(200),
+        profile.preferences.primaryPhoneId || null,
+      )
+      .input(
+        "primaryWebsite",
+        sql.NVarChar(200),
+        profile.preferences.primaryWebsiteId || null,
+      )
+      .input(
+        "primaryLocation",
+        sql.NVarChar(200),
+        profile.preferences.primaryLocationId || null,
+      )
+      .input(
+        "primarySocial",
+        sql.NVarChar(200),
+        profile.preferences.primarySocialLinkId || null,
+      )
+      .input(
+        "primaryPicture",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfilePictureId || null,
+      ).query(`
+        UPDATE dbo.user_profiles
+        SET first_name = @firstName,
+            middle_name = @middleName,
+            last_name = @lastName,
+            display_name = LTRIM(RTRIM(CONCAT(@firstName, N' ', NULLIF(@middleName, N''), N' ', @lastName))),
+            profile_visibility = @visibility,
+            profile_status = @profileStatus,
+            primary_professional_title_id = @primaryTitle,
+            primary_email_id = @primaryEmail,
+            primary_phone_id = @primaryPhone,
+            primary_website_id = @primaryWebsite,
+            primary_location_id = @primaryLocation,
+            primary_social_link_id = @primarySocial,
+            primary_profile_picture_id = @primaryPicture,
+            updated_at = SYSUTCDATETIME()
+        WHERE user_id = @userId;
+      `);
+
+    if (!updateResult.rowsAffected[0]) {
+      await transaction.rollback();
+      return null;
+    }
+
+    await new sql.Request(transaction).input(
+      "userId",
+      sql.UniqueIdentifier,
+      userId,
+    ).query(`
+        DELETE FROM dbo.user_profile_professional_titles WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_contacts WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_pictures WHERE user_id = @userId;
+      `);
+
+    for (const item of profile.professionalTitles) {
+      await insertTitle(transaction, userId, item);
+    }
+
+    for (const category of CONTACT_CATEGORIES) {
+      for (const item of profile[category]) {
+        await insertContact(transaction, userId, category, item);
+      }
+    }
+
+    for (const item of profile.profilePictures) {
+      await insertPicture(transaction, userId, item);
+    }
+
+    await transaction.commit();
+    return findProfileByUserId(userId);
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Profile transaction rollback failed:", rollbackError);
+    }
+
+    throw error;
+  }
+}
+
+========== backend\src\middleware\errorMiddleware.js ==========
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+export function notFoundHandler(request, response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  return response.status(404).json({
+    status: "error",
+
+    code: "ROUTE_NOT_FOUND",
+
+    message: `Route not found: ${request.method} ${request.originalUrl}`,
+  });
+}
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+export function globalErrorHandler(error, request, response, next) {
+  /*
+   * Express delegates to its default handler
+   * if a response has already started.
+   */
+
+  if (response.headersSent) {
+    return next(error);
+  }
+
+  const isMalformedJson =
+    error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+
+  const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+
+  const code = isMalformedJson
+    ? "INVALID_JSON"
+    : normalizePublicCode(error, status);
+
+  const message = isMalformedJson
+    ? "The request body contains invalid JSON."
+    : getPublicMessage(error, status);
+
+  /*
+   * Log complete technical information only
+   * on the server.
+   */
+
+  console.error("Unhandled API error:", {
+    method: request.method,
+
+    url: request.originalUrl,
+
+    name: error?.name,
+
+    code: error?.code,
+
+    message: error?.message,
+
+    status,
+
+    provider: error?.provider,
+
+    stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+  });
+
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+
+  const validationErrors = normalizeValidationErrors(
+    error?.errors || error?.validationErrors,
+  );
+
+  return response.status(status).json({
+    status: "error",
+
+    code,
+
+    message,
+
+    ...(Object.keys(fieldErrors).length > 0
+      ? {
+          fieldErrors,
+        }
+      : {}),
+
+    ...(validationErrors.length > 0
+      ? {
+          errors: validationErrors,
+        }
+      : {}),
+
+    /*
+     * Development details are useful while
+     * building the API but are excluded from
+     * production responses.
+     */
+
+    ...(process.env.NODE_ENV === "development"
+      ? {
+          debug: {
+            name: error?.name || "Error",
+
+            technicalMessage: error?.message || "Unknown error",
+
+            provider: error?.provider || null,
+          },
+        }
+      : {}),
+  });
+}
+
+/*
+ * =========================================
+ * Status Normalization
+ * =========================================
+ */
+
+function normalizeStatus(status) {
+  const numericStatus = Number(status);
+
+  if (
+    Number.isInteger(numericStatus) &&
+    numericStatus >= 400 &&
+    numericStatus <= 599
+  ) {
+    return numericStatus;
+  }
+
+  return 500;
+}
+
+/*
+ * =========================================
+ * Public Error Code
+ * =========================================
+ *
+ * Internal database and provider codes should
+ * not automatically be returned to clients.
+ * Application errors are public only when
+ * they also provide a publicMessage.
+ */
+
+function normalizePublicCode(error, status) {
+  const code = typeof error?.code === "string" ? error.code.trim() : "";
+
+  const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+
+  if (error?.publicMessage && isSafeCode) {
+    return code;
+  }
+
+  if (status === 400) {
+    return "BAD_REQUEST";
+  }
+
+  if (status === 401) {
+    return "AUTHENTICATION_REQUIRED";
+  }
+
+  if (status === 403) {
+    return "ACCESS_FORBIDDEN";
+  }
+
+  if (status === 404) {
+    return "RESOURCE_NOT_FOUND";
+  }
+
+  if (status === 409) {
+    return "RESOURCE_CONFLICT";
+  }
+
+  if (status === 429) {
+    return "RATE_LIMIT_EXCEEDED";
+  }
+
+  if (status === 503) {
+    return "SERVICE_UNAVAILABLE";
+  }
+
+  return "INTERNAL_SERVER_ERROR";
+}
+
+/*
+ * =========================================
+ * Public Error Message
+ * =========================================
+ */
+
+function getPublicMessage(error, status) {
+  if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+    return error.publicMessage.trim();
+  }
+
+  if (status === 400) {
+    return "The request could not be processed.";
+  }
+
+  if (status === 401) {
+    return "Authentication is required.";
+  }
+
+  if (status === 403) {
+    return "You do not have permission to perform this operation.";
+  }
+
+  if (status === 404) {
+    return "The requested resource was not found.";
+  }
+
+  if (status === 409) {
+    return "The request conflicts with the current resource state.";
+  }
+
+  if (status === 429) {
+    return "Too many requests were submitted. Please try again later.";
+  }
+
+  if (status === 503) {
+    return "The service is temporarily unavailable.";
+  }
+
+  return "An unexpected server error occurred.";
+}
+
+/*
+ * =========================================
+ * Field Error Normalization
+ * =========================================
+ */
+
+function normalizeFieldErrors(fieldErrors) {
+  if (
+    !fieldErrors ||
+    typeof fieldErrors !== "object" ||
+    Array.isArray(fieldErrors)
+  ) {
+    return {};
+  }
+
+  const normalized = {};
+
+  for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+    const safeFieldName = String(fieldName).slice(0, 100);
+
+    const messageValues = Array.isArray(messages) ? messages : [messages];
+
+    const safeMessages = messageValues
+      .filter((message) => typeof message === "string")
+      .map((message) => message.trim().slice(0, 500))
+      .filter(Boolean);
+
+    if (safeMessages.length > 0) {
+      normalized[safeFieldName] = safeMessages;
+    }
+  }
+
+  return normalized;
+}
+
+/*
+ * =========================================
+ * Validation Error Normalization
+ * =========================================
+ */
+
+function normalizeValidationErrors(errors) {
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+
+  return errors
+    .slice(0, 50)
+    .map((validationError) => {
+      if (typeof validationError === "string") {
+        return {
+          field: "",
+
+          code: "VALIDATION_ERROR",
+
+          message: validationError.trim().slice(0, 500),
+        };
+      }
+
+      if (!validationError || typeof validationError !== "object") {
+        return null;
+      }
+
+      const message =
+        typeof validationError.message === "string"
+          ? validationError.message.trim().slice(0, 500)
+          : "";
+
+      if (!message) {
+        return null;
+      }
+
+      return {
+        field:
+          typeof validationError.field === "string"
+            ? validationError.field.trim().slice(0, 100)
+            : "",
+
+        code:
+          typeof validationError.code === "string"
+            ? validationError.code.trim().slice(0, 100)
+            : "VALIDATION_ERROR",
+
+        message,
+      };
+    })
+    .filter(Boolean);
+}
+

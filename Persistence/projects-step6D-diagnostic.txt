@@ -1,0 +1,56 @@
+============================================================
+FILE: .\backend\src\repositories\projectRepository.js
+============================================================
+export async function deleteProject(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId).query(`
+      DELETE FROM dbo.projects
+      WHERE id = @id
+        AND user_id = @userId;
+    `);
+
+  return result.rowsAffected[0] > 0;
+}
+
+
+============================================================
+FILE: .\backend\src\services\Service\projectService.js
+============================================================
+export async function deleteAuthenticatedProject({ userId, projectId }) {
+  const deleted = await deleteProject(
+    assertUserId(userId),
+    assertProjectId(projectId),
+  );
+
+  if (!deleted) {
+    throw projectNotFound();
+  }
+
+  return { deleted: true };
+}
+
+
+============================================================
+FILE: .\backend\test\services\projectService.test.js
+============================================================
+test("delete is scoped to authenticated user", async () => {
+  storedProject = validProject();
+
+  const result = await deleteAuthenticatedProject({ userId, projectId });
+
+  assert.deepEqual(result, { deleted: true });
+  assert.deepEqual(calls[0], ["delete", userId, projectId]);
+});
+
+test("delete returns not found when repository deletes nothing", async () => {
+  await assert.rejects(
+    deleteAuthenticatedProject({ userId, projectId }),
+    (error) => error.code === "PROJECT_NOT_FOUND",
+  );
+});
+
+

@@ -1,0 +1,147 @@
+/*
+ * Portfolio Platform
+ * Migration: 005_profile_details.sql
+ *
+ * Adds reusable Profile collections and primary-item preferences.
+ * Do not add GO statements.
+ */
+
+ALTER TABLE dbo.user_profiles
+ADD
+  profile_status NVARCHAR(20) NOT NULL
+    CONSTRAINT DF_user_profiles_profile_status DEFAULT N'active',
+  primary_professional_title_id NVARCHAR(200) NULL,
+  primary_email_id NVARCHAR(200) NULL,
+  primary_phone_id NVARCHAR(200) NULL,
+  primary_website_id NVARCHAR(200) NULL,
+  primary_location_id NVARCHAR(200) NULL,
+  primary_social_link_id NVARCHAR(200) NULL,
+  primary_profile_picture_id NVARCHAR(200) NULL,
+  CONSTRAINT CK_user_profiles_profile_status
+    CHECK (profile_status IN (N'active', N'archived'));
+
+CREATE TABLE dbo.user_profile_professional_titles
+(
+  user_id UNIQUEIDENTIFIER NOT NULL,
+  item_id NVARCHAR(200) NOT NULL,
+  title_name NVARCHAR(200) NOT NULL,
+  description NVARCHAR(500) NOT NULL
+    CONSTRAINT DF_profile_titles_description DEFAULT N'',
+  display_order INT NOT NULL,
+  item_status NVARCHAR(20) NOT NULL
+    CONSTRAINT DF_profile_titles_status DEFAULT N'active',
+  created_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_profile_titles_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_profile_titles_updated_at DEFAULT SYSUTCDATETIME(),
+
+  CONSTRAINT PK_user_profile_professional_titles
+    PRIMARY KEY CLUSTERED (user_id, item_id),
+  CONSTRAINT FK_user_profile_professional_titles_profile
+    FOREIGN KEY (user_id) REFERENCES dbo.user_profiles(user_id)
+    ON DELETE CASCADE,
+  CONSTRAINT CK_user_profile_professional_titles_order
+    CHECK (display_order >= 0),
+  CONSTRAINT CK_user_profile_professional_titles_status
+    CHECK (item_status IN (N'active', N'archived'))
+);
+
+CREATE INDEX IX_user_profile_professional_titles_order
+  ON dbo.user_profile_professional_titles(user_id, display_order);
+
+CREATE TABLE dbo.user_profile_contacts
+(
+  user_id UNIQUEIDENTIFIER NOT NULL,
+  item_id NVARCHAR(200) NOT NULL,
+  category NVARCHAR(30) NOT NULL,
+  contact_type NVARCHAR(30) NOT NULL,
+  contact_value NVARCHAR(2048) NOT NULL,
+  description NVARCHAR(500) NOT NULL
+    CONSTRAINT DF_profile_contacts_description DEFAULT N'',
+  display_order INT NOT NULL,
+  item_status NVARCHAR(20) NOT NULL
+    CONSTRAINT DF_profile_contacts_status DEFAULT N'active',
+  created_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_profile_contacts_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_profile_contacts_updated_at DEFAULT SYSUTCDATETIME(),
+
+  CONSTRAINT PK_user_profile_contacts
+    PRIMARY KEY CLUSTERED (user_id, item_id),
+  CONSTRAINT FK_user_profile_contacts_profile
+    FOREIGN KEY (user_id) REFERENCES dbo.user_profiles(user_id)
+    ON DELETE CASCADE,
+  CONSTRAINT CK_user_profile_contacts_category
+    CHECK (category IN
+      (N'emails', N'phones', N'websites', N'locations', N'socialLinks')),
+  CONSTRAINT CK_user_profile_contacts_order
+    CHECK (display_order >= 0),
+  CONSTRAINT CK_user_profile_contacts_status
+    CHECK (item_status IN (N'active', N'archived'))
+);
+
+CREATE INDEX IX_user_profile_contacts_category_order
+  ON dbo.user_profile_contacts(user_id, category, display_order);
+
+CREATE TABLE dbo.user_profile_pictures
+(
+  user_id UNIQUEIDENTIFIER NOT NULL,
+  item_id NVARCHAR(200) NOT NULL,
+  picture_type NVARCHAR(100) NOT NULL
+    CONSTRAINT DF_profile_pictures_type DEFAULT N'',
+  image_url NVARCHAR(2048) NOT NULL
+    CONSTRAINT DF_profile_pictures_image_url DEFAULT N'',
+  blob_name NVARCHAR(255) NOT NULL
+    CONSTRAINT DF_profile_pictures_blob_name DEFAULT N'',
+  file_name NVARCHAR(255) NOT NULL
+    CONSTRAINT DF_profile_pictures_file_name DEFAULT N'',
+  file_type NVARCHAR(100) NOT NULL
+    CONSTRAINT DF_profile_pictures_file_type DEFAULT N'',
+  file_size BIGINT NOT NULL
+    CONSTRAINT DF_profile_pictures_file_size DEFAULT 0,
+  use_default_avatar BIT NOT NULL
+    CONSTRAINT DF_profile_pictures_default_avatar DEFAULT 0,
+  image_width INT NULL,
+  image_height INT NULL,
+  description NVARCHAR(500) NOT NULL
+    CONSTRAINT DF_profile_pictures_description DEFAULT N'',
+  display_order INT NOT NULL,
+  item_status NVARCHAR(20) NOT NULL
+    CONSTRAINT DF_profile_pictures_status DEFAULT N'active',
+  created_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_profile_pictures_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_profile_pictures_updated_at DEFAULT SYSUTCDATETIME(),
+
+  CONSTRAINT PK_user_profile_pictures
+    PRIMARY KEY CLUSTERED (user_id, item_id),
+  CONSTRAINT FK_user_profile_pictures_profile
+    FOREIGN KEY (user_id) REFERENCES dbo.user_profiles(user_id)
+    ON DELETE CASCADE,
+  CONSTRAINT CK_user_profile_pictures_file_size
+    CHECK (file_size >= 0 AND file_size <= 20971520),
+  CONSTRAINT CK_user_profile_pictures_dimensions
+    CHECK
+    (
+      (image_width IS NULL OR image_width > 0)
+      AND (image_height IS NULL OR image_height > 0)
+    ),
+  CONSTRAINT CK_user_profile_pictures_order
+    CHECK (display_order >= 0),
+  CONSTRAINT CK_user_profile_pictures_status
+    CHECK (item_status IN (N'active', N'archived'))
+);
+
+CREATE INDEX IX_user_profile_pictures_order
+  ON dbo.user_profile_pictures(user_id, display_order);
+
+/* Ensure accounts created before Profile migrations have a core row. */
+INSERT INTO dbo.user_profiles (user_id)
+SELECT users.id
+FROM dbo.users AS users
+WHERE NOT EXISTS
+(
+  SELECT 1
+  FROM dbo.user_profiles AS profiles
+  WHERE profiles.user_id = users.id
+);

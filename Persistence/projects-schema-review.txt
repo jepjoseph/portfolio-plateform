@@ -1,0 +1,3992 @@
+============================================================
+FILE: frontend\src\config\projectConfig.js
+============================================================
+/*
+ * =========================================
+ * Project Categories
+ * =========================================
+ */
+
+export const PROJECT_CATEGORY_OPTIONS = [
+  {
+    value: "software",
+    label: "Software Development",
+  },
+  {
+    value: "web-application",
+    label: "Web Application",
+  },
+  {
+    value: "mobile-application",
+    label: "Mobile Application",
+  },
+  {
+    value: "artificial-intelligence",
+    label: "Artificial Intelligence",
+  },
+  {
+    value: "data",
+    label: "Data and Analytics",
+  },
+  {
+    value: "cloud-infrastructure",
+    label: "Cloud and Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "cybersecurity",
+    label: "Cybersecurity",
+  },
+  {
+    value: "embedded-systems",
+    label: "Embedded Systems",
+  },
+  {
+    value: "electronics",
+    label: "Electronics",
+  },
+  {
+    value: "automation",
+    label: "Automation",
+  },
+  {
+    value: "internet-of-things",
+    label: "Internet of Things",
+  },
+  {
+    value: "research",
+    label: "Research",
+  },
+  {
+    value: "design",
+    label: "Design",
+  },
+  {
+    value: "business",
+    label: "Business or Startup",
+  },
+  {
+    value: "academic",
+    label: "Academic Project",
+  },
+  {
+    value: "community",
+    label: "Community Project",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Project Lifecycle
+ * =========================================
+ *
+ * This represents the actual lifecycle of the
+ * project. It is separate from recordStatus,
+ * which controls library archiving.
+ */
+
+export const PROJECT_LIFECYCLE_STATUS_OPTIONS = [
+  {
+    value: "planned",
+    label: "Planned",
+  },
+  {
+    value: "in-progress",
+    label: "In Progress",
+  },
+  {
+    value: "completed",
+    label: "Completed",
+  },
+  {
+    value: "maintained",
+    label: "Maintained",
+  },
+  {
+    value: "paused",
+    label: "Paused",
+  },
+  {
+    value: "cancelled",
+    label: "Cancelled",
+  },
+];
+
+/*
+ * =========================================
+ * Project Ownership
+ * =========================================
+ */
+
+export const PROJECT_OWNERSHIP_OPTIONS = [
+  {
+    value: "individual",
+    label: "Individual Project",
+  },
+  {
+    value: "team",
+    label: "Team Project",
+  },
+  {
+    value: "client",
+    label: "Client Project",
+  },
+  {
+    value: "organization",
+    label: "Organization Project",
+  },
+];
+
+/*
+ * =========================================
+ * Record Sources
+ * =========================================
+ */
+
+export const PROJECT_SOURCE_OPTIONS = [
+  {
+    value: "manual",
+    label: "Manually Added",
+  },
+  {
+    value: "import",
+    label: "Imported",
+  },
+  {
+    value: "integration",
+    label: "Integration",
+  },
+  {
+    value: "ai-assisted",
+    label: "AI Assisted",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const PROJECT_RECORD_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+  },
+];
+
+/*
+ * =========================================
+ * Demonstrated Skill Proficiency
+ * =========================================
+ *
+ * This describes the proficiency demonstrated
+ * specifically within a Project. It can differ
+ * from the general Skill Library proficiency.
+ */
+
+export const PROJECT_SKILL_PROFICIENCY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "foundational",
+    label: "Foundational",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+  },
+  {
+    value: "expert",
+    label: "Expert",
+  },
+];
+
+/*
+ * =========================================
+ * Technology Categories
+ * =========================================
+ */
+
+export const PROJECT_TECHNOLOGY_CATEGORY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "programming-language",
+    label: "Programming Language",
+  },
+  {
+    value: "framework-library",
+    label: "Framework or Library",
+  },
+  {
+    value: "database",
+    label: "Database",
+  },
+  {
+    value: "cloud-platform",
+    label: "Cloud Platform",
+  },
+  {
+    value: "infrastructure",
+    label: "Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "hardware",
+    label: "Hardware",
+  },
+  {
+    value: "embedded-platform",
+    label: "Embedded Platform",
+  },
+  {
+    value: "development-tool",
+    label: "Development Tool",
+  },
+  {
+    value: "design-tool",
+    label: "Design Tool",
+  },
+  {
+    value: "testing-tool",
+    label: "Testing Tool",
+  },
+  {
+    value: "methodology",
+    label: "Methodology",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Recognition Types
+ * =========================================
+ */
+
+export const PROJECT_RECOGNITION_TYPE_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "award",
+    label: "Award",
+  },
+  {
+    value: "competition",
+    label: "Competition",
+  },
+  {
+    value: "grant",
+    label: "Grant",
+  },
+  {
+    value: "fellowship",
+    label: "Fellowship",
+  },
+  {
+    value: "showcase",
+    label: "Showcase Selection",
+  },
+  {
+    value: "publication",
+    label: "Publication",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "patent",
+    label: "Patent or Invention",
+  },
+  {
+    value: "media",
+    label: "Media Recognition",
+  },
+  {
+    value: "client-recognition",
+    label: "Client Recognition",
+  },
+  {
+    value: "academic-recognition",
+    label: "Academic Recognition",
+  },
+  {
+    value: "other",
+    label: "Other Recognition",
+  },
+];
+
+/*
+ * =========================================
+ * Award Placements
+ * =========================================
+ */
+
+export const PROJECT_AWARD_PLACEMENT_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "winner",
+    label: "Winner",
+  },
+  {
+    value: "first-place",
+    label: "First Place",
+  },
+  {
+    value: "second-place",
+    label: "Second Place",
+  },
+  {
+    value: "third-place",
+    label: "Third Place",
+  },
+  {
+    value: "finalist",
+    label: "Finalist",
+  },
+  {
+    value: "semifinalist",
+    label: "Semifinalist",
+  },
+  {
+    value: "honorable-mention",
+    label: "Honorable Mention",
+  },
+  {
+    value: "selected",
+    label: "Selected",
+  },
+  {
+    value: "recipient",
+    label: "Recipient",
+  },
+  {
+    value: "participant",
+    label: "Participant",
+  },
+  {
+    value: "other",
+    label: "Other Placement",
+  },
+];
+
+/*
+ * =========================================
+ * Media Types
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_TYPE_OPTIONS = [
+  {
+    value: "image",
+    label: "Image",
+  },
+  {
+    value: "video",
+    label: "Video",
+  },
+  {
+    value: "diagram",
+    label: "Architecture Diagram",
+  },
+];
+
+/*
+ * =========================================
+ * Document Types
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_TYPE_OPTIONS = [
+  {
+    value: "report",
+    label: "Report",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "documentation",
+    label: "Documentation",
+  },
+  {
+    value: "source-file",
+    label: "Source File or Archive",
+  },
+  {
+    value: "dataset",
+    label: "Dataset",
+  },
+  {
+    value: "design",
+    label: "Design Document",
+  },
+  {
+    value: "award",
+    label: "Award Evidence",
+  },
+  {
+    value: "supporting-evidence",
+    label: "Supporting Evidence",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Asset Visibility
+ * =========================================
+ */
+
+export const PROJECT_ASSET_VISIBILITY_OPTIONS = [
+  {
+    value: "public",
+    label: "Public",
+  },
+  {
+    value: "private",
+    label: "Private",
+  },
+];
+
+/*
+ * =========================================
+ * Accepted Media Files
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+].join(",");
+
+/*
+ * =========================================
+ * Accepted Document Files
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+].join(",");
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ *
+ * These limits should later be mirrored in
+ * backend validation and database columns.
+ */
+
+export const PROJECT_FIELD_LIMITS = Object.freeze({
+  title: 200,
+  role: 160,
+
+  organizationName: 200,
+  clientName: 200,
+  website: 1000,
+
+  locationDisplayValue: 300,
+
+  url: 2000,
+
+  problemStatement: 4000,
+  targetAudience: 1000,
+  context: 3000,
+  importance: 3000,
+
+  overview: 4000,
+  approach: 4000,
+  architecture: 4000,
+
+  outcome: 4000,
+  problemsSolved: 3000,
+  impact: 3000,
+  beneficiariesAffected: 2000,
+  lessonsLearned: 3000,
+  futureImprovements: 3000,
+
+  shortSummary: 500,
+  caseStudy: 12000,
+
+  orderedItemText: 1500,
+
+  metricLabel: 200,
+  metricValue: 200,
+  metricDescription: 500,
+
+  relationshipName: 200,
+  relationshipDescription: 1000,
+
+  skillProficiency: 50,
+
+  technologyName: 150,
+  technologyCategory: 100,
+
+  awardName: 250,
+  awardOrganization: 250,
+  awardRecognitionType: 100,
+  awardPlacement: 100,
+  awardDescription: 1500,
+
+  mediaName: 255,
+  mediaCaption: 1000,
+  mediaAltText: 500,
+
+  documentName: 255,
+  documentDescription: 1000,
+
+  sourceContext: 500,
+  privateNotes: 5000,
+
+  maximumObjectives: 25,
+  maximumConstraints: 25,
+  maximumFeatures: 40,
+  maximumContributions: 40,
+  maximumMetrics: 25,
+
+  maximumSkills: 60,
+  maximumTechnologies: 60,
+  maximumRelationshipsPerType: 50,
+
+  maximumAwards: 20,
+  maximumAwardDocuments: 10,
+
+  maximumMedia: 30,
+  maximumDocuments: 30,
+
+  maximumImageBytes: 12 * 1024 * 1024,
+  maximumVideoBytes: 150 * 1024 * 1024,
+  maximumDocumentBytes: 20 * 1024 * 1024,
+});
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+function getOptionLabel(options, value, fallback = "") {
+  return findOption(options, value)?.label || fallback;
+}
+
+/*
+ * =========================================
+ * Project Option Validation
+ * =========================================
+ */
+
+export function isValidProjectCategory(value) {
+  return Boolean(findOption(PROJECT_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectLifecycleStatus(value) {
+  return Boolean(findOption(PROJECT_LIFECYCLE_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectOwnership(value) {
+  return Boolean(findOption(PROJECT_OWNERSHIP_OPTIONS, value));
+}
+
+export function isValidProjectSource(value) {
+  return Boolean(findOption(PROJECT_SOURCE_OPTIONS, value));
+}
+
+export function isValidProjectRecordStatus(value) {
+  return Boolean(findOption(PROJECT_RECORD_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectSkillProficiency(value) {
+  return Boolean(findOption(PROJECT_SKILL_PROFICIENCY_OPTIONS, value));
+}
+
+export function isValidProjectTechnologyCategory(value) {
+  return Boolean(findOption(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectRecognitionType(value) {
+  return Boolean(findOption(PROJECT_RECOGNITION_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectAwardPlacement(value) {
+  return Boolean(findOption(PROJECT_AWARD_PLACEMENT_OPTIONS, value));
+}
+
+export function isValidProjectMediaType(value) {
+  return Boolean(findOption(PROJECT_MEDIA_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectDocumentType(value) {
+  return Boolean(findOption(PROJECT_DOCUMENT_TYPE_OPTIONS, value));
+}
+
+/*
+ * =========================================
+ * Display Labels
+ * =========================================
+ */
+
+export function getProjectCategoryLabel(value) {
+  return getOptionLabel(PROJECT_CATEGORY_OPTIONS, value, "Other");
+}
+
+export function getProjectLifecycleStatusLabel(value) {
+  return getOptionLabel(PROJECT_LIFECYCLE_STATUS_OPTIONS, value, "Planned");
+}
+
+export function getProjectOwnershipLabel(value) {
+  return getOptionLabel(PROJECT_OWNERSHIP_OPTIONS, value, "Individual Project");
+}
+
+export function getProjectSourceLabel(value) {
+  return getOptionLabel(PROJECT_SOURCE_OPTIONS, value, "Manually Added");
+}
+
+export function getProjectRecordStatusLabel(value) {
+  return getOptionLabel(PROJECT_RECORD_STATUS_OPTIONS, value, "Active");
+}
+
+export function getProjectSkillProficiencyLabel(value) {
+  return getOptionLabel(PROJECT_SKILL_PROFICIENCY_OPTIONS, value);
+}
+
+export function getProjectTechnologyCategoryLabel(value) {
+  return getOptionLabel(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value);
+}
+
+export function getProjectRecognitionTypeLabel(value) {
+  return getOptionLabel(PROJECT_RECOGNITION_TYPE_OPTIONS, value);
+}
+
+export function getProjectAwardPlacementLabel(value) {
+  return getOptionLabel(PROJECT_AWARD_PLACEMENT_OPTIONS, value);
+}
+
+export function getProjectMediaTypeLabel(value) {
+  return getOptionLabel(PROJECT_MEDIA_TYPE_OPTIONS, value, "Image");
+}
+
+export function getProjectDocumentTypeLabel(value) {
+  return getOptionLabel(
+    PROJECT_DOCUMENT_TYPE_OPTIONS,
+    value,
+    "Supporting Evidence",
+  );
+}
+
+/*
+ * =========================================
+ * File Helpers
+ * =========================================
+ */
+
+function getFileType(file) {
+  return typeof file?.type === "string"
+    ? file.type.trim().toLocaleLowerCase()
+    : "";
+}
+
+function getFileName(file) {
+  return typeof file?.name === "string"
+    ? file.name.trim().toLocaleLowerCase()
+    : "";
+}
+
+function hasFileExtension(fileName, extensions) {
+  return extensions.some((extension) => fileName.endsWith(extension));
+}
+
+/*
+ * =========================================
+ * Media Validation
+ * =========================================
+ */
+
+export function isSupportedProjectMedia(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+  ];
+
+  const supportedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".mp4",
+    ".webm",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectMediaWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const isVideo =
+    mimeType.startsWith("video/") ||
+    hasFileExtension(fileName, [".mp4", ".webm"]);
+
+  const maximumSize = isVideo
+    ? PROJECT_FIELD_LIMITS.maximumVideoBytes
+    : PROJECT_FIELD_LIMITS.maximumImageBytes;
+
+  return fileSize <= maximumSize;
+}
+
+/*
+ * =========================================
+ * Document Validation
+ * =========================================
+ */
+
+export function isSupportedProjectDocument(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "application/pdf",
+
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "application/json",
+    "application/zip",
+    "application/x-zip-compressed",
+
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  const supportedExtensions = [
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".md",
+    ".csv",
+    ".json",
+    ".zip",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectDocumentWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  return (
+    Number.isFinite(fileSize) &&
+    fileSize > 0 &&
+    fileSize <= PROJECT_FIELD_LIMITS.maximumDocumentBytes
+  );
+}
+
+============================================================
+FILE: frontend\src\models\projectModel.js
+============================================================
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../config/projectConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const PROJECT_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createProjectId(prefix = "project") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeNullableFileSize(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.max(0, numberValue);
+}
+
+/*
+ * =========================================
+ * Date Normalization
+ * =========================================
+ */
+
+function normalizeDate(value) {
+  const normalizedValue = normalizeText(value, 10);
+
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(normalizedValue)
+  ) {
+    return "";
+  }
+
+  return normalizedValue;
+}
+
+/*
+ * =========================================
+ * Identifier Collection
+ * =========================================
+ */
+
+function normalizeIdentifierList(values, maximumItems = Infinity) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedIdentifiers = values
+    .map((value) => {
+      if (typeof value === "string") {
+        return normalizeText(value, 200);
+      }
+
+      return normalizeText(value?.id, 200);
+    })
+    .filter(Boolean);
+
+  return [...new Set(normalizedIdentifiers)].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Ordered Text Items
+ * =========================================
+ */
+
+function normalizeOrderedTextItems(values, prefix, maximumItems) {
+  return normalizeArray(values)
+    .map((value) => {
+      const source =
+        typeof value === "string"
+          ? {
+              text: value,
+            }
+          : value && typeof value === "object"
+            ? value
+            : {};
+
+      return {
+        id: normalizeText(source.id, 200) || createProjectId(prefix),
+
+        text: normalizeText(
+          source.text || source.name || source.value,
+          PROJECT_FIELD_LIMITS.orderedItemText,
+        ),
+
+        order: 0,
+      };
+    })
+    .filter((item) => item.text)
+    .slice(0, maximumItems)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+}
+
+/*
+ * =========================================
+ * Related Record Relationships
+ * =========================================
+ */
+
+function normalizeRecordRelationships(values, type) {
+  const idField = `${type}Id`;
+
+  const seenIdentifiers = new Set();
+
+  return normalizeArray(values).reduce((relationships, value) => {
+    const source =
+      typeof value === "string"
+        ? {
+            [idField]: value,
+          }
+        : value && typeof value === "object"
+          ? value
+          : {};
+
+    const recordId = normalizeText(
+      source[idField] || source.recordId || source.id,
+      200,
+    );
+
+    const identity = recordId.toLocaleLowerCase();
+
+    if (
+      !recordId ||
+      seenIdentifiers.has(identity) ||
+      relationships.length >= PROJECT_FIELD_LIMITS.maximumRelationshipsPerType
+    ) {
+      return relationships;
+    }
+
+    seenIdentifiers.add(identity);
+
+    const snapshot =
+      source.snapshot &&
+      typeof source.snapshot === "object" &&
+      !Array.isArray(source.snapshot)
+        ? source.snapshot
+        : {};
+
+    relationships.push({
+      id:
+        normalizeText(
+          source.relationshipId || (source[idField] ? source.id : ""),
+          200,
+        ) || createProjectId(`project-${type}`),
+
+      [idField]: recordId,
+
+      description: normalizeText(
+        source.description,
+        PROJECT_FIELD_LIMITS.relationshipDescription,
+      ),
+
+      order: relationships.length,
+
+      snapshot: {
+        name: normalizeText(
+          snapshot.name || snapshot.title || source.name || source.title,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        secondaryLabel: normalizeText(
+          snapshot.secondaryLabel ||
+            source.secondaryLabel ||
+            source.organization?.name ||
+            source.provider?.name ||
+            source.institution?.name ||
+            source.issuingOrganization?.name,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        status: normalizeText(
+          snapshot.status || source.lifecycleStatus || source.status,
+          100,
+        ),
+      },
+    });
+
+    return relationships;
+  }, []);
+}
+
+/*
+ * =========================================
+ * Skill Relationship
+ * =========================================
+ */
+
+export function createProjectSkillRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const proficiency =
+    source.demonstratedProficiency || source.proficiency || source.level || "";
+
+  return {
+    id:
+      normalizeText(
+        source.relationshipId || (source.skillId ? source.id : ""),
+        200,
+      ) || createProjectId("project-skill"),
+
+    skillId: normalizeText(
+      source.skillId ||
+        source.profileSkillId ||
+        (!source.skillId ? source.id : ""),
+      200,
+    ),
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label || source.value,
+      PROJECT_FIELD_LIMITS.relationshipName,
+    ),
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      100,
+    ),
+
+    demonstratedProficiency: isValidProjectSkillProficiency(proficiency)
+      ? proficiency
+      : "",
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      PROJECT_FIELD_LIMITS.relationshipDescription,
+    ),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Media
+ * =========================================
+ */
+
+export function createProjectMedia(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const type = isValidProjectMediaType(source.type)
+    ? source.type
+    : source.mimeType?.startsWith("video/")
+      ? "video"
+      : "image";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-media"),
+
+    type,
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.mediaName,
+    ),
+
+    caption: normalizeText(source.caption, PROJECT_FIELD_LIMITS.mediaCaption),
+
+    altText: normalizeText(
+      source.altText || source.alternativeText || source.imageDescription,
+      PROJECT_FIELD_LIMITS.mediaAltText,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    previewMode: type === "video" ? "video" : "image",
+
+    isFeatured: normalizeBoolean(source.isFeatured, false),
+
+    visibility: source.visibility === "private" ? "private" : "public",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Document
+ * =========================================
+ */
+
+export function createProjectDocument(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-document"),
+
+    documentType: isValidProjectDocumentType(source.documentType)
+      ? source.documentType
+      : "supporting-evidence",
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.documentName,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.documentDescription,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    visibility: source.visibility === "public" ? "public" : "private",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Metric
+ * =========================================
+ */
+
+function createProjectMetric(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-metric"),
+
+    label: normalizeText(
+      source.label || source.name,
+      PROJECT_FIELD_LIMITS.metricLabel,
+    ),
+
+    value: normalizeText(
+      source.value || source.result,
+      PROJECT_FIELD_LIMITS.metricValue,
+    ),
+
+    description: normalizeText(
+      source.description || source.context,
+      PROJECT_FIELD_LIMITS.metricDescription,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Technology
+ * =========================================
+ */
+
+function createProjectTechnology(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-technology"),
+
+    name: normalizeText(
+      source.name || source.nameSnapshot || source.label || source.value,
+      PROJECT_FIELD_LIMITS.technologyName,
+    ),
+
+    /*
+     * Category remains a normalized snapshot.
+     * This preserves older free-text categories
+     * while the form transitions to configured
+     * technology-category options.
+     */
+
+    category: normalizeText(
+      source.category || source.categorySnapshot,
+      PROJECT_FIELD_LIMITS.technologyCategory,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Award
+ * =========================================
+ */
+
+function createProjectAward(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const recognitionType = source.recognitionType || source.type || "";
+
+  const placement = source.placement || source.result || "";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-award"),
+
+    name: normalizeText(
+      source.name || source.title,
+      PROJECT_FIELD_LIMITS.awardName,
+    ),
+
+    organization: normalizeText(
+      source.organization || source.awardingOrganization || source.issuer,
+      PROJECT_FIELD_LIMITS.awardOrganization,
+    ),
+
+    recognitionType: isValidProjectRecognitionType(recognitionType)
+      ? recognitionType
+      : "",
+
+    placement: isValidProjectAwardPlacement(placement) ? placement : "",
+
+    date: normalizeDate(source.date || source.awardDate),
+
+    url: normalizeText(
+      source.url || source.verificationUrl,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.awardDescription,
+    ),
+
+    supportingDocumentIds: normalizeIdentifierList(
+      source.supportingDocumentIds || source.documentIds,
+      PROJECT_FIELD_LIMITS.maximumAwardDocuments,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Empty Project
+ * =========================================
+ */
+
+export function createEmptyProject() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: createProjectId(),
+
+    title: "",
+
+    category: "software",
+
+    lifecycleStatus: "planned",
+
+    role: "",
+
+    ownership: "individual",
+
+    organization: {
+      name: "",
+      clientName: "",
+      website: "",
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    location: {
+      displayValue: "",
+    },
+
+    links: {
+      liveUrl: "",
+      repositoryUrl: "",
+      documentationUrl: "",
+      caseStudyUrl: "",
+      videoUrl: "",
+    },
+
+    problem: {
+      statement: "",
+      targetAudience: "",
+      context: "",
+      importance: "",
+      constraints: [],
+      objectives: [],
+    },
+
+    solution: {
+      overview: "",
+      approach: "",
+      architecture: "",
+      features: [],
+      contributions: [],
+    },
+
+    results: {
+      outcome: "",
+      problemsSolved: "",
+      impact: "",
+      beneficiariesAffected: "",
+      metrics: [],
+      lessonsLearned: "",
+      futureImprovements: "",
+    },
+
+    skillRelationships: [],
+
+    technologies: [],
+
+    relatedRecords: {
+      experienceRelationships: [],
+      educationRelationships: [],
+      trainingRelationships: [],
+      certificationRelationships: [],
+    },
+
+    awards: [],
+
+    media: [],
+
+    supportingDocuments: [],
+
+    presentation: {
+      shortSummary: "",
+      caseStudy: "",
+      featuredMediaId: "",
+      isFeatured: false,
+    },
+
+    visibility: {
+      showOrganization: true,
+      showLocation: true,
+      showDates: true,
+      showLinks: true,
+      showProblem: true,
+      showSolution: true,
+      showResults: true,
+      showSkills: true,
+      showTechnologies: true,
+      showRelatedRecords: true,
+      showAwards: true,
+      showMedia: true,
+      showSupportingDocuments: false,
+    },
+
+    privateInformation: {
+      notes: "",
+    },
+
+    source: "manual",
+
+    sourceContext: "",
+
+    recordStatus: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Featured Media Eligibility
+ * =========================================
+ */
+
+function isEligibleFeaturedMedia(mediaItem) {
+  return Boolean(
+    mediaItem &&
+    mediaItem.status !== "archived" &&
+    mediaItem.visibility !== "private" &&
+    (normalizeText(mediaItem.storageKey, 500) ||
+      normalizeText(mediaItem.externalUrl, PROJECT_FIELD_LIMITS.url)),
+  );
+}
+
+/*
+ * =========================================
+ * Project Normalization
+ * =========================================
+ */
+
+export function normalizeProject(value = {}) {
+  const defaults = createEmptyProject();
+
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  const getObject = (fieldName) =>
+    source[fieldName] &&
+    typeof source[fieldName] === "object" &&
+    !Array.isArray(source[fieldName])
+      ? source[fieldName]
+      : {};
+
+  const organization = getObject("organization");
+  const dates = getObject("dates");
+  const location = getObject("location");
+  const links = getObject("links");
+  const problem = getObject("problem");
+  const solution = getObject("solution");
+  const results = getObject("results");
+  const relatedRecords = getObject("relatedRecords");
+  const presentation = getObject("presentation");
+  const visibility = getObject("visibility");
+  const privateInformation = getObject("privateInformation");
+
+  const lifecycleStatus = isValidProjectLifecycleStatus(
+    source.lifecycleStatus || source.projectStatus,
+  )
+    ? source.lifecycleStatus || source.projectStatus
+    : defaults.lifecycleStatus;
+
+  const isCurrent = normalizeBoolean(
+    dates.isCurrent,
+    ["in-progress", "maintained"].includes(lifecycleStatus),
+  );
+
+  /*
+   * =========================================
+   * Media Normalization
+   * =========================================
+   */
+
+  const media = normalizeArray(source.media)
+    .map((item, order) => createProjectMedia(item, order))
+    .filter((item) => item.name || item.storageKey || item.externalUrl)
+    .slice(0, PROJECT_FIELD_LIMITS.maximumMedia)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+
+  const requestedFeaturedMediaId = normalizeText(
+    presentation.featuredMediaId,
+    200,
+  );
+
+  const featuredMedia =
+    media.find(
+      (item) =>
+        item.id === requestedFeaturedMediaId && isEligibleFeaturedMedia(item),
+    ) ||
+    media.find((item) => item.isFeatured && isEligibleFeaturedMedia(item)) ||
+    media.find(isEligibleFeaturedMedia) ||
+    null;
+
+  /*
+   * =========================================
+   * Skill Relationship Normalization
+   * =========================================
+   */
+
+  const seenSkills = new Set();
+
+  const skillRelationships = normalizeArray(source.skillRelationships)
+    .map((relationship, order) =>
+      createProjectSkillRelationship(relationship, order),
+    )
+    .filter((relationship) => {
+      const identity = (relationship.skillId || relationship.nameSnapshot)
+        .normalize("NFKC")
+        .toLocaleLowerCase();
+
+      if (!identity || seenSkills.has(identity)) {
+        return false;
+      }
+
+      seenSkills.add(identity);
+
+      return true;
+    })
+    .slice(0, PROJECT_FIELD_LIMITS.maximumSkills)
+    .map((relationship, order) => ({
+      ...relationship,
+      order,
+    }));
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  const supportingDocuments = normalizeArray(source.supportingDocuments)
+    .map((documentRecord, order) =>
+      createProjectDocument(documentRecord, order),
+    )
+    .filter(
+      (documentRecord) =>
+        documentRecord.name ||
+        documentRecord.storageKey ||
+        documentRecord.externalUrl,
+    )
+    .slice(0, PROJECT_FIELD_LIMITS.maximumDocuments)
+    .map((documentRecord, order) => ({
+      ...documentRecord,
+      order,
+    }));
+
+  const validDocumentIds = new Set(
+    supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  /*
+   * =========================================
+   * Normalized Project
+   * =========================================
+   */
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    title: normalizeText(
+      source.title || source.name,
+      PROJECT_FIELD_LIMITS.title,
+    ),
+
+    category: isValidProjectCategory(source.category)
+      ? source.category
+      : defaults.category,
+
+    lifecycleStatus,
+
+    role: normalizeText(source.role, PROJECT_FIELD_LIMITS.role),
+
+    ownership: isValidProjectOwnership(source.ownership)
+      ? source.ownership
+      : defaults.ownership,
+
+    organization: {
+      name: normalizeText(
+        organization.name,
+        PROJECT_FIELD_LIMITS.organizationName,
+      ),
+
+      clientName: normalizeText(
+        organization.clientName,
+        PROJECT_FIELD_LIMITS.clientName,
+      ),
+
+      website: normalizeText(
+        organization.website,
+        PROJECT_FIELD_LIMITS.website,
+      ),
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    location: {
+      displayValue: normalizeText(
+        location.displayValue ||
+          source.locationValue ||
+          (typeof source.location === "string" ? source.location : ""),
+        PROJECT_FIELD_LIMITS.locationDisplayValue,
+      ),
+    },
+
+    links: {
+      liveUrl: normalizeText(links.liveUrl, PROJECT_FIELD_LIMITS.url),
+
+      repositoryUrl: normalizeText(
+        links.repositoryUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      documentationUrl: normalizeText(
+        links.documentationUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      caseStudyUrl: normalizeText(links.caseStudyUrl, PROJECT_FIELD_LIMITS.url),
+
+      videoUrl: normalizeText(links.videoUrl, PROJECT_FIELD_LIMITS.url),
+    },
+
+    problem: {
+      statement: normalizeText(
+        problem.statement,
+        PROJECT_FIELD_LIMITS.problemStatement,
+      ),
+
+      targetAudience: normalizeText(
+        problem.targetAudience,
+        PROJECT_FIELD_LIMITS.targetAudience,
+      ),
+
+      context: normalizeText(problem.context, PROJECT_FIELD_LIMITS.context),
+
+      importance: normalizeText(
+        problem.importance || problem.whyImportant,
+        PROJECT_FIELD_LIMITS.importance,
+      ),
+
+      constraints: normalizeOrderedTextItems(
+        problem.constraints,
+        "project-constraint",
+        PROJECT_FIELD_LIMITS.maximumConstraints,
+      ),
+
+      objectives: normalizeOrderedTextItems(
+        problem.objectives,
+        "project-objective",
+        PROJECT_FIELD_LIMITS.maximumObjectives,
+      ),
+    },
+
+    solution: {
+      overview: normalizeText(
+        solution.overview || source.description,
+        PROJECT_FIELD_LIMITS.overview,
+      ),
+
+      approach: normalizeText(
+        solution.approach || solution.proposedSolution,
+        PROJECT_FIELD_LIMITS.approach,
+      ),
+
+      architecture: normalizeText(
+        solution.architecture || solution.implementationSummary,
+        PROJECT_FIELD_LIMITS.architecture,
+      ),
+
+      features: normalizeOrderedTextItems(
+        solution.features,
+        "project-feature",
+        PROJECT_FIELD_LIMITS.maximumFeatures,
+      ),
+
+      contributions: normalizeOrderedTextItems(
+        solution.contributions,
+        "project-contribution",
+        PROJECT_FIELD_LIMITS.maximumContributions,
+      ),
+    },
+
+    results: {
+      outcome: normalizeText(results.outcome, PROJECT_FIELD_LIMITS.outcome),
+
+      problemsSolved: normalizeText(
+        results.problemsSolved || results.solutionImpact,
+        PROJECT_FIELD_LIMITS.problemsSolved,
+      ),
+
+      impact: normalizeText(results.impact, PROJECT_FIELD_LIMITS.impact),
+
+      beneficiariesAffected: normalizeText(
+        results.beneficiariesAffected ||
+          results.peopleAffected ||
+          results.organizationsAffected,
+        PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      ),
+
+      metrics: normalizeArray(results.metrics)
+        .map((metric, order) => createProjectMetric(metric, order))
+        .filter((metric) => metric.label || metric.value)
+        .slice(0, PROJECT_FIELD_LIMITS.maximumMetrics)
+        .map((metric, order) => ({
+          ...metric,
+          order,
+        })),
+
+      lessonsLearned: normalizeText(
+        results.lessonsLearned,
+        PROJECT_FIELD_LIMITS.lessonsLearned,
+      ),
+
+      futureImprovements: normalizeText(
+        results.futureImprovements,
+        PROJECT_FIELD_LIMITS.futureImprovements,
+      ),
+    },
+
+    skillRelationships,
+
+    technologies: normalizeArray(source.technologies)
+      .map((technology, order) => createProjectTechnology(technology, order))
+      .filter((technology) => technology.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumTechnologies)
+      .map((technology, order) => ({
+        ...technology,
+        order,
+      })),
+
+    relatedRecords: {
+      experienceRelationships: normalizeRecordRelationships(
+        relatedRecords.experienceRelationships || source.relatedExperienceIds,
+        "experience",
+      ),
+
+      educationRelationships: normalizeRecordRelationships(
+        relatedRecords.educationRelationships || source.relatedEducationIds,
+        "education",
+      ),
+
+      trainingRelationships: normalizeRecordRelationships(
+        relatedRecords.trainingRelationships || source.relatedTrainingIds,
+        "training",
+      ),
+
+      certificationRelationships: normalizeRecordRelationships(
+        relatedRecords.certificationRelationships ||
+          source.relatedCertificationIds,
+        "certification",
+      ),
+    },
+
+    awards: normalizeArray(source.awards)
+      .map((award, order) => createProjectAward(award, order))
+      .filter((award) => award.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumAwards)
+      .map((award, order) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => validDocumentIds.has(documentId),
+        ),
+
+        order,
+      })),
+
+    media: media.map((item) => ({
+      ...item,
+
+      isFeatured: item.id === featuredMedia?.id,
+    })),
+
+    supportingDocuments,
+
+    presentation: {
+      shortSummary: normalizeText(
+        presentation.shortSummary,
+        PROJECT_FIELD_LIMITS.shortSummary,
+      ),
+
+      caseStudy: normalizeText(
+        presentation.caseStudy,
+        PROJECT_FIELD_LIMITS.caseStudy,
+      ),
+
+      featuredMediaId: featuredMedia?.id || "",
+
+      isFeatured: normalizeBoolean(presentation.isFeatured, false),
+    },
+
+    visibility: Object.fromEntries(
+      Object.entries(defaults.visibility).map(([fieldName, fallback]) => [
+        fieldName,
+
+        normalizeBoolean(visibility[fieldName], fallback),
+      ]),
+    ),
+
+    privateInformation: {
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        PROJECT_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    source: isValidProjectSource(source.source)
+      ? source.source
+      : defaults.source,
+
+    sourceContext: normalizeText(
+      source.sourceContext,
+      PROJECT_FIELD_LIMITS.sourceContext,
+    ),
+
+    recordStatus: isValidProjectRecordStatus(source.recordStatus)
+      ? source.recordStatus
+      : defaults.recordStatus,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export function createProject(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeProject({
+    ...values,
+
+    id: normalizeText(values.id, 200) || createProjectId(),
+
+    createdAt: normalizeText(values.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export function updateProjectModel(currentProject, updates = {}) {
+  const mergeNested = (fieldName) => ({
+    ...currentProject?.[fieldName],
+    ...updates?.[fieldName],
+  });
+
+  return normalizeProject({
+    ...currentProject,
+    ...updates,
+
+    organization: mergeNested("organization"),
+    dates: mergeNested("dates"),
+    location: mergeNested("location"),
+    links: mergeNested("links"),
+    problem: mergeNested("problem"),
+    solution: mergeNested("solution"),
+    results: mergeNested("results"),
+    relatedRecords: mergeNested("relatedRecords"),
+    presentation: mergeNested("presentation"),
+    visibility: mergeNested("visibility"),
+    privateInformation: mergeNested("privateInformation"),
+
+    id: currentProject?.id,
+
+    createdAt: currentProject?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Project Collection
+ * =========================================
+ */
+
+export function normalizeProjectCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const seenIdentifiers = new Set();
+
+  return values.map(normalizeProject).filter((project) => {
+    if (seenIdentifiers.has(project.id)) {
+      return false;
+    }
+
+    seenIdentifiers.add(project.id);
+
+    return true;
+  });
+}
+
+/*
+ * =========================================
+ * Public Project Transformation
+ * =========================================
+ *
+ * This function removes private and internal
+ * career-management information before the
+ * Project is displayed publicly.
+ */
+
+export function createPublicProject(value) {
+  const project = normalizeProject(value);
+
+  /*
+   * Only active, public media can appear in a
+   * public portfolio.
+   */
+
+  const publicMedia = project.visibility.showMedia
+    ? project.media
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicMediaItem }, order) => ({
+          ...publicMediaItem,
+          order,
+        }))
+    : [];
+
+  /*
+   * A private or archived featured item must
+   * not remain referenced publicly.
+   */
+
+  const publicFeaturedMedia =
+    publicMedia.find(
+      (item) => item.id === project.presentation.featuredMediaId,
+    ) ||
+    publicMedia.find((item) => item.isFeatured) ||
+    publicMedia[0] ||
+    null;
+
+  const normalizedPublicMedia = publicMedia.map((item) => ({
+    ...item,
+
+    isFeatured: item.id === publicFeaturedMedia?.id,
+  }));
+
+  /*
+   * Only active, explicitly public documents
+   * can appear in public output.
+   */
+
+  const publicDocuments = project.visibility.showSupportingDocuments
+    ? project.supportingDocuments
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicDocument }, order) => ({
+          ...publicDocument,
+          order,
+        }))
+    : [];
+
+  const publicDocumentIds = new Set(
+    publicDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  const publicAwards = project.visibility.showAwards
+    ? project.awards.map((award) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => publicDocumentIds.has(documentId),
+        ),
+      }))
+    : [];
+
+  return {
+    modelVersion: project.modelVersion,
+
+    id: project.id,
+
+    title: project.title,
+
+    category: project.category,
+
+    lifecycleStatus: project.lifecycleStatus,
+
+    role: project.role,
+
+    ownership: project.ownership,
+
+    organization: project.visibility.showOrganization
+      ? project.organization
+      : null,
+
+    location: project.visibility.showLocation ? project.location : null,
+
+    dates: project.visibility.showDates ? project.dates : null,
+
+    links: project.visibility.showLinks ? project.links : null,
+
+    problem: project.visibility.showProblem ? project.problem : null,
+
+    solution: project.visibility.showSolution ? project.solution : null,
+
+    results: project.visibility.showResults ? project.results : null,
+
+    skillRelationships: project.visibility.showSkills
+      ? project.skillRelationships
+      : [],
+
+    technologies: project.visibility.showTechnologies
+      ? project.technologies
+      : [],
+
+    relatedRecords: project.visibility.showRelatedRecords
+      ? project.relatedRecords
+      : {
+          experienceRelationships: [],
+          educationRelationships: [],
+          trainingRelationships: [],
+          certificationRelationships: [],
+        },
+
+    awards: publicAwards,
+
+    media: normalizedPublicMedia,
+
+    supportingDocuments: publicDocuments,
+
+    presentation: {
+      shortSummary: project.presentation.shortSummary,
+
+      caseStudy: project.presentation.caseStudy,
+
+      featuredMediaId: publicFeaturedMedia?.id || "",
+
+      isFeatured: project.presentation.isFeatured,
+    },
+
+    updatedAt: project.updatedAt,
+  };
+}
+
+============================================================
+FILE: frontend\src\services\Project\projectValidation.js
+============================================================
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../../config/projectConfig.js";
+
+import { normalizeProject } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * Validation Result Helpers
+ * =========================================
+ */
+
+function addError(errors, fieldErrors, field, code, message) {
+  errors.push({
+    field,
+    code,
+    message,
+  });
+
+  if (!fieldErrors[field]) {
+    fieldErrors[field] = message;
+  }
+}
+
+function addWarning(warnings, field, code, message) {
+  warnings.push({
+    field,
+    code,
+    message,
+  });
+}
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+/*
+ * =========================================
+ * URL Validation
+ * =========================================
+ */
+
+function isValidUrl(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return true;
+  }
+
+  try {
+    const url = new URL(normalizedValue);
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * =========================================
+ * Date Validation
+ * =========================================
+ */
+
+function parseProjectDate(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const match = normalizedValue.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    match[3] &&
+    (parsedDate.getUTCFullYear() !== year ||
+      parsedDate.getUTCMonth() !== month - 1 ||
+      parsedDate.getUTCDate() !== day)
+  ) {
+    return null;
+  }
+
+  return parsedDate.getTime();
+}
+
+/*
+ * =========================================
+ * Length Validation
+ * =========================================
+ */
+
+function validateMaximumLength({
+  value,
+  maximumLength,
+  field,
+  label,
+  errors,
+  fieldErrors,
+}) {
+  if (typeof value === "string" && value.trim().length > maximumLength) {
+    addError(
+      errors,
+      fieldErrors,
+      field,
+      "PROJECT_FIELD_TOO_LONG",
+      `${label} cannot exceed ${maximumLength} characters.`,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Project Validation
+ * =========================================
+ */
+
+export function validateProject(value, collections = {}) {
+  const source = getObject(value);
+
+  const project = normalizeProject(source);
+
+  const errors = [];
+  const warnings = [];
+  const fieldErrors = {};
+
+  const sourceOrganization = getObject(source.organization);
+
+  const sourceDates = getObject(source.dates);
+
+  const sourceLinks = getObject(source.links);
+
+  const sourceProblem = getObject(source.problem);
+
+  const sourceSolution = getObject(source.solution);
+
+  const sourceResults = getObject(source.results);
+
+  const sourcePresentation = getObject(source.presentation);
+
+  const sourcePrivateInformation = getObject(source.privateInformation);
+
+  /*
+   * =========================================
+   * Required Fields
+   * =========================================
+   */
+
+  if (!project.title) {
+    addError(
+      errors,
+      fieldErrors,
+      "title",
+      "PROJECT_TITLE_REQUIRED",
+      "Enter a project title.",
+    );
+  }
+
+  if (!project.role) {
+    addError(
+      errors,
+      fieldErrors,
+      "role",
+      "PROJECT_ROLE_REQUIRED",
+      "Describe your role in this project.",
+    );
+  }
+
+  if (!project.dates.startDate) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.startDate",
+      "PROJECT_START_DATE_REQUIRED",
+      "Enter the project start date.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Option Validation
+   * =========================================
+   */
+
+  if (source.category && !isValidProjectCategory(source.category)) {
+    addError(
+      errors,
+      fieldErrors,
+      "category",
+      "PROJECT_CATEGORY_INVALID",
+      "Select a valid project category.",
+    );
+  }
+
+  const suppliedLifecycleStatus =
+    source.lifecycleStatus || source.projectStatus;
+
+  if (
+    suppliedLifecycleStatus &&
+    !isValidProjectLifecycleStatus(suppliedLifecycleStatus)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "lifecycleStatus",
+      "PROJECT_LIFECYCLE_INVALID",
+      "Select a valid project lifecycle status.",
+    );
+  }
+
+  if (source.ownership && !isValidProjectOwnership(source.ownership)) {
+    addError(
+      errors,
+      fieldErrors,
+      "ownership",
+      "PROJECT_OWNERSHIP_INVALID",
+      "Select a valid project ownership type.",
+    );
+  }
+
+  if (source.source && !isValidProjectSource(source.source)) {
+    addError(
+      errors,
+      fieldErrors,
+      "source",
+      "PROJECT_SOURCE_INVALID",
+      "Select a valid record source.",
+    );
+  }
+
+  if (source.recordStatus && !isValidProjectRecordStatus(source.recordStatus)) {
+    addError(
+      errors,
+      fieldErrors,
+      "recordStatus",
+      "PROJECT_RECORD_STATUS_INVALID",
+      "Select a valid Project record status.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Date Validation
+   * =========================================
+   */
+
+  const startDateValue = parseProjectDate(sourceDates.startDate);
+
+  const endDateValue = parseProjectDate(sourceDates.endDate);
+
+  if (sourceDates.startDate && startDateValue === null) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.startDate",
+      "PROJECT_START_DATE_INVALID",
+      "Enter a valid project start date.",
+    );
+  }
+
+  if (sourceDates.endDate && endDateValue === null) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_END_DATE_INVALID",
+      "Enter a valid project end date.",
+    );
+  }
+
+  if (
+    !project.dates.isCurrent &&
+    ["completed", "cancelled"].includes(project.lifecycleStatus) &&
+    !project.dates.endDate
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_END_DATE_REQUIRED",
+      "Enter the project completion or cancellation date.",
+    );
+  }
+
+  if (
+    startDateValue !== null &&
+    endDateValue !== null &&
+    endDateValue < startDateValue
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_DATE_ORDER_INVALID",
+      "The end date cannot be earlier than the start date.",
+    );
+  }
+
+  if (project.dates.isCurrent && project.dates.endDate) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_CURRENT_END_DATE_CONFLICT",
+      "An ongoing project cannot have an end date.",
+    );
+  }
+
+  if (
+    project.dates.isCurrent &&
+    !["in-progress", "maintained"].includes(project.lifecycleStatus)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "lifecycleStatus",
+      "PROJECT_CURRENT_LIFECYCLE_CONFLICT",
+      "An ongoing project must be In Progress or Maintained.",
+    );
+  }
+
+  if (
+    ["in-progress", "maintained"].includes(project.lifecycleStatus) &&
+    !project.dates.isCurrent
+  ) {
+    addWarning(
+      warnings,
+      "dates.isCurrent",
+      "PROJECT_CURRENT_STATUS_RECOMMENDED",
+      "Consider marking an In Progress or Maintained project as ongoing.",
+    );
+  }
+
+  /*
+   * =========================================
+   * URL Validation
+   * =========================================
+   */
+
+  Object.entries(sourceLinks).forEach(([fieldName, urlValue]) => {
+    if (!isValidUrl(urlValue)) {
+      addError(
+        errors,
+        fieldErrors,
+        `links.${fieldName}`,
+        "PROJECT_URL_INVALID",
+        "Enter a complete HTTP or HTTPS address.",
+      );
+    }
+  });
+
+  if (!isValidUrl(sourceOrganization.website)) {
+    addError(
+      errors,
+      fieldErrors,
+      "organization.website",
+      "PROJECT_ORGANIZATION_URL_INVALID",
+      "Enter a complete HTTP or HTTPS organization address.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Maximum Field Lengths
+   * =========================================
+   */
+
+  [
+    [source.title, PROJECT_FIELD_LIMITS.title, "title", "Project title"],
+    [source.role, PROJECT_FIELD_LIMITS.role, "role", "Project role"],
+    [
+      sourceOrganization.name,
+      PROJECT_FIELD_LIMITS.organizationName,
+      "organization.name",
+      "Organization name",
+    ],
+    [
+      sourceOrganization.clientName,
+      PROJECT_FIELD_LIMITS.clientName,
+      "organization.clientName",
+      "Client name",
+    ],
+    [
+      sourceProblem.statement,
+      PROJECT_FIELD_LIMITS.problemStatement,
+      "problem.statement",
+      "Problem statement",
+    ],
+    [
+      sourceProblem.targetAudience,
+      PROJECT_FIELD_LIMITS.targetAudience,
+      "problem.targetAudience",
+      "Target audience",
+    ],
+    [
+      sourceProblem.context,
+      PROJECT_FIELD_LIMITS.context,
+      "problem.context",
+      "Project context",
+    ],
+    [
+      sourceProblem.importance,
+      PROJECT_FIELD_LIMITS.importance,
+      "problem.importance",
+      "Project importance",
+    ],
+    [
+      sourceSolution.overview,
+      PROJECT_FIELD_LIMITS.overview,
+      "solution.overview",
+      "Solution overview",
+    ],
+    [
+      sourceSolution.approach,
+      PROJECT_FIELD_LIMITS.approach,
+      "solution.approach",
+      "Implementation approach",
+    ],
+    [
+      sourceSolution.architecture,
+      PROJECT_FIELD_LIMITS.architecture,
+      "solution.architecture",
+      "Architecture summary",
+    ],
+    [
+      sourceResults.outcome,
+      PROJECT_FIELD_LIMITS.outcome,
+      "results.outcome",
+      "Project outcome",
+    ],
+    [
+      sourceResults.problemsSolved,
+      PROJECT_FIELD_LIMITS.problemsSolved,
+      "results.problemsSolved",
+      "Problems solved",
+    ],
+    [
+      sourceResults.impact,
+      PROJECT_FIELD_LIMITS.impact,
+      "results.impact",
+      "Project impact",
+    ],
+    [
+      sourceResults.beneficiariesAffected,
+      PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      "results.beneficiariesAffected",
+      "Affected beneficiaries",
+    ],
+    [
+      sourcePresentation.shortSummary,
+      PROJECT_FIELD_LIMITS.shortSummary,
+      "presentation.shortSummary",
+      "Portfolio summary",
+    ],
+    [
+      sourcePresentation.caseStudy,
+      PROJECT_FIELD_LIMITS.caseStudy,
+      "presentation.caseStudy",
+      "Detailed case study",
+    ],
+    [
+      sourcePrivateInformation.notes,
+      PROJECT_FIELD_LIMITS.privateNotes,
+      "privateInformation.notes",
+      "Private notes",
+    ],
+  ].forEach(([fieldValue, limit, field, label]) => {
+    validateMaximumLength({
+      value: fieldValue,
+      maximumLength: limit,
+      field,
+      label,
+      errors,
+      fieldErrors,
+    });
+  });
+
+  /*
+   * =========================================
+   * Collection Limits
+   * =========================================
+   */
+
+  const collectionLimits = [
+    [
+      sourceProblem.objectives,
+      PROJECT_FIELD_LIMITS.maximumObjectives,
+      "problem.objectives",
+      "objectives",
+    ],
+    [
+      sourceProblem.constraints,
+      PROJECT_FIELD_LIMITS.maximumConstraints,
+      "problem.constraints",
+      "constraints",
+    ],
+    [
+      sourceSolution.features,
+      PROJECT_FIELD_LIMITS.maximumFeatures,
+      "solution.features",
+      "features",
+    ],
+    [
+      sourceSolution.contributions,
+      PROJECT_FIELD_LIMITS.maximumContributions,
+      "solution.contributions",
+      "contributions",
+    ],
+    [
+      sourceResults.metrics,
+      PROJECT_FIELD_LIMITS.maximumMetrics,
+      "results.metrics",
+      "metrics",
+    ],
+    [
+      source.skillRelationships,
+      PROJECT_FIELD_LIMITS.maximumSkills,
+      "skillRelationships",
+      "related Skills",
+    ],
+    [
+      source.technologies,
+      PROJECT_FIELD_LIMITS.maximumTechnologies,
+      "technologies",
+      "technologies",
+    ],
+    [source.awards, PROJECT_FIELD_LIMITS.maximumAwards, "awards", "awards"],
+    [source.media, PROJECT_FIELD_LIMITS.maximumMedia, "media", "media items"],
+    [
+      source.supportingDocuments,
+      PROJECT_FIELD_LIMITS.maximumDocuments,
+      "supportingDocuments",
+      "documents",
+    ],
+  ];
+
+  collectionLimits.forEach(([collection, maximum, field, label]) => {
+    if (Array.isArray(collection) && collection.length > maximum) {
+      addError(
+        errors,
+        fieldErrors,
+        field,
+        "PROJECT_COLLECTION_LIMIT_EXCEEDED",
+        `Add no more than ${maximum} ${label}.`,
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Skills
+   * =========================================
+   */
+
+  const availableSkillIds = Array.isArray(collections.skills)
+    ? new Set(collections.skills.map((skill) => skill?.id).filter(Boolean))
+    : null;
+
+  project.skillRelationships.forEach((relationship, index) => {
+    if (!relationship.skillId && !relationship.nameSnapshot) {
+      addError(
+        errors,
+        fieldErrors,
+        `skillRelationships.${index}`,
+        "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A related Skill must have an identifier or readable snapshot.",
+      );
+    }
+
+    if (
+      relationship.demonstratedProficiency &&
+      !isValidProjectSkillProficiency(relationship.demonstratedProficiency)
+    ) {
+      addError(
+        errors,
+        fieldErrors,
+        `skillRelationships.${index}.demonstratedProficiency`,
+        "PROJECT_SKILL_PROFICIENCY_INVALID",
+        "Select a valid demonstrated proficiency.",
+      );
+    }
+
+    /*
+     * A missing central record is a warning.
+     * The snapshot keeps the Project readable.
+     */
+
+    if (
+      availableSkillIds &&
+      relationship.skillId &&
+      !availableSkillIds.has(relationship.skillId)
+    ) {
+      addWarning(
+        warnings,
+        `skillRelationships.${index}`,
+        "PROJECT_SKILL_NOT_FOUND",
+        `The Skill “${
+          relationship.nameSnapshot || relationship.skillId
+        }” is no longer available in the Skill Library. Its snapshot will be preserved.`,
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Related Professional Records
+   * =========================================
+   */
+
+  const relationshipCollections = [
+    {
+      relationshipName: "experienceRelationships",
+      idField: "experienceId",
+      records: collections.experiences,
+      label: "Experience",
+    },
+    {
+      relationshipName: "educationRelationships",
+      idField: "educationId",
+      records: collections.educationRecords,
+      label: "Education",
+    },
+    {
+      relationshipName: "trainingRelationships",
+      idField: "trainingId",
+      records: collections.trainingRecords,
+      label: "Training",
+    },
+    {
+      relationshipName: "certificationRelationships",
+      idField: "certificationId",
+      records: collections.certifications,
+      label: "Certification",
+    },
+  ];
+
+  relationshipCollections.forEach(
+    ({ relationshipName, idField, records, label }) => {
+      if (!Array.isArray(records)) {
+        return;
+      }
+
+      const availableIds = new Set(
+        records.map((record) => record?.id).filter(Boolean),
+      );
+
+      project.relatedRecords[relationshipName].forEach(
+        (relationship, index) => {
+          if (!relationship[idField]) {
+            addError(
+              errors,
+              fieldErrors,
+              `relatedRecords.${relationshipName}.${index}`,
+              "PROJECT_RELATIONSHIP_ID_REQUIRED",
+              `A related ${label} record must have an identifier.`,
+            );
+
+            return;
+          }
+
+          if (!availableIds.has(relationship[idField])) {
+            addWarning(
+              warnings,
+              `relatedRecords.${relationshipName}.${index}`,
+              "PROJECT_RELATIONSHIP_NOT_FOUND",
+              `A related ${label} record is no longer available. Its readable snapshot will be preserved.`,
+            );
+          }
+        },
+      );
+    },
+  );
+
+  /*
+   * =========================================
+   * Awards and Recognition
+   * =========================================
+   */
+
+  const documentIds = new Set(
+    project.supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  project.awards.forEach((award, index) => {
+    if (
+      award.recognitionType &&
+      !isValidProjectRecognitionType(award.recognitionType)
+    ) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.recognitionType`,
+        "PROJECT_RECOGNITION_TYPE_INVALID",
+        "Select a valid recognition type.",
+      );
+    }
+
+    if (award.placement && !isValidProjectAwardPlacement(award.placement)) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.placement`,
+        "PROJECT_AWARD_PLACEMENT_INVALID",
+        "Select a valid award placement.",
+      );
+    }
+
+    if (!isValidUrl(award.url)) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.url`,
+        "PROJECT_AWARD_URL_INVALID",
+        "Enter a complete HTTP or HTTPS award address.",
+      );
+    }
+
+    award.supportingDocumentIds.forEach((documentId) => {
+      if (!documentIds.has(documentId)) {
+        addError(
+          errors,
+          fieldErrors,
+          `awards.${index}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+          "An award references a Project document that is no longer available.",
+        );
+      }
+    });
+  });
+
+  /*
+   * =========================================
+   * Media
+   * =========================================
+   */
+
+  project.media.forEach((mediaItem, index) => {
+    if (!isValidProjectMediaType(mediaItem.type)) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}.type`,
+        "PROJECT_MEDIA_TYPE_INVALID",
+        "Select a valid project media type.",
+      );
+    }
+
+    if (!mediaItem.storageKey && !mediaItem.externalUrl) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}`,
+        "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "Project media must have a stored file or external address.",
+      );
+    }
+
+    if (!isValidUrl(mediaItem.externalUrl)) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}.externalUrl`,
+        "PROJECT_MEDIA_URL_INVALID",
+        "Enter a complete HTTP or HTTPS media address.",
+      );
+    }
+
+    if (mediaItem.type !== "video" && !mediaItem.altText) {
+      addWarning(
+        warnings,
+        `media.${index}.altText`,
+        "PROJECT_MEDIA_ALT_TEXT_RECOMMENDED",
+        `Add alternative text for “${
+          mediaItem.name || "this image"
+        }” to improve accessibility.`,
+      );
+    }
+  });
+
+  const activeMedia = project.media.filter(
+    (mediaItem) => mediaItem.status !== "archived",
+  );
+
+  const featuredMediaId = project.presentation.featuredMediaId;
+
+  if (
+    featuredMediaId &&
+    !activeMedia.some((mediaItem) => mediaItem.id === featuredMediaId)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "presentation.featuredMediaId",
+      "PROJECT_FEATURED_MEDIA_NOT_FOUND",
+      "The selected featured media is no longer available.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  project.supportingDocuments.forEach((documentRecord, index) => {
+    if (!isValidProjectDocumentType(documentRecord.documentType)) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}.documentType`,
+        "PROJECT_DOCUMENT_TYPE_INVALID",
+        "Select a valid Project document type.",
+      );
+    }
+
+    if (!documentRecord.storageKey && !documentRecord.externalUrl) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}`,
+        "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A Project document must have a stored file or external address.",
+      );
+    }
+
+    if (!isValidUrl(documentRecord.externalUrl)) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}.externalUrl`,
+        "PROJECT_DOCUMENT_URL_INVALID",
+        "Enter a complete HTTP or HTTPS document address.",
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Professional Completeness Warnings
+   * =========================================
+   */
+
+  if (!project.problem.statement) {
+    addWarning(
+      warnings,
+      "problem.statement",
+      "PROJECT_PROBLEM_RECOMMENDED",
+      "Add the problem or opportunity the project addressed.",
+    );
+  }
+
+  if (!project.problem.importance) {
+    addWarning(
+      warnings,
+      "problem.importance",
+      "PROJECT_IMPORTANCE_RECOMMENDED",
+      "Explain why this project was professionally important.",
+    );
+  }
+
+  if (!project.solution.overview) {
+    addWarning(
+      warnings,
+      "solution.overview",
+      "PROJECT_SOLUTION_RECOMMENDED",
+      "Add a concise explanation of the solution.",
+    );
+  }
+
+  if (project.solution.contributions.length === 0) {
+    addWarning(
+      warnings,
+      "solution.contributions",
+      "PROJECT_CONTRIBUTIONS_RECOMMENDED",
+      "Describe your personal contributions to the project.",
+    );
+  }
+
+  if (project.lifecycleStatus === "completed" && !project.results.outcome) {
+    addWarning(
+      warnings,
+      "results.outcome",
+      "PROJECT_OUTCOME_RECOMMENDED",
+      "Add the completed Project’s final outcome.",
+    );
+  }
+
+  if (
+    project.lifecycleStatus === "completed" &&
+    !project.results.problemsSolved
+  ) {
+    addWarning(
+      warnings,
+      "results.problemsSolved",
+      "PROJECT_PROBLEMS_SOLVED_RECOMMENDED",
+      "Explain which problems the completed project solved.",
+    );
+  }
+
+  if (
+    project.lifecycleStatus === "completed" &&
+    project.results.metrics.length === 0
+  ) {
+    addWarning(
+      warnings,
+      "results.metrics",
+      "PROJECT_METRICS_RECOMMENDED",
+      "Add measurable evidence of the project’s result when available.",
+    );
+  }
+
+  if (!project.presentation.shortSummary) {
+    addWarning(
+      warnings,
+      "presentation.shortSummary",
+      "PROJECT_SUMMARY_RECOMMENDED",
+      `Add a portfolio summary of up to ${PROJECT_FIELD_LIMITS.shortSummary} characters.`,
+    );
+  }
+
+  if (activeMedia.length === 0) {
+    addWarning(
+      warnings,
+      "media",
+      "PROJECT_MEDIA_RECOMMENDED",
+      "Add a featured image or video to strengthen the portfolio presentation.",
+    );
+  }
+
+  if (project.presentation.isFeatured && activeMedia.length === 0) {
+    addWarning(
+      warnings,
+      "presentation.isFeatured",
+      "PROJECT_FEATURED_MEDIA_RECOMMENDED",
+      "A featured Project should have a strong public image or video.",
+    );
+  }
+
+  return {
+    isValid: errors.length === 0,
+
+    project,
+
+    errors,
+
+    warnings,
+
+    fieldErrors,
+  };
+}
+
+/*
+ * =========================================
+ * Validation Summary
+ * =========================================
+ */
+
+export function getProjectValidationSummary(value) {
+  const project = normalizeProject(value);
+
+  const activePublicMedia = project.media.filter(
+    (mediaItem) =>
+      mediaItem.status !== "archived" && mediaItem.visibility === "public",
+  );
+
+  const checks = [
+    {
+      id: "identity",
+      complete: Boolean(project.title && project.role),
+    },
+    {
+      id: "timeline",
+      complete: Boolean(
+        project.dates.startDate &&
+        (project.dates.isCurrent ||
+          project.dates.endDate ||
+          !["completed", "cancelled"].includes(project.lifecycleStatus)),
+      ),
+    },
+    {
+      id: "problem",
+      complete: Boolean(project.problem.statement),
+    },
+    {
+      id: "importance",
+      complete: Boolean(project.problem.importance),
+    },
+    {
+      id: "solution",
+      complete: Boolean(project.solution.overview),
+    },
+    {
+      id: "contributions",
+      complete: project.solution.contributions.length > 0,
+    },
+    {
+      id: "results",
+      complete: Boolean(
+        project.results.outcome || project.lifecycleStatus !== "completed",
+      ),
+    },
+    {
+      id: "evidence",
+      complete:
+        project.results.metrics.length > 0 ||
+        project.supportingDocuments.length > 0,
+    },
+    {
+      id: "skills",
+      complete: project.skillRelationships.length > 0,
+    },
+    {
+      id: "technologies",
+      complete: project.technologies.length > 0,
+    },
+    {
+      id: "summary",
+      complete: Boolean(project.presentation.shortSummary),
+    },
+    {
+      id: "media",
+      complete: activePublicMedia.length > 0,
+    },
+  ];
+
+  const completedCount = checks.filter((check) => check.complete).length;
+
+  const percentage = Math.round((completedCount / checks.length) * 100);
+
+  let level = "Basic";
+
+  if (percentage >= 90) {
+    level = "Portfolio Ready";
+  } else if (percentage >= 70) {
+    level = "Strong";
+  } else if (percentage >= 50) {
+    level = "Developing";
+  }
+
+  return `${completedCount} of ${checks.length} professional elements completed · ${level}`;
+}
+
+============================================================
+FILE: backend\src\schemas\projectSchemas.js
+============================================================
+const PROJECT_ID_PATTERN =
+  /^project-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const CATEGORIES = new Set([
+  "software",
+  "web-application",
+  "mobile-application",
+  "artificial-intelligence",
+  "data",
+  "cloud-infrastructure",
+  "networking",
+  "cybersecurity",
+  "embedded-systems",
+  "electronics",
+  "automation",
+  "internet-of-things",
+  "research",
+  "design",
+  "business",
+  "academic",
+  "community",
+  "other",
+]);
+
+const LIFECYCLE_STATUSES = new Set([
+  "planned",
+  "in-progress",
+  "completed",
+  "maintained",
+  "paused",
+  "cancelled",
+]);
+
+const RECORD_STATUSES = new Set([
+  "active",
+  "archived",
+]);
+
+const SERVER_OWNED_FIELDS = [
+  "userId",
+  "user_id",
+  "createdAt",
+  "updatedAt",
+  "rowVersion",
+];
+
+function createValidationError(errors) {
+  const error = new Error("Project validation failed.");
+
+  error.name = "ProjectValidationError";
+  error.code = "PROJECT_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Please correct the Project information.";
+  error.errors = errors;
+
+  error.fieldErrors = {};
+
+  for (const item of errors) {
+    if (!error.fieldErrors[item.field]) {
+      error.fieldErrors[item.field] = item.message;
+    }
+  }
+
+  return error;
+}
+
+function addError(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function isPlainObject(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
+function isValidProjectDate(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const match = value.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+export function parseProjectInput(value) {
+  const errors = [];
+
+  if (!isPlainObject(value)) {
+    throw createValidationError([
+      {
+        field: "project",
+        code: "PROJECT_OBJECT_REQUIRED",
+        message: "Project data must be an object.",
+      },
+    ]);
+  }
+
+  for (const field of SERVER_OWNED_FIELDS) {
+    if (Object.hasOwn(value, field)) {
+      addError(
+        errors,
+        field,
+        "PROJECT_SERVER_FIELD_FORBIDDEN",
+        `${field} cannot be supplied by the client.`,
+      );
+    }
+  }
+
+  if (
+    typeof value.id !== "string" ||
+    !PROJECT_ID_PATTERN.test(value.id)
+  ) {
+    addError(
+      errors,
+      "id",
+      "PROJECT_ID_INVALID",
+      "A valid Project identifier is required.",
+    );
+  }
+
+  if (
+    typeof value.title !== "string" ||
+    !value.title.trim() ||
+    value.title.trim().length > 200
+  ) {
+    addError(
+      errors,
+      "title",
+      "PROJECT_TITLE_INVALID",
+      "Project title must contain 1 to 200 characters.",
+    );
+  }
+
+  if (
+    typeof value.role !== "string" ||
+    !value.role.trim() ||
+    value.role.trim().length > 160
+  ) {
+    addError(
+      errors,
+      "role",
+      "PROJECT_ROLE_INVALID",
+      "Project role must contain 1 to 160 characters.",
+    );
+  }
+
+  if (!CATEGORIES.has(value.category)) {
+    addError(
+      errors,
+      "category",
+      "PROJECT_CATEGORY_INVALID",
+      "Select a valid Project category.",
+    );
+  }
+
+  if (!LIFECYCLE_STATUSES.has(value.lifecycleStatus)) {
+    addError(
+      errors,
+      "lifecycleStatus",
+      "PROJECT_LIFECYCLE_INVALID",
+      "Select a valid lifecycle status.",
+    );
+  }
+
+  if (!RECORD_STATUSES.has(value.recordStatus)) {
+    addError(
+      errors,
+      "recordStatus",
+      "PROJECT_RECORD_STATUS_INVALID",
+      "Select a valid record status.",
+    );
+  }
+
+  if (!isPlainObject(value.dates)) {
+    addError(
+      errors,
+      "dates",
+      "PROJECT_DATES_INVALID",
+      "Project dates must be an object.",
+    );
+  } else {
+    if (!isValidProjectDate(value.dates.startDate)) {
+      addError(
+        errors,
+        "dates.startDate",
+        "PROJECT_START_DATE_INVALID",
+        "A valid Project start date is required.",
+      );
+    }
+
+    if (
+      value.dates.endDate &&
+      !isValidProjectDate(value.dates.endDate)
+    ) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_END_DATE_INVALID",
+        "Enter a valid Project end date.",
+      );
+    }
+
+    if (
+      value.dates.isCurrent === true &&
+      value.dates.endDate
+    ) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_CURRENT_END_DATE_CONFLICT",
+        "An ongoing Project cannot have an end date.",
+      );
+    }
+
+    if (
+      value.dates.isCurrent === true &&
+      !["in-progress", "maintained"].includes(value.lifecycleStatus)
+    ) {
+      addError(
+        errors,
+        "lifecycleStatus",
+        "PROJECT_CURRENT_LIFECYCLE_CONFLICT",
+        "An ongoing Project must be In Progress or Maintained.",
+      );
+    }
+
+    if (
+      ["completed", "cancelled"].includes(value.lifecycleStatus) &&
+      value.dates.isCurrent !== true &&
+      !value.dates.endDate
+    ) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_END_DATE_REQUIRED",
+        "A completion or cancellation date is required.",
+      );
+    }
+
+    if (
+      isValidProjectDate(value.dates.startDate) &&
+      isValidProjectDate(value.dates.endDate)
+    ) {
+      const start = new Date(
+        value.dates.startDate.slice(0, 7) + "-01",
+      );
+
+      const end = new Date(
+        value.dates.endDate.slice(0, 7) + "-01",
+      );
+
+      if (end < start) {
+        addError(
+          errors,
+          "dates.endDate",
+          "PROJECT_DATE_ORDER_INVALID",
+          "End date cannot be earlier than start date.",
+        );
+      }
+    }
+  }
+
+  if (
+    !isPlainObject(value.presentation) ||
+    typeof value.presentation.isFeatured !== "boolean"
+  ) {
+    addError(
+      errors,
+      "presentation.isFeatured",
+      "PROJECT_FEATURED_INVALID",
+      "Project featured status must be a boolean.",
+    );
+  }
+
+  if (errors.length > 0) {
+    throw createValidationError(errors);
+  }
+
+  return structuredClone(value);
+}
+
+export function parseProjectRowVersion(value) {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Za-z0-9+/]{11}=$/.test(value)
+  ) {
+    throw createValidationError([
+      {
+        field: "rowVersion",
+        code: "PROJECT_VERSION_INVALID",
+        message: "A valid Project version is required.",
+      },
+    ]);
+  }
+
+  return value;
+}
+
+============================================================
+FILE: backend\src\repositories\projectRepository.js
+============================================================
+import { getDatabasePool, sql } from "../config/database.js";
+
+const PROJECT_COLUMNS = `
+  id,
+  user_id,
+  title,
+  category,
+  lifecycle_status,
+  record_status,
+  is_featured,
+  project_data,
+  created_at,
+  updated_at,
+  row_version
+`;
+
+function mapProjectRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  const projectData =
+    typeof row.project_data === "string"
+      ? JSON.parse(row.project_data)
+      : row.project_data;
+
+  return {
+    ...projectData,
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    lifecycleStatus: row.lifecycle_status,
+    recordStatus: row.record_status,
+    presentation: {
+      ...(projectData.presentation || {}),
+      isFeatured: Boolean(row.is_featured),
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    rowVersion: Buffer.from(row.row_version).toString("base64"),
+  };
+}
+
+function bindProjectParameters(request, userId, project) {
+  return request
+    .input("id", sql.NVarChar(200), project.id)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("title", sql.NVarChar(500), project.title)
+    .input("category", sql.NVarChar(100), project.category)
+    .input("lifecycleStatus", sql.NVarChar(50), project.lifecycleStatus)
+    .input("recordStatus", sql.NVarChar(20), project.recordStatus)
+    .input("isFeatured", sql.Bit, Boolean(project.presentation?.isFeatured))
+    .input("projectData", sql.NVarChar(sql.MAX), JSON.stringify(project));
+}
+
+export async function listProjectsByUser(userId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId).query(`
+      SELECT ${PROJECT_COLUMNS}
+      FROM dbo.projects
+      WHERE user_id = @userId
+      ORDER BY updated_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapProjectRow);
+}
+
+export async function findProjectById(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId).query(`
+      SELECT ${PROJECT_COLUMNS}
+      FROM dbo.projects
+      WHERE user_id = @userId
+        AND id = @id;
+    `);
+
+  return mapProjectRow(result.recordset[0]);
+}
+
+export async function createProject(userId, project) {
+  const pool = await getDatabasePool();
+
+  await bindProjectParameters(pool.request(), userId, project).query(`
+    INSERT INTO dbo.projects (
+      id,
+      user_id,
+      title,
+      category,
+      lifecycle_status,
+      record_status,
+      is_featured,
+      project_data
+    )
+    VALUES (
+      @id,
+      @userId,
+      @title,
+      @category,
+      @lifecycleStatus,
+      @recordStatus,
+      @isFeatured,
+      @projectData
+    );
+  `);
+
+  return findProjectById(userId, project.id);
+}
+
+export async function updateProject(userId, project, expectedRowVersion) {
+  const pool = await getDatabasePool();
+
+  const request = bindProjectParameters(pool.request(), userId, project).input(
+    "expectedRowVersion",
+    sql.Binary(8),
+    Buffer.from(expectedRowVersion, "base64"),
+  );
+
+  const result = await request.query(`
+    UPDATE dbo.projects
+    SET
+      title = @title,
+      category = @category,
+      lifecycle_status = @lifecycleStatus,
+      record_status = @recordStatus,
+      is_featured = @isFeatured,
+      project_data = @projectData,
+      updated_at = SYSUTCDATETIME()
+    WHERE id = @id
+      AND user_id = @userId
+      AND row_version = @expectedRowVersion;
+  `);
+
+  if (result.rowsAffected[0] === 0) {
+    return null;
+  }
+
+  return findProjectById(userId, project.id);
+}
+
+export async function deleteProject(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId).query(`
+      DELETE FROM dbo.projects
+      WHERE id = @id
+        AND user_id = @userId;
+    `);
+
+  return result.rowsAffected[0] > 0;
+}
+
+============================================================
+FILE: backend\src\services\Service\projectService.js
+============================================================
+import {
+  listProjectsByUser,
+  findProjectById,
+  createProject,
+  updateProject,
+  deleteProject,
+} from "../../repositories/projectRepository.js";
+
+function createProjectError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+
+  error.name = "ProjectServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProjectError({
+      message: "An authenticated user ID is required.",
+      code: "PROJECT_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Projects.",
+    });
+  }
+
+  return userId.trim();
+}
+
+function assertProjectId(projectId) {
+  if (
+    typeof projectId !== "string" ||
+    !projectId.trim() ||
+    projectId.length > 200
+  ) {
+    throw createProjectError({
+      message: "A valid Project ID is required.",
+      code: "PROJECT_ID_INVALID",
+      status: 400,
+      publicMessage: "The Project identifier is invalid.",
+    });
+  }
+
+  return projectId.trim();
+}
+
+function assertRowVersion(rowVersion) {
+  if (
+    typeof rowVersion !== "string" ||
+    !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+  ) {
+    throw createProjectError({
+      message: "A valid Project row version is required.",
+      code: "PROJECT_VERSION_REQUIRED",
+      status: 400,
+      publicMessage: "Reload the Project before saving your changes.",
+    });
+  }
+
+  return rowVersion;
+}
+
+function projectNotFound() {
+  return createProjectError({
+    message: "Project not found for authenticated user.",
+    code: "PROJECT_NOT_FOUND",
+    status: 404,
+    publicMessage: "The requested Project could not be found.",
+  });
+}
+
+function projectVersionConflict() {
+  return createProjectError({
+    message: "Project version conflict.",
+    code: "PROJECT_VERSION_CONFLICT",
+    status: 409,
+    publicMessage:
+      "This Project was changed elsewhere. Reload it before saving.",
+  });
+}
+
+export async function getAuthenticatedProjects({ userId }) {
+  return listProjectsByUser(assertUserId(userId));
+}
+
+export async function getAuthenticatedProject({ userId, projectId }) {
+  const project = await findProjectById(
+    assertUserId(userId),
+    assertProjectId(projectId),
+  );
+
+  if (!project) {
+    throw projectNotFound();
+  }
+
+  return project;
+}
+
+export async function createAuthenticatedProject({ userId, project }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  if (!project || typeof project !== "object") {
+    throw createProjectError({
+      message: "Project input must be an object.",
+      code: "PROJECT_INPUT_INVALID",
+      status: 400,
+      publicMessage: "The Project information is invalid.",
+    });
+  }
+
+  const projectId = assertProjectId(project.id);
+
+  try {
+    return await createProject(authenticatedUserId, {
+      ...project,
+      id: projectId,
+    });
+  } catch (error) {
+    if (error.number === 2627 || error.number === 2601) {
+      throw createProjectError({
+        message: "Project ID already exists.",
+        code: "PROJECT_ALREADY_EXISTS",
+        status: 409,
+        publicMessage: "A Project with this identifier already exists.",
+      });
+    }
+
+    throw error;
+  }
+}
+
+export async function updateAuthenticatedProject({
+  userId,
+  projectId,
+  project,
+  rowVersion,
+}) {
+  const authenticatedUserId = assertUserId(userId);
+  const normalizedProjectId = assertProjectId(projectId);
+  const expectedRowVersion = assertRowVersion(rowVersion);
+
+  const existingProject = await findProjectById(
+    authenticatedUserId,
+    normalizedProjectId,
+  );
+
+  if (!existingProject) {
+    throw projectNotFound();
+  }
+
+  const updatedProject = await updateProject(
+    authenticatedUserId,
+    {
+      ...project,
+      id: normalizedProjectId,
+    },
+    expectedRowVersion,
+  );
+
+  if (!updatedProject) {
+    throw projectVersionConflict();
+  }
+
+  return updatedProject;
+}
+
+export async function setAuthenticatedProjectArchiveStatus({
+  userId,
+  projectId,
+  rowVersion,
+  archived,
+}) {
+  const existingProject = await getAuthenticatedProject({
+    userId,
+    projectId,
+  });
+
+  return updateAuthenticatedProject({
+    userId,
+    projectId,
+    rowVersion,
+    project: {
+      ...existingProject,
+      recordStatus: archived ? "archived" : "active",
+    },
+  });
+}
+
+export async function deleteAuthenticatedProject({ userId, projectId }) {
+  const deleted = await deleteProject(
+    assertUserId(userId),
+    assertProjectId(projectId),
+  );
+
+  if (!deleted) {
+    throw projectNotFound();
+  }
+
+  return { deleted: true };
+}
+

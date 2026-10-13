@@ -1,0 +1,470 @@
+=== DATABASE MIGRATION FILES ===
+001_authentication_foundation.sql
+002_user_profiles.sql
+003_user_settings.sql
+004_support_contact_requests.sql
+005_profile_details.sql
+
+=== AUTHENTICATION AND USER MIDDLEWARE FILES ===
+backend\src\controllers\sessionController.js
+backend\src\controllers\userController.js
+backend\src\database\migrations\001_authentication_foundation.sql
+backend\src\database\migrations\002_user_profiles.sql
+backend\src\database\migrations\003_user_settings.sql
+backend\src\middleware\authenticationMiddleware.js
+backend\src\middleware\errorMiddleware.js
+backend\src\middleware\profile\authorizationMiddleware.js
+backend\src\middleware\profile\profileOwnershipMiddleware.js
+backend\src\middleware\profile\profilePictureUploadMiddleware.js
+backend\src\middleware\profile\profilePictureValidationMiddleware.js
+backend\src\middleware\profile\uploadMiddleware.js
+backend\src\middleware\skills\skillOwnershipMiddleware.js
+backend\src\repositories\authRepository.js
+backend\src\repositories\sessionRepository.js
+backend\src\routes\authRoutes.js
+backend\src\routes\userRoutes.js
+backend\src\schemas\sessionManagementSchemas.js
+backend\src\security\sessionCookieSecurity.js
+backend\src\services\Service\sessionService.js
+
+========================================
+FILE: backend\src\app.js
+========================================
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+
+import userRoutes from "./routes/userRoutes.js";
+
+import { checkDatabaseHealth } from "./config/database.js";
+
+import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+
+import aiRoutes from "./routes/aiRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middleware/errorMiddleware.js";
+
+import supportRoutes from "./routes/supportRoutes.js";
+
+/*
+ * =========================================
+ * Environment and Application
+ * =========================================
+ */
+
+const environment = getEnvironment();
+
+const app = express();
+
+/*
+ * =========================================
+ * Express Information Header
+ * =========================================
+ */
+
+app.disable("x-powered-by");
+
+/*
+ * =========================================
+ * Security Headers
+ * =========================================
+ */
+
+app.use(helmet());
+
+/*
+ * =========================================
+ * Allowed Frontend Origins
+ * =========================================
+ */
+
+const allowedOrigins = environment.FRONTEND_URL.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/*
+ * =========================================
+ * CORS
+ * =========================================
+ */
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      /*
+       * Postman, curl and server-to-server
+       * requests may not include Origin.
+       */
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      const error = new Error(`Origin not allowed by CORS: ${origin}`);
+
+      error.name = "CorsOriginError";
+
+      error.code = "CORS_ORIGIN_DENIED";
+
+      error.status = 403;
+
+      error.publicMessage = "This website is not allowed to access the API.";
+
+      return callback(error);
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+/*
+ * =========================================
+ * Public Profile Pictures
+ * =========================================
+ */
+
+if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+  app.use(
+    "/uploads/profile-pictures",
+    (request, response, next) => {
+      /*
+       * Profile pictures are intentionally public assets.
+       * Allow the portfolio frontend to display them even
+       * though the frontend and API use different origins.
+       */
+
+      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      next();
+    },
+    express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+      fallthrough: true,
+      index: false,
+      dotfiles: "deny",
+    }),
+  );
+}
+
+/*
+ * =========================================
+ * Request Body
+ * =========================================
+ */
+
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
+/*
+ * =========================================
+ * API Health Check
+ * =========================================
+ */
+
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+
+    service: "portfolio-platform-api",
+
+    environment: environment.NODE_ENV,
+
+    databaseConfigured: isDatabaseConfigured(environment),
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+app.get("/api/health/database", async (req, res) => {
+  const health = await checkDatabaseHealth();
+
+  const isHealthy = health.status === "ok";
+
+  let message = "Database connection is unavailable.";
+
+  if (isHealthy) {
+    message = "Database connection is healthy.";
+  } else if (health.status === "not-configured") {
+    message = "Database service is not configured.";
+  }
+
+  return res.status(isHealthy ? 200 : 503).json({
+    status: health.status,
+
+    service: "portfolio-platform-database",
+
+    configured: health.configured,
+
+    responseTimeMs: health.responseTimeMs,
+
+    message,
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Application Routes
+ * =========================================
+ */
+app.use("/api/auth", authRoutes);
+
+app.use("/api/ai", aiRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/support", supportRoutes);
+
+app.use("/api/profile", profileRoutes);
+/*
+ * The Profile and Skill routes remain disabled
+ * until their repositories and authentication
+ * middleware are implemented.
+ *
+ * Later:
+ *
+ * app.use("/api/profile", profileRoutes);
+ * app.use("/api/skills", skillRoutes);
+ */
+
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+app.use(notFoundHandler);
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+app.use(globalErrorHandler);
+
+export default app;
+========================================
+FILE: backend\src\routes\profileRoutes.js
+========================================
+import { uploadProfilePicture } from "../middleware/profile/profilePictureUploadMiddleware.js";
+import { validateProfilePicture } from "../middleware/profile/profilePictureValidationMiddleware.js";
+
+import { Router } from "express";
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+import {
+  deleteProfilePictureController,
+  getMyProfile,
+  updateMyProfile,
+  uploadProfilePictureController,
+} from "../controllers/profileController.js";
+
+const router = Router();
+
+router.use(requireAuthentication);
+
+router.post(
+  "/pictures/upload",
+  uploadProfilePicture,
+  validateProfilePicture,
+  uploadProfilePictureController,
+);
+
+router.delete("/pictures/upload", deleteProfilePictureController);
+
+router.get("/me", getMyProfile);
+router.put("/me", updateMyProfile);
+
+export default router;
+========================================
+FILE: backend\src\controllers\profileController.js
+========================================
+import path from "node:path";
+import { getEnvironment } from "../config/environment.js";
+
+import {
+  deleteUncommittedProfilePicture,
+  getAuthenticatedProfile,
+  updateAuthenticatedProfile,
+} from "../services/Service/profileService.js";
+
+import { createProfilePictureStorageKey } from "../services/Storage/profilePictureStorageService.js";
+
+import { parseProfileUpdate } from "../schemas/profileSchemas.js";
+
+const environment = getEnvironment();
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+export async function getMyProfile(request, response, next) {
+  try {
+    const profile = await getAuthenticatedProfile({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile retrieved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProfile(request, response, next) {
+  try {
+    const profileInput = parseProfileUpdate(request.body);
+
+    const profile = await updateAuthenticatedProfile({
+      userId: request.auth.userId,
+      profile: profileInput,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile saved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadProfilePictureController(request, response, next) {
+  try {
+    const userId = String(request.auth?.userId || "").trim();
+    const uploadedFile = request.profilePictureFile;
+
+    if (!userId) {
+      const error = new Error(
+        "Authenticated user ID is unavailable during profile-picture upload.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_UPLOAD_USER_INVALID";
+      error.status = 401;
+      error.publicMessage =
+        "Your session could not be verified for this upload.";
+
+      throw error;
+    }
+
+    if (!uploadedFile?.filename) {
+      const error = new Error("Verified profile-picture file is unavailable.");
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_FILE_UNAVAILABLE";
+      error.status = 400;
+      error.publicMessage = "The profile picture could not be processed.";
+
+      throw error;
+    }
+
+    const publicBaseUrl = environment.PROFILE_PICTURE_PUBLIC_BASE_URL;
+
+    if (!publicBaseUrl) {
+      const error = new Error(
+        "PROFILE_PICTURE_PUBLIC_BASE_URL is not configured.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_PUBLIC_URL_NOT_CONFIGURED";
+      error.status = 503;
+      error.publicMessage =
+        "Profile-picture storage is temporarily unavailable.";
+
+      throw error;
+    }
+
+    /*
+     * storageKey is intentionally relative.
+     *
+     * Example:
+     * abc123.../550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * Never return the physical D:\ or UNC path.
+     */
+    const storageKey = createProfilePictureStorageKey(
+      userId,
+      uploadedFile.filename,
+    );
+
+    const imageUrl = `${publicBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
+
+    return response.status(201).json({
+      picture: {
+        imageUrl,
+        storageKey,
+
+        /*
+         * originalname is the filename supplied by the
+         * browser, while filename is our generated UUID.
+         */
+        fileName: path.basename(uploadedFile.originalname),
+
+        fileType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.size,
+        useDefaultAvatar: false,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteProfilePictureController(request, response, next) {
+  try {
+    const result = await deleteUncommittedProfilePicture({
+      userId: request.auth.userId,
+      storageKey: request.body?.storageKey,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: result.deleted
+        ? "Temporary profile picture removed successfully."
+        : "Temporary profile picture was already removed.",
+      data: {
+        storageKey: result.storageKey,
+        deleted: result.deleted,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}

@@ -1,0 +1,1806 @@
+============================================================
+FILE: backend\src\services\Service\projectService.js
+============================================================
+import {
+  listProjectsByUser,
+  findProjectById,
+  createProject,
+  updateProject,
+  deleteProject,
+} from "../../repositories/projectRepository.js";
+
+function createProjectError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+
+  error.name = "ProjectServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProjectError({
+      message: "An authenticated user ID is required.",
+      code: "PROJECT_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Projects.",
+    });
+  }
+
+  return userId.trim();
+}
+
+function assertProjectId(projectId) {
+  if (
+    typeof projectId !== "string" ||
+    !projectId.trim() ||
+    projectId.length > 200
+  ) {
+    throw createProjectError({
+      message: "A valid Project ID is required.",
+      code: "PROJECT_ID_INVALID",
+      status: 400,
+      publicMessage: "The Project identifier is invalid.",
+    });
+  }
+
+  return projectId.trim();
+}
+
+function assertRowVersion(rowVersion) {
+  if (
+    typeof rowVersion !== "string" ||
+    !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+  ) {
+    throw createProjectError({
+      message: "A valid Project row version is required.",
+      code: "PROJECT_VERSION_REQUIRED",
+      status: 400,
+      publicMessage: "Reload the Project before saving your changes.",
+    });
+  }
+
+  return rowVersion;
+}
+
+function projectNotFound() {
+  return createProjectError({
+    message: "Project not found for authenticated user.",
+    code: "PROJECT_NOT_FOUND",
+    status: 404,
+    publicMessage: "The requested Project could not be found.",
+  });
+}
+
+function projectVersionConflict() {
+  return createProjectError({
+    message: "Project version conflict.",
+    code: "PROJECT_VERSION_CONFLICT",
+    status: 409,
+    publicMessage:
+      "This Project was changed elsewhere. Reload it before saving.",
+  });
+}
+
+export async function getAuthenticatedProjects({ userId }) {
+  return listProjectsByUser(assertUserId(userId));
+}
+
+export async function getAuthenticatedProject({ userId, projectId }) {
+  const project = await findProjectById(
+    assertUserId(userId),
+    assertProjectId(projectId),
+  );
+
+  if (!project) {
+    throw projectNotFound();
+  }
+
+  return project;
+}
+
+export async function createAuthenticatedProject({ userId, project }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  if (!project || typeof project !== "object") {
+    throw createProjectError({
+      message: "Project input must be an object.",
+      code: "PROJECT_INPUT_INVALID",
+      status: 400,
+      publicMessage: "The Project information is invalid.",
+    });
+  }
+
+  const projectId = assertProjectId(project.id);
+
+  try {
+    return await createProject(authenticatedUserId, {
+      ...project,
+      id: projectId,
+    });
+  } catch (error) {
+    if (error.number === 2627 || error.number === 2601) {
+      throw createProjectError({
+        message: "Project ID already exists.",
+        code: "PROJECT_ALREADY_EXISTS",
+        status: 409,
+        publicMessage: "A Project with this identifier already exists.",
+      });
+    }
+
+    throw error;
+  }
+}
+
+export async function updateAuthenticatedProject({
+  userId,
+  projectId,
+  project,
+  rowVersion,
+}) {
+  const authenticatedUserId = assertUserId(userId);
+  const normalizedProjectId = assertProjectId(projectId);
+  const expectedRowVersion = assertRowVersion(rowVersion);
+
+  const existingProject = await findProjectById(
+    authenticatedUserId,
+    normalizedProjectId,
+  );
+
+  if (!existingProject) {
+    throw projectNotFound();
+  }
+
+  const updatedProject = await updateProject(
+    authenticatedUserId,
+    {
+      ...project,
+      id: normalizedProjectId,
+    },
+    expectedRowVersion,
+  );
+
+  if (!updatedProject) {
+    throw projectVersionConflict();
+  }
+
+  return updatedProject;
+}
+
+export async function setAuthenticatedProjectArchiveStatus({
+  userId,
+  projectId,
+  rowVersion,
+  archived,
+}) {
+  const existingProject = await getAuthenticatedProject({
+    userId,
+    projectId,
+  });
+
+  return updateAuthenticatedProject({
+    userId,
+    projectId,
+    rowVersion,
+    project: {
+      ...existingProject,
+      recordStatus: archived ? "archived" : "active",
+    },
+  });
+}
+
+export async function deleteAuthenticatedProject({ userId, projectId }) {
+  const deleted = await deleteProject(
+    assertUserId(userId),
+    assertProjectId(projectId),
+  );
+
+  if (!deleted) {
+    throw projectNotFound();
+  }
+
+  return { deleted: true };
+}
+
+
+============================================================
+FILE: backend\src\repositories\projectRepository.js
+============================================================
+import { getDatabasePool, sql } from "../config/database.js";
+
+const PROJECT_COLUMNS = `
+  id,
+  user_id,
+  title,
+  category,
+  lifecycle_status,
+  record_status,
+  is_featured,
+  project_data,
+  created_at,
+  updated_at,
+  row_version
+`;
+
+function mapProjectRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  const projectData =
+    typeof row.project_data === "string"
+      ? JSON.parse(row.project_data)
+      : row.project_data;
+
+  return {
+    ...projectData,
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    lifecycleStatus: row.lifecycle_status,
+    recordStatus: row.record_status,
+    presentation: {
+      ...(projectData.presentation || {}),
+      isFeatured: Boolean(row.is_featured),
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    rowVersion: Buffer.from(row.row_version).toString("base64"),
+  };
+}
+
+function bindProjectParameters(request, userId, project) {
+  return request
+    .input("id", sql.NVarChar(200), project.id)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("title", sql.NVarChar(500), project.title)
+    .input("category", sql.NVarChar(100), project.category)
+    .input("lifecycleStatus", sql.NVarChar(50), project.lifecycleStatus)
+    .input("recordStatus", sql.NVarChar(20), project.recordStatus)
+    .input("isFeatured", sql.Bit, Boolean(project.presentation?.isFeatured))
+    .input("projectData", sql.NVarChar(sql.MAX), JSON.stringify(project));
+}
+
+export async function listProjectsByUser(userId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId).query(`
+      SELECT ${PROJECT_COLUMNS}
+      FROM dbo.projects
+      WHERE user_id = @userId
+      ORDER BY updated_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapProjectRow);
+}
+
+export async function findProjectById(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId).query(`
+      SELECT ${PROJECT_COLUMNS}
+      FROM dbo.projects
+      WHERE user_id = @userId
+        AND id = @id;
+    `);
+
+  return mapProjectRow(result.recordset[0]);
+}
+
+export async function createProject(userId, project) {
+  const pool = await getDatabasePool();
+
+  await bindProjectParameters(pool.request(), userId, project).query(`
+    INSERT INTO dbo.projects (
+      id,
+      user_id,
+      title,
+      category,
+      lifecycle_status,
+      record_status,
+      is_featured,
+      project_data
+    )
+    VALUES (
+      @id,
+      @userId,
+      @title,
+      @category,
+      @lifecycleStatus,
+      @recordStatus,
+      @isFeatured,
+      @projectData
+    );
+  `);
+
+  return findProjectById(userId, project.id);
+}
+
+export async function updateProject(userId, project, expectedRowVersion) {
+  const pool = await getDatabasePool();
+
+  const request = bindProjectParameters(pool.request(), userId, project).input(
+    "expectedRowVersion",
+    sql.Binary(8),
+    Buffer.from(expectedRowVersion, "base64"),
+  );
+
+  const result = await request.query(`
+    UPDATE dbo.projects
+    SET
+      title = @title,
+      category = @category,
+      lifecycle_status = @lifecycleStatus,
+      record_status = @recordStatus,
+      is_featured = @isFeatured,
+      project_data = @projectData,
+      updated_at = SYSUTCDATETIME()
+    WHERE id = @id
+      AND user_id = @userId
+      AND row_version = @expectedRowVersion;
+  `);
+
+  if (result.rowsAffected[0] === 0) {
+    return null;
+  }
+
+  return findProjectById(userId, project.id);
+}
+
+export async function deleteProject(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId).query(`
+      DELETE FROM dbo.projects
+      WHERE id = @id
+        AND user_id = @userId;
+    `);
+
+  return result.rowsAffected[0] > 0;
+}
+
+
+============================================================
+FILE: backend\src\schemas\projectSchemas.js
+============================================================
+import { validateNestedProject } from "./projectNestedValidation.js";
+
+const PROJECT_ID_PATTERN =
+  /^project-(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|[0-9]{10,17}-[a-z0-9]{1,20})$/i;
+
+const CATEGORIES = new Set([
+  "software",
+  "web-application",
+  "mobile-application",
+  "artificial-intelligence",
+  "data",
+  "cloud-infrastructure",
+  "networking",
+  "cybersecurity",
+  "embedded-systems",
+  "electronics",
+  "automation",
+  "internet-of-things",
+  "research",
+  "design",
+  "business",
+  "academic",
+  "community",
+  "other",
+]);
+
+const LIFECYCLE_STATUSES = new Set([
+  "planned",
+  "in-progress",
+  "completed",
+  "maintained",
+  "paused",
+  "cancelled",
+]);
+
+const RECORD_STATUSES = new Set(["active", "archived"]);
+
+const SERVER_OWNED_FIELDS = [
+  "userId",
+  "user_id",
+  "createdAt",
+  "updatedAt",
+  "rowVersion",
+];
+
+function createValidationError(errors) {
+  const error = new Error("Project validation failed.");
+
+  error.name = "ProjectValidationError";
+  error.code = "PROJECT_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Please correct the Project information.";
+  error.errors = errors;
+
+  error.fieldErrors = {};
+
+  for (const item of errors) {
+    if (!error.fieldErrors[item.field]) {
+      error.fieldErrors[item.field] = item.message;
+    }
+  }
+
+  return error;
+}
+
+function addError(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isValidProjectDate(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const match = value.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+export function parseProjectInput(value) {
+  const errors = [];
+
+  if (!isPlainObject(value)) {
+    throw createValidationError([
+      {
+        field: "project",
+        code: "PROJECT_OBJECT_REQUIRED",
+        message: "Project data must be an object.",
+      },
+    ]);
+  }
+
+  for (const field of SERVER_OWNED_FIELDS) {
+    if (Object.hasOwn(value, field)) {
+      addError(
+        errors,
+        field,
+        "PROJECT_SERVER_FIELD_FORBIDDEN",
+        `${field} cannot be supplied by the client.`,
+      );
+    }
+  }
+
+  if (typeof value.id !== "string" || !PROJECT_ID_PATTERN.test(value.id)) {
+    addError(
+      errors,
+      "id",
+      "PROJECT_ID_INVALID",
+      "A valid Project identifier is required.",
+    );
+  }
+
+  if (
+    typeof value.title !== "string" ||
+    !value.title.trim() ||
+    value.title.trim().length > 200
+  ) {
+    addError(
+      errors,
+      "title",
+      "PROJECT_TITLE_INVALID",
+      "Project title must contain 1 to 200 characters.",
+    );
+  }
+
+  if (
+    typeof value.role !== "string" ||
+    !value.role.trim() ||
+    value.role.trim().length > 160
+  ) {
+    addError(
+      errors,
+      "role",
+      "PROJECT_ROLE_INVALID",
+      "Project role must contain 1 to 160 characters.",
+    );
+  }
+
+  if (!CATEGORIES.has(value.category)) {
+    addError(
+      errors,
+      "category",
+      "PROJECT_CATEGORY_INVALID",
+      "Select a valid Project category.",
+    );
+  }
+
+  if (!LIFECYCLE_STATUSES.has(value.lifecycleStatus)) {
+    addError(
+      errors,
+      "lifecycleStatus",
+      "PROJECT_LIFECYCLE_INVALID",
+      "Select a valid lifecycle status.",
+    );
+  }
+
+  if (!RECORD_STATUSES.has(value.recordStatus)) {
+    addError(
+      errors,
+      "recordStatus",
+      "PROJECT_RECORD_STATUS_INVALID",
+      "Select a valid record status.",
+    );
+  }
+
+  if (!isPlainObject(value.dates)) {
+    addError(
+      errors,
+      "dates",
+      "PROJECT_DATES_INVALID",
+      "Project dates must be an object.",
+    );
+  } else {
+    if (!isValidProjectDate(value.dates.startDate)) {
+      addError(
+        errors,
+        "dates.startDate",
+        "PROJECT_START_DATE_INVALID",
+        "A valid Project start date is required.",
+      );
+    }
+
+    if (value.dates.endDate && !isValidProjectDate(value.dates.endDate)) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_END_DATE_INVALID",
+        "Enter a valid Project end date.",
+      );
+    }
+
+    if (value.dates.isCurrent === true && value.dates.endDate) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_CURRENT_END_DATE_CONFLICT",
+        "An ongoing Project cannot have an end date.",
+      );
+    }
+
+    if (
+      value.dates.isCurrent === true &&
+      !["in-progress", "maintained"].includes(value.lifecycleStatus)
+    ) {
+      addError(
+        errors,
+        "lifecycleStatus",
+        "PROJECT_CURRENT_LIFECYCLE_CONFLICT",
+        "An ongoing Project must be In Progress or Maintained.",
+      );
+    }
+
+    if (
+      ["completed", "cancelled"].includes(value.lifecycleStatus) &&
+      value.dates.isCurrent !== true &&
+      !value.dates.endDate
+    ) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_END_DATE_REQUIRED",
+        "A completion or cancellation date is required.",
+      );
+    }
+
+    if (
+      isValidProjectDate(value.dates.startDate) &&
+      isValidProjectDate(value.dates.endDate)
+    ) {
+      const start = new Date(
+        value.dates.startDate.length === 7
+          ? `${value.dates.startDate}-01`
+          : value.dates.startDate,
+      );
+
+      const end = new Date(
+        value.dates.endDate.length === 7
+          ? `${value.dates.endDate}-01`
+          : value.dates.endDate,
+      );
+
+      if (end < start) {
+        addError(
+          errors,
+          "dates.endDate",
+          "PROJECT_DATE_ORDER_INVALID",
+          "End date cannot be earlier than start date.",
+        );
+      }
+    }
+  }
+
+  if (
+    !isPlainObject(value.presentation) ||
+    typeof value.presentation.isFeatured !== "boolean"
+  ) {
+    addError(
+      errors,
+      "presentation.isFeatured",
+      "PROJECT_FEATURED_INVALID",
+      "Project featured status must be a boolean.",
+    );
+  }
+
+  const urlFields = [
+    ["organization.website", value.organization?.website],
+    ...[
+      "liveUrl",
+      "repositoryUrl",
+      "documentationUrl",
+      "caseStudyUrl",
+      "videoUrl",
+    ].map((name) => [`links.${name}`, value.links?.[name]]),
+  ];
+
+  for (const [field, urlValue] of urlFields) {
+    if (urlValue === undefined || urlValue === "") continue;
+
+    let valid = false;
+
+    if (typeof urlValue === "string") {
+      try {
+        const parsed = new URL(urlValue);
+        valid = ["http:", "https:"].includes(parsed.protocol);
+      } catch {
+        valid = false;
+      }
+    }
+
+    if (!valid) {
+      addError(
+        errors,
+        field,
+        "PROJECT_URL_INVALID",
+        "Enter a valid HTTP or HTTPS URL.",
+      );
+    }
+  }
+
+  const collectionLimits = [
+    ["problem.objectives", value.problem?.objectives, 25],
+    ["problem.constraints", value.problem?.constraints, 25],
+    ["solution.features", value.solution?.features, 40],
+    ["solution.contributions", value.solution?.contributions, 40],
+    ["results.metrics", value.results?.metrics, 25],
+    ["skillRelationships", value.skillRelationships, 60],
+    ["technologies", value.technologies, 60],
+    ["awards", value.awards, 20],
+    ["media", value.media, 30],
+    ["supportingDocuments", value.supportingDocuments, 30],
+    ...[
+      "experienceRelationships",
+      "educationRelationships",
+      "trainingRelationships",
+      "certificationRelationships",
+    ].map((name) => [
+      `relatedRecords.${name}`,
+      value.relatedRecords?.[name],
+      50,
+    ]),
+  ];
+
+  for (const [field, items, maximum] of collectionLimits) {
+    if (items === undefined) continue;
+
+    if (!Array.isArray(items) || items.length > maximum) {
+      addError(
+        errors,
+        field,
+        "PROJECT_COLLECTION_INVALID",
+        `This collection must contain at most ${maximum} items.`,
+      );
+    }
+  }
+  errors.push(...validateNestedProject(value));
+
+  if (errors.length > 0) {
+    throw createValidationError(errors);
+  }
+
+  return structuredClone(value);
+}
+
+export function parseProjectRowVersion(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9+/]{11}=$/.test(value)) {
+    throw createValidationError([
+      {
+        field: "rowVersion",
+        code: "PROJECT_VERSION_INVALID",
+        message: "A valid Project version is required.",
+      },
+    ]);
+  }
+
+  return value;
+}
+
+
+
+============================================================
+FILE: backend\src\schemas\projectNestedValidation.js
+============================================================
+const CATEGORY_VALUES = new Set([
+  "software", "web-application", "mobile-application",
+  "artificial-intelligence", "data", "cloud-infrastructure",
+  "networking", "cybersecurity", "embedded-systems",
+  "electronics", "automation", "internet-of-things",
+  "research", "design", "business", "academic",
+  "community", "other",
+]);
+
+const OPTIONS = {
+  ownership: ["individual", "team", "client", "organization"],
+  source: ["manual", "import", "integration", "ai-assisted"],
+  proficiency: ["", "foundational", "intermediate", "advanced", "expert"],
+  recognitionType: [
+    "", "award", "competition", "grant", "fellowship", "showcase",
+    "publication", "presentation", "patent", "media",
+    "client-recognition", "academic-recognition", "other",
+  ],
+  placement: [
+    "", "winner", "first-place", "second-place", "third-place",
+    "finalist", "semifinalist", "honorable-mention", "selected",
+    "recipient", "participant", "other",
+  ],
+  mediaType: ["image", "video", "diagram"],
+  documentType: [
+    "report", "presentation", "documentation", "source-file",
+    "dataset", "design", "award", "supporting-evidence", "other",
+  ],
+  visibility: ["public", "private"],
+  recordStatus: ["active", "archived"],
+};
+
+const TEXT_LIMITS = {
+  "organization.name": 200,
+  "organization.clientName": 200,
+  "organization.website": 1000,
+  "location.displayValue": 300,
+  "problem.statement": 4000,
+  "problem.targetAudience": 1000,
+  "problem.context": 3000,
+  "problem.importance": 3000,
+  "solution.overview": 4000,
+  "solution.approach": 4000,
+  "solution.architecture": 4000,
+  "results.outcome": 4000,
+  "results.problemsSolved": 3000,
+  "results.impact": 3000,
+  "results.beneficiariesAffected": 2000,
+  "results.lessonsLearned": 3000,
+  "results.futureImprovements": 3000,
+  "presentation.shortSummary": 500,
+  "presentation.caseStudy": 12000,
+  "presentation.featuredMediaId": 200,
+  "privateInformation.notes": 5000,
+  "sourceContext": 5000 / 10,
+};
+
+const COLLECTION_FIELDS = [
+  ["problem.constraints", 1500],
+  ["problem.objectives", 1500],
+  ["solution.features", 1500],
+  ["solution.contributions", 1500],
+];
+
+function object(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function fieldValue(source, path) {
+  return path.split(".").reduce(
+    (current, key) => object(current) ? current[key] : undefined,
+    source,
+  );
+}
+
+function error(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function checkText(errors, field, value, maximum) {
+  if (value === undefined) return;
+
+  if (typeof value !== "string" || value.trim().length > maximum) {
+    error(
+      errors, field, "PROJECT_FIELD_INVALID",
+      `This field must be text with at most ${maximum} characters.`,
+    );
+  }
+}
+
+function checkOption(errors, field, value, options) {
+  if (value === undefined) return;
+
+  if (!options.includes(value)) {
+    error(errors, field, "PROJECT_OPTION_INVALID", "Invalid option.");
+  }
+}
+
+function checkUrl(errors, field, value, maximum = 2000) {
+  if (value === undefined) return;
+
+  checkText(errors, field, value, maximum);
+
+  if (typeof value !== "string" || !value.trim()) return;
+
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+  } catch {
+    error(errors, field, "PROJECT_URL_INVALID", "Invalid HTTP or HTTPS URL.");
+  }
+}
+
+function checkItems(errors, source, path, callback) {
+  const items = fieldValue(source, path);
+  if (items === undefined || !Array.isArray(items)) return;
+
+  items.forEach((item, index) => {
+    const base = `${path}.${index}`;
+
+    if (!object(item)) {
+      error(errors, base, "PROJECT_ITEM_INVALID", "Expected an object.");
+      return;
+    }
+
+    callback(item, base);
+  });
+}
+
+function checkOrderedItems(errors, source, path, maximum) {
+  checkItems(errors, source, path, (item, base) => {
+    checkText(errors, `${base}.id`, item.id, 200);
+    checkText(errors, `${base}.text`, item.text, maximum);
+  });
+}
+
+export function validateNestedProject(source) {
+  const errors = [];
+
+  for (const [field, maximum] of Object.entries(TEXT_LIMITS)) {
+    checkText(errors, field, fieldValue(source, field), maximum);
+  }
+
+  checkOption(errors, "ownership", source.ownership, OPTIONS.ownership);
+  checkOption(errors, "source", source.source, OPTIONS.source);
+
+  if (source.modelVersion !== undefined && source.modelVersion !== 2) {
+    error(errors, "modelVersion", "PROJECT_VERSION_INVALID",
+      "Unsupported Project model version.");
+  }
+
+  for (const field of [
+    "liveUrl", "repositoryUrl", "documentationUrl",
+    "caseStudyUrl", "videoUrl",
+  ]) {
+    checkUrl(errors, `links.${field}`, source.links?.[field]);
+  }
+
+  checkUrl(errors, "organization.website", source.organization?.website, 1000);
+
+  for (const [path, maximum] of COLLECTION_FIELDS) {
+    checkOrderedItems(errors, source, path, maximum);
+  }
+
+  checkItems(errors, source, "results.metrics", (item, base) => {
+    checkText(errors, `${base}.label`, item.label, 200);
+    checkText(errors, `${base}.value`, item.value, 200);
+    checkText(errors, `${base}.description`, item.description, 500);
+  });
+
+  checkItems(errors, source, "skillRelationships", (item, base) => {
+    checkText(errors, `${base}.nameSnapshot`, item.nameSnapshot, 200);
+    checkText(errors, `${base}.usageDescription`, item.usageDescription, 1000);
+    checkOption(errors, `${base}.demonstratedProficiency`,
+      item.demonstratedProficiency, OPTIONS.proficiency);
+
+    if (!item.skillId && !item.nameSnapshot) {
+      error(errors, base, "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A Skill identifier or snapshot is required.");
+    }
+  });
+
+  checkItems(errors, source, "technologies", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 150);
+    checkText(errors, `${base}.category`, item.category, 100);
+  });
+
+  const relationshipTypes = [
+    ["experienceRelationships", "experienceId"],
+    ["educationRelationships", "educationId"],
+    ["trainingRelationships", "trainingId"],
+    ["certificationRelationships", "certificationId"],
+  ];
+
+  for (const [name, idField] of relationshipTypes) {
+    checkItems(errors, source, `relatedRecords.${name}`, (item, base) => {
+      checkText(errors, `${base}.${idField}`, item[idField], 200);
+      checkText(errors, `${base}.description`, item.description, 1000);
+
+      if (!item[idField]) {
+        error(errors, `${base}.${idField}`, "PROJECT_RELATIONSHIP_ID_REQUIRED",
+          "A related record identifier is required.");
+      }
+
+      if (item.snapshot !== undefined && !object(item.snapshot)) {
+        error(errors, `${base}.snapshot`, "PROJECT_SNAPSHOT_INVALID",
+          "Snapshot must be an object.");
+      } else {
+        checkText(errors, `${base}.snapshot.name`, item.snapshot?.name, 200);
+        checkText(errors, `${base}.snapshot.secondaryLabel`,
+          item.snapshot?.secondaryLabel, 200);
+      }
+    });
+  }
+
+  const documentIds = new Set(
+    Array.isArray(source.supportingDocuments)
+      ? source.supportingDocuments.map((item) => item?.id)
+      : [],
+  );
+
+  checkItems(errors, source, "awards", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 250);
+    checkText(errors, `${base}.organization`, item.organization, 250);
+    checkText(errors, `${base}.description`, item.description, 1500);
+    checkOption(errors, `${base}.recognitionType`,
+      item.recognitionType, OPTIONS.recognitionType);
+    checkOption(errors, `${base}.placement`, item.placement, OPTIONS.placement);
+    checkUrl(errors, `${base}.url`, item.url);
+
+    if (item.supportingDocumentIds !== undefined) {
+      if (!Array.isArray(item.supportingDocumentIds) ||
+          item.supportingDocumentIds.length > 10) {
+        error(errors, `${base}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_LIMIT", "Maximum 10 document references.");
+      } else {
+        for (const id of item.supportingDocumentIds) {
+          if (!documentIds.has(id)) {
+            error(errors, `${base}.supportingDocumentIds`,
+              "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+              "Referenced document does not exist in this Project.");
+          }
+        }
+      }
+    }
+  });
+
+  checkItems(errors, source, "media", (item, base) => {
+    checkOption(errors, `${base}.type`, item.type, OPTIONS.mediaType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.caption`, item.caption, 1000);
+    checkText(errors, `${base}.altText`, item.altText, 500);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  checkItems(errors, source, "supportingDocuments", (item, base) => {
+    checkOption(errors, `${base}.documentType`,
+      item.documentType, OPTIONS.documentType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.description`, item.description, 1000);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  if (source.visibility !== undefined) {
+    if (!object(source.visibility)) {
+      error(errors, "visibility", "PROJECT_VISIBILITY_INVALID",
+        "Visibility must be an object.");
+    } else {
+      for (const [name, value] of Object.entries(source.visibility)) {
+        if (typeof value !== "boolean") {
+          error(errors, `visibility.${name}`, "PROJECT_VISIBILITY_INVALID",
+            "Visibility must be true or false.");
+        }
+      }
+    }
+  }
+
+  if (source.presentation?.featuredMediaId) {
+    const featuredId = source.presentation.featuredMediaId;
+    const eligible = Array.isArray(source.media) &&
+      source.media.some((item) =>
+        item?.id === featuredId && item.status !== "archived" &&
+        item.visibility !== "private" &&
+        (item.storageKey || item.externalUrl),
+      );
+
+    if (!eligible) {
+      error(errors, "presentation.featuredMediaId",
+        "PROJECT_FEATURED_MEDIA_INVALID",
+        "Featured media must be active, public, and available.");
+    }
+  }
+
+  return errors;
+}
+
+
+============================================================
+FILE: backend\src\middleware\authenticationMiddleware.js
+============================================================
+import { getAuthenticatedSession } from "../services/Service/sessionService.js";
+
+import {
+  clearRefreshTokenCookie,
+  getRefreshTokenFromRequest,
+} from "../security/sessionCookieSecurity.js";
+
+/*
+ * =========================================
+ * Authentication Error
+ * =========================================
+ */
+
+function createAuthenticationError({
+  message,
+  code = "AUTHENTICATION_REQUIRED",
+  status = 401,
+  publicMessage = "You must sign in to access this resource.",
+}) {
+  const error = new Error(message);
+
+  error.name = "AuthenticationError";
+
+  error.code = code;
+
+  error.status = status;
+
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Invalid Session Errors
+ * =========================================
+ */
+
+function shouldClearSessionCookie(error) {
+  const invalidSessionCodes = new Set([
+    "SESSION_REFRESH_TOKEN_INVALID",
+    "SESSION_NOT_FOUND",
+    "SESSION_REFRESH_CONFLICT",
+  ]);
+
+  return invalidSessionCodes.has(error?.code);
+}
+
+/*
+ * =========================================
+ * Safely Clear Refresh Cookie
+ * =========================================
+ */
+
+function safelyClearRefreshTokenCookie(response) {
+  try {
+    clearRefreshTokenCookie(response);
+  } catch (error) {
+    console.error(
+      "Unable to clear refresh-token cookie during authentication:",
+      error,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Normalize Roles
+ * =========================================
+ */
+
+function normalizeRoles(roles) {
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      roles
+        .map((role) =>
+          typeof role === "string" ? role.trim().toLowerCase() : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/*
+ * =========================================
+ * Create Request Authentication
+ * =========================================
+ */
+
+function createRequestAuthentication({ user, roles, session }) {
+  if (!user?.id || !session?.id) {
+    throw createAuthenticationError({
+      message:
+        "The resolved session does not contain a valid user and session.",
+
+      code: "AUTHENTICATION_CONTEXT_INVALID",
+
+      status: 500,
+
+      publicMessage: "Your session could not be verified.",
+    });
+  }
+
+  const normalizedRoles = Object.freeze(normalizeRoles(roles));
+
+  return Object.freeze({
+    isAuthenticated: true,
+
+    userId: user.id,
+
+    sessionId: session.id,
+
+    user,
+
+    roles: normalizedRoles,
+
+    session,
+  });
+}
+
+/*
+ * =========================================
+ * Require Authentication
+ * =========================================
+ *
+ * Resolves the HttpOnly refresh-token cookie,
+ * validates the database session and places
+ * public-safe identity information on:
+ *
+ * request.auth
+ *
+ * This middleware validates the session but
+ * does not rotate its refresh token.
+ */
+
+export async function requireAuthentication(request, response, next) {
+  /*
+   * Protected responses must not be cached
+   * or shared between authenticated users.
+   */
+
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  response.vary("Cookie");
+
+  try {
+    const refreshToken = getRefreshTokenFromRequest(request);
+
+    if (!refreshToken) {
+      throw createAuthenticationError({
+        message: "The request does not contain a refresh-token cookie.",
+
+        code: "AUTHENTICATION_REQUIRED",
+
+        status: 401,
+
+        publicMessage: "You must sign in to access this resource.",
+      });
+    }
+
+    const authentication = await getAuthenticatedSession({
+      refreshToken,
+    });
+
+    request.auth = createRequestAuthentication(authentication);
+
+    return next();
+  } catch (error) {
+    if (shouldClearSessionCookie(error)) {
+      safelyClearRefreshTokenCookie(response);
+    }
+
+    return next(error);
+  }
+}
+
+
+============================================================
+FILE: backend\src\controllers\profileController.js
+============================================================
+import path from "node:path";
+import { getEnvironment } from "../config/environment.js";
+
+import {
+  deleteUncommittedProfilePicture,
+  getAuthenticatedProfile,
+  updateAuthenticatedProfile,
+} from "../services/Service/profileService.js";
+
+import { createProfilePictureStorageKey } from "../services/Storage/profilePictureStorageService.js";
+
+import { parseProfileUpdate } from "../schemas/profileSchemas.js";
+
+const environment = getEnvironment();
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+export async function getMyProfile(request, response, next) {
+  try {
+    const profile = await getAuthenticatedProfile({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile retrieved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProfile(request, response, next) {
+  try {
+    const profileInput = parseProfileUpdate(request.body);
+
+    const profile = await updateAuthenticatedProfile({
+      userId: request.auth.userId,
+      profile: profileInput,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile saved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadProfilePictureController(request, response, next) {
+  try {
+    const userId = String(request.auth?.userId || "").trim();
+    const uploadedFile = request.profilePictureFile;
+
+    if (!userId) {
+      const error = new Error(
+        "Authenticated user ID is unavailable during profile-picture upload.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_UPLOAD_USER_INVALID";
+      error.status = 401;
+      error.publicMessage =
+        "Your session could not be verified for this upload.";
+
+      throw error;
+    }
+
+    if (!uploadedFile?.filename) {
+      const error = new Error("Verified profile-picture file is unavailable.");
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_FILE_UNAVAILABLE";
+      error.status = 400;
+      error.publicMessage = "The profile picture could not be processed.";
+
+      throw error;
+    }
+
+    const publicBaseUrl = environment.PROFILE_PICTURE_PUBLIC_BASE_URL;
+
+    if (!publicBaseUrl) {
+      const error = new Error(
+        "PROFILE_PICTURE_PUBLIC_BASE_URL is not configured.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_PUBLIC_URL_NOT_CONFIGURED";
+      error.status = 503;
+      error.publicMessage =
+        "Profile-picture storage is temporarily unavailable.";
+
+      throw error;
+    }
+
+    /*
+     * storageKey is intentionally relative.
+     *
+     * Example:
+     * abc123.../550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * Never return the physical D:\ or UNC path.
+     */
+    const storageKey = createProfilePictureStorageKey(
+      userId,
+      uploadedFile.filename,
+    );
+
+    const imageUrl = `${publicBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
+
+    return response.status(201).json({
+      picture: {
+        imageUrl,
+        storageKey,
+
+        /*
+         * originalname is the filename supplied by the
+         * browser, while filename is our generated UUID.
+         */
+        fileName: path.basename(uploadedFile.originalname),
+
+        fileType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.size,
+        useDefaultAvatar: false,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteProfilePictureController(request, response, next) {
+  try {
+    const result = await deleteUncommittedProfilePicture({
+      userId: request.auth.userId,
+      storageKey: request.body?.storageKey,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: result.deleted
+        ? "Temporary profile picture removed successfully."
+        : "Temporary profile picture was already removed.",
+      data: {
+        storageKey: result.storageKey,
+        deleted: result.deleted,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
+============================================================
+FILE: backend\src\routes\profileRoutes.js
+============================================================
+import { uploadProfilePicture } from "../middleware/profile/profilePictureUploadMiddleware.js";
+import { validateProfilePicture } from "../middleware/profile/profilePictureValidationMiddleware.js";
+
+import { Router } from "express";
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+import {
+  deleteProfilePictureController,
+  getMyProfile,
+  updateMyProfile,
+  uploadProfilePictureController,
+} from "../controllers/profileController.js";
+
+const router = Router();
+
+router.use(requireAuthentication);
+
+router.post(
+  "/pictures/upload",
+  uploadProfilePicture,
+  validateProfilePicture,
+  uploadProfilePictureController,
+);
+
+router.delete("/pictures/upload", deleteProfilePictureController);
+
+router.get("/me", getMyProfile);
+router.put("/me", updateMyProfile);
+
+export default router;
+
+
+============================================================
+FILE: backend\src\middleware\errorMiddleware.js
+============================================================
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+export function notFoundHandler(request, response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  return response.status(404).json({
+    status: "error",
+
+    code: "ROUTE_NOT_FOUND",
+
+    message: `Route not found: ${request.method} ${request.originalUrl}`,
+  });
+}
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+export function globalErrorHandler(error, request, response, next) {
+  /*
+   * Express delegates to its default handler
+   * if a response has already started.
+   */
+
+  if (response.headersSent) {
+    return next(error);
+  }
+
+  const isMalformedJson =
+    error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+
+  const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+
+  const code = isMalformedJson
+    ? "INVALID_JSON"
+    : normalizePublicCode(error, status);
+
+  const message = isMalformedJson
+    ? "The request body contains invalid JSON."
+    : getPublicMessage(error, status);
+
+  /*
+   * Log complete technical information only
+   * on the server.
+   */
+
+  console.error("Unhandled API error:", {
+    method: request.method,
+
+    url: request.originalUrl,
+
+    name: error?.name,
+
+    code: error?.code,
+
+    message: error?.message,
+
+    status,
+
+    provider: error?.provider,
+
+    stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+  });
+
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+
+  const validationErrors = normalizeValidationErrors(
+    error?.errors || error?.validationErrors,
+  );
+
+  return response.status(status).json({
+    status: "error",
+
+    code,
+
+    message,
+
+    ...(Object.keys(fieldErrors).length > 0
+      ? {
+          fieldErrors,
+        }
+      : {}),
+
+    ...(validationErrors.length > 0
+      ? {
+          errors: validationErrors,
+        }
+      : {}),
+
+    /*
+     * Development details are useful while
+     * building the API but are excluded from
+     * production responses.
+     */
+
+    ...(process.env.NODE_ENV === "development"
+      ? {
+          debug: {
+            name: error?.name || "Error",
+
+            technicalMessage: error?.message || "Unknown error",
+
+            provider: error?.provider || null,
+          },
+        }
+      : {}),
+  });
+}
+
+/*
+ * =========================================
+ * Status Normalization
+ * =========================================
+ */
+
+function normalizeStatus(status) {
+  const numericStatus = Number(status);
+
+  if (
+    Number.isInteger(numericStatus) &&
+    numericStatus >= 400 &&
+    numericStatus <= 599
+  ) {
+    return numericStatus;
+  }
+
+  return 500;
+}
+
+/*
+ * =========================================
+ * Public Error Code
+ * =========================================
+ *
+ * Internal database and provider codes should
+ * not automatically be returned to clients.
+ * Application errors are public only when
+ * they also provide a publicMessage.
+ */
+
+function normalizePublicCode(error, status) {
+  const code = typeof error?.code === "string" ? error.code.trim() : "";
+
+  const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+
+  if (error?.publicMessage && isSafeCode) {
+    return code;
+  }
+
+  if (status === 400) {
+    return "BAD_REQUEST";
+  }
+
+  if (status === 401) {
+    return "AUTHENTICATION_REQUIRED";
+  }
+
+  if (status === 403) {
+    return "ACCESS_FORBIDDEN";
+  }
+
+  if (status === 404) {
+    return "RESOURCE_NOT_FOUND";
+  }
+
+  if (status === 409) {
+    return "RESOURCE_CONFLICT";
+  }
+
+  if (status === 429) {
+    return "RATE_LIMIT_EXCEEDED";
+  }
+
+  if (status === 503) {
+    return "SERVICE_UNAVAILABLE";
+  }
+
+  return "INTERNAL_SERVER_ERROR";
+}
+
+/*
+ * =========================================
+ * Public Error Message
+ * =========================================
+ */
+
+function getPublicMessage(error, status) {
+  if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+    return error.publicMessage.trim();
+  }
+
+  if (status === 400) {
+    return "The request could not be processed.";
+  }
+
+  if (status === 401) {
+    return "Authentication is required.";
+  }
+
+  if (status === 403) {
+    return "You do not have permission to perform this operation.";
+  }
+
+  if (status === 404) {
+    return "The requested resource was not found.";
+  }
+
+  if (status === 409) {
+    return "The request conflicts with the current resource state.";
+  }
+
+  if (status === 429) {
+    return "Too many requests were submitted. Please try again later.";
+  }
+
+  if (status === 503) {
+    return "The service is temporarily unavailable.";
+  }
+
+  return "An unexpected server error occurred.";
+}
+
+/*
+ * =========================================
+ * Field Error Normalization
+ * =========================================
+ */
+
+function normalizeFieldErrors(fieldErrors) {
+  if (
+    !fieldErrors ||
+    typeof fieldErrors !== "object" ||
+    Array.isArray(fieldErrors)
+  ) {
+    return {};
+  }
+
+  const normalized = {};
+
+  for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+    const safeFieldName = String(fieldName).slice(0, 100);
+
+    const messageValues = Array.isArray(messages) ? messages : [messages];
+
+    const safeMessages = messageValues
+      .filter((message) => typeof message === "string")
+      .map((message) => message.trim().slice(0, 500))
+      .filter(Boolean);
+
+    if (safeMessages.length > 0) {
+      normalized[safeFieldName] = safeMessages;
+    }
+  }
+
+  return normalized;
+}
+
+/*
+ * =========================================
+ * Validation Error Normalization
+ * =========================================
+ */
+
+function normalizeValidationErrors(errors) {
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+
+  return errors
+    .slice(0, 50)
+    .map((validationError) => {
+      if (typeof validationError === "string") {
+        return {
+          field: "",
+
+          code: "VALIDATION_ERROR",
+
+          message: validationError.trim().slice(0, 500),
+        };
+      }
+
+      if (!validationError || typeof validationError !== "object") {
+        return null;
+      }
+
+      const message =
+        typeof validationError.message === "string"
+          ? validationError.message.trim().slice(0, 500)
+          : "";
+
+      if (!message) {
+        return null;
+      }
+
+      return {
+        field:
+          typeof validationError.field === "string"
+            ? validationError.field.trim().slice(0, 100)
+            : "",
+
+        code:
+          typeof validationError.code === "string"
+            ? validationError.code.trim().slice(0, 100)
+            : "VALIDATION_ERROR",
+
+        message,
+      };
+    })
+    .filter(Boolean);
+}
+
+

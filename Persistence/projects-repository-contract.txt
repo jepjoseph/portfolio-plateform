@@ -1,0 +1,2189 @@
+========== backend\src\config\database.js ==========
+import sql from "mssql";
+
+import { getEnvironment, isDatabaseConfigured } from "./environment.js";
+
+/*
+ * =========================================
+ * Shared Connection State
+ * =========================================
+ */
+
+let connectionPool = null;
+
+let connectionPromise = null;
+
+/*
+ * =========================================
+ * Database Configuration
+ * =========================================
+ */
+
+function createDatabaseConfig() {
+  const environment = getEnvironment();
+
+  return {
+    server: environment.DB_HOST,
+
+    port: environment.DB_PORT,
+
+    database: environment.DB_NAME,
+
+    user: environment.DB_USER,
+
+    password: environment.DB_PASSWORD,
+
+    connectionTimeout: environment.DB_CONNECTION_TIMEOUT_MS,
+
+    requestTimeout: environment.DB_REQUEST_TIMEOUT_MS,
+
+    pool: {
+      min: environment.DB_POOL_MIN,
+
+      max: environment.DB_POOL_MAX,
+
+      idleTimeoutMillis: environment.DB_POOL_IDLE_TIMEOUT_MS,
+    },
+
+    options: {
+      encrypt: environment.DB_ENCRYPT,
+
+      trustServerCertificate: environment.DB_TRUST_SERVER_CERTIFICATE,
+
+      enableArithAbort: true,
+    },
+  };
+}
+
+/*
+ * =========================================
+ * Connect to Database
+ * =========================================
+ */
+
+export async function connectDatabase() {
+  const environment = getEnvironment();
+
+  if (!isDatabaseConfigured(environment)) {
+    const error = new Error("Database access has not been configured.");
+
+    error.name = "DatabaseConfigurationError";
+
+    error.code = "DATABASE_NOT_CONFIGURED";
+
+    error.status = 503;
+
+    error.publicMessage = "Database service is not configured.";
+
+    throw error;
+  }
+
+  /*
+   * Reuse an existing connected pool.
+   */
+
+  if (connectionPool?.connected) {
+    return connectionPool;
+  }
+
+  /*
+   * Reuse an in-progress connection attempt.
+   * This prevents multiple pools from being
+   * created simultaneously.
+   */
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  const nextPool = new sql.ConnectionPool(createDatabaseConfig());
+
+  nextPool.on("error", (error) => {
+    console.error("MSSQL connection pool error:", error.message);
+  });
+
+  connectionPromise = nextPool
+    .connect()
+    .then((connectedPool) => {
+      connectionPool = connectedPool;
+
+      console.log(
+        `Connected to SQL Server database "${environment.DB_NAME}" on ${environment.DB_HOST}.`,
+      );
+
+      return connectedPool;
+    })
+    .catch((error) => {
+      connectionPool = null;
+
+      throw error;
+    })
+    .finally(() => {
+      connectionPromise = null;
+    });
+
+  return connectionPromise;
+}
+
+/*
+ * =========================================
+ * Get Database Pool
+ * =========================================
+ */
+
+export async function getDatabasePool() {
+  return connectDatabase();
+}
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+export async function checkDatabaseHealth() {
+  const startedAt = Date.now();
+
+  try {
+    const pool = await getDatabasePool();
+
+    await pool.request().query("SELECT 1 AS healthy;");
+
+    return {
+      status: "ok",
+
+      configured: true,
+
+      responseTimeMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    const isNotConfigured = error.code === "DATABASE_NOT_CONFIGURED";
+
+    return {
+      status: isNotConfigured ? "not-configured" : "error",
+
+      configured: !isNotConfigured,
+
+      responseTimeMs: Date.now() - startedAt,
+
+      error,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * Close Database Pool
+ * =========================================
+ */
+
+export async function closeDatabase() {
+  /*
+   * If a connection attempt is still running,
+   * wait for it before closing the pool.
+   */
+
+  if (connectionPromise) {
+    try {
+      await connectionPromise;
+    } catch {
+      /*
+       * A failed connection does not leave
+       * an active pool to close.
+       */
+    }
+  }
+
+  if (!connectionPool) {
+    return;
+  }
+
+  const poolToClose = connectionPool;
+
+  connectionPool = null;
+
+  await poolToClose.close();
+
+  console.log("SQL Server connection pool closed.");
+}
+
+/*
+ * =========================================
+ * SQL Types
+ * =========================================
+ *
+ * Repositories can import sql from this module
+ * when creating parameterized requests.
+ */
+
+export { sql };
+
+========== frontend\src\config\projectConfig.js ==========
+/*
+ * =========================================
+ * Project Categories
+ * =========================================
+ */
+
+export const PROJECT_CATEGORY_OPTIONS = [
+  {
+    value: "software",
+    label: "Software Development",
+  },
+  {
+    value: "web-application",
+    label: "Web Application",
+  },
+  {
+    value: "mobile-application",
+    label: "Mobile Application",
+  },
+  {
+    value: "artificial-intelligence",
+    label: "Artificial Intelligence",
+  },
+  {
+    value: "data",
+    label: "Data and Analytics",
+  },
+  {
+    value: "cloud-infrastructure",
+    label: "Cloud and Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "cybersecurity",
+    label: "Cybersecurity",
+  },
+  {
+    value: "embedded-systems",
+    label: "Embedded Systems",
+  },
+  {
+    value: "electronics",
+    label: "Electronics",
+  },
+  {
+    value: "automation",
+    label: "Automation",
+  },
+  {
+    value: "internet-of-things",
+    label: "Internet of Things",
+  },
+  {
+    value: "research",
+    label: "Research",
+  },
+  {
+    value: "design",
+    label: "Design",
+  },
+  {
+    value: "business",
+    label: "Business or Startup",
+  },
+  {
+    value: "academic",
+    label: "Academic Project",
+  },
+  {
+    value: "community",
+    label: "Community Project",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Project Lifecycle
+ * =========================================
+ *
+ * This represents the actual lifecycle of the
+ * project. It is separate from recordStatus,
+ * which controls library archiving.
+ */
+
+export const PROJECT_LIFECYCLE_STATUS_OPTIONS = [
+  {
+    value: "planned",
+    label: "Planned",
+  },
+  {
+    value: "in-progress",
+    label: "In Progress",
+  },
+  {
+    value: "completed",
+    label: "Completed",
+  },
+  {
+    value: "maintained",
+    label: "Maintained",
+  },
+  {
+    value: "paused",
+    label: "Paused",
+  },
+  {
+    value: "cancelled",
+    label: "Cancelled",
+  },
+];
+
+/*
+ * =========================================
+ * Project Ownership
+ * =========================================
+ */
+
+export const PROJECT_OWNERSHIP_OPTIONS = [
+  {
+    value: "individual",
+    label: "Individual Project",
+  },
+  {
+    value: "team",
+    label: "Team Project",
+  },
+  {
+    value: "client",
+    label: "Client Project",
+  },
+  {
+    value: "organization",
+    label: "Organization Project",
+  },
+];
+
+/*
+ * =========================================
+ * Record Sources
+ * =========================================
+ */
+
+export const PROJECT_SOURCE_OPTIONS = [
+  {
+    value: "manual",
+    label: "Manually Added",
+  },
+  {
+    value: "import",
+    label: "Imported",
+  },
+  {
+    value: "integration",
+    label: "Integration",
+  },
+  {
+    value: "ai-assisted",
+    label: "AI Assisted",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const PROJECT_RECORD_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+  },
+];
+
+/*
+ * =========================================
+ * Demonstrated Skill Proficiency
+ * =========================================
+ *
+ * This describes the proficiency demonstrated
+ * specifically within a Project. It can differ
+ * from the general Skill Library proficiency.
+ */
+
+export const PROJECT_SKILL_PROFICIENCY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "foundational",
+    label: "Foundational",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+  },
+  {
+    value: "expert",
+    label: "Expert",
+  },
+];
+
+/*
+ * =========================================
+ * Technology Categories
+ * =========================================
+ */
+
+export const PROJECT_TECHNOLOGY_CATEGORY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "programming-language",
+    label: "Programming Language",
+  },
+  {
+    value: "framework-library",
+    label: "Framework or Library",
+  },
+  {
+    value: "database",
+    label: "Database",
+  },
+  {
+    value: "cloud-platform",
+    label: "Cloud Platform",
+  },
+  {
+    value: "infrastructure",
+    label: "Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "hardware",
+    label: "Hardware",
+  },
+  {
+    value: "embedded-platform",
+    label: "Embedded Platform",
+  },
+  {
+    value: "development-tool",
+    label: "Development Tool",
+  },
+  {
+    value: "design-tool",
+    label: "Design Tool",
+  },
+  {
+    value: "testing-tool",
+    label: "Testing Tool",
+  },
+  {
+    value: "methodology",
+    label: "Methodology",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Recognition Types
+ * =========================================
+ */
+
+export const PROJECT_RECOGNITION_TYPE_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "award",
+    label: "Award",
+  },
+  {
+    value: "competition",
+    label: "Competition",
+  },
+  {
+    value: "grant",
+    label: "Grant",
+  },
+  {
+    value: "fellowship",
+    label: "Fellowship",
+  },
+  {
+    value: "showcase",
+    label: "Showcase Selection",
+  },
+  {
+    value: "publication",
+    label: "Publication",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "patent",
+    label: "Patent or Invention",
+  },
+  {
+    value: "media",
+    label: "Media Recognition",
+  },
+  {
+    value: "client-recognition",
+    label: "Client Recognition",
+  },
+  {
+    value: "academic-recognition",
+    label: "Academic Recognition",
+  },
+  {
+    value: "other",
+    label: "Other Recognition",
+  },
+];
+
+/*
+ * =========================================
+ * Award Placements
+ * =========================================
+ */
+
+export const PROJECT_AWARD_PLACEMENT_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "winner",
+    label: "Winner",
+  },
+  {
+    value: "first-place",
+    label: "First Place",
+  },
+  {
+    value: "second-place",
+    label: "Second Place",
+  },
+  {
+    value: "third-place",
+    label: "Third Place",
+  },
+  {
+    value: "finalist",
+    label: "Finalist",
+  },
+  {
+    value: "semifinalist",
+    label: "Semifinalist",
+  },
+  {
+    value: "honorable-mention",
+    label: "Honorable Mention",
+  },
+  {
+    value: "selected",
+    label: "Selected",
+  },
+  {
+    value: "recipient",
+    label: "Recipient",
+  },
+  {
+    value: "participant",
+    label: "Participant",
+  },
+  {
+    value: "other",
+    label: "Other Placement",
+  },
+];
+
+/*
+ * =========================================
+ * Media Types
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_TYPE_OPTIONS = [
+  {
+    value: "image",
+    label: "Image",
+  },
+  {
+    value: "video",
+    label: "Video",
+  },
+  {
+    value: "diagram",
+    label: "Architecture Diagram",
+  },
+];
+
+/*
+ * =========================================
+ * Document Types
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_TYPE_OPTIONS = [
+  {
+    value: "report",
+    label: "Report",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "documentation",
+    label: "Documentation",
+  },
+  {
+    value: "source-file",
+    label: "Source File or Archive",
+  },
+  {
+    value: "dataset",
+    label: "Dataset",
+  },
+  {
+    value: "design",
+    label: "Design Document",
+  },
+  {
+    value: "award",
+    label: "Award Evidence",
+  },
+  {
+    value: "supporting-evidence",
+    label: "Supporting Evidence",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Asset Visibility
+ * =========================================
+ */
+
+export const PROJECT_ASSET_VISIBILITY_OPTIONS = [
+  {
+    value: "public",
+    label: "Public",
+  },
+  {
+    value: "private",
+    label: "Private",
+  },
+];
+
+/*
+ * =========================================
+ * Accepted Media Files
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+].join(",");
+
+/*
+ * =========================================
+ * Accepted Document Files
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+].join(",");
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ *
+ * These limits should later be mirrored in
+ * backend validation and database columns.
+ */
+
+export const PROJECT_FIELD_LIMITS = Object.freeze({
+  title: 200,
+  role: 160,
+
+  organizationName: 200,
+  clientName: 200,
+  website: 1000,
+
+  locationDisplayValue: 300,
+
+  url: 2000,
+
+  problemStatement: 4000,
+  targetAudience: 1000,
+  context: 3000,
+  importance: 3000,
+
+  overview: 4000,
+  approach: 4000,
+  architecture: 4000,
+
+  outcome: 4000,
+  problemsSolved: 3000,
+  impact: 3000,
+  beneficiariesAffected: 2000,
+  lessonsLearned: 3000,
+  futureImprovements: 3000,
+
+  shortSummary: 500,
+  caseStudy: 12000,
+
+  orderedItemText: 1500,
+
+  metricLabel: 200,
+  metricValue: 200,
+  metricDescription: 500,
+
+  relationshipName: 200,
+  relationshipDescription: 1000,
+
+  skillProficiency: 50,
+
+  technologyName: 150,
+  technologyCategory: 100,
+
+  awardName: 250,
+  awardOrganization: 250,
+  awardRecognitionType: 100,
+  awardPlacement: 100,
+  awardDescription: 1500,
+
+  mediaName: 255,
+  mediaCaption: 1000,
+  mediaAltText: 500,
+
+  documentName: 255,
+  documentDescription: 1000,
+
+  sourceContext: 500,
+  privateNotes: 5000,
+
+  maximumObjectives: 25,
+  maximumConstraints: 25,
+  maximumFeatures: 40,
+  maximumContributions: 40,
+  maximumMetrics: 25,
+
+  maximumSkills: 60,
+  maximumTechnologies: 60,
+  maximumRelationshipsPerType: 50,
+
+  maximumAwards: 20,
+  maximumAwardDocuments: 10,
+
+  maximumMedia: 30,
+  maximumDocuments: 30,
+
+  maximumImageBytes: 12 * 1024 * 1024,
+  maximumVideoBytes: 150 * 1024 * 1024,
+  maximumDocumentBytes: 20 * 1024 * 1024,
+});
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+function getOptionLabel(options, value, fallback = "") {
+  return findOption(options, value)?.label || fallback;
+}
+
+/*
+ * =========================================
+ * Project Option Validation
+ * =========================================
+ */
+
+export function isValidProjectCategory(value) {
+  return Boolean(findOption(PROJECT_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectLifecycleStatus(value) {
+  return Boolean(findOption(PROJECT_LIFECYCLE_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectOwnership(value) {
+  return Boolean(findOption(PROJECT_OWNERSHIP_OPTIONS, value));
+}
+
+export function isValidProjectSource(value) {
+  return Boolean(findOption(PROJECT_SOURCE_OPTIONS, value));
+}
+
+export function isValidProjectRecordStatus(value) {
+  return Boolean(findOption(PROJECT_RECORD_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectSkillProficiency(value) {
+  return Boolean(findOption(PROJECT_SKILL_PROFICIENCY_OPTIONS, value));
+}
+
+export function isValidProjectTechnologyCategory(value) {
+  return Boolean(findOption(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectRecognitionType(value) {
+  return Boolean(findOption(PROJECT_RECOGNITION_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectAwardPlacement(value) {
+  return Boolean(findOption(PROJECT_AWARD_PLACEMENT_OPTIONS, value));
+}
+
+export function isValidProjectMediaType(value) {
+  return Boolean(findOption(PROJECT_MEDIA_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectDocumentType(value) {
+  return Boolean(findOption(PROJECT_DOCUMENT_TYPE_OPTIONS, value));
+}
+
+/*
+ * =========================================
+ * Display Labels
+ * =========================================
+ */
+
+export function getProjectCategoryLabel(value) {
+  return getOptionLabel(PROJECT_CATEGORY_OPTIONS, value, "Other");
+}
+
+export function getProjectLifecycleStatusLabel(value) {
+  return getOptionLabel(PROJECT_LIFECYCLE_STATUS_OPTIONS, value, "Planned");
+}
+
+export function getProjectOwnershipLabel(value) {
+  return getOptionLabel(PROJECT_OWNERSHIP_OPTIONS, value, "Individual Project");
+}
+
+export function getProjectSourceLabel(value) {
+  return getOptionLabel(PROJECT_SOURCE_OPTIONS, value, "Manually Added");
+}
+
+export function getProjectRecordStatusLabel(value) {
+  return getOptionLabel(PROJECT_RECORD_STATUS_OPTIONS, value, "Active");
+}
+
+export function getProjectSkillProficiencyLabel(value) {
+  return getOptionLabel(PROJECT_SKILL_PROFICIENCY_OPTIONS, value);
+}
+
+export function getProjectTechnologyCategoryLabel(value) {
+  return getOptionLabel(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value);
+}
+
+export function getProjectRecognitionTypeLabel(value) {
+  return getOptionLabel(PROJECT_RECOGNITION_TYPE_OPTIONS, value);
+}
+
+export function getProjectAwardPlacementLabel(value) {
+  return getOptionLabel(PROJECT_AWARD_PLACEMENT_OPTIONS, value);
+}
+
+export function getProjectMediaTypeLabel(value) {
+  return getOptionLabel(PROJECT_MEDIA_TYPE_OPTIONS, value, "Image");
+}
+
+export function getProjectDocumentTypeLabel(value) {
+  return getOptionLabel(
+    PROJECT_DOCUMENT_TYPE_OPTIONS,
+    value,
+    "Supporting Evidence",
+  );
+}
+
+/*
+ * =========================================
+ * File Helpers
+ * =========================================
+ */
+
+function getFileType(file) {
+  return typeof file?.type === "string"
+    ? file.type.trim().toLocaleLowerCase()
+    : "";
+}
+
+function getFileName(file) {
+  return typeof file?.name === "string"
+    ? file.name.trim().toLocaleLowerCase()
+    : "";
+}
+
+function hasFileExtension(fileName, extensions) {
+  return extensions.some((extension) => fileName.endsWith(extension));
+}
+
+/*
+ * =========================================
+ * Media Validation
+ * =========================================
+ */
+
+export function isSupportedProjectMedia(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+  ];
+
+  const supportedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".mp4",
+    ".webm",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectMediaWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const isVideo =
+    mimeType.startsWith("video/") ||
+    hasFileExtension(fileName, [".mp4", ".webm"]);
+
+  const maximumSize = isVideo
+    ? PROJECT_FIELD_LIMITS.maximumVideoBytes
+    : PROJECT_FIELD_LIMITS.maximumImageBytes;
+
+  return fileSize <= maximumSize;
+}
+
+/*
+ * =========================================
+ * Document Validation
+ * =========================================
+ */
+
+export function isSupportedProjectDocument(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "application/pdf",
+
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "application/json",
+    "application/zip",
+    "application/x-zip-compressed",
+
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  const supportedExtensions = [
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".md",
+    ".csv",
+    ".json",
+    ".zip",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectDocumentWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  return (
+    Number.isFinite(fileSize) &&
+    fileSize > 0 &&
+    fileSize <= PROJECT_FIELD_LIMITS.maximumDocumentBytes
+  );
+}
+
+========== frontend\src\services\Project\projectValidation.js ==========
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../../config/projectConfig.js";
+
+import { normalizeProject } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * Validation Result Helpers
+ * =========================================
+ */
+
+function addError(errors, fieldErrors, field, code, message) {
+  errors.push({
+    field,
+    code,
+    message,
+  });
+
+  if (!fieldErrors[field]) {
+    fieldErrors[field] = message;
+  }
+}
+
+function addWarning(warnings, field, code, message) {
+  warnings.push({
+    field,
+    code,
+    message,
+  });
+}
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+/*
+ * =========================================
+ * URL Validation
+ * =========================================
+ */
+
+function isValidUrl(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return true;
+  }
+
+  try {
+    const url = new URL(normalizedValue);
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * =========================================
+ * Date Validation
+ * =========================================
+ */
+
+function parseProjectDate(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const match = normalizedValue.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    match[3] &&
+    (parsedDate.getUTCFullYear() !== year ||
+      parsedDate.getUTCMonth() !== month - 1 ||
+      parsedDate.getUTCDate() !== day)
+  ) {
+    return null;
+  }
+
+  return parsedDate.getTime();
+}
+
+/*
+ * =========================================
+ * Length Validation
+ * =========================================
+ */
+
+function validateMaximumLength({
+  value,
+  maximumLength,
+  field,
+  label,
+  errors,
+  fieldErrors,
+}) {
+  if (typeof value === "string" && value.trim().length > maximumLength) {
+    addError(
+      errors,
+      fieldErrors,
+      field,
+      "PROJECT_FIELD_TOO_LONG",
+      `${label} cannot exceed ${maximumLength} characters.`,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Project Validation
+ * =========================================
+ */
+
+export function validateProject(value, collections = {}) {
+  const source = getObject(value);
+
+  const project = normalizeProject(source);
+
+  const errors = [];
+  const warnings = [];
+  const fieldErrors = {};
+
+  const sourceOrganization = getObject(source.organization);
+
+  const sourceDates = getObject(source.dates);
+
+  const sourceLinks = getObject(source.links);
+
+  const sourceProblem = getObject(source.problem);
+
+  const sourceSolution = getObject(source.solution);
+
+  const sourceResults = getObject(source.results);
+
+  const sourcePresentation = getObject(source.presentation);
+
+  const sourcePrivateInformation = getObject(source.privateInformation);
+
+  /*
+   * =========================================
+   * Required Fields
+   * =========================================
+   */
+
+  if (!project.title) {
+    addError(
+      errors,
+      fieldErrors,
+      "title",
+      "PROJECT_TITLE_REQUIRED",
+      "Enter a project title.",
+    );
+  }
+
+  if (!project.role) {
+    addError(
+      errors,
+      fieldErrors,
+      "role",
+      "PROJECT_ROLE_REQUIRED",
+      "Describe your role in this project.",
+    );
+  }
+
+  if (!project.dates.startDate) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.startDate",
+      "PROJECT_START_DATE_REQUIRED",
+      "Enter the project start date.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Option Validation
+   * =========================================
+   */
+
+  if (source.category && !isValidProjectCategory(source.category)) {
+    addError(
+      errors,
+      fieldErrors,
+      "category",
+      "PROJECT_CATEGORY_INVALID",
+      "Select a valid project category.",
+    );
+  }
+
+  const suppliedLifecycleStatus =
+    source.lifecycleStatus || source.projectStatus;
+
+  if (
+    suppliedLifecycleStatus &&
+    !isValidProjectLifecycleStatus(suppliedLifecycleStatus)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "lifecycleStatus",
+      "PROJECT_LIFECYCLE_INVALID",
+      "Select a valid project lifecycle status.",
+    );
+  }
+
+  if (source.ownership && !isValidProjectOwnership(source.ownership)) {
+    addError(
+      errors,
+      fieldErrors,
+      "ownership",
+      "PROJECT_OWNERSHIP_INVALID",
+      "Select a valid project ownership type.",
+    );
+  }
+
+  if (source.source && !isValidProjectSource(source.source)) {
+    addError(
+      errors,
+      fieldErrors,
+      "source",
+      "PROJECT_SOURCE_INVALID",
+      "Select a valid record source.",
+    );
+  }
+
+  if (source.recordStatus && !isValidProjectRecordStatus(source.recordStatus)) {
+    addError(
+      errors,
+      fieldErrors,
+      "recordStatus",
+      "PROJECT_RECORD_STATUS_INVALID",
+      "Select a valid Project record status.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Date Validation
+   * =========================================
+   */
+
+  const startDateValue = parseProjectDate(sourceDates.startDate);
+
+  const endDateValue = parseProjectDate(sourceDates.endDate);
+
+  if (sourceDates.startDate && startDateValue === null) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.startDate",
+      "PROJECT_START_DATE_INVALID",
+      "Enter a valid project start date.",
+    );
+  }
+
+  if (sourceDates.endDate && endDateValue === null) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_END_DATE_INVALID",
+      "Enter a valid project end date.",
+    );
+  }
+
+  if (
+    !project.dates.isCurrent &&
+    ["completed", "cancelled"].includes(project.lifecycleStatus) &&
+    !project.dates.endDate
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_END_DATE_REQUIRED",
+      "Enter the project completion or cancellation date.",
+    );
+  }
+
+  if (
+    startDateValue !== null &&
+    endDateValue !== null &&
+    endDateValue < startDateValue
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_DATE_ORDER_INVALID",
+      "The end date cannot be earlier than the start date.",
+    );
+  }
+
+  if (project.dates.isCurrent && project.dates.endDate) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_CURRENT_END_DATE_CONFLICT",
+      "An ongoing project cannot have an end date.",
+    );
+  }
+
+  if (
+    project.dates.isCurrent &&
+    !["in-progress", "maintained"].includes(project.lifecycleStatus)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "lifecycleStatus",
+      "PROJECT_CURRENT_LIFECYCLE_CONFLICT",
+      "An ongoing project must be In Progress or Maintained.",
+    );
+  }
+
+  if (
+    ["in-progress", "maintained"].includes(project.lifecycleStatus) &&
+    !project.dates.isCurrent
+  ) {
+    addWarning(
+      warnings,
+      "dates.isCurrent",
+      "PROJECT_CURRENT_STATUS_RECOMMENDED",
+      "Consider marking an In Progress or Maintained project as ongoing.",
+    );
+  }
+
+  /*
+   * =========================================
+   * URL Validation
+   * =========================================
+   */
+
+  Object.entries(sourceLinks).forEach(([fieldName, urlValue]) => {
+    if (!isValidUrl(urlValue)) {
+      addError(
+        errors,
+        fieldErrors,
+        `links.${fieldName}`,
+        "PROJECT_URL_INVALID",
+        "Enter a complete HTTP or HTTPS address.",
+      );
+    }
+  });
+
+  if (!isValidUrl(sourceOrganization.website)) {
+    addError(
+      errors,
+      fieldErrors,
+      "organization.website",
+      "PROJECT_ORGANIZATION_URL_INVALID",
+      "Enter a complete HTTP or HTTPS organization address.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Maximum Field Lengths
+   * =========================================
+   */
+
+  [
+    [source.title, PROJECT_FIELD_LIMITS.title, "title", "Project title"],
+    [source.role, PROJECT_FIELD_LIMITS.role, "role", "Project role"],
+    [
+      sourceOrganization.name,
+      PROJECT_FIELD_LIMITS.organizationName,
+      "organization.name",
+      "Organization name",
+    ],
+    [
+      sourceOrganization.clientName,
+      PROJECT_FIELD_LIMITS.clientName,
+      "organization.clientName",
+      "Client name",
+    ],
+    [
+      sourceProblem.statement,
+      PROJECT_FIELD_LIMITS.problemStatement,
+      "problem.statement",
+      "Problem statement",
+    ],
+    [
+      sourceProblem.targetAudience,
+      PROJECT_FIELD_LIMITS.targetAudience,
+      "problem.targetAudience",
+      "Target audience",
+    ],
+    [
+      sourceProblem.context,
+      PROJECT_FIELD_LIMITS.context,
+      "problem.context",
+      "Project context",
+    ],
+    [
+      sourceProblem.importance,
+      PROJECT_FIELD_LIMITS.importance,
+      "problem.importance",
+      "Project importance",
+    ],
+    [
+      sourceSolution.overview,
+      PROJECT_FIELD_LIMITS.overview,
+      "solution.overview",
+      "Solution overview",
+    ],
+    [
+      sourceSolution.approach,
+      PROJECT_FIELD_LIMITS.approach,
+      "solution.approach",
+      "Implementation approach",
+    ],
+    [
+      sourceSolution.architecture,
+      PROJECT_FIELD_LIMITS.architecture,
+      "solution.architecture",
+      "Architecture summary",
+    ],
+    [
+      sourceResults.outcome,
+      PROJECT_FIELD_LIMITS.outcome,
+      "results.outcome",
+      "Project outcome",
+    ],
+    [
+      sourceResults.problemsSolved,
+      PROJECT_FIELD_LIMITS.problemsSolved,
+      "results.problemsSolved",
+      "Problems solved",
+    ],
+    [
+      sourceResults.impact,
+      PROJECT_FIELD_LIMITS.impact,
+      "results.impact",
+      "Project impact",
+    ],
+    [
+      sourceResults.beneficiariesAffected,
+      PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      "results.beneficiariesAffected",
+      "Affected beneficiaries",
+    ],
+    [
+      sourcePresentation.shortSummary,
+      PROJECT_FIELD_LIMITS.shortSummary,
+      "presentation.shortSummary",
+      "Portfolio summary",
+    ],
+    [
+      sourcePresentation.caseStudy,
+      PROJECT_FIELD_LIMITS.caseStudy,
+      "presentation.caseStudy",
+      "Detailed case study",
+    ],
+    [
+      sourcePrivateInformation.notes,
+      PROJECT_FIELD_LIMITS.privateNotes,
+      "privateInformation.notes",
+      "Private notes",
+    ],
+  ].forEach(([fieldValue, limit, field, label]) => {
+    validateMaximumLength({
+      value: fieldValue,
+      maximumLength: limit,
+      field,
+      label,
+      errors,
+      fieldErrors,
+    });
+  });
+
+  /*
+   * =========================================
+   * Collection Limits
+   * =========================================
+   */
+
+  const collectionLimits = [
+    [
+      sourceProblem.objectives,
+      PROJECT_FIELD_LIMITS.maximumObjectives,
+      "problem.objectives",
+      "objectives",
+    ],
+    [
+      sourceProblem.constraints,
+      PROJECT_FIELD_LIMITS.maximumConstraints,
+      "problem.constraints",
+      "constraints",
+    ],
+    [
+      sourceSolution.features,
+      PROJECT_FIELD_LIMITS.maximumFeatures,
+      "solution.features",
+      "features",
+    ],
+    [
+      sourceSolution.contributions,
+      PROJECT_FIELD_LIMITS.maximumContributions,
+      "solution.contributions",
+      "contributions",
+    ],
+    [
+      sourceResults.metrics,
+      PROJECT_FIELD_LIMITS.maximumMetrics,
+      "results.metrics",
+      "metrics",
+    ],
+    [
+      source.skillRelationships,
+      PROJECT_FIELD_LIMITS.maximumSkills,
+      "skillRelationships",
+      "related Skills",
+    ],
+    [
+      source.technologies,
+      PROJECT_FIELD_LIMITS.maximumTechnologies,
+      "technologies",
+      "technologies",
+    ],
+    [source.awards, PROJECT_FIELD_LIMITS.maximumAwards, "awards", "awards"],
+    [source.media, PROJECT_FIELD_LIMITS.maximumMedia, "media", "media items"],
+    [
+      source.supportingDocuments,
+      PROJECT_FIELD_LIMITS.maximumDocuments,
+      "supportingDocuments",
+      "documents",
+    ],
+  ];
+
+  collectionLimits.forEach(([collection, maximum, field, label]) => {
+    if (Array.isArray(collection) && collection.length > maximum) {
+      addError(
+        errors,
+        fieldErrors,
+        field,
+        "PROJECT_COLLECTION_LIMIT_EXCEEDED",
+        `Add no more than ${maximum} ${label}.`,
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Skills
+   * =========================================
+   */
+
+  const availableSkillIds = Array.isArray(collections.skills)
+    ? new Set(collections.skills.map((skill) => skill?.id).filter(Boolean))
+    : null;
+
+  project.skillRelationships.forEach((relationship, index) => {
+    if (!relationship.skillId && !relationship.nameSnapshot) {
+      addError(
+        errors,
+        fieldErrors,
+        `skillRelationships.${index}`,
+        "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A related Skill must have an identifier or readable snapshot.",
+      );
+    }
+
+    if (
+      relationship.demonstratedProficiency &&
+      !isValidProjectSkillProficiency(relationship.demonstratedProficiency)
+    ) {
+      addError(
+        errors,
+        fieldErrors,
+        `skillRelationships.${index}.demonstratedProficiency`,
+        "PROJECT_SKILL_PROFICIENCY_INVALID",
+        "Select a valid demonstrated proficiency.",
+      );
+    }
+
+    /*
+     * A missing central record is a warning.
+     * The snapshot keeps the Project readable.
+     */
+
+    if (
+      availableSkillIds &&
+      relationship.skillId &&
+      !availableSkillIds.has(relationship.skillId)
+    ) {
+      addWarning(
+        warnings,
+        `skillRelationships.${index}`,
+        "PROJECT_SKILL_NOT_FOUND",
+        `The Skill “${
+          relationship.nameSnapshot || relationship.skillId
+        }” is no longer available in the Skill Library. Its snapshot will be preserved.`,
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Related Professional Records
+   * =========================================
+   */
+
+  const relationshipCollections = [
+    {
+      relationshipName: "experienceRelationships",
+      idField: "experienceId",
+      records: collections.experiences,
+      label: "Experience",
+    },
+    {
+      relationshipName: "educationRelationships",
+      idField: "educationId",
+      records: collections.educationRecords,
+      label: "Education",
+    },
+    {
+      relationshipName: "trainingRelationships",
+      idField: "trainingId",
+      records: collections.trainingRecords,
+      label: "Training",
+    },
+    {
+      relationshipName: "certificationRelationships",
+      idField: "certificationId",
+      records: collections.certifications,
+      label: "Certification",
+    },
+  ];
+
+  relationshipCollections.forEach(
+    ({ relationshipName, idField, records, label }) => {
+      if (!Array.isArray(records)) {
+        return;
+      }
+
+      const availableIds = new Set(
+        records.map((record) => record?.id).filter(Boolean),
+      );
+
+      project.relatedRecords[relationshipName].forEach(
+        (relationship, index) => {
+          if (!relationship[idField]) {
+            addError(
+              errors,
+              fieldErrors,
+              `relatedRecords.${relationshipName}.${index}`,
+              "PROJECT_RELATIONSHIP_ID_REQUIRED",
+              `A related ${label} record must have an identifier.`,
+            );
+
+            return;
+          }
+
+          if (!availableIds.has(relationship[idField])) {
+            addWarning(
+              warnings,
+              `relatedRecords.${relationshipName}.${index}`,
+              "PROJECT_RELATIONSHIP_NOT_FOUND",
+              `A related ${label} record is no longer available. Its readable snapshot will be preserved.`,
+            );
+          }
+        },
+      );
+    },
+  );
+
+  /*
+   * =========================================
+   * Awards and Recognition
+   * =========================================
+   */
+
+  const documentIds = new Set(
+    project.supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  project.awards.forEach((award, index) => {
+    if (
+      award.recognitionType &&
+      !isValidProjectRecognitionType(award.recognitionType)
+    ) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.recognitionType`,
+        "PROJECT_RECOGNITION_TYPE_INVALID",
+        "Select a valid recognition type.",
+      );
+    }
+
+    if (award.placement && !isValidProjectAwardPlacement(award.placement)) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.placement`,
+        "PROJECT_AWARD_PLACEMENT_INVALID",
+        "Select a valid award placement.",
+      );
+    }
+
+    if (!isValidUrl(award.url)) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.url`,
+        "PROJECT_AWARD_URL_INVALID",
+        "Enter a complete HTTP or HTTPS award address.",
+      );
+    }
+
+    award.supportingDocumentIds.forEach((documentId) => {
+      if (!documentIds.has(documentId)) {
+        addError(
+          errors,
+          fieldErrors,
+          `awards.${index}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+          "An award references a Project document that is no longer available.",
+        );
+      }
+    });
+  });
+
+  /*
+   * =========================================
+   * Media
+   * =========================================
+   */
+
+  project.media.forEach((mediaItem, index) => {
+    if (!isValidProjectMediaType(mediaItem.type)) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}.type`,
+        "PROJECT_MEDIA_TYPE_INVALID",
+        "Select a valid project media type.",
+      );
+    }
+
+    if (!mediaItem.storageKey && !mediaItem.externalUrl) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}`,
+        "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "Project media must have a stored file or external address.",
+      );
+    }
+
+    if (!isValidUrl(mediaItem.externalUrl)) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}.externalUrl`,
+        "PROJECT_MEDIA_URL_INVALID",
+        "Enter a complete HTTP or HTTPS media address.",
+      );
+    }
+
+    if (mediaItem.type !== "video" && !mediaItem.altText) {
+      addWarning(
+        warnings,
+        `media.${index}.altText`,
+        "PROJECT_MEDIA_ALT_TEXT_RECOMMENDED",
+        `Add alternative text for “${
+          mediaItem.name || "this image"
+        }” to improve accessibility.`,
+      );
+    }
+  });
+
+  const activeMedia = project.media.filter(
+    (mediaItem) => mediaItem.status !== "archived",
+  );
+
+  const featuredMediaId = project.presentation.featuredMediaId;
+
+  if (
+    featuredMediaId &&
+    !activeMedia.some((mediaItem) => mediaItem.id === featuredMediaId)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "presentation.featuredMediaId",
+      "PROJECT_FEATURED_MEDIA_NOT_FOUND",
+      "The selected featured media is no longer available.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  project.supportingDocuments.forEach((documentRecord, index) => {
+    if (!isValidProjectDocumentType(documentRecord.documentType)) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}.documentType`,
+        "PROJECT_DOCUMENT_TYPE_INVALID",
+        "Select a valid Project document type.",
+      );
+    }
+
+    if (!documentRecord.storageKey && !documentRecord.externalUrl) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}`,
+        "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A Project document must have a stored file or external address.",
+      );
+    }
+
+    if (!isValidUrl(documentRecord.externalUrl)) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}.externalUrl`,
+        "PROJECT_DOCUMENT_URL_INVALID",
+        "Enter a complete HTTP or HTTPS document address.",
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Professional Completeness Warnings
+   * =========================================
+   */
+
+  if (!project.problem.statement) {
+    addWarning(
+      warnings,
+      "problem.statement",
+      "PROJECT_PROBLEM_RECOMMENDED",
+      "Add the problem or opportunity the project addressed.",
+    );
+  }
+
+  if (!project.problem.importance) {
+    addWarning(
+      warnings,
+      "problem.importance",
+      "PROJECT_IMPORTANCE_RECOMMENDED",
+      "Explain why this project was professionally important.",
+    );
+  }
+
+  if (!project.solution.overview) {
+    addWarning(
+      warnings,
+      "solution.overview",
+      "PROJECT_SOLUTION_RECOMMENDED",
+      "Add a concise explanation of the solution.",
+    );
+  }
+
+  if (project.solution.contributions.length === 0) {
+    addWarning(
+      warnings,
+      "solution.contributions",
+      "PROJECT_CONTRIBUTIONS_RECOMMENDED",
+      "Describe your personal contributions to the project.",
+    );
+  }
+
+  if (project.lifecycleStatus === "completed" && !project.results.outcome) {
+    addWarning(
+      warnings,
+      "results.outcome",
+      "PROJECT_OUTCOME_RECOMMENDED",
+      "Add the completed Project’s final outcome.",
+    );
+  }
+
+  if (
+    project.lifecycleStatus === "completed" &&
+    !project.results.problemsSolved
+  ) {
+    addWarning(
+      warnings,
+      "results.problemsSolved",
+      "PROJECT_PROBLEMS_SOLVED_RECOMMENDED",
+      "Explain which problems the completed project solved.",
+    );
+  }
+
+  if (
+    project.lifecycleStatus === "completed" &&
+    project.results.metrics.length === 0
+  ) {
+    addWarning(
+      warnings,
+      "results.metrics",
+      "PROJECT_METRICS_RECOMMENDED",
+      "Add measurable evidence of the project’s result when available.",
+    );
+  }
+
+  if (!project.presentation.shortSummary) {
+    addWarning(
+      warnings,
+      "presentation.shortSummary",
+      "PROJECT_SUMMARY_RECOMMENDED",
+      `Add a portfolio summary of up to ${PROJECT_FIELD_LIMITS.shortSummary} characters.`,
+    );
+  }
+
+  if (activeMedia.length === 0) {
+    addWarning(
+      warnings,
+      "media",
+      "PROJECT_MEDIA_RECOMMENDED",
+      "Add a featured image or video to strengthen the portfolio presentation.",
+    );
+  }
+
+  if (project.presentation.isFeatured && activeMedia.length === 0) {
+    addWarning(
+      warnings,
+      "presentation.isFeatured",
+      "PROJECT_FEATURED_MEDIA_RECOMMENDED",
+      "A featured Project should have a strong public image or video.",
+    );
+  }
+
+  return {
+    isValid: errors.length === 0,
+
+    project,
+
+    errors,
+
+    warnings,
+
+    fieldErrors,
+  };
+}
+
+/*
+ * =========================================
+ * Validation Summary
+ * =========================================
+ */
+
+export function getProjectValidationSummary(value) {
+  const project = normalizeProject(value);
+
+  const activePublicMedia = project.media.filter(
+    (mediaItem) =>
+      mediaItem.status !== "archived" && mediaItem.visibility === "public",
+  );
+
+  const checks = [
+    {
+      id: "identity",
+      complete: Boolean(project.title && project.role),
+    },
+    {
+      id: "timeline",
+      complete: Boolean(
+        project.dates.startDate &&
+        (project.dates.isCurrent ||
+          project.dates.endDate ||
+          !["completed", "cancelled"].includes(project.lifecycleStatus)),
+      ),
+    },
+    {
+      id: "problem",
+      complete: Boolean(project.problem.statement),
+    },
+    {
+      id: "importance",
+      complete: Boolean(project.problem.importance),
+    },
+    {
+      id: "solution",
+      complete: Boolean(project.solution.overview),
+    },
+    {
+      id: "contributions",
+      complete: project.solution.contributions.length > 0,
+    },
+    {
+      id: "results",
+      complete: Boolean(
+        project.results.outcome || project.lifecycleStatus !== "completed",
+      ),
+    },
+    {
+      id: "evidence",
+      complete:
+        project.results.metrics.length > 0 ||
+        project.supportingDocuments.length > 0,
+    },
+    {
+      id: "skills",
+      complete: project.skillRelationships.length > 0,
+    },
+    {
+      id: "technologies",
+      complete: project.technologies.length > 0,
+    },
+    {
+      id: "summary",
+      complete: Boolean(project.presentation.shortSummary),
+    },
+    {
+      id: "media",
+      complete: activePublicMedia.length > 0,
+    },
+  ];
+
+  const completedCount = checks.filter((check) => check.complete).length;
+
+  const percentage = Math.round((completedCount / checks.length) * 100);
+
+  let level = "Basic";
+
+  if (percentage >= 90) {
+    level = "Portfolio Ready";
+  } else if (percentage >= 70) {
+    level = "Strong";
+  } else if (percentage >= 50) {
+    level = "Developing";
+  }
+
+  return `${completedCount} of ${checks.length} professional elements completed · ${level}`;
+}
+

@@ -1,0 +1,2471 @@
+========== backend\src\services\Service\profileService.js ==========
+import {
+  findProfileByUserId,
+  replaceProfileByUserId,
+} from "../../repositories/profileRepository.js";
+
+import { deleteOwnedProfilePicture } from "../Storage/profilePictureStorageService.js";
+
+function createProfileError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+  error.name = "ProfileServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProfileError({
+      message: "An authenticated user ID is required.",
+      code: "PROFILE_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Profile.",
+    });
+  }
+
+  return userId.trim();
+}
+
+export async function getAuthenticatedProfile({ userId }) {
+  const profile = await findProfileByUserId(assertUserId(userId));
+
+  if (!profile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return profile;
+}
+
+export async function updateAuthenticatedProfile({ userId, profile }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  /*
+   * Read the currently persisted Profile before replacing it.
+   *
+   * We need this snapshot so that, after a successful database save,
+   * we can determine which previously committed picture files are no
+   * longer referenced by the Profile.
+   */
+  const previousProfile = await findProfileByUserId(authenticatedUserId);
+
+  const updatedProfile = await replaceProfileByUserId(
+    authenticatedUserId,
+    profile,
+  );
+
+  if (!updatedProfile) {
+    throw createProfileError({
+      message: "The authenticated user Profile could not be updated.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  /*
+   * Build the set of picture storage keys that are still referenced
+   * after the successful database update.
+   */
+  const updatedStorageKeys = new Set(
+    updatedProfile.profilePictures
+      .map((picture) => String(picture.storageKey || "").trim())
+      .filter(Boolean),
+  );
+
+  /*
+   * A previously committed picture becomes orphaned when its storage
+   * key existed before the save but is no longer referenced afterward.
+   */
+  const orphanedStorageKeys = (previousProfile?.profilePictures || [])
+    .map((picture) => String(picture.storageKey || "").trim())
+    .filter((storageKey) => storageKey && !updatedStorageKeys.has(storageKey));
+
+  /*
+   * The database update has already succeeded at this point.
+   *
+   * Filesystem cleanup is therefore best-effort. A cleanup failure must
+   * not make the API report that the Profile save failed when the
+   * database has already committed successfully.
+   */
+  const cleanupResults = await Promise.allSettled(
+    orphanedStorageKeys.map((storageKey) =>
+      deleteOwnedProfilePicture(authenticatedUserId, storageKey),
+    ),
+  );
+
+  for (const cleanupResult of cleanupResults) {
+    if (cleanupResult.status === "rejected") {
+      console.error(
+        "Failed to clean up an orphaned profile picture after Profile save:",
+        cleanupResult.reason,
+      );
+    }
+  }
+
+  return updatedProfile;
+}
+
+export async function deleteUncommittedProfilePicture({ userId, storageKey }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  const normalizedStorageKey = String(storageKey || "").trim();
+
+  if (!normalizedStorageKey) {
+    throw createProfileError({
+      message: "A profile-picture storage key is required for cleanup.",
+      code: "PROFILE_PICTURE_STORAGE_KEY_REQUIRED",
+      status: 400,
+      publicMessage: "The profile picture could not be removed.",
+    });
+  }
+
+  /*
+   * Load the currently committed profile before touching
+   * the filesystem.
+   */
+
+  const currentProfile = await findProfileByUserId(authenticatedUserId);
+
+  if (!currentProfile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  /*
+   * Never allow this cleanup operation to delete a file
+   * that is currently referenced by the persisted profile.
+   */
+
+  const isCommitted = currentProfile.profilePictures.some(
+    (picture) =>
+      String(picture.storageKey || "").trim() === normalizedStorageKey,
+  );
+
+  if (isCommitted) {
+    throw createProfileError({
+      message:
+        "The requested profile picture is currently referenced by the persisted Profile.",
+      code: "PROFILE_PICTURE_IS_COMMITTED",
+      status: 409,
+      publicMessage:
+        "A saved profile picture cannot be removed as a temporary upload.",
+    });
+  }
+
+  return deleteOwnedProfilePicture(authenticatedUserId, normalizedStorageKey);
+}
+
+========== backend\src\schemas\profileSchemas.js ==========
+import { z } from "zod";
+
+const itemIdSchema = z.string().trim().min(1).max(200);
+const statusSchema = z.enum(["active", "archived"]);
+
+const timestampSchema = z.string().datetime({ offset: true }).optional();
+
+const commonItemFields = {
+  id: itemIdSchema,
+  description: z.string().trim().max(500).default(""),
+  order: z.number().int().min(0),
+  status: statusSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+};
+
+const professionalTitleSchema = z
+  .object({
+    ...commonItemFields,
+    name: z.string().trim().min(1).max(200),
+  })
+  .strict();
+
+const CONTACT_TYPES = {
+  emails: ["personal", "work", "school", "business", "other"],
+  phones: ["personal", "mobile", "home", "work", "school", "other"],
+  websites: [
+    "portfolio",
+    "personal",
+    "business",
+    "company",
+    "school",
+    "blog",
+    "other",
+  ],
+  locations: ["home", "office", "work", "school", "business", "other"],
+  socialLinks: [
+    "linkedin",
+    "github",
+    "youtube",
+    "facebook",
+    "instagram",
+    "x",
+    "other",
+  ],
+};
+
+const CONTACT_LIMITS = {
+  emails: 320,
+  phones: 50,
+  websites: 2048,
+  locations: 500,
+  socialLinks: 2048,
+};
+
+function createContactSchema(category) {
+  return z
+    .object({
+      ...commonItemFields,
+      type: z.enum(CONTACT_TYPES[category]),
+      value: z.string().trim().min(1).max(CONTACT_LIMITS[category]),
+    })
+    .strict();
+}
+
+const externalUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine(
+    (value) =>
+      !value ||
+      (/^https:\/\//i.test(value) &&
+        !/^https:\/\/(?:localhost|127\.0\.0\.1)/i.test(value)),
+    "Saved picture URLs must use a public HTTPS address.",
+  )
+  .refine(
+    (value) => !/^(?:data|blob):/i.test(value),
+    "Browser-local and embedded image URLs cannot be saved.",
+  );
+
+const profilePictureSchema = z
+  .object({
+    ...commonItemFields,
+    type: z.string().trim().max(100).default(""),
+    imageUrl: externalUrlSchema.default(""),
+    storageKey: z.string().trim().max(255).default(""),
+    fileName: z.string().trim().max(255).default(""),
+    fileType: z.string().trim().max(100).default(""),
+    fileSize: z
+      .number()
+      .int()
+      .min(0)
+      .max(20 * 1024 * 1024)
+      .default(0),
+    useDefaultAvatar: z.boolean().default(false),
+    width: z.number().int().positive().nullable().default(null),
+    height: z.number().int().positive().nullable().default(null),
+  })
+  .strict()
+  .superRefine((picture, context) => {
+    if (picture.useDefaultAvatar && (picture.imageUrl || picture.storageKey)) {
+      context.addIssue({
+        code: "custom",
+        path: ["useDefaultAvatar"],
+        message: "A default avatar cannot also reference an uploaded image.",
+      });
+    }
+  });
+
+const preferenceSchema = z
+  .object({
+    primaryProfessionalTitleId: z.string().trim().max(200).default(""),
+    primaryEmailId: z.string().trim().max(200).default(""),
+    primaryPhoneId: z.string().trim().max(200).default(""),
+    primaryWebsiteId: z.string().trim().max(200).default(""),
+    primaryLocationId: z.string().trim().max(200).default(""),
+    primarySocialLinkId: z.string().trim().max(200).default(""),
+    primaryProfilePictureId: z.string().trim().max(200).default(""),
+  })
+  .strict();
+
+const visibilitySchema = z
+  .object({
+    isPublic: z.boolean().default(false),
+  })
+  .strict();
+
+export const profileUpdateSchema = z
+  .object({
+    firstName: z.string().trim().max(100).default(""),
+    middleName: z.string().trim().max(100).default(""),
+    lastName: z.string().trim().max(100).default(""),
+    professionalTitles: z.array(professionalTitleSchema).max(20).default([]),
+    emails: z.array(createContactSchema("emails")).max(20).default([]),
+    phones: z.array(createContactSchema("phones")).max(20).default([]),
+    websites: z.array(createContactSchema("websites")).max(20).default([]),
+    locations: z.array(createContactSchema("locations")).max(20).default([]),
+    socialLinks: z
+      .array(createContactSchema("socialLinks"))
+      .max(30)
+      .default([]),
+    profilePictures: z.array(profilePictureSchema).max(20).default([]),
+    preferences: preferenceSchema.default({}),
+    visibility: visibilitySchema.default({}),
+    status: statusSchema.default("active"),
+  })
+  .strict()
+  .superRefine((profile, context) => {
+    const mappings = [
+      ["primaryProfessionalTitleId", "professionalTitles"],
+      ["primaryEmailId", "emails"],
+      ["primaryPhoneId", "phones"],
+      ["primaryWebsiteId", "websites"],
+      ["primaryLocationId", "locations"],
+      ["primarySocialLinkId", "socialLinks"],
+      ["primaryProfilePictureId", "profilePictures"],
+    ];
+
+    for (const [preferenceName, collectionName] of mappings) {
+      const requestedId = profile.preferences[preferenceName];
+
+      if (!requestedId) continue;
+
+      const isActiveItem = profile[collectionName].some(
+        (item) => item.id === requestedId && item.status === "active",
+      );
+
+      if (!isActiveItem) {
+        context.addIssue({
+          code: "custom",
+          path: ["preferences", preferenceName],
+          message:
+            "The primary item must reference an active item in its collection.",
+        });
+      }
+    }
+  });
+
+function createValidationError(zodError) {
+  const error = new Error("Profile validation failed.");
+  error.name = "ProfileValidationError";
+  error.code = "PROFILE_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Review the Profile information and try again.";
+  error.errors = zodError.issues.map((issue) => ({
+    field: issue.path.join("."),
+    code: issue.code,
+    message: issue.message,
+  }));
+  error.fieldErrors = {};
+
+  for (const issue of error.errors) {
+    const field = issue.field || "_form";
+    error.fieldErrors[field] ||= [];
+    error.fieldErrors[field].push(issue.message);
+  }
+
+  return error;
+}
+
+export function parseProfileUpdate(input) {
+  const result = profileUpdateSchema.safeParse(input);
+
+  if (!result.success) {
+    throw createValidationError(result.error);
+  }
+
+  return result.data;
+}
+
+========== frontend\src\models\projectModel.js ==========
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../config/projectConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const PROJECT_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createProjectId(prefix = "project") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeNullableFileSize(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.max(0, numberValue);
+}
+
+/*
+ * =========================================
+ * Date Normalization
+ * =========================================
+ */
+
+function normalizeDate(value) {
+  const normalizedValue = normalizeText(value, 10);
+
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(normalizedValue)
+  ) {
+    return "";
+  }
+
+  return normalizedValue;
+}
+
+/*
+ * =========================================
+ * Identifier Collection
+ * =========================================
+ */
+
+function normalizeIdentifierList(values, maximumItems = Infinity) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedIdentifiers = values
+    .map((value) => {
+      if (typeof value === "string") {
+        return normalizeText(value, 200);
+      }
+
+      return normalizeText(value?.id, 200);
+    })
+    .filter(Boolean);
+
+  return [...new Set(normalizedIdentifiers)].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Ordered Text Items
+ * =========================================
+ */
+
+function normalizeOrderedTextItems(values, prefix, maximumItems) {
+  return normalizeArray(values)
+    .map((value) => {
+      const source =
+        typeof value === "string"
+          ? {
+              text: value,
+            }
+          : value && typeof value === "object"
+            ? value
+            : {};
+
+      return {
+        id: normalizeText(source.id, 200) || createProjectId(prefix),
+
+        text: normalizeText(
+          source.text || source.name || source.value,
+          PROJECT_FIELD_LIMITS.orderedItemText,
+        ),
+
+        order: 0,
+      };
+    })
+    .filter((item) => item.text)
+    .slice(0, maximumItems)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+}
+
+/*
+ * =========================================
+ * Related Record Relationships
+ * =========================================
+ */
+
+function normalizeRecordRelationships(values, type) {
+  const idField = `${type}Id`;
+
+  const seenIdentifiers = new Set();
+
+  return normalizeArray(values).reduce((relationships, value) => {
+    const source =
+      typeof value === "string"
+        ? {
+            [idField]: value,
+          }
+        : value && typeof value === "object"
+          ? value
+          : {};
+
+    const recordId = normalizeText(
+      source[idField] || source.recordId || source.id,
+      200,
+    );
+
+    const identity = recordId.toLocaleLowerCase();
+
+    if (
+      !recordId ||
+      seenIdentifiers.has(identity) ||
+      relationships.length >= PROJECT_FIELD_LIMITS.maximumRelationshipsPerType
+    ) {
+      return relationships;
+    }
+
+    seenIdentifiers.add(identity);
+
+    const snapshot =
+      source.snapshot &&
+      typeof source.snapshot === "object" &&
+      !Array.isArray(source.snapshot)
+        ? source.snapshot
+        : {};
+
+    relationships.push({
+      id:
+        normalizeText(
+          source.relationshipId || (source[idField] ? source.id : ""),
+          200,
+        ) || createProjectId(`project-${type}`),
+
+      [idField]: recordId,
+
+      description: normalizeText(
+        source.description,
+        PROJECT_FIELD_LIMITS.relationshipDescription,
+      ),
+
+      order: relationships.length,
+
+      snapshot: {
+        name: normalizeText(
+          snapshot.name || snapshot.title || source.name || source.title,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        secondaryLabel: normalizeText(
+          snapshot.secondaryLabel ||
+            source.secondaryLabel ||
+            source.organization?.name ||
+            source.provider?.name ||
+            source.institution?.name ||
+            source.issuingOrganization?.name,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        status: normalizeText(
+          snapshot.status || source.lifecycleStatus || source.status,
+          100,
+        ),
+      },
+    });
+
+    return relationships;
+  }, []);
+}
+
+/*
+ * =========================================
+ * Skill Relationship
+ * =========================================
+ */
+
+export function createProjectSkillRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const proficiency =
+    source.demonstratedProficiency || source.proficiency || source.level || "";
+
+  return {
+    id:
+      normalizeText(
+        source.relationshipId || (source.skillId ? source.id : ""),
+        200,
+      ) || createProjectId("project-skill"),
+
+    skillId: normalizeText(
+      source.skillId ||
+        source.profileSkillId ||
+        (!source.skillId ? source.id : ""),
+      200,
+    ),
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label || source.value,
+      PROJECT_FIELD_LIMITS.relationshipName,
+    ),
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      100,
+    ),
+
+    demonstratedProficiency: isValidProjectSkillProficiency(proficiency)
+      ? proficiency
+      : "",
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      PROJECT_FIELD_LIMITS.relationshipDescription,
+    ),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Media
+ * =========================================
+ */
+
+export function createProjectMedia(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const type = isValidProjectMediaType(source.type)
+    ? source.type
+    : source.mimeType?.startsWith("video/")
+      ? "video"
+      : "image";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-media"),
+
+    type,
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.mediaName,
+    ),
+
+    caption: normalizeText(source.caption, PROJECT_FIELD_LIMITS.mediaCaption),
+
+    altText: normalizeText(
+      source.altText || source.alternativeText || source.imageDescription,
+      PROJECT_FIELD_LIMITS.mediaAltText,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    previewMode: type === "video" ? "video" : "image",
+
+    isFeatured: normalizeBoolean(source.isFeatured, false),
+
+    visibility: source.visibility === "private" ? "private" : "public",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Document
+ * =========================================
+ */
+
+export function createProjectDocument(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-document"),
+
+    documentType: isValidProjectDocumentType(source.documentType)
+      ? source.documentType
+      : "supporting-evidence",
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.documentName,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.documentDescription,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    visibility: source.visibility === "public" ? "public" : "private",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Metric
+ * =========================================
+ */
+
+function createProjectMetric(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-metric"),
+
+    label: normalizeText(
+      source.label || source.name,
+      PROJECT_FIELD_LIMITS.metricLabel,
+    ),
+
+    value: normalizeText(
+      source.value || source.result,
+      PROJECT_FIELD_LIMITS.metricValue,
+    ),
+
+    description: normalizeText(
+      source.description || source.context,
+      PROJECT_FIELD_LIMITS.metricDescription,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Technology
+ * =========================================
+ */
+
+function createProjectTechnology(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-technology"),
+
+    name: normalizeText(
+      source.name || source.nameSnapshot || source.label || source.value,
+      PROJECT_FIELD_LIMITS.technologyName,
+    ),
+
+    /*
+     * Category remains a normalized snapshot.
+     * This preserves older free-text categories
+     * while the form transitions to configured
+     * technology-category options.
+     */
+
+    category: normalizeText(
+      source.category || source.categorySnapshot,
+      PROJECT_FIELD_LIMITS.technologyCategory,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Award
+ * =========================================
+ */
+
+function createProjectAward(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const recognitionType = source.recognitionType || source.type || "";
+
+  const placement = source.placement || source.result || "";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-award"),
+
+    name: normalizeText(
+      source.name || source.title,
+      PROJECT_FIELD_LIMITS.awardName,
+    ),
+
+    organization: normalizeText(
+      source.organization || source.awardingOrganization || source.issuer,
+      PROJECT_FIELD_LIMITS.awardOrganization,
+    ),
+
+    recognitionType: isValidProjectRecognitionType(recognitionType)
+      ? recognitionType
+      : "",
+
+    placement: isValidProjectAwardPlacement(placement) ? placement : "",
+
+    date: normalizeDate(source.date || source.awardDate),
+
+    url: normalizeText(
+      source.url || source.verificationUrl,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.awardDescription,
+    ),
+
+    supportingDocumentIds: normalizeIdentifierList(
+      source.supportingDocumentIds || source.documentIds,
+      PROJECT_FIELD_LIMITS.maximumAwardDocuments,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Empty Project
+ * =========================================
+ */
+
+export function createEmptyProject() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: createProjectId(),
+
+    title: "",
+
+    category: "software",
+
+    lifecycleStatus: "planned",
+
+    role: "",
+
+    ownership: "individual",
+
+    organization: {
+      name: "",
+      clientName: "",
+      website: "",
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    location: {
+      displayValue: "",
+    },
+
+    links: {
+      liveUrl: "",
+      repositoryUrl: "",
+      documentationUrl: "",
+      caseStudyUrl: "",
+      videoUrl: "",
+    },
+
+    problem: {
+      statement: "",
+      targetAudience: "",
+      context: "",
+      importance: "",
+      constraints: [],
+      objectives: [],
+    },
+
+    solution: {
+      overview: "",
+      approach: "",
+      architecture: "",
+      features: [],
+      contributions: [],
+    },
+
+    results: {
+      outcome: "",
+      problemsSolved: "",
+      impact: "",
+      beneficiariesAffected: "",
+      metrics: [],
+      lessonsLearned: "",
+      futureImprovements: "",
+    },
+
+    skillRelationships: [],
+
+    technologies: [],
+
+    relatedRecords: {
+      experienceRelationships: [],
+      educationRelationships: [],
+      trainingRelationships: [],
+      certificationRelationships: [],
+    },
+
+    awards: [],
+
+    media: [],
+
+    supportingDocuments: [],
+
+    presentation: {
+      shortSummary: "",
+      caseStudy: "",
+      featuredMediaId: "",
+      isFeatured: false,
+    },
+
+    visibility: {
+      showOrganization: true,
+      showLocation: true,
+      showDates: true,
+      showLinks: true,
+      showProblem: true,
+      showSolution: true,
+      showResults: true,
+      showSkills: true,
+      showTechnologies: true,
+      showRelatedRecords: true,
+      showAwards: true,
+      showMedia: true,
+      showSupportingDocuments: false,
+    },
+
+    privateInformation: {
+      notes: "",
+    },
+
+    source: "manual",
+
+    sourceContext: "",
+
+    recordStatus: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Featured Media Eligibility
+ * =========================================
+ */
+
+function isEligibleFeaturedMedia(mediaItem) {
+  return Boolean(
+    mediaItem &&
+    mediaItem.status !== "archived" &&
+    mediaItem.visibility !== "private" &&
+    (normalizeText(mediaItem.storageKey, 500) ||
+      normalizeText(mediaItem.externalUrl, PROJECT_FIELD_LIMITS.url)),
+  );
+}
+
+/*
+ * =========================================
+ * Project Normalization
+ * =========================================
+ */
+
+export function normalizeProject(value = {}) {
+  const defaults = createEmptyProject();
+
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  const getObject = (fieldName) =>
+    source[fieldName] &&
+    typeof source[fieldName] === "object" &&
+    !Array.isArray(source[fieldName])
+      ? source[fieldName]
+      : {};
+
+  const organization = getObject("organization");
+  const dates = getObject("dates");
+  const location = getObject("location");
+  const links = getObject("links");
+  const problem = getObject("problem");
+  const solution = getObject("solution");
+  const results = getObject("results");
+  const relatedRecords = getObject("relatedRecords");
+  const presentation = getObject("presentation");
+  const visibility = getObject("visibility");
+  const privateInformation = getObject("privateInformation");
+
+  const lifecycleStatus = isValidProjectLifecycleStatus(
+    source.lifecycleStatus || source.projectStatus,
+  )
+    ? source.lifecycleStatus || source.projectStatus
+    : defaults.lifecycleStatus;
+
+  const isCurrent = normalizeBoolean(
+    dates.isCurrent,
+    ["in-progress", "maintained"].includes(lifecycleStatus),
+  );
+
+  /*
+   * =========================================
+   * Media Normalization
+   * =========================================
+   */
+
+  const media = normalizeArray(source.media)
+    .map((item, order) => createProjectMedia(item, order))
+    .filter((item) => item.name || item.storageKey || item.externalUrl)
+    .slice(0, PROJECT_FIELD_LIMITS.maximumMedia)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+
+  const requestedFeaturedMediaId = normalizeText(
+    presentation.featuredMediaId,
+    200,
+  );
+
+  const featuredMedia =
+    media.find(
+      (item) =>
+        item.id === requestedFeaturedMediaId && isEligibleFeaturedMedia(item),
+    ) ||
+    media.find((item) => item.isFeatured && isEligibleFeaturedMedia(item)) ||
+    media.find(isEligibleFeaturedMedia) ||
+    null;
+
+  /*
+   * =========================================
+   * Skill Relationship Normalization
+   * =========================================
+   */
+
+  const seenSkills = new Set();
+
+  const skillRelationships = normalizeArray(source.skillRelationships)
+    .map((relationship, order) =>
+      createProjectSkillRelationship(relationship, order),
+    )
+    .filter((relationship) => {
+      const identity = (relationship.skillId || relationship.nameSnapshot)
+        .normalize("NFKC")
+        .toLocaleLowerCase();
+
+      if (!identity || seenSkills.has(identity)) {
+        return false;
+      }
+
+      seenSkills.add(identity);
+
+      return true;
+    })
+    .slice(0, PROJECT_FIELD_LIMITS.maximumSkills)
+    .map((relationship, order) => ({
+      ...relationship,
+      order,
+    }));
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  const supportingDocuments = normalizeArray(source.supportingDocuments)
+    .map((documentRecord, order) =>
+      createProjectDocument(documentRecord, order),
+    )
+    .filter(
+      (documentRecord) =>
+        documentRecord.name ||
+        documentRecord.storageKey ||
+        documentRecord.externalUrl,
+    )
+    .slice(0, PROJECT_FIELD_LIMITS.maximumDocuments)
+    .map((documentRecord, order) => ({
+      ...documentRecord,
+      order,
+    }));
+
+  const validDocumentIds = new Set(
+    supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  /*
+   * =========================================
+   * Normalized Project
+   * =========================================
+   */
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    title: normalizeText(
+      source.title || source.name,
+      PROJECT_FIELD_LIMITS.title,
+    ),
+
+    category: isValidProjectCategory(source.category)
+      ? source.category
+      : defaults.category,
+
+    lifecycleStatus,
+
+    role: normalizeText(source.role, PROJECT_FIELD_LIMITS.role),
+
+    ownership: isValidProjectOwnership(source.ownership)
+      ? source.ownership
+      : defaults.ownership,
+
+    organization: {
+      name: normalizeText(
+        organization.name,
+        PROJECT_FIELD_LIMITS.organizationName,
+      ),
+
+      clientName: normalizeText(
+        organization.clientName,
+        PROJECT_FIELD_LIMITS.clientName,
+      ),
+
+      website: normalizeText(
+        organization.website,
+        PROJECT_FIELD_LIMITS.website,
+      ),
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    location: {
+      displayValue: normalizeText(
+        location.displayValue ||
+          source.locationValue ||
+          (typeof source.location === "string" ? source.location : ""),
+        PROJECT_FIELD_LIMITS.locationDisplayValue,
+      ),
+    },
+
+    links: {
+      liveUrl: normalizeText(links.liveUrl, PROJECT_FIELD_LIMITS.url),
+
+      repositoryUrl: normalizeText(
+        links.repositoryUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      documentationUrl: normalizeText(
+        links.documentationUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      caseStudyUrl: normalizeText(links.caseStudyUrl, PROJECT_FIELD_LIMITS.url),
+
+      videoUrl: normalizeText(links.videoUrl, PROJECT_FIELD_LIMITS.url),
+    },
+
+    problem: {
+      statement: normalizeText(
+        problem.statement,
+        PROJECT_FIELD_LIMITS.problemStatement,
+      ),
+
+      targetAudience: normalizeText(
+        problem.targetAudience,
+        PROJECT_FIELD_LIMITS.targetAudience,
+      ),
+
+      context: normalizeText(problem.context, PROJECT_FIELD_LIMITS.context),
+
+      importance: normalizeText(
+        problem.importance || problem.whyImportant,
+        PROJECT_FIELD_LIMITS.importance,
+      ),
+
+      constraints: normalizeOrderedTextItems(
+        problem.constraints,
+        "project-constraint",
+        PROJECT_FIELD_LIMITS.maximumConstraints,
+      ),
+
+      objectives: normalizeOrderedTextItems(
+        problem.objectives,
+        "project-objective",
+        PROJECT_FIELD_LIMITS.maximumObjectives,
+      ),
+    },
+
+    solution: {
+      overview: normalizeText(
+        solution.overview || source.description,
+        PROJECT_FIELD_LIMITS.overview,
+      ),
+
+      approach: normalizeText(
+        solution.approach || solution.proposedSolution,
+        PROJECT_FIELD_LIMITS.approach,
+      ),
+
+      architecture: normalizeText(
+        solution.architecture || solution.implementationSummary,
+        PROJECT_FIELD_LIMITS.architecture,
+      ),
+
+      features: normalizeOrderedTextItems(
+        solution.features,
+        "project-feature",
+        PROJECT_FIELD_LIMITS.maximumFeatures,
+      ),
+
+      contributions: normalizeOrderedTextItems(
+        solution.contributions,
+        "project-contribution",
+        PROJECT_FIELD_LIMITS.maximumContributions,
+      ),
+    },
+
+    results: {
+      outcome: normalizeText(results.outcome, PROJECT_FIELD_LIMITS.outcome),
+
+      problemsSolved: normalizeText(
+        results.problemsSolved || results.solutionImpact,
+        PROJECT_FIELD_LIMITS.problemsSolved,
+      ),
+
+      impact: normalizeText(results.impact, PROJECT_FIELD_LIMITS.impact),
+
+      beneficiariesAffected: normalizeText(
+        results.beneficiariesAffected ||
+          results.peopleAffected ||
+          results.organizationsAffected,
+        PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      ),
+
+      metrics: normalizeArray(results.metrics)
+        .map((metric, order) => createProjectMetric(metric, order))
+        .filter((metric) => metric.label || metric.value)
+        .slice(0, PROJECT_FIELD_LIMITS.maximumMetrics)
+        .map((metric, order) => ({
+          ...metric,
+          order,
+        })),
+
+      lessonsLearned: normalizeText(
+        results.lessonsLearned,
+        PROJECT_FIELD_LIMITS.lessonsLearned,
+      ),
+
+      futureImprovements: normalizeText(
+        results.futureImprovements,
+        PROJECT_FIELD_LIMITS.futureImprovements,
+      ),
+    },
+
+    skillRelationships,
+
+    technologies: normalizeArray(source.technologies)
+      .map((technology, order) => createProjectTechnology(technology, order))
+      .filter((technology) => technology.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumTechnologies)
+      .map((technology, order) => ({
+        ...technology,
+        order,
+      })),
+
+    relatedRecords: {
+      experienceRelationships: normalizeRecordRelationships(
+        relatedRecords.experienceRelationships || source.relatedExperienceIds,
+        "experience",
+      ),
+
+      educationRelationships: normalizeRecordRelationships(
+        relatedRecords.educationRelationships || source.relatedEducationIds,
+        "education",
+      ),
+
+      trainingRelationships: normalizeRecordRelationships(
+        relatedRecords.trainingRelationships || source.relatedTrainingIds,
+        "training",
+      ),
+
+      certificationRelationships: normalizeRecordRelationships(
+        relatedRecords.certificationRelationships ||
+          source.relatedCertificationIds,
+        "certification",
+      ),
+    },
+
+    awards: normalizeArray(source.awards)
+      .map((award, order) => createProjectAward(award, order))
+      .filter((award) => award.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumAwards)
+      .map((award, order) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => validDocumentIds.has(documentId),
+        ),
+
+        order,
+      })),
+
+    media: media.map((item) => ({
+      ...item,
+
+      isFeatured: item.id === featuredMedia?.id,
+    })),
+
+    supportingDocuments,
+
+    presentation: {
+      shortSummary: normalizeText(
+        presentation.shortSummary,
+        PROJECT_FIELD_LIMITS.shortSummary,
+      ),
+
+      caseStudy: normalizeText(
+        presentation.caseStudy,
+        PROJECT_FIELD_LIMITS.caseStudy,
+      ),
+
+      featuredMediaId: featuredMedia?.id || "",
+
+      isFeatured: normalizeBoolean(presentation.isFeatured, false),
+    },
+
+    visibility: Object.fromEntries(
+      Object.entries(defaults.visibility).map(([fieldName, fallback]) => [
+        fieldName,
+
+        normalizeBoolean(visibility[fieldName], fallback),
+      ]),
+    ),
+
+    privateInformation: {
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        PROJECT_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    source: isValidProjectSource(source.source)
+      ? source.source
+      : defaults.source,
+
+    sourceContext: normalizeText(
+      source.sourceContext,
+      PROJECT_FIELD_LIMITS.sourceContext,
+    ),
+
+    recordStatus: isValidProjectRecordStatus(source.recordStatus)
+      ? source.recordStatus
+      : defaults.recordStatus,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export function createProject(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeProject({
+    ...values,
+
+    id: normalizeText(values.id, 200) || createProjectId(),
+
+    createdAt: normalizeText(values.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export function updateProjectModel(currentProject, updates = {}) {
+  const mergeNested = (fieldName) => ({
+    ...currentProject?.[fieldName],
+    ...updates?.[fieldName],
+  });
+
+  return normalizeProject({
+    ...currentProject,
+    ...updates,
+
+    organization: mergeNested("organization"),
+    dates: mergeNested("dates"),
+    location: mergeNested("location"),
+    links: mergeNested("links"),
+    problem: mergeNested("problem"),
+    solution: mergeNested("solution"),
+    results: mergeNested("results"),
+    relatedRecords: mergeNested("relatedRecords"),
+    presentation: mergeNested("presentation"),
+    visibility: mergeNested("visibility"),
+    privateInformation: mergeNested("privateInformation"),
+
+    id: currentProject?.id,
+
+    createdAt: currentProject?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Project Collection
+ * =========================================
+ */
+
+export function normalizeProjectCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const seenIdentifiers = new Set();
+
+  return values.map(normalizeProject).filter((project) => {
+    if (seenIdentifiers.has(project.id)) {
+      return false;
+    }
+
+    seenIdentifiers.add(project.id);
+
+    return true;
+  });
+}
+
+/*
+ * =========================================
+ * Public Project Transformation
+ * =========================================
+ *
+ * This function removes private and internal
+ * career-management information before the
+ * Project is displayed publicly.
+ */
+
+export function createPublicProject(value) {
+  const project = normalizeProject(value);
+
+  /*
+   * Only active, public media can appear in a
+   * public portfolio.
+   */
+
+  const publicMedia = project.visibility.showMedia
+    ? project.media
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicMediaItem }, order) => ({
+          ...publicMediaItem,
+          order,
+        }))
+    : [];
+
+  /*
+   * A private or archived featured item must
+   * not remain referenced publicly.
+   */
+
+  const publicFeaturedMedia =
+    publicMedia.find(
+      (item) => item.id === project.presentation.featuredMediaId,
+    ) ||
+    publicMedia.find((item) => item.isFeatured) ||
+    publicMedia[0] ||
+    null;
+
+  const normalizedPublicMedia = publicMedia.map((item) => ({
+    ...item,
+
+    isFeatured: item.id === publicFeaturedMedia?.id,
+  }));
+
+  /*
+   * Only active, explicitly public documents
+   * can appear in public output.
+   */
+
+  const publicDocuments = project.visibility.showSupportingDocuments
+    ? project.supportingDocuments
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicDocument }, order) => ({
+          ...publicDocument,
+          order,
+        }))
+    : [];
+
+  const publicDocumentIds = new Set(
+    publicDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  const publicAwards = project.visibility.showAwards
+    ? project.awards.map((award) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => publicDocumentIds.has(documentId),
+        ),
+      }))
+    : [];
+
+  return {
+    modelVersion: project.modelVersion,
+
+    id: project.id,
+
+    title: project.title,
+
+    category: project.category,
+
+    lifecycleStatus: project.lifecycleStatus,
+
+    role: project.role,
+
+    ownership: project.ownership,
+
+    organization: project.visibility.showOrganization
+      ? project.organization
+      : null,
+
+    location: project.visibility.showLocation ? project.location : null,
+
+    dates: project.visibility.showDates ? project.dates : null,
+
+    links: project.visibility.showLinks ? project.links : null,
+
+    problem: project.visibility.showProblem ? project.problem : null,
+
+    solution: project.visibility.showSolution ? project.solution : null,
+
+    results: project.visibility.showResults ? project.results : null,
+
+    skillRelationships: project.visibility.showSkills
+      ? project.skillRelationships
+      : [],
+
+    technologies: project.visibility.showTechnologies
+      ? project.technologies
+      : [],
+
+    relatedRecords: project.visibility.showRelatedRecords
+      ? project.relatedRecords
+      : {
+          experienceRelationships: [],
+          educationRelationships: [],
+          trainingRelationships: [],
+          certificationRelationships: [],
+        },
+
+    awards: publicAwards,
+
+    media: normalizedPublicMedia,
+
+    supportingDocuments: publicDocuments,
+
+    presentation: {
+      shortSummary: project.presentation.shortSummary,
+
+      caseStudy: project.presentation.caseStudy,
+
+      featuredMediaId: publicFeaturedMedia?.id || "",
+
+      isFeatured: project.presentation.isFeatured,
+    },
+
+    updatedAt: project.updatedAt,
+  };
+}
+
+========== frontend\src\services\Project\projectService.js ==========
+import {
+  createProject as createProjectModel,
+  createProjectDocument,
+  createProjectMedia,
+  createPublicProject,
+  normalizeProject,
+  updateProjectModel,
+} from "../../models/projectModel.js";
+
+import {
+  deleteProjectAssets,
+  deleteProjectAssetsForProject,
+  writeProjectAsset,
+} from "./projectAssetStorage.js";
+
+import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
+
+import { validateProject } from "./projectValidation.js";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/*
+ * =========================================
+ * Service Error
+ * =========================================
+ */
+
+function createProjectServiceError(code, message, publicMessage, details = {}) {
+  const error = new Error(message);
+
+  error.name = "ProjectServiceError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  Object.assign(error, details);
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Validate Project for Storage
+ * =========================================
+ */
+
+function validateForSave(project, collections) {
+  const validation = validateProject(project, collections);
+
+  if (!validation.isValid) {
+    throw createProjectServiceError(
+      "PROJECT_VALIDATION_ERROR",
+      "Project validation failed.",
+      "Correct the highlighted Project fields before saving.",
+      {
+        validation,
+        errors: validation.errors,
+        warnings: validation.warnings,
+        fieldErrors: validation.fieldErrors,
+      },
+    );
+  }
+
+  return validation;
+}
+
+/*
+ * =========================================
+ * Project Identifier Validation
+ * =========================================
+ */
+
+function requireProjectId(projectId) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    throw createProjectServiceError(
+      "PROJECT_ID_REQUIRED",
+      "A Project identifier is required.",
+      "The selected Project could not be identified.",
+    );
+  }
+
+  return normalizedProjectId;
+}
+
+/*
+ * =========================================
+ * Find Project
+ * =========================================
+ */
+
+function findProjectIndex(records, projectId) {
+  return records.findIndex((project) => project.id === projectId);
+}
+
+/*
+ * =========================================
+ * Duplicate Identity
+ * =========================================
+ *
+ * Projects may share a title when they belong
+ * to different organizations or clients.
+ */
+
+function createProjectIdentity(project) {
+  const title = getText(project?.title).normalize("NFKC").toLocaleLowerCase();
+
+  const organization = getText(
+    project?.organization?.name || project?.organization?.clientName,
+  )
+    .normalize("NFKC")
+    .toLocaleLowerCase();
+
+  return {
+    title,
+    organization,
+  };
+}
+
+function ensureUniqueProject(records, candidate, excludedProjectId = "") {
+  const candidateIdentity = createProjectIdentity(candidate);
+
+  if (!candidateIdentity.title) {
+    return;
+  }
+
+  const duplicate = records.find((project) => {
+    if (project.id === excludedProjectId) {
+      return false;
+    }
+
+    const existingIdentity = createProjectIdentity(project);
+
+    /*
+     * When neither record identifies an
+     * organization, the normalized title alone
+     * is used to prevent accidental duplicates.
+     */
+
+    return (
+      existingIdentity.title === candidateIdentity.title &&
+      existingIdentity.organization === candidateIdentity.organization
+    );
+  });
+
+  if (!duplicate) {
+    return;
+  }
+
+  throw createProjectServiceError(
+    "PROJECT_DUPLICATE",
+    `A matching Project already exists: ${duplicate.id}`,
+    candidateIdentity.organization
+      ? "A Project with this title and organization already exists."
+      : "A Project with this title already exists.",
+    {
+      project: duplicate,
+
+      fieldErrors: {
+        title: "A matching Project record already exists.",
+      },
+    },
+  );
+}
+
+/*
+ * =========================================
+ * Store Upload Collection
+ * =========================================
+ */
+
+async function storeProjectUploads(projectId, uploads, kind) {
+  const uploadCollection = getArray(uploads);
+
+  const metadata = [];
+
+  const createdStorageKeys = [];
+
+  try {
+    for (let index = 0; index < uploadCollection.length; index += 1) {
+      const upload = uploadCollection[index];
+
+      if (!(upload?.file instanceof Blob)) {
+        throw createProjectServiceError(
+          "PROJECT_UPLOAD_FILE_INVALID",
+          `Project ${kind} upload does not contain a valid Blob.`,
+          `One of the selected Project ${
+            kind === "media" ? "media files" : "documents"
+          } is invalid.`,
+        );
+      }
+
+      const storedAsset = await writeProjectAsset({
+        file: upload.file,
+
+        projectId,
+
+        assetId: upload.assetId || upload.id,
+
+        storageKey: upload.storageKey,
+
+        kind,
+      });
+
+      createdStorageKeys.push(storedAsset.storageKey);
+
+      const metadataValues = {
+        ...upload,
+
+        /*
+         * File objects must never be included
+         * in localStorage metadata.
+         */
+
+        file: undefined,
+
+        id: storedAsset.assetId,
+
+        fileName: storedAsset.fileName,
+
+        mimeType: storedAsset.mimeType,
+
+        fileSize: storedAsset.fileSize,
+
+        storageProvider: "indexed-db",
+
+        storageKey: storedAsset.storageKey,
+
+        uploadedAt: storedAsset.updatedAt,
+      };
+
+      metadata.push(
+        kind === "media"
+          ? createProjectMedia(metadataValues, index)
+          : createProjectDocument(metadataValues, index),
+      );
+    }
+
+    return {
+      metadata,
+      createdStorageKeys,
+    };
+  } catch (error) {
+    /*
+     * If one upload fails, remove every asset
+     * already created during this collection.
+     */
+
+    await deleteProjectAssets(createdStorageKeys).catch(() => {});
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Prepare Project Assets
+ * =========================================
+ */
+
+async function prepareProjectAssets(
+  project,
+  { mediaUploads = [], documentUploads = [] } = {},
+) {
+  const storedMedia = await storeProjectUploads(
+    project.id,
+    mediaUploads,
+    "media",
+  );
+
+  try {
+    const storedDocuments = await storeProjectUploads(
+      project.id,
+      documentUploads,
+      "document",
+    );
+
+    /*
+     * A staged upload selected in the Media
+     * Editor must take priority. Before upload,
+     * its ID cannot be resolved by normalizeProject
+     * because it is not yet part of project.media.
+     */
+
+    const uploadedFeaturedMedia = storedMedia.metadata.find(
+      (mediaItem) => mediaItem.isFeatured && isEligibleFeaturedMedia(mediaItem),
+    );
+
+    const requestedFeaturedMediaId = getText(
+      project.presentation?.featuredMediaId,
+    );
+
+    const featuredMedia =
+      uploadedFeaturedMedia ||
+      completeMedia.find(
+        (mediaItem) =>
+          mediaItem.id === requestedFeaturedMediaId &&
+          isEligibleFeaturedMedia(mediaItem),
+      ) ||
+      completeMedia.find(
+        (mediaItem) =>
+          mediaItem.isFeatured && isEligibleFeaturedMedia(mediaItem),
+      ) ||
+      completeMedia.find(isEligibleFeaturedMedia) ||
+      null;
+
+    const existingMedia = getArray(project.media).map((mediaItem) => ({
+      ...mediaItem,
+
+      isFeatured: uploadedFeaturedMedia ? false : mediaItem.isFeatured,
+    }));
+
+    const completeMedia = [...existingMedia, ...storedMedia.metadata];
+
+    const preparedProject = normalizeProject({
+      ...project,
+
+      media: completeMedia.map((mediaItem) => ({
+        ...mediaItem,
+
+        isFeatured: mediaItem.id === featuredMedia?.id,
+      })),
+
+      supportingDocuments: [
+        ...getArray(project.supportingDocuments),
+
+        ...storedDocuments.metadata,
+      ],
+
+      presentation: {
+        ...project.presentation,
+
+        featuredMediaId: featuredMedia?.id || "",
+      },
+    });
+
+    return {
+      project: preparedProject,
+
+      createdStorageKeys: [
+        ...storedMedia.createdStorageKeys,
+        ...storedDocuments.createdStorageKeys,
+      ],
+    };
+  } catch (error) {
+    /*
+     * Document storage failed after media was
+     * saved, so the new media must be rolled
+     * back as well.
+     */
+
+    await deleteProjectAssets(storedMedia.createdStorageKeys).catch(() => {});
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Safe Removed-Asset Cleanup
+ * =========================================
+ */
+
+async function removeUnreferencedAssets(project, requestedStorageKeys) {
+  const referencedStorageKeys = new Set([
+    ...getArray(project.media)
+      .map((mediaItem) => getText(mediaItem.storageKey))
+      .filter(Boolean),
+
+    ...getArray(project.supportingDocuments)
+      .map((documentRecord) => getText(documentRecord.storageKey))
+      .filter(Boolean),
+  ]);
+
+  const removableStorageKeys = [
+    ...new Set(getArray(requestedStorageKeys).map(getText).filter(Boolean)),
+  ].filter((storageKey) => !referencedStorageKeys.has(storageKey));
+
+  if (removableStorageKeys.length === 0) {
+    return 0;
+  }
+
+  return deleteProjectAssets(removableStorageKeys);
+}
+
+/*
+ * =========================================
+ * Get Projects
+ * =========================================
+ */
+
+export function getProjects({ includeArchived = false } = {}) {
+  const projects = readStoredProjects();
+
+  return includeArchived
+    ? projects
+    : projects.filter((project) => project.recordStatus !== "archived");
+}
+
+/*
+ * =========================================
+ * Get Project by ID
+ * =========================================
+ */
+
+export function getProjectById(projectId, { includeArchived = true } = {}) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const project =
+    readStoredProjects().find((record) => record.id === normalizedProjectId) ||
+    null;
+
+  if (project?.recordStatus === "archived" && !includeArchived) {
+    return null;
+  }
+
+  return project;
+}
+
+/*
+ * =========================================
+ * Public Projects
+ * =========================================
+ */
+
+export function getPublicProjects() {
+  return getProjects({
+    includeArchived: false,
+  }).map(createPublicProject);
+}
+
+/*
+ * =========================================
+ * Public Project by ID
+ * =========================================
+ */
+
+export function getPublicProjectById(projectId) {
+  const project = getProjectById(projectId, {
+    includeArchived: false,
+  });
+
+  return project ? createPublicProject(project) : null;
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export async function createProject(
+  projectData,
+  {
+    collections = {},
+    mediaUploads = [],
+    documentUploads = [],
+    removedAssetStorageKeys = [],
+  } = {},
+) {
+  const records = readStoredProjects();
+
+  let project = createProjectModel(projectData);
+
+  ensureUniqueProject(records, project);
+
+  const preparedAssets = await prepareProjectAssets(project, {
+    mediaUploads,
+    documentUploads,
+  });
+
+  project = preparedAssets.project;
+
+  try {
+    const validation = validateForSave(project, collections);
+
+    /*
+     * Store metadata only after every staged
+     * asset was written successfully.
+     */
+
+    replaceStoredProjects([...records, project]);
+
+    /*
+     * This collection is normally empty while
+     * creating, but accepting it keeps the
+     * service contract consistent.
+     */
+
+    await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+      () => {},
+    );
+
+    return {
+      project,
+      warnings: validation.warnings,
+    };
+  } catch (error) {
+    /*
+     * Metadata was not saved, so every new
+     * IndexedDB asset must be removed.
+     */
+
+    await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+      () => {},
+    );
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export async function updateProject(
+  projectId,
+  updates,
+  {
+    collections = {},
+    mediaUploads = [],
+    documentUploads = [],
+    removedAssetStorageKeys = [],
+  } = {},
+) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  let project = updateProjectModel(records[projectIndex], updates);
+
+  ensureUniqueProject(records, project, project.id);
+
+  const preparedAssets = await prepareProjectAssets(project, {
+    mediaUploads,
+    documentUploads,
+  });
+
+  project = preparedAssets.project;
+
+  try {
+    const validation = validateForSave(project, collections);
+
+    const nextRecords = [...records];
+
+    nextRecords[projectIndex] = project;
+
+    /*
+     * Save updated metadata before deleting
+     * old assets. If this write fails, existing
+     * files remain recoverable.
+     */
+
+    replaceStoredProjects(nextRecords);
+
+    /*
+     * Asset deletion occurs only after the new
+     * Project record has been saved.
+     */
+
+    await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+      () => {},
+    );
+
+    return {
+      project,
+      warnings: validation.warnings,
+    };
+  } catch (error) {
+    /*
+     * Preserve all pre-existing files and remove
+     * only assets created during this attempt.
+     */
+
+    await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+      () => {},
+    );
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Archive Project
+ * =========================================
+ */
+
+export async function archiveProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const project = records[projectIndex];
+
+  if (project.recordStatus === "archived") {
+    return project;
+  }
+
+  const archivedProject = normalizeProject({
+    ...project,
+
+    recordStatus: "archived",
+
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextRecords = [...records];
+
+  nextRecords[projectIndex] = archivedProject;
+
+  replaceStoredProjects(nextRecords);
+
+  return archivedProject;
+}
+
+/*
+ * =========================================
+ * Restore Project
+ * =========================================
+ */
+
+export async function restoreProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const project = records[projectIndex];
+
+  if (project.recordStatus === "active") {
+    return project;
+  }
+
+  const restoredProject = normalizeProject({
+    ...project,
+
+    recordStatus: "active",
+
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextRecords = [...records];
+
+  nextRecords[projectIndex] = restoredProject;
+
+  replaceStoredProjects(nextRecords);
+
+  return restoredProject;
+}
+
+/*
+ * =========================================
+ * Delete Project Permanently
+ * =========================================
+ */
+
+export async function deleteProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const deletedProject = records[projectIndex];
+
+  const nextRecords = records.filter(
+    (project) => project.id !== normalizedProjectId,
+  );
+
+  /*
+   * Delete metadata first. If localStorage
+   * fails, the Project and all assets remain.
+   */
+
+  replaceStoredProjects(nextRecords);
+
+  /*
+   * Once metadata is removed, delete every
+   * IndexedDB asset owned by this Project.
+   *
+   * Cleanup is best effort because the Project
+   * metadata has already been deleted.
+   */
+
+  let assetCleanupError = null;
+
+  try {
+    await deleteProjectAssetsForProject(normalizedProjectId);
+  } catch (error) {
+    assetCleanupError = error;
+  }
+
+  return {
+    ...deletedProject,
+
+    assetCleanupWarning: assetCleanupError
+      ? "The Project was deleted, but one or more locally stored files could not be cleaned up."
+      : "",
+  };
+}
+
