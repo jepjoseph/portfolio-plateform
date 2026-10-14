@@ -1,0 +1,2253 @@
+PROJECT ROUTE AND CONTROLLER STRUCTURE
+======================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\contactController.js
+----------------------------------------
+import { submitContactRequest as submitContactRequestService } from "../services/Service/contactService.js";
+
+import { parseContactRequest } from "../schemas/contactSchemas.js";
+
+/*
+ * =========================================
+ * Private Response Headers
+ * =========================================
+ */
+
+function setPrivateResponseHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Submit Contact Request
+ * =========================================
+ *
+ * POST /api/support/contact
+ */
+
+export async function submitContactRequest(request, response, next) {
+  setPrivateResponseHeaders(response);
+
+  try {
+    const input = parseContactRequest(request.body);
+
+    const result = await submitContactRequestService({
+      name: input.name,
+
+      email: input.email,
+
+      category: input.category,
+
+      subject: input.subject,
+
+      message: input.message,
+
+      replyConsent: input.replyConsent,
+
+      request,
+    });
+
+    return response.status(201).json({
+      status: "success",
+
+      message: result.message,
+
+      data: {
+        request: result.request,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\experienceOverviewController.js
+----------------------------------------
+import { experienceOverviewRequestSchema } from "../schemas/experienceOverviewSchemas.js";
+
+import { generateExperienceOverview } from "../services/Service/experienceOverviewService.js";
+
+function hasMeaningfulContext(context) {
+  return Boolean(
+    context.positionTitle ||
+    context.responsibilities.length > 0 ||
+    context.achievements.length > 0 ||
+    context.skills.length > 0 ||
+    context.leadership.description,
+  );
+}
+
+function getProviderLabel(provider) {
+  return provider === "groq" ? "Groq" : "The AI provider";
+}
+
+export async function createExperienceOverview(req, res, next) {
+  const validationResult = experienceOverviewRequestSchema.safeParse(req.body);
+
+  if (!validationResult.success) {
+    return res.status(400).json({
+      message: "The Experience Overview information is invalid.",
+
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
+  }
+
+  const context = validationResult.data;
+
+  if (!hasMeaningfulContext(context)) {
+    return res.status(400).json({
+      message:
+        "Add a position title, responsibility, achievement, skill, or leadership description before generating an Experience Overview.",
+    });
+  }
+
+  try {
+    const result = await generateExperienceOverview(context);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error?.status === 401) {
+      error.status = 503;
+
+      error.publicMessage = `${getProviderLabel(
+        error.provider,
+      )} credentials are missing or invalid.`;
+    }
+
+    if (error?.status === 429) {
+      error.publicMessage = `${getProviderLabel(
+        error.provider,
+      )} has reached its current usage limit. Please try again later.`;
+    }
+
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\experienceSkillController.js
+----------------------------------------
+import { experienceSkillRequestSchema } from "../schemas/experienceSkillSchemas.js";
+
+import { generateExperienceSkills } from "../services/Service/experienceSkillService.js";
+
+/*
+ * =========================================
+ * Meaningful Context
+ * =========================================
+ */
+
+function hasMeaningfulContext(context) {
+  return Boolean(
+    context.positionTitle ||
+    context.overview ||
+    context.responsibilities.length > 0 ||
+    context.achievements.length > 0 ||
+    context.technologies.length > 0 ||
+    context.leadership.description,
+  );
+}
+
+/*
+ * =========================================
+ * Provider Label
+ * =========================================
+ */
+
+function getProviderLabel(provider) {
+  return provider === "groq" ? "Groq" : "The AI provider";
+}
+
+/*
+ * =========================================
+ * Generate Experience Skills
+ * =========================================
+ */
+
+export async function createExperienceSkillSuggestions(req, res, next) {
+  const validationResult = experienceSkillRequestSchema.safeParse(req.body);
+
+  if (!validationResult.success) {
+    return res.status(400).json({
+      message: "The experience information is invalid.",
+
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
+  }
+
+  const context = validationResult.data;
+
+  if (!hasMeaningfulContext(context)) {
+    return res.status(400).json({
+      message:
+        "Add an overview, responsibility, achievement, technology, leadership detail, or position title before generating skill suggestions.",
+    });
+  }
+
+  try {
+    const result = await generateExperienceSkills(context);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error?.status === 401) {
+      error.status = 503;
+
+      error.publicMessage = `${getProviderLabel(
+        error.provider,
+      )} credentials are missing or invalid.`;
+    }
+
+    if (error?.status === 429) {
+      error.publicMessage = `${getProviderLabel(
+        error.provider,
+      )} has reached its current usage limit. Please try again later.`;
+    }
+
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\loginController.js
+----------------------------------------
+import {
+  requestPasswordLogin as requestPasswordLoginService,
+  resendLoginOtp as resendLoginOtpService,
+  verifyLoginOtp as verifyLoginOtpService,
+} from "../services/Service/loginService.js";
+
+import { revokeCurrentSession } from "../services/Service/sessionService.js";
+
+import { sendLoginOtp } from "../email/emailService.js";
+
+import {
+  clearRefreshTokenCookie,
+  getRefreshTokenFromRequest,
+  setRefreshTokenCookie,
+} from "../security/sessionCookieSecurity.js";
+
+import {
+  parseLoginOtpResend,
+  parseLoginOtpVerification,
+  parsePasswordLogin,
+} from "../schemas/loginSchemas.js";
+
+/*
+ * =========================================
+ * Private Response Headers
+ * =========================================
+ */
+
+function setPrivateResponseHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Password Login
+ * =========================================
+ *
+ * POST /api/auth/login/password
+ */
+
+export async function requestPasswordLogin(request, response, next) {
+  try {
+    const input = parsePasswordLogin(request.body);
+
+    const result = await requestPasswordLoginService({
+      email: input.email,
+
+      password: input.password,
+
+      request,
+
+      sendLoginOtp,
+    });
+
+    setPrivateResponseHeaders(response);
+
+    return response.status(202).json({
+      status: "accepted",
+
+      message: result.message,
+
+      data: {
+        challengeId: result.challengeId,
+
+        email: result.email,
+
+        expiresAt: result.expiresAt,
+
+        maximumAttempts: result.maximumAttempts,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Resend Login OTP
+ * =========================================
+ *
+ * POST /api/auth/login/resend
+ */
+
+export async function resendLoginOtp(request, response, next) {
+  try {
+    const input = parseLoginOtpResend(request.body);
+
+    const result = await resendLoginOtpService({
+      challengeId: input.challengeId,
+
+      request,
+
+      sendLoginOtp,
+    });
+
+    setPrivateResponseHeaders(response);
+
+    return response.status(202).json({
+      status: "accepted",
+
+      message: result.message,
+
+      data: {
+        challengeId: result.challengeId,
+
+        email: result.email,
+
+        expiresAt: result.expiresAt,
+
+        maximumAttempts: result.maximumAttempts,
+
+        resendAvailableAt: result.resendAvailableAt,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Verify Login OTP
+ * =========================================
+ *
+ * POST /api/auth/login/verify
+ */
+
+export async function verifyLogin(request, response, next) {
+  let createdRefreshToken = "";
+
+  try {
+    const input = parseLoginOtpVerification(request.body);
+
+    const result = await verifyLoginOtpService({
+      challengeId: input.challengeId,
+
+      otp: input.otp,
+
+      request,
+    });
+
+    /*
+     * Keep the raw token only in local
+     * controller scope.
+     */
+
+    createdRefreshToken = result.refreshToken;
+
+    try {
+      setRefreshTokenCookie(
+        response,
+
+        result.refreshToken,
+
+        result.refreshTokenExpiresAt,
+      );
+    } catch (cookieError) {
+      /*
+       * The database session already exists.
+       * Revoke it if the cookie cannot be
+       * written to the response.
+       */
+
+      await revokeCurrentSession({
+        refreshToken: result.refreshToken,
+
+        reason: "cookie_write_failed",
+      }).catch((cleanupError) => {
+        console.error(
+          "Unable to revoke session after cookie failure:",
+          cleanupError,
+        );
+      });
+
+      throw cookieError;
+    }
+
+    setPrivateResponseHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+
+      message: result.message,
+
+      data: {
+        user: result.user,
+
+        roles: result.roles,
+
+        session: result.session,
+      },
+    });
+  } catch (error) {
+    /*
+     * Do not attempt session cleanup for
+     * validation or OTP failures because no
+     * refresh token was created.
+     */
+
+    return next(error);
+  } finally {
+    /*
+     * JavaScript strings cannot be forcibly
+     * erased from memory, but dropping the
+     * local reference avoids retaining it
+     * longer than necessary.
+     */
+
+    createdRefreshToken = "";
+  }
+}
+
+/*
+ * =========================================
+ * Logout
+ * =========================================
+ *
+ * The route is added later, but placing the
+ * handler here keeps cookie cleanup close to
+ * login/session handling.
+ *
+ * POST /api/auth/logout
+ */
+
+export async function logout(request, response, next) {
+  try {
+    const refreshToken = getRefreshTokenFromRequest(request);
+
+    await revokeCurrentSession({
+      refreshToken,
+
+      reason: "logout",
+    });
+
+    clearRefreshTokenCookie(response);
+
+    setPrivateResponseHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+
+      message: "You have been signed out successfully.",
+    });
+  } catch (error) {
+    /*
+     * Even if database revocation fails, do
+     * not clear the cookie here silently. The
+     * global error handler will return an
+     * error so the client knows logout was not
+     * fully completed.
+     */
+
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js
+----------------------------------------
+import path from "node:path";
+import { getEnvironment } from "../config/environment.js";
+
+import {
+  deleteUncommittedProfilePicture,
+  getAuthenticatedProfile,
+  updateAuthenticatedProfile,
+} from "../services/Service/profileService.js";
+
+import { createProfilePictureStorageKey } from "../services/Storage/profilePictureStorageService.js";
+
+import { parseProfileUpdate } from "../schemas/profileSchemas.js";
+
+const environment = getEnvironment();
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+export async function getMyProfile(request, response, next) {
+  try {
+    const profile = await getAuthenticatedProfile({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile retrieved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProfile(request, response, next) {
+  try {
+    const profileInput = parseProfileUpdate(request.body);
+
+    const profile = await updateAuthenticatedProfile({
+      userId: request.auth.userId,
+      profile: profileInput,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile saved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadProfilePictureController(request, response, next) {
+  try {
+    const userId = String(request.auth?.userId || "").trim();
+    const uploadedFile = request.profilePictureFile;
+
+    if (!userId) {
+      const error = new Error(
+        "Authenticated user ID is unavailable during profile-picture upload.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_UPLOAD_USER_INVALID";
+      error.status = 401;
+      error.publicMessage =
+        "Your session could not be verified for this upload.";
+
+      throw error;
+    }
+
+    if (!uploadedFile?.filename) {
+      const error = new Error("Verified profile-picture file is unavailable.");
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_FILE_UNAVAILABLE";
+      error.status = 400;
+      error.publicMessage = "The profile picture could not be processed.";
+
+      throw error;
+    }
+
+    const publicBaseUrl = environment.PROFILE_PICTURE_PUBLIC_BASE_URL;
+
+    if (!publicBaseUrl) {
+      const error = new Error(
+        "PROFILE_PICTURE_PUBLIC_BASE_URL is not configured.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_PUBLIC_URL_NOT_CONFIGURED";
+      error.status = 503;
+      error.publicMessage =
+        "Profile-picture storage is temporarily unavailable.";
+
+      throw error;
+    }
+
+    /*
+     * storageKey is intentionally relative.
+     *
+     * Example:
+     * abc123.../550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * Never return the physical D:\ or UNC path.
+     */
+    const storageKey = createProfilePictureStorageKey(
+      userId,
+      uploadedFile.filename,
+    );
+
+    const imageUrl = `${publicBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
+
+    return response.status(201).json({
+      picture: {
+        imageUrl,
+        storageKey,
+
+        /*
+         * originalname is the filename supplied by the
+         * browser, while filename is our generated UUID.
+         */
+        fileName: path.basename(uploadedFile.originalname),
+
+        fileType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.size,
+        useDefaultAvatar: false,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteProfilePictureController(request, response, next) {
+  try {
+    const result = await deleteUncommittedProfilePicture({
+      userId: request.auth.userId,
+      storageKey: request.body?.storageKey,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: result.deleted
+        ? "Temporary profile picture removed successfully."
+        : "Temporary profile picture was already removed.",
+      data: {
+        storageKey: result.storageKey,
+        deleted: result.deleted,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectController.js
+----------------------------------------
+import {
+  getAuthenticatedProjects,
+  getAuthenticatedProject,
+  createAuthenticatedProject,
+  updateAuthenticatedProject,
+  setAuthenticatedProjectArchiveStatus,
+  deleteAuthenticatedProject,
+} from "../services/Service/projectService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+function projectRequestError(message) {
+  const error = new Error(message);
+  error.name = "ProjectRequestError";
+  error.code = "PROJECT_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireObject(value, name) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw projectRequestError(`${name} must be a JSON object.`);
+  }
+
+  return value;
+}
+
+function requireFields(body, allowedFields) {
+  const input = requireObject(body, "Request body");
+
+  const unexpected = Object.keys(input).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw projectRequestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return input;
+}
+
+export async function listMyProjects(request, response, next) {
+  try {
+    const projects = await getAuthenticatedProjects({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Projects retrieved successfully.",
+      data: { projects },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyProject(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project retrieved successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMyProject(request, response, next) {
+  try {
+    const project = await createAuthenticatedProject({
+      userId: request.auth.userId,
+      project: request.body,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project created successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["project", "rowVersion"]);
+
+    const project = await updateAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      project: body.project,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project updated successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function setMyProjectArchiveStatus(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["archived", "rowVersion"]);
+
+    const project = await setAuthenticatedProjectArchiveStatus({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      archived: body.archived,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: body.archived
+        ? "Project archived successfully."
+        : "Project restored successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["rowVersion"]);
+
+    const result = await deleteAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project deleted successfully.",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\registrationController.js
+----------------------------------------
+import {
+  completeRegistration as completeRegistrationService,
+  requestRegistration as requestRegistrationService,
+  verifyRegistrationOtp as verifyRegistrationOtpService,
+} from "../services/Service/registrationService.js";
+
+import { sendRegistrationOtp } from "../email/emailService.js";
+
+import {
+  parseRegistrationCompletion,
+  parseRegistrationRequest,
+  parseRegistrationVerification,
+} from "../schemas/registrationSchemas.js";
+
+/*
+ * =========================================
+ * Private Response Headers
+ * =========================================
+ *
+ * Registration responses contain temporary
+ * security information such as challenge IDs
+ * and continuation tokens. Browsers and
+ * intermediary caches must not store them.
+ */
+
+function setPrivateResponseHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Request Registration OTP
+ * =========================================
+ *
+ * POST /api/auth/register/request
+ */
+
+export async function requestRegistration(request, response, next) {
+  try {
+    const input = parseRegistrationRequest(request.body);
+
+    const result = await requestRegistrationService({
+      email: input.email,
+
+      request,
+
+      sendRegistrationOtp,
+    });
+
+    setPrivateResponseHeaders(response);
+
+    return response.status(202).json({
+      status: "accepted",
+
+      message: result.message,
+
+      data: {
+        challengeId: result.challengeId,
+
+        email: result.email,
+
+        expiresAt: result.expiresAt,
+
+        maximumAttempts: result.maximumAttempts,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Verify Registration OTP
+ * =========================================
+ *
+ * POST /api/auth/register/verify
+ */
+
+export async function verifyRegistration(request, response, next) {
+  try {
+    const input = parseRegistrationVerification(request.body);
+
+    const result = await verifyRegistrationOtpService({
+      challengeId: input.challengeId,
+
+      otp: input.otp,
+
+      request,
+    });
+
+    setPrivateResponseHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+
+      message: result.message,
+
+      data: {
+        challengeId: result.challengeId,
+
+        continuationToken: result.continuationToken,
+
+        email: result.email,
+
+        expiresAt: result.expiresAt,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Complete Registration
+ * =========================================
+ *
+ * POST /api/auth/register/complete
+ */
+
+export async function completeRegistration(request, response, next) {
+  try {
+    const input = parseRegistrationCompletion(request.body);
+
+    const result = await completeRegistrationService({
+      challengeId: input.challengeId,
+
+      continuationToken: input.continuationToken,
+
+      password: input.password,
+    });
+
+    setPrivateResponseHeaders(response);
+
+    /*
+     * Return only public-safe account fields.
+     *
+     * Password hashes, challenge hashes and
+     * internal security state are never sent
+     * to the frontend.
+     */
+
+    return response.status(201).json({
+      status: "success",
+
+      message: result.message,
+
+      data: {
+        user: {
+          id: result.user.id,
+
+          email: result.user.email,
+
+          emailVerifiedAt: result.user.emailVerifiedAt,
+
+          accountStatus: result.user.accountStatus,
+        },
+
+        roles: result.roles,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\resumeSummaryController.js
+----------------------------------------
+import { resumeSummaryRequestSchema } from "../schemas/resumeSummarySchemas.js";
+
+import { generateResumeSummary } from "../services/Service/resumeSummaryService.js";
+
+/*
+ * =========================================
+ * Create Resume Summary
+ * =========================================
+ */
+
+export async function createResumeSummary(req, res, next) {
+  const validationResult = resumeSummaryRequestSchema.safeParse(req.body);
+
+  if (!validationResult.success) {
+    return res.status(400).json({
+      message: "The summary information is invalid.",
+
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
+  }
+
+  const summaryContext = validationResult.data;
+
+  if (!summaryContext.targetRole && !summaryContext.professionalTitle) {
+    return res.status(400).json({
+      message:
+        "Add a target position or professional title before generating a summary.",
+    });
+  }
+
+  try {
+    const result = await generateResumeSummary(summaryContext);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error?.status === 401) {
+      error.status = 503;
+
+      error.publicMessage = `${getProviderLabel(
+        error.provider,
+      )} credentials are missing or invalid.`;
+    }
+
+    if (error?.status === 429) {
+      error.publicMessage = `${getProviderLabel(
+        error.provider,
+      )} has reached its current rate or usage limit. Please try again later.`;
+    }
+
+    return next(error);
+  }
+}
+
+function getProviderLabel(provider) {
+  if (provider === "groq") {
+    return "Groq";
+  }
+
+  if (provider === "openai") {
+    return "OpenAI";
+  }
+
+  return "The AI provider";
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\sessionController.js
+----------------------------------------
+import {
+  getAuthenticatedSession as getAuthenticatedSessionService,
+  refreshAuthenticatedSession as refreshAuthenticatedSessionService,
+  revokeCurrentSession,
+} from "../services/Service/sessionService.js";
+
+import {
+  clearRefreshTokenCookie,
+  getRefreshTokenFromRequest,
+  setRefreshTokenCookie,
+} from "../security/sessionCookieSecurity.js";
+
+/*
+ * =========================================
+ * Private Response Headers
+ * =========================================
+ */
+
+function setPrivateResponseHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Invalid Session Errors
+ * =========================================
+ *
+ * These errors indicate that the browser's
+ * existing refresh-token cookie should no
+ * longer be retained.
+ */
+
+function shouldClearSessionCookie(error) {
+  const invalidSessionCodes = new Set([
+    "SESSION_REFRESH_TOKEN_INVALID",
+    "SESSION_NOT_FOUND",
+    "SESSION_REFRESH_CONFLICT",
+  ]);
+
+  return invalidSessionCodes.has(error?.code);
+}
+
+/*
+ * =========================================
+ * Safely Clear Refresh Cookie
+ * =========================================
+ */
+
+function safelyClearRefreshTokenCookie(response) {
+  try {
+    clearRefreshTokenCookie(response);
+  } catch (error) {
+    console.error("Unable to clear refresh-token cookie:", error);
+  }
+}
+
+/*
+ * =========================================
+ * Refresh Authenticated Session
+ * =========================================
+ *
+ * POST /api/auth/session/refresh
+ *
+ * The current refresh token is read from the
+ * HttpOnly cookie. A successful refresh
+ * rotates the token and replaces the cookie.
+ */
+
+export async function refreshSession(request, response, next) {
+  setPrivateResponseHeaders(response);
+
+  try {
+    const currentRefreshToken = getRefreshTokenFromRequest(request);
+
+    const result = await refreshAuthenticatedSessionService({
+      refreshToken: currentRefreshToken,
+
+      request,
+    });
+
+    /*
+     * The database rotation has already
+     * invalidated the old token. The newly
+     * generated token must now be stored in
+     * the replacement HttpOnly cookie.
+     */
+
+    try {
+      setRefreshTokenCookie(
+        response,
+
+        result.refreshToken,
+
+        result.refreshTokenExpiresAt,
+      );
+    } catch (cookieError) {
+      /*
+       * If the new cookie cannot be written,
+       * revoke the newly rotated session so a
+       * valid server-side session is not left
+       * without a usable browser cookie.
+       */
+
+      await revokeCurrentSession({
+        refreshToken: result.refreshToken,
+
+        reason: "refresh_cookie_write_failed",
+      }).catch((cleanupError) => {
+        console.error(
+          "Unable to revoke session after refresh-cookie failure:",
+          cleanupError,
+        );
+      });
+
+      safelyClearRefreshTokenCookie(response);
+
+      throw cookieError;
+    }
+
+    return response.status(200).json({
+      status: "success",
+
+      message: "Your session was refreshed successfully.",
+
+      data: {
+        user: result.user,
+
+        roles: result.roles,
+
+        session: result.session,
+      },
+    });
+  } catch (error) {
+    if (shouldClearSessionCookie(error)) {
+      safelyClearRefreshTokenCookie(response);
+    }
+
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Get Current Authenticated Session
+ * =========================================
+ *
+ * GET /api/auth/session
+ *
+ * This validates the current refresh-token
+ * cookie without rotating it.
+ */
+
+export async function getCurrentSession(request, response, next) {
+  setPrivateResponseHeaders(response);
+
+  try {
+    const refreshToken = getRefreshTokenFromRequest(request);
+
+    const result = await getAuthenticatedSessionService({
+      refreshToken,
+    });
+
+    return response.status(200).json({
+      status: "success",
+
+      message: "Authenticated session retrieved successfully.",
+
+      data: {
+        user: result.user,
+
+        roles: result.roles,
+
+        session: result.session,
+      },
+    });
+  } catch (error) {
+    if (shouldClearSessionCookie(error)) {
+      safelyClearRefreshTokenCookie(response);
+    }
+
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\skillController.js
+----------------------------------------
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\userController.js
+----------------------------------------
+import {
+  getUserSessions,
+  revokeEveryUserSession,
+  revokeUserSession,
+} from "../services/Service/sessionService.js";
+
+import { parseRevokeSessionParameters } from "../schemas/sessionManagementSchemas.js";
+
+/*
+ * =========================================
+ * Authentication Context
+ * =========================================
+ */
+
+function getAuthenticationContext(request) {
+  const authentication = request.auth;
+
+  if (!authentication?.userId || !authentication?.sessionId) {
+    const error = new Error(
+      "The authenticated request context is unavailable.",
+    );
+
+    error.name = "AuthenticationContextError";
+    error.code = "AUTHENTICATION_CONTEXT_REQUIRED";
+    error.status = 500;
+    error.publicMessage = "Your account information could not be loaded.";
+
+    throw error;
+  }
+
+  return authentication;
+}
+
+/*
+ * =========================================
+ * Session Management Error
+ * =========================================
+ */
+
+function createSessionManagementError({
+  message,
+  code,
+  status,
+  publicMessage,
+}) {
+  const error = new Error(message);
+
+  error.name = "SessionManagementError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Get Current User
+ * =========================================
+ *
+ * GET /api/users/me
+ */
+
+export async function getCurrentUser(request, response, next) {
+  try {
+    const authentication = getAuthenticationContext(request);
+
+    return response.status(200).json({
+      status: "success",
+
+      message: "Authenticated user retrieved successfully.",
+
+      data: {
+        user: authentication.user,
+        roles: authentication.roles,
+        session: authentication.session,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * List Active Sessions
+ * =========================================
+ *
+ * GET /api/users/me/sessions
+ */
+
+export async function getCurrentUserSessions(request, response, next) {
+  try {
+    const authentication = getAuthenticationContext(request);
+
+    const sessions = await getUserSessions({
+      userId: authentication.userId,
+      currentSessionId: authentication.sessionId,
+    });
+
+    return response.status(200).json({
+      status: "success",
+
+      message: "Active sessions retrieved successfully.",
+
+      data: {
+        sessions,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Revoke Another Session
+ * =========================================
+ *
+ * DELETE /api/users/me/sessions/:sessionId
+ */
+
+export async function revokeCurrentUserSession(request, response, next) {
+  try {
+    const authentication = getAuthenticationContext(request);
+
+    const input = parseRevokeSessionParameters(request.params);
+
+    /*
+     * The current browser must use logout.
+     * This prevents leaving an authenticated
+     * browser with a revoked server session.
+     */
+
+    if (input.sessionId === authentication.sessionId) {
+      throw createSessionManagementError({
+        message:
+          "The current session cannot be revoked through session management.",
+
+        code: "CURRENT_SESSION_REVOCATION_NOT_ALLOWED",
+
+        status: 409,
+
+        publicMessage:
+          "Use Sign Out to end the session on your current device.",
+      });
+    }
+
+    const result = await revokeUserSession({
+      sessionId: input.sessionId,
+      userId: authentication.userId,
+    });
+
+    return response.status(200).json({
+      status: "success",
+
+      message: "The selected session was revoked successfully.",
+
+      data: {
+        sessionId: result.sessionId,
+        revokedAt: result.revokedAt,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Revoke All Other Sessions
+ * =========================================
+ *
+ * POST /api/users/me/sessions/revoke-others
+ */
+
+export async function revokeOtherCurrentUserSessions(request, response, next) {
+  try {
+    const authentication = getAuthenticationContext(request);
+
+    const result = await revokeEveryUserSession({
+      userId: authentication.userId,
+      exceptSessionId: authentication.sessionId,
+      reason: "user_revoked_other_sessions",
+    });
+
+    return response.status(200).json({
+      status: "success",
+
+      message:
+        result.revokedCount === 1
+          ? "One other session was revoked successfully."
+          : `${result.revokedCount} other sessions were revoked successfully.`,
+
+      data: {
+        revokedCount: result.revokedCount,
+        currentSessionId: authentication.sessionId,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\aiRoutes.js
+----------------------------------------
+import express from "express";
+import rateLimit from "express-rate-limit";
+
+import { createResumeSummary } from "../controllers/resumeSummaryController.js";
+import { createExperienceSkillSuggestions } from "../controllers/experienceSkillController.js";
+import { createExperienceOverview } from "../controllers/experienceOverviewController.js";
+
+const router = express.Router();
+
+const aiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+
+  limit: 20,
+
+  standardHeaders: "draft-7",
+
+  legacyHeaders: false,
+
+  message: {
+    message: "Too many summary-generation requests. Please try again later.",
+  },
+});
+
+router.post("/resume-summary", aiRateLimiter, createResumeSummary);
+
+router.post(
+  "/experience-skills",
+  aiRateLimiter,
+  createExperienceSkillSuggestions,
+);
+
+router.post(
+  "/experience-overview",
+  aiRateLimiter,
+  createExperienceOverview,
+);
+
+export default router;
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\authRoutes.js
+----------------------------------------
+import { Router } from "express";
+
+import { rateLimit } from "express-rate-limit";
+
+import {
+  completeRegistration,
+  requestRegistration,
+  verifyRegistration,
+} from "../controllers/registrationController.js";
+
+import {
+  logout,
+  requestPasswordLogin,
+  resendLoginOtp,
+  verifyLogin,
+} from "../controllers/loginController.js";
+
+import {
+  getCurrentSession,
+  refreshSession,
+} from "../controllers/sessionController.js";
+
+/*
+ * =========================================
+ * Authentication Router
+ * =========================================
+ */
+
+const router = Router();
+
+/*
+ * =========================================
+ * Rate-Limit Response
+ * =========================================
+ */
+
+function createRateLimitHandler({ code, message }) {
+  return (request, response) => {
+    response.setHeader("Cache-Control", "no-store");
+
+    return response.status(429).json({
+      status: "error",
+
+      code,
+
+      message,
+    });
+  };
+}
+
+/*
+ * =========================================
+ * Shared Rate-Limit Configuration
+ * =========================================
+ */
+
+const sharedRateLimitOptions = {
+  standardHeaders: "draft-8",
+
+  legacyHeaders: false,
+
+  /*
+   * Do not count successful preflight
+   * requests against authentication limits.
+   */
+
+  skip(request) {
+    return request.method === "OPTIONS";
+  },
+};
+
+/*
+ * =========================================
+ * Registration Rate Limits
+ * =========================================
+ */
+
+/*
+ * Limits email and OTP generation requests.
+ */
+
+const registrationRequestLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 10,
+
+  handler: createRateLimitHandler({
+    code: "REGISTRATION_REQUEST_RATE_LIMITED",
+
+    message:
+      "Too many registration requests were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * Allows several OTP attempts while still
+ * protecting the endpoint from automation.
+ *
+ * The challenge itself also enforces its own
+ * maximum attempt count in the database.
+ */
+
+const registrationVerificationLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 10 * 60 * 1000,
+
+  limit: 30,
+
+  handler: createRateLimitHandler({
+    code: "REGISTRATION_VERIFICATION_RATE_LIMITED",
+
+    message:
+      "Too many verification attempts were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * Limits final account-creation requests.
+ */
+
+const registrationCompletionLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 10,
+
+  handler: createRateLimitHandler({
+    code: "REGISTRATION_COMPLETION_RATE_LIMITED",
+
+    message:
+      "Too many account-creation attempts were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * =========================================
+ * Login Rate Limits
+ * =========================================
+ */
+
+/*
+ * Password verification is intentionally
+ * restricted because password hashing is
+ * computationally expensive.
+ *
+ * The login service and database also track
+ * failures for known accounts.
+ */
+
+const passwordLoginLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 10,
+
+  handler: createRateLimitHandler({
+    code: "LOGIN_PASSWORD_RATE_LIMITED",
+
+    message:
+      "Too many sign-in attempts were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * The database challenge applies its own OTP
+ * attempt limit. This IP-based limiter adds a
+ * second layer against automated requests.
+ */
+
+const loginVerificationLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 10 * 60 * 1000,
+
+  limit: 30,
+
+  handler: createRateLimitHandler({
+    code: "LOGIN_VERIFICATION_RATE_LIMITED",
+
+    message:
+      "Too many login verification attempts were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * Limits repeated OTP email delivery.
+ *
+ * The service also enforces a per-challenge
+ * cooldown in Azure SQL.
+ */
+
+const loginResendLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 5,
+
+  handler: createRateLimitHandler({
+    code: "LOGIN_RESEND_RATE_LIMITED",
+
+    message:
+      "Too many verification codes were requested. Please wait before trying again.",
+  }),
+});
+
+/*
+ * =========================================
+ * Session Rate Limits
+ * =========================================
+ */
+
+/*
+ * Refreshing a session performs a database
+ * lookup and rotates its refresh token.
+ */
+
+const sessionRefreshLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 30,
+
+  handler: createRateLimitHandler({
+    code: "SESSION_REFRESH_RATE_LIMITED",
+
+    message:
+      "Too many session refresh requests were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * Reading the current session does not rotate
+ * the token, so it can have a higher limit.
+ */
+
+const sessionReadLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 120,
+
+  handler: createRateLimitHandler({
+    code: "SESSION_READ_RATE_LIMITED",
+
+    message:
+      "Too many session requests were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * Logout is inexpensive, but a reasonable
+ * limit prevents unnecessary database work.
+ */
+
+const logoutLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+
+  limit: 30,
+
+  handler: createRateLimitHandler({
+    code: "LOGOUT_RATE_LIMITED",
+
+    message:
+      "Too many logout requests were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * =========================================
+ * Registration Routes
+ * =========================================
+ */
+
+router.post(
+  "/register/request",
+
+  registrationRequestLimiter,
+
+  requestRegistration,
+);
+
+router.post(
+  "/register/verify",
+
+  registrationVerificationLimiter,
+
+  verifyRegistration,
+);
+
+router.post(
+  "/register/complete",
+
+  registrationCompletionLimiter,
+
+  completeRegistration,
+);
+
+/*
+ * =========================================
+ * Login Routes
+ * =========================================
+ */
+
+router.post(
+  "/login/password",
+
+  passwordLoginLimiter,
+
+  requestPasswordLogin,
+);
+
+router.post(
+  "/login/resend",
+
+  loginResendLimiter,
+
+  resendLoginOtp,
+);
+
+router.post(
+  "/login/verify",
+
+  loginVerificationLimiter,
+
+  verifyLogin,
+);
+
+/*
+ * =========================================
+ * Session Routes
+ * =========================================
+ */
+
+router.post(
+  "/session/refresh",
+
+  sessionRefreshLimiter,
+
+  refreshSession,
+);
+
+router.get(
+  "/session",
+
+  sessionReadLimiter,
+
+  getCurrentSession,
+);
+
+/*
+ * =========================================
+ * Logout Route
+ * =========================================
+ */
+
+router.post(
+  "/logout",
+
+  logoutLimiter,
+
+  logout,
+);
+
+export default router;
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js
+----------------------------------------
+import { uploadProfilePicture } from "../middleware/profile/profilePictureUploadMiddleware.js";
+import { validateProfilePicture } from "../middleware/profile/profilePictureValidationMiddleware.js";
+
+import { Router } from "express";
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+import {
+  deleteProfilePictureController,
+  getMyProfile,
+  updateMyProfile,
+  uploadProfilePictureController,
+} from "../controllers/profileController.js";
+
+const router = Router();
+
+router.use(requireAuthentication);
+
+router.post(
+  "/pictures/upload",
+  uploadProfilePicture,
+  validateProfilePicture,
+  uploadProfilePictureController,
+);
+
+router.delete("/pictures/upload", deleteProfilePictureController);
+
+router.get("/me", getMyProfile);
+router.put("/me", updateMyProfile);
+
+export default router;
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\projectRoutes.js
+----------------------------------------
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch(
+  "/:projectId/archive",
+  setMyProjectArchiveStatus,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+export default router;
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\skillRoutes.js
+----------------------------------------
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\supportRoutes.js
+----------------------------------------
+import { Router } from "express";
+
+import { rateLimit } from "express-rate-limit";
+
+import { submitContactRequest } from "../controllers/contactController.js";
+
+/*
+ * =========================================
+ * Support Router
+ * =========================================
+ */
+
+const router = Router();
+
+/*
+ * =========================================
+ * Contact Rate Limiter
+ * =========================================
+ *
+ * Five submissions per IP every 15 minutes.
+ */
+
+const contactSubmissionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+
+  limit: 5,
+
+  standardHeaders: "draft-8",
+
+  legacyHeaders: false,
+
+  skip(request) {
+    if (request.method === "OPTIONS") {
+      return true;
+    }
+
+    /*
+     * API tests can bypass the shared in-memory
+     * limiter without creating production bypass
+     * behavior.
+     */
+
+    return (
+      process.env.NODE_ENV === "test" &&
+      request.get("x-test-bypass-rate-limit") === "true"
+    );
+  },
+
+  handler(request, response) {
+    response.setHeader("Cache-Control", "no-store");
+
+    return response.status(429).json({
+      status: "error",
+
+      code: "CONTACT_SUBMISSION_RATE_LIMITED",
+
+      message:
+        "Too many contact requests were submitted. Please wait before trying again.",
+    });
+  },
+});
+
+/*
+ * =========================================
+ * Contact Route
+ * =========================================
+ */
+
+router.post(
+  "/contact",
+
+  contactSubmissionLimiter,
+
+  submitContactRequest,
+);
+
+export default router;
+
+========================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\userRoutes.js
+----------------------------------------
+import { Router } from "express";
+
+import { rateLimit } from "express-rate-limit";
+
+import {
+  getCurrentUser,
+  getCurrentUserSessions,
+  revokeCurrentUserSession,
+  revokeOtherCurrentUserSessions,
+} from "../controllers/userController.js";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+/*
+ * =========================================
+ * User Router
+ * =========================================
+ */
+
+const router = Router();
+
+/*
+ * =========================================
+ * Rate-Limit Response
+ * =========================================
+ */
+
+function createRateLimitHandler({ code, message }) {
+  return (request, response) => {
+    response.setHeader("Cache-Control", "no-store");
+
+    return response.status(429).json({
+      status: "error",
+      code,
+      message,
+    });
+  };
+}
+
+/*
+ * =========================================
+ * Shared Configuration
+ * =========================================
+ */
+
+const sharedRateLimitOptions = {
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+
+  skip(request) {
+    return request.method === "OPTIONS";
+  },
+};
+
+/*
+ * =========================================
+ * Session Read Limit
+ * =========================================
+ */
+
+const userSessionReadLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+  limit: 120,
+
+  handler: createRateLimitHandler({
+    code: "USER_SESSION_READ_RATE_LIMITED",
+
+    message:
+      "Too many session requests were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * =========================================
+ * Session Revocation Limit
+ * =========================================
+ */
+
+const userSessionRevocationLimiter = rateLimit({
+  ...sharedRateLimitOptions,
+
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+
+  handler: createRateLimitHandler({
+    code: "USER_SESSION_REVOCATION_RATE_LIMITED",
+
+    message:
+      "Too many session revocation requests were made. Please wait before trying again.",
+  }),
+});
+
+/*
+ * =========================================
+ * Current Authenticated User
+ * =========================================
+ */
+
+router.get(
+  "/me",
+
+  requireAuthentication,
+
+  getCurrentUser,
+);
+
+/*
+ * =========================================
+ * Active Sessions
+ * =========================================
+ */
+
+router.get(
+  "/me/sessions",
+
+  userSessionReadLimiter,
+
+  requireAuthentication,
+
+  getCurrentUserSessions,
+);
+
+/*
+ * This route must remain before the dynamic
+ * :sessionId route.
+ */
+
+router.post(
+  "/me/sessions/revoke-others",
+
+  userSessionRevocationLimiter,
+
+  requireAuthentication,
+
+  revokeOtherCurrentUserSessions,
+);
+
+router.delete(
+  "/me/sessions/:sessionId",
+
+  userSessionRevocationLimiter,
+
+  requireAuthentication,
+
+  revokeCurrentUserSession,
+);
+
+export default router;
+
+========================================
+

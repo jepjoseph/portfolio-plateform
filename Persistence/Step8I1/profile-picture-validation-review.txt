@@ -1,0 +1,121 @@
+import fs from "node:fs/promises";
+
+import { fileTypeFromFile } from "file-type";
+
+const ALLOWED_PROFILE_PICTURE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+]);
+
+function createValidationError({
+  message,
+  code = "PROFILE_PICTURE_VALIDATION_FAILED",
+  status = 400,
+  publicMessage = "The uploaded profile picture is invalid.",
+}) {
+  const error = new Error(message);
+
+  error.name = "ProfilePictureValidationError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+async function removeUploadedFile(filePath) {
+  if (!filePath) {
+    return;
+  }
+
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    /*
+     * ENOENT means the file is already gone.
+     * Any other cleanup failure should still be surfaced.
+     */
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+export async function validateProfilePicture(request, response, next) {
+  const uploadedFile = request.file;
+
+  if (!uploadedFile?.path) {
+    return next(
+      createValidationError({
+        message: "No uploaded profile-picture file was available.",
+        code: "PROFILE_PICTURE_FILE_REQUIRED",
+        publicMessage: "Please select a profile picture to upload.",
+      }),
+    );
+  }
+
+  try {
+    const detectedType = await fileTypeFromFile(uploadedFile.path);
+
+    if (
+      !detectedType ||
+      !ALLOWED_PROFILE_PICTURE_TYPES.has(detectedType.mime)
+    ) {
+      await removeUploadedFile(uploadedFile.path);
+
+      return next(
+        createValidationError({
+          message:
+            "The uploaded file does not contain a supported image signature.",
+          code: "PROFILE_PICTURE_CONTENT_TYPE_NOT_ALLOWED",
+          publicMessage:
+            "The uploaded file must be a valid JPEG, PNG, WebP, AVIF, or GIF image.",
+        }),
+      );
+    }
+
+    if (detectedType.mime !== uploadedFile.mimetype) {
+      await removeUploadedFile(uploadedFile.path);
+
+      return next(
+        createValidationError({
+          message:
+            `Profile-picture MIME mismatch: declared ${uploadedFile.mimetype}, ` +
+            `detected ${detectedType.mime}.`,
+          code: "PROFILE_PICTURE_TYPE_MISMATCH",
+          publicMessage:
+            "The uploaded file type does not match its image content.",
+        }),
+      );
+    }
+
+    /*
+     * Store the verified values for downstream code.
+     * From this point forward, detectedType is more trustworthy
+     * than the browser-supplied MIME type.
+     */
+    request.profilePictureFile = {
+      ...uploadedFile,
+      verifiedMimeType: detectedType.mime,
+      verifiedExtension: detectedType.ext,
+    };
+
+    return next();
+  } catch (error) {
+    /*
+     * If validation itself fails, do not leave an uploaded
+     * file behind.
+     */
+    try {
+      await removeUploadedFile(uploadedFile.path);
+    } catch (cleanupError) {
+      console.error("Failed to clean up profile-picture upload:", cleanupError);
+    }
+
+    return next(error);
+  }
+}
+

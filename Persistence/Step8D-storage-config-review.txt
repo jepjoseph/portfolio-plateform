@@ -1,0 +1,2342 @@
+STEP 8D - STORAGE CONFIGURATION AND MEDIA MODEL
+
+================================
+FILE: .\backend\src\config\environment.js
+================================
+import { z } from "zod";
+
+/*
+ * =========================================
+ * Boolean Environment Values
+ * =========================================
+ */
+
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
+const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+
+/*
+ * =========================================
+ * Optional Text Normalization
+ * =========================================
+ */
+
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue || undefined;
+}
+
+/*
+ * =========================================
+ * Boolean Normalization
+ * =========================================
+ */
+
+function normalizeBooleanValue(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (TRUE_VALUES.has(normalizedValue)) {
+    return true;
+  }
+
+  if (FALSE_VALUES.has(normalizedValue)) {
+    return false;
+  }
+
+  return value;
+}
+
+/*
+ * =========================================
+ * Environment Schema
+ * =========================================
+ */
+
+const environmentSchema = z
+  .object({
+    /*
+     * =========================================
+     * Application
+     * =========================================
+     */
+
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+
+    PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+
+    FRONTEND_URL: z.string().trim().min(1).default("http://localhost:5173"),
+
+    PROFILE_PICTURE_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROFILE_PICTURE_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Connection
+     * =========================================
+     */
+
+    DB_HOST: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
+
+    DB_NAME: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_USER: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PASSWORD: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Security
+     * =========================================
+     */
+
+    DB_ENCRYPT: z.preprocess(normalizeBooleanValue, z.boolean()).default(true),
+
+    DB_TRUST_SERVER_CERTIFICATE: z
+      .preprocess(normalizeBooleanValue, z.boolean())
+      .default(false),
+
+    /*
+     * =========================================
+     * Database Timeouts
+     * =========================================
+     */
+
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+
+    DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Database Pool
+     * =========================================
+     */
+
+    DB_POOL_MIN: z.coerce.number().int().min(0).default(0),
+
+    DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+
+    DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Authentication Security Secrets
+     * =========================================
+     *
+     * These secrets are optional while the
+     * authentication routes are not active.
+     *
+     * Authentication utilities will reject
+     * operations if the secrets are missing.
+     */
+
+    AUTH_OTP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_TOKEN_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_IP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Email Delivery
+     * =========================================
+     */
+
+    EMAIL_PROVIDER: z.enum(["development", "resend"]).default("development"),
+
+    EMAIL_FROM_NAME: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .default("PortAncest Portfolio Platform"),
+
+    EMAIL_FROM_ADDRESS: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().email().optional(),
+    ),
+
+    RESEND_API_KEY: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().min(20).optional(),
+    ),
+
+    /*
+     * Authentication Sessions
+     */
+
+    SESSION_REFRESH_TOKEN_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .default(30),
+
+    SESSION_COOKIE_NAME: z
+      .string()
+      .trim()
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        "SESSION_COOKIE_NAME contains unsupported characters.",
+      )
+      .default("portfolio_refresh_token"),
+
+    SESSION_COOKIE_PATH: z.string().trim().startsWith("/").default("/api"),
+
+    SESSION_COOKIE_DOMAIN: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    SESSION_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  })
+
+  /*
+   * =========================================
+   * Cross-Field Validation
+   * =========================================
+   */
+
+  .superRefine((values, context) => {
+    /*
+     * =========================================
+     * Database Configuration Validation
+     * =========================================
+     */
+
+    const databaseFields = [
+      ["DB_HOST", values.DB_HOST],
+
+      ["DB_NAME", values.DB_NAME],
+
+      ["DB_USER", values.DB_USER],
+
+      ["DB_PASSWORD", values.DB_PASSWORD],
+    ];
+
+    /*
+     * The API can temporarily run without a
+     * database.
+     *
+     * However, when any required database value
+     * is supplied, all required database values
+     * must be supplied.
+     */
+
+    const hasAnyDatabaseValue = databaseFields.some(([, value]) =>
+      Boolean(value),
+    );
+
+    if (hasAnyDatabaseValue) {
+      for (const [fieldName, value] of databaseFields) {
+        if (!value) {
+          context.addIssue({
+            code: "custom",
+
+            path: [fieldName],
+
+            message: `${fieldName} is required when database access is configured.`,
+          });
+        }
+      }
+    }
+
+    /*
+     * =========================================
+     * Database Pool Validation
+     * =========================================
+     */
+
+    if (values.DB_POOL_MIN > values.DB_POOL_MAX) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["DB_POOL_MIN"],
+
+        message: "DB_POOL_MIN cannot be greater than DB_POOL_MAX.",
+      });
+    }
+
+    /*
+     * =========================================
+     * Prevents OTPs from accidentally being printed in Azure production logs
+     * =========================================
+     */
+
+    if (
+      values.NODE_ENV === "production" &&
+      values.EMAIL_PROVIDER === "development"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["EMAIL_PROVIDER"],
+
+        message: "The development email provider cannot be used in production.",
+      });
+    }
+
+    if (
+      values.SESSION_COOKIE_SAME_SITE === "none" &&
+      values.NODE_ENV !== "production"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["SESSION_COOKIE_SAME_SITE"],
+
+        message:
+          'SameSite "none" requires a secure production HTTPS environment.',
+      });
+    }
+
+    /*
+     * =========================================
+     * Resend Configuration
+     * =========================================
+     */
+
+    if (values.EMAIL_PROVIDER === "resend") {
+      if (!values.RESEND_API_KEY) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["RESEND_API_KEY"],
+
+          message: "RESEND_API_KEY is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+
+      if (!values.EMAIL_FROM_ADDRESS) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["EMAIL_FROM_ADDRESS"],
+
+          message:
+            "EMAIL_FROM_ADDRESS is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+    }
+  });
+
+/*
+ * =========================================
+ * Cached Environment
+ * =========================================
+ */
+
+let cachedEnvironment;
+
+/*
+ * =========================================
+ * Read and Validate Environment
+ * =========================================
+ */
+
+export function getEnvironment() {
+  if (cachedEnvironment) {
+    return cachedEnvironment;
+  }
+
+  const result = environmentSchema.safeParse(process.env);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map(
+        (issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`,
+      )
+      .join("\n");
+
+    throw new Error(`Invalid environment configuration:\n${details}`);
+  }
+
+  cachedEnvironment = Object.freeze(result.data);
+
+  return cachedEnvironment;
+}
+
+/*
+ * =========================================
+ * Database Configuration Status
+ * =========================================
+ */
+
+export function isDatabaseConfigured(environment = getEnvironment()) {
+  return Boolean(
+    environment.DB_HOST &&
+    environment.DB_NAME &&
+    environment.DB_USER &&
+    environment.DB_PASSWORD,
+  );
+}
+
+/*
+ * =========================================
+ * Authentication Secret Access
+ * =========================================
+ *
+ * This function prevents authentication
+ * operations from running without all three
+ * security secrets.
+ */
+
+export function getAuthenticationSecrets(environment = getEnvironment()) {
+  const secrets = {
+    otp: environment.AUTH_OTP_HMAC_SECRET,
+
+    token: environment.AUTH_TOKEN_HMAC_SECRET,
+
+    ip: environment.AUTH_IP_HMAC_SECRET,
+  };
+
+  const missingSecrets = Object.entries(secrets)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missingSecrets.length > 0) {
+    const error = new Error(
+      `Authentication security secrets are missing: ${missingSecrets.join(", ")}.`,
+    );
+
+    error.name = "AuthenticationConfigurationError";
+
+    error.code = "AUTHENTICATION_NOT_CONFIGURED";
+
+    error.status = 503;
+
+    error.publicMessage = "Authentication service is temporarily unavailable.";
+
+    throw error;
+  }
+
+  return Object.freeze(secrets);
+}
+
+
+================================
+FILE: .\backend\src\app.js
+================================
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+
+import userRoutes from "./routes/userRoutes.js";
+
+import { checkDatabaseHealth } from "./config/database.js";
+
+import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+
+import aiRoutes from "./routes/aiRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
+
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middleware/errorMiddleware.js";
+
+import supportRoutes from "./routes/supportRoutes.js";
+
+/*
+ * =========================================
+ * Environment and Application
+ * =========================================
+ */
+
+const environment = getEnvironment();
+
+const app = express();
+
+/*
+ * =========================================
+ * Express Information Header
+ * =========================================
+ */
+
+app.disable("x-powered-by");
+
+/*
+ * =========================================
+ * Security Headers
+ * =========================================
+ */
+
+app.use(helmet());
+
+/*
+ * =========================================
+ * Allowed Frontend Origins
+ * =========================================
+ */
+
+const allowedOrigins = environment.FRONTEND_URL.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/*
+ * =========================================
+ * CORS
+ * =========================================
+ */
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      /*
+       * Postman, curl and server-to-server
+       * requests may not include Origin.
+       */
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      const error = new Error(`Origin not allowed by CORS: ${origin}`);
+
+      error.name = "CorsOriginError";
+
+      error.code = "CORS_ORIGIN_DENIED";
+
+      error.status = 403;
+
+      error.publicMessage = "This website is not allowed to access the API.";
+
+      return callback(error);
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+/*
+ * =========================================
+ * Public Profile Pictures
+ * =========================================
+ */
+
+if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+  app.use(
+    "/uploads/profile-pictures",
+    (request, response, next) => {
+      /*
+       * Profile pictures are intentionally public assets.
+       * Allow the portfolio frontend to display them even
+       * though the frontend and API use different origins.
+       */
+
+      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      next();
+    },
+    express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+      fallthrough: true,
+      index: false,
+      dotfiles: "deny",
+    }),
+  );
+}
+
+/*
+ * =========================================
+ * Request Body
+ * =========================================
+ */
+
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
+/*
+ * =========================================
+ * API Health Check
+ * =========================================
+ */
+
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+
+    service: "portfolio-platform-api",
+
+    environment: environment.NODE_ENV,
+
+    databaseConfigured: isDatabaseConfigured(environment),
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+app.get("/api/health/database", async (req, res) => {
+  const health = await checkDatabaseHealth();
+
+  const isHealthy = health.status === "ok";
+
+  let message = "Database connection is unavailable.";
+
+  if (isHealthy) {
+    message = "Database connection is healthy.";
+  } else if (health.status === "not-configured") {
+    message = "Database service is not configured.";
+  }
+
+  return res.status(isHealthy ? 200 : 503).json({
+    status: health.status,
+
+    service: "portfolio-platform-database",
+
+    configured: health.configured,
+
+    responseTimeMs: health.responseTimeMs,
+
+    message,
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Application Routes
+ * =========================================
+ */
+app.use("/api/auth", authRoutes);
+
+app.use("/api/ai", aiRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/support", supportRoutes);
+
+app.use("/api/profile", profileRoutes);
+app.use("/api/projects", projectRoutes);
+/*
+ * The Profile and Skill routes remain disabled
+ * until their repositories and authentication
+ * middleware are implemented.
+ *
+ * Later:
+ *
+ * app.use("/api/profile", profileRoutes);
+ * app.use("/api/skills", skillRoutes);
+ */
+
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+app.use(notFoundHandler);
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+app.use(globalErrorHandler);
+
+export default app;
+
+
+================================
+FILE: .\backend\src\schemas\projectNestedValidation.js
+================================
+const CATEGORY_VALUES = new Set([
+  "software", "web-application", "mobile-application",
+  "artificial-intelligence", "data", "cloud-infrastructure",
+  "networking", "cybersecurity", "embedded-systems",
+  "electronics", "automation", "internet-of-things",
+  "research", "design", "business", "academic",
+  "community", "other",
+]);
+
+const OPTIONS = {
+  ownership: ["individual", "team", "client", "organization"],
+  source: ["manual", "import", "integration", "ai-assisted"],
+  proficiency: ["", "foundational", "intermediate", "advanced", "expert"],
+  recognitionType: [
+    "", "award", "competition", "grant", "fellowship", "showcase",
+    "publication", "presentation", "patent", "media",
+    "client-recognition", "academic-recognition", "other",
+  ],
+  placement: [
+    "", "winner", "first-place", "second-place", "third-place",
+    "finalist", "semifinalist", "honorable-mention", "selected",
+    "recipient", "participant", "other",
+  ],
+  mediaType: ["image", "video", "diagram"],
+  documentType: [
+    "report", "presentation", "documentation", "source-file",
+    "dataset", "design", "award", "supporting-evidence", "other",
+  ],
+  visibility: ["public", "private"],
+  recordStatus: ["active", "archived"],
+};
+
+const TEXT_LIMITS = {
+  "organization.name": 200,
+  "organization.clientName": 200,
+  "organization.website": 1000,
+  "location.displayValue": 300,
+  "problem.statement": 4000,
+  "problem.targetAudience": 1000,
+  "problem.context": 3000,
+  "problem.importance": 3000,
+  "solution.overview": 4000,
+  "solution.approach": 4000,
+  "solution.architecture": 4000,
+  "results.outcome": 4000,
+  "results.problemsSolved": 3000,
+  "results.impact": 3000,
+  "results.beneficiariesAffected": 2000,
+  "results.lessonsLearned": 3000,
+  "results.futureImprovements": 3000,
+  "presentation.shortSummary": 500,
+  "presentation.caseStudy": 12000,
+  "presentation.featuredMediaId": 200,
+  "privateInformation.notes": 5000,
+  "sourceContext": 5000 / 10,
+};
+
+const COLLECTION_FIELDS = [
+  ["problem.constraints", 1500],
+  ["problem.objectives", 1500],
+  ["solution.features", 1500],
+  ["solution.contributions", 1500],
+];
+
+function object(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function fieldValue(source, path) {
+  return path.split(".").reduce(
+    (current, key) => object(current) ? current[key] : undefined,
+    source,
+  );
+}
+
+function error(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function checkText(errors, field, value, maximum) {
+  if (value === undefined) return;
+
+  if (typeof value !== "string" || value.trim().length > maximum) {
+    error(
+      errors, field, "PROJECT_FIELD_INVALID",
+      `This field must be text with at most ${maximum} characters.`,
+    );
+  }
+}
+
+function checkOption(errors, field, value, options) {
+  if (value === undefined) return;
+
+  if (!options.includes(value)) {
+    error(errors, field, "PROJECT_OPTION_INVALID", "Invalid option.");
+  }
+}
+
+function checkUrl(errors, field, value, maximum = 2000) {
+  if (value === undefined) return;
+
+  checkText(errors, field, value, maximum);
+
+  if (typeof value !== "string" || !value.trim()) return;
+
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+  } catch {
+    error(errors, field, "PROJECT_URL_INVALID", "Invalid HTTP or HTTPS URL.");
+  }
+}
+
+function checkItems(errors, source, path, callback) {
+  const items = fieldValue(source, path);
+  if (items === undefined || !Array.isArray(items)) return;
+
+  items.forEach((item, index) => {
+    const base = `${path}.${index}`;
+
+    if (!object(item)) {
+      error(errors, base, "PROJECT_ITEM_INVALID", "Expected an object.");
+      return;
+    }
+
+    callback(item, base);
+  });
+}
+
+function checkOrderedItems(errors, source, path, maximum) {
+  checkItems(errors, source, path, (item, base) => {
+    checkText(errors, `${base}.id`, item.id, 200);
+    checkText(errors, `${base}.text`, item.text, maximum);
+  });
+}
+
+export function validateNestedProject(source) {
+  const errors = [];
+
+  for (const [field, maximum] of Object.entries(TEXT_LIMITS)) {
+    checkText(errors, field, fieldValue(source, field), maximum);
+  }
+
+  checkOption(errors, "ownership", source.ownership, OPTIONS.ownership);
+  checkOption(errors, "source", source.source, OPTIONS.source);
+
+  if (source.modelVersion !== undefined && source.modelVersion !== 2) {
+    error(errors, "modelVersion", "PROJECT_VERSION_INVALID",
+      "Unsupported Project model version.");
+  }
+
+  for (const field of [
+    "liveUrl", "repositoryUrl", "documentationUrl",
+    "caseStudyUrl", "videoUrl",
+  ]) {
+    checkUrl(errors, `links.${field}`, source.links?.[field]);
+  }
+
+  checkUrl(errors, "organization.website", source.organization?.website, 1000);
+
+  for (const [path, maximum] of COLLECTION_FIELDS) {
+    checkOrderedItems(errors, source, path, maximum);
+  }
+
+  checkItems(errors, source, "results.metrics", (item, base) => {
+    checkText(errors, `${base}.label`, item.label, 200);
+    checkText(errors, `${base}.value`, item.value, 200);
+    checkText(errors, `${base}.description`, item.description, 500);
+  });
+
+  checkItems(errors, source, "skillRelationships", (item, base) => {
+    checkText(errors, `${base}.nameSnapshot`, item.nameSnapshot, 200);
+    checkText(errors, `${base}.usageDescription`, item.usageDescription, 1000);
+    checkOption(errors, `${base}.demonstratedProficiency`,
+      item.demonstratedProficiency, OPTIONS.proficiency);
+
+    if (!item.skillId && !item.nameSnapshot) {
+      error(errors, base, "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A Skill identifier or snapshot is required.");
+    }
+  });
+
+  checkItems(errors, source, "technologies", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 150);
+    checkText(errors, `${base}.category`, item.category, 100);
+  });
+
+  const relationshipTypes = [
+    ["experienceRelationships", "experienceId"],
+    ["educationRelationships", "educationId"],
+    ["trainingRelationships", "trainingId"],
+    ["certificationRelationships", "certificationId"],
+  ];
+
+  for (const [name, idField] of relationshipTypes) {
+    checkItems(errors, source, `relatedRecords.${name}`, (item, base) => {
+      checkText(errors, `${base}.${idField}`, item[idField], 200);
+      checkText(errors, `${base}.description`, item.description, 1000);
+
+      if (!item[idField]) {
+        error(errors, `${base}.${idField}`, "PROJECT_RELATIONSHIP_ID_REQUIRED",
+          "A related record identifier is required.");
+      }
+
+      if (item.snapshot !== undefined && !object(item.snapshot)) {
+        error(errors, `${base}.snapshot`, "PROJECT_SNAPSHOT_INVALID",
+          "Snapshot must be an object.");
+      } else {
+        checkText(errors, `${base}.snapshot.name`, item.snapshot?.name, 200);
+        checkText(errors, `${base}.snapshot.secondaryLabel`,
+          item.snapshot?.secondaryLabel, 200);
+      }
+    });
+  }
+
+  const documentIds = new Set(
+    Array.isArray(source.supportingDocuments)
+      ? source.supportingDocuments.map((item) => item?.id)
+      : [],
+  );
+
+  checkItems(errors, source, "awards", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 250);
+    checkText(errors, `${base}.organization`, item.organization, 250);
+    checkText(errors, `${base}.description`, item.description, 1500);
+    checkOption(errors, `${base}.recognitionType`,
+      item.recognitionType, OPTIONS.recognitionType);
+    checkOption(errors, `${base}.placement`, item.placement, OPTIONS.placement);
+    checkUrl(errors, `${base}.url`, item.url);
+
+    if (item.supportingDocumentIds !== undefined) {
+      if (!Array.isArray(item.supportingDocumentIds) ||
+          item.supportingDocumentIds.length > 10) {
+        error(errors, `${base}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_LIMIT", "Maximum 10 document references.");
+      } else {
+        for (const id of item.supportingDocumentIds) {
+          if (!documentIds.has(id)) {
+            error(errors, `${base}.supportingDocumentIds`,
+              "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+              "Referenced document does not exist in this Project.");
+          }
+        }
+      }
+    }
+  });
+
+  checkItems(errors, source, "media", (item, base) => {
+    checkOption(errors, `${base}.type`, item.type, OPTIONS.mediaType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.caption`, item.caption, 1000);
+    checkText(errors, `${base}.altText`, item.altText, 500);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  checkItems(errors, source, "supportingDocuments", (item, base) => {
+    checkOption(errors, `${base}.documentType`,
+      item.documentType, OPTIONS.documentType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.description`, item.description, 1000);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  if (source.visibility !== undefined) {
+    if (!object(source.visibility)) {
+      error(errors, "visibility", "PROJECT_VISIBILITY_INVALID",
+        "Visibility must be an object.");
+    } else {
+      for (const [name, value] of Object.entries(source.visibility)) {
+        if (typeof value !== "boolean") {
+          error(errors, `visibility.${name}`, "PROJECT_VISIBILITY_INVALID",
+            "Visibility must be true or false.");
+        }
+      }
+    }
+  }
+
+  if (source.presentation?.featuredMediaId) {
+    const featuredId = source.presentation.featuredMediaId;
+    const eligible = Array.isArray(source.media) &&
+      source.media.some((item) =>
+        item?.id === featuredId && item.status !== "archived" &&
+        item.visibility !== "private" &&
+        (item.storageKey || item.externalUrl),
+      );
+
+    if (!eligible) {
+      error(errors, "presentation.featuredMediaId",
+        "PROJECT_FEATURED_MEDIA_INVALID",
+        "Featured media must be active, public, and available.");
+    }
+  }
+
+  return errors;
+}
+
+
+================================
+FILE: .\frontend\src\models\projectModel.js
+================================
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../config/projectConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const PROJECT_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createProjectId(prefix = "project") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeNullableFileSize(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.max(0, numberValue);
+}
+
+/*
+ * =========================================
+ * Date Normalization
+ * =========================================
+ */
+
+function normalizeDate(value) {
+  const normalizedValue = normalizeText(value, 10);
+
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(normalizedValue)
+  ) {
+    return "";
+  }
+
+  return normalizedValue;
+}
+
+/*
+ * =========================================
+ * Identifier Collection
+ * =========================================
+ */
+
+function normalizeIdentifierList(values, maximumItems = Infinity) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedIdentifiers = values
+    .map((value) => {
+      if (typeof value === "string") {
+        return normalizeText(value, 200);
+      }
+
+      return normalizeText(value?.id, 200);
+    })
+    .filter(Boolean);
+
+  return [...new Set(normalizedIdentifiers)].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Ordered Text Items
+ * =========================================
+ */
+
+function normalizeOrderedTextItems(values, prefix, maximumItems) {
+  return normalizeArray(values)
+    .map((value) => {
+      const source =
+        typeof value === "string"
+          ? {
+              text: value,
+            }
+          : value && typeof value === "object"
+            ? value
+            : {};
+
+      return {
+        id: normalizeText(source.id, 200) || createProjectId(prefix),
+
+        text: normalizeText(
+          source.text || source.name || source.value,
+          PROJECT_FIELD_LIMITS.orderedItemText,
+        ),
+
+        order: 0,
+      };
+    })
+    .filter((item) => item.text)
+    .slice(0, maximumItems)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+}
+
+/*
+ * =========================================
+ * Related Record Relationships
+ * =========================================
+ */
+
+function normalizeRecordRelationships(values, type) {
+  const idField = `${type}Id`;
+
+  const seenIdentifiers = new Set();
+
+  return normalizeArray(values).reduce((relationships, value) => {
+    const source =
+      typeof value === "string"
+        ? {
+            [idField]: value,
+          }
+        : value && typeof value === "object"
+          ? value
+          : {};
+
+    const recordId = normalizeText(
+      source[idField] || source.recordId || source.id,
+      200,
+    );
+
+    const identity = recordId.toLocaleLowerCase();
+
+    if (
+      !recordId ||
+      seenIdentifiers.has(identity) ||
+      relationships.length >= PROJECT_FIELD_LIMITS.maximumRelationshipsPerType
+    ) {
+      return relationships;
+    }
+
+    seenIdentifiers.add(identity);
+
+    const snapshot =
+      source.snapshot &&
+      typeof source.snapshot === "object" &&
+      !Array.isArray(source.snapshot)
+        ? source.snapshot
+        : {};
+
+    relationships.push({
+      id:
+        normalizeText(
+          source.relationshipId || (source[idField] ? source.id : ""),
+          200,
+        ) || createProjectId(`project-${type}`),
+
+      [idField]: recordId,
+
+      description: normalizeText(
+        source.description,
+        PROJECT_FIELD_LIMITS.relationshipDescription,
+      ),
+
+      order: relationships.length,
+
+      snapshot: {
+        name: normalizeText(
+          snapshot.name || snapshot.title || source.name || source.title,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        secondaryLabel: normalizeText(
+          snapshot.secondaryLabel ||
+            source.secondaryLabel ||
+            source.organization?.name ||
+            source.provider?.name ||
+            source.institution?.name ||
+            source.issuingOrganization?.name,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        status: normalizeText(
+          snapshot.status || source.lifecycleStatus || source.status,
+          100,
+        ),
+      },
+    });
+
+    return relationships;
+  }, []);
+}
+
+/*
+ * =========================================
+ * Skill Relationship
+ * =========================================
+ */
+
+export function createProjectSkillRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const proficiency =
+    source.demonstratedProficiency || source.proficiency || source.level || "";
+
+  return {
+    id:
+      normalizeText(
+        source.relationshipId || (source.skillId ? source.id : ""),
+        200,
+      ) || createProjectId("project-skill"),
+
+    skillId: normalizeText(
+      source.skillId ||
+        source.profileSkillId ||
+        (!source.skillId ? source.id : ""),
+      200,
+    ),
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label || source.value,
+      PROJECT_FIELD_LIMITS.relationshipName,
+    ),
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      100,
+    ),
+
+    demonstratedProficiency: isValidProjectSkillProficiency(proficiency)
+      ? proficiency
+      : "",
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      PROJECT_FIELD_LIMITS.relationshipDescription,
+    ),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Media
+ * =========================================
+ */
+
+export function createProjectMedia(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const type = isValidProjectMediaType(source.type)
+    ? source.type
+    : source.mimeType?.startsWith("video/")
+      ? "video"
+      : "image";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-media"),
+
+    type,
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.mediaName,
+    ),
+
+    caption: normalizeText(source.caption, PROJECT_FIELD_LIMITS.mediaCaption),
+
+    altText: normalizeText(
+      source.altText || source.alternativeText || source.imageDescription,
+      PROJECT_FIELD_LIMITS.mediaAltText,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    previewMode: type === "video" ? "video" : "image",
+
+    isFeatured: normalizeBoolean(source.isFeatured, false),
+
+    visibility: source.visibility === "private" ? "private" : "public",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Document
+ * =========================================
+ */
+
+export function createProjectDocument(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-document"),
+
+    documentType: isValidProjectDocumentType(source.documentType)
+      ? source.documentType
+      : "supporting-evidence",
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.documentName,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.documentDescription,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    visibility: source.visibility === "public" ? "public" : "private",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Metric
+ * =========================================
+ */
+
+function createProjectMetric(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-metric"),
+
+    label: normalizeText(
+      source.label || source.name,
+      PROJECT_FIELD_LIMITS.metricLabel,
+    ),
+
+    value: normalizeText(
+      source.value || source.result,
+      PROJECT_FIELD_LIMITS.metricValue,
+    ),
+
+    description: normalizeText(
+      source.description || source.context,
+      PROJECT_FIELD_LIMITS.metricDescription,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Technology
+ * =========================================
+ */
+
+function createProjectTechnology(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-technology"),
+
+    name: normalizeText(
+      source.name || source.nameSnapshot || source.label || source.value,
+      PROJECT_FIELD_LIMITS.technologyName,
+    ),
+
+    /*
+     * Category remains a normalized snapshot.
+     * This preserves older free-text categories
+     * while the form transitions to configured
+     * technology-category options.
+     */
+
+    category: normalizeText(
+      source.category || source.categorySnapshot,
+      PROJECT_FIELD_LIMITS.technologyCategory,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Award
+ * =========================================
+ */
+
+function createProjectAward(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const recognitionType = source.recognitionType || source.type || "";
+
+  const placement = source.placement || source.result || "";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-award"),
+
+    name: normalizeText(
+      source.name || source.title,
+      PROJECT_FIELD_LIMITS.awardName,
+    ),
+
+    organization: normalizeText(
+      source.organization || source.awardingOrganization || source.issuer,
+      PROJECT_FIELD_LIMITS.awardOrganization,
+    ),
+
+    recognitionType: isValidProjectRecognitionType(recognitionType)
+      ? recognitionType
+      : "",
+
+    placement: isValidProjectAwardPlacement(placement) ? placement : "",
+
+    date: normalizeDate(source.date || source.awardDate),
+
+    url: normalizeText(
+      source.url || source.verificationUrl,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.awardDescription,
+    ),
+
+    supportingDocumentIds: normalizeIdentifierList(
+      source.supportingDocumentIds || source.documentIds,
+      PROJECT_FIELD_LIMITS.maximumAwardDocuments,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Empty Project
+ * =========================================
+ */
+
+export function createEmptyProject() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: createProjectId(),
+
+    title: "",
+
+    category: "software",
+
+    lifecycleStatus: "planned",
+
+    role: "",
+
+    ownership: "individual",
+
+    organization: {
+      name: "",
+      clientName: "",
+      website: "",
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    location: {
+      displayValue: "",
+    },
+
+    links: {
+      liveUrl: "",
+      repositoryUrl: "",
+      documentationUrl: "",
+      caseStudyUrl: "",
+      videoUrl: "",
+    },
+
+    problem: {
+      statement: "",
+      targetAudience: "",
+      context: "",
+      importance: "",
+      constraints: [],
+      objectives: [],
+    },
+
+    solution: {
+      overview: "",
+      approach: "",
+      architecture: "",
+      features: [],
+      contributions: [],
+    },
+
+    results: {
+      outcome: "",
+      problemsSolved: "",
+      impact: "",
+      beneficiariesAffected: "",
+      metrics: [],
+      lessonsLearned: "",
+      futureImprovements: "",
+    },
+
+    skillRelationships: [],
+
+    technologies: [],
+
+    relatedRecords: {
+      experienceRelationships: [],
+      educationRelationships: [],
+      trainingRelationships: [],
+      certificationRelationships: [],
+    },
+
+    awards: [],
+
+    media: [],
+
+    supportingDocuments: [],
+
+    presentation: {
+      shortSummary: "",
+      caseStudy: "",
+      featuredMediaId: "",
+      isFeatured: false,
+    },
+
+    visibility: {
+      showOrganization: true,
+      showLocation: true,
+      showDates: true,
+      showLinks: true,
+      showProblem: true,
+      showSolution: true,
+      showResults: true,
+      showSkills: true,
+      showTechnologies: true,
+      showRelatedRecords: true,
+      showAwards: true,
+      showMedia: true,
+      showSupportingDocuments: false,
+    },
+
+    privateInformation: {
+      notes: "",
+    },
+
+    source: "manual",
+
+    sourceContext: "",
+
+    recordStatus: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Featured Media Eligibility
+ * =========================================
+ */
+
+function isEligibleFeaturedMedia(mediaItem) {
+  return Boolean(
+    mediaItem &&
+    mediaItem.status !== "archived" &&
+    mediaItem.visibility !== "private" &&
+    (normalizeText(mediaItem.storageKey, 500) ||
+      normalizeText(mediaItem.externalUrl, PROJECT_FIELD_LIMITS.url)),
+  );
+}
+
+/*
+ * =========================================
+ * Project Normalization
+ * =========================================
+ */
+
+export function normalizeProject(value = {}) {
+  const defaults = createEmptyProject();
+
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  const getObject = (fieldName) =>
+    source[fieldName] &&
+    typeof source[fieldName] === "object" &&
+    !Array.isArray(source[fieldName])
+      ? source[fieldName]
+      : {};
+
+  const organization = getObject("organization");
+  const dates = getObject("dates");
+  const location = getObject("location");
+  const links = getObject("links");
+  const problem = getObject("problem");
+  const solution = getObject("solution");
+  const results = getObject("results");
+  const relatedRecords = getObject("relatedRecords");
+  const presentation = getObject("presentation");
+  const visibility = getObject("visibility");
+  const privateInformation = getObject("privateInformation");
+
+  const lifecycleStatus = isValidProjectLifecycleStatus(
+    source.lifecycleStatus || source.projectStatus,
+  )
+    ? source.lifecycleStatus || source.projectStatus
+    : defaults.lifecycleStatus;
+
+  const isCurrent = normalizeBoolean(
+    dates.isCurrent,
+    ["in-progress", "maintained"].includes(lifecycleStatus),
+  );
+
+  /*
+   * =========================================
+   * Media Normalization
+   * =========================================
+   */
+
+  const media = normalizeArray(source.media)
+    .map((item, order) => createProjectMedia(item, order))
+    .filter((item) => item.name || item.storageKey || item.externalUrl)
+    .slice(0, PROJECT_FIELD_LIMITS.maximumMedia)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+
+  const requestedFeaturedMediaId = normalizeText(
+    presentation.featuredMediaId,
+    200,
+  );
+
+  const featuredMedia =
+    media.find(
+      (item) =>
+        item.id === requestedFeaturedMediaId && isEligibleFeaturedMedia(item),
+    ) ||
+    media.find((item) => item.isFeatured && isEligibleFeaturedMedia(item)) ||
+    media.find(isEligibleFeaturedMedia) ||
+    null;
+
+  /*
+   * =========================================
+   * Skill Relationship Normalization
+   * =========================================
+   */
+
+  const seenSkills = new Set();
+
+  const skillRelationships = normalizeArray(source.skillRelationships)
+    .map((relationship, order) =>
+      createProjectSkillRelationship(relationship, order),
+    )
+    .filter((relationship) => {
+      const identity = (relationship.skillId || relationship.nameSnapshot)
+        .normalize("NFKC")
+        .toLocaleLowerCase();
+
+      if (!identity || seenSkills.has(identity)) {
+        return false;
+      }
+
+      seenSkills.add(identity);
+
+      return true;
+    })
+    .slice(0, PROJECT_FIELD_LIMITS.maximumSkills)
+    .map((relationship, order) => ({
+      ...relationship,
+      order,
+    }));
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  const supportingDocuments = normalizeArray(source.supportingDocuments)
+    .map((documentRecord, order) =>
+      createProjectDocument(documentRecord, order),
+    )
+    .filter(
+      (documentRecord) =>
+        documentRecord.name ||
+        documentRecord.storageKey ||
+        documentRecord.externalUrl,
+    )
+    .slice(0, PROJECT_FIELD_LIMITS.maximumDocuments)
+    .map((documentRecord, order) => ({
+      ...documentRecord,
+      order,
+    }));
+
+  const validDocumentIds = new Set(
+    supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  /*
+   * =========================================
+   * Normalized Project
+   * =========================================
+   */
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    title: normalizeText(
+      source.title || source.name,
+      PROJECT_FIELD_LIMITS.title,
+    ),
+
+    category: isValidProjectCategory(source.category)
+      ? source.category
+      : defaults.category,
+
+    lifecycleStatus,
+
+    role: normalizeText(source.role, PROJECT_FIELD_LIMITS.role),
+
+    ownership: isValidProjectOwnership(source.ownership)
+      ? source.ownership
+      : defaults.ownership,
+
+    organization: {
+      name: normalizeText(
+        organization.name,
+        PROJECT_FIELD_LIMITS.organizationName,
+      ),
+
+      clientName: normalizeText(
+        organization.clientName,
+        PROJECT_FIELD_LIMITS.clientName,
+      ),
+
+      website: normalizeText(
+        organization.website,
+        PROJECT_FIELD_LIMITS.website,
+      ),
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    location: {
+      displayValue: normalizeText(
+        location.displayValue ||
+          source.locationValue ||
+          (typeof source.location === "string" ? source.location : ""),
+        PROJECT_FIELD_LIMITS.locationDisplayValue,
+      ),
+    },
+
+    links: {
+      liveUrl: normalizeText(links.liveUrl, PROJECT_FIELD_LIMITS.url),
+
+      repositoryUrl: normalizeText(
+        links.repositoryUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      documentationUrl: normalizeText(
+        links.documentationUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      caseStudyUrl: normalizeText(links.caseStudyUrl, PROJECT_FIELD_LIMITS.url),
+
+      videoUrl: normalizeText(links.videoUrl, PROJECT_FIELD_LIMITS.url),
+    },
+
+    problem: {
+      statement: normalizeText(
+        problem.statement,
+        PROJECT_FIELD_LIMITS.problemStatement,
+      ),
+
+      targetAudience: normalizeText(
+        problem.targetAudience,
+        PROJECT_FIELD_LIMITS.targetAudience,
+      ),
+
+      context: normalizeText(problem.context, PROJECT_FIELD_LIMITS.context),
+
+      importance: normalizeText(
+        problem.importance || problem.whyImportant,
+        PROJECT_FIELD_LIMITS.importance,
+      ),
+
+      constraints: normalizeOrderedTextItems(
+        problem.constraints,
+        "project-constraint",
+        PROJECT_FIELD_LIMITS.maximumConstraints,
+      ),
+
+      objectives: normalizeOrderedTextItems(
+        problem.objectives,
+        "project-objective",
+        PROJECT_FIELD_LIMITS.maximumObjectives,
+      ),
+    },
+
+    solution: {
+      overview: normalizeText(
+        solution.overview || source.description,
+        PROJECT_FIELD_LIMITS.overview,
+      ),
+
+      approach: normalizeText(
+        solution.approach || solution.proposedSolution,
+        PROJECT_FIELD_LIMITS.approach,
+      ),
+
+      architecture: normalizeText(
+        solution.architecture || solution.implementationSummary,
+        PROJECT_FIELD_LIMITS.architecture,
+      ),
+
+      features: normalizeOrderedTextItems(
+        solution.features,
+        "project-feature",
+        PROJECT_FIELD_LIMITS.maximumFeatures,
+      ),
+
+      contributions: normalizeOrderedTextItems(
+        solution.contributions,
+        "project-contribution",
+        PROJECT_FIELD_LIMITS.maximumContributions,
+      ),
+    },
+
+    results: {
+      outcome: normalizeText(results.outcome, PROJECT_FIELD_LIMITS.outcome),
+
+      problemsSolved: normalizeText(
+        results.problemsSolved || results.solutionImpact,
+        PROJECT_FIELD_LIMITS.problemsSolved,
+      ),
+
+      impact: normalizeText(results.impact, PROJECT_FIELD_LIMITS.impact),
+
+      beneficiariesAffected: normalizeText(
+        results.beneficiariesAffected ||
+          results.peopleAffected ||
+          results.organizationsAffected,
+        PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      ),
+
+      metrics: normalizeArray(results.metrics)
+        .map((metric, order) => createProjectMetric(metric, order))
+        .filter((metric) => metric.label || metric.value)
+        .slice(0, PROJECT_FIELD_LIMITS.maximumMetrics)
+        .map((metric, order) => ({
+          ...metric,
+          order,
+        })),
+
+      lessonsLearned: normalizeText(
+        results.lessonsLearned,
+        PROJECT_FIELD_LIMITS.lessonsLearned,
+      ),
+
+      futureImprovements: normalizeText(
+        results.futureImprovements,
+        PROJECT_FIELD_LIMITS.futureImprovements,
+      ),
+    },
+
+    skillRelationships,
+
+    technologies: normalizeArray(source.technologies)
+      .map((technology, order) => createProjectTechnology(technology, order))
+      .filter((technology) => technology.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumTechnologies)
+      .map((technology, order) => ({
+        ...technology,
+        order,
+      })),
+
+    relatedRecords: {
+      experienceRelationships: normalizeRecordRelationships(
+        relatedRecords.experienceRelationships || source.relatedExperienceIds,
+        "experience",
+      ),
+
+      educationRelationships: normalizeRecordRelationships(
+        relatedRecords.educationRelationships || source.relatedEducationIds,
+        "education",
+      ),
+
+      trainingRelationships: normalizeRecordRelationships(
+        relatedRecords.trainingRelationships || source.relatedTrainingIds,
+        "training",
+      ),
+
+      certificationRelationships: normalizeRecordRelationships(
+        relatedRecords.certificationRelationships ||
+          source.relatedCertificationIds,
+        "certification",
+      ),
+    },
+
+    awards: normalizeArray(source.awards)
+      .map((award, order) => createProjectAward(award, order))
+      .filter((award) => award.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumAwards)
+      .map((award, order) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => validDocumentIds.has(documentId),
+        ),
+
+        order,
+      })),
+
+    media: media.map((item) => ({
+      ...item,
+
+      isFeatured: item.id === featuredMedia?.id,
+    })),
+
+    supportingDocuments,
+
+    presentation: {
+      shortSummary: normalizeText(
+        presentation.shortSummary,
+        PROJECT_FIELD_LIMITS.shortSummary,
+      ),
+
+      caseStudy: normalizeText(
+        presentation.caseStudy,
+        PROJECT_FIELD_LIMITS.caseStudy,
+      ),
+
+      featuredMediaId: featuredMedia?.id || "",
+
+      isFeatured: normalizeBoolean(presentation.isFeatured, false),
+    },
+
+    visibility: Object.fromEntries(
+      Object.entries(defaults.visibility).map(([fieldName, fallback]) => [
+        fieldName,
+
+        normalizeBoolean(visibility[fieldName], fallback),
+      ]),
+    ),
+
+    privateInformation: {
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        PROJECT_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    source: isValidProjectSource(source.source)
+      ? source.source
+      : defaults.source,
+
+    sourceContext: normalizeText(
+      source.sourceContext,
+      PROJECT_FIELD_LIMITS.sourceContext,
+    ),
+
+    recordStatus: isValidProjectRecordStatus(source.recordStatus)
+      ? source.recordStatus
+      : defaults.recordStatus,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export function createProject(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeProject({
+    ...values,
+
+    id: normalizeText(values.id, 200) || createProjectId(),
+
+    createdAt: normalizeText(values.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export function updateProjectModel(currentProject, updates = {}) {
+  const mergeNested = (fieldName) => ({
+    ...currentProject?.[fieldName],
+    ...updates?.[fieldName],
+  });
+
+  return normalizeProject({
+    ...currentProject,
+    ...updates,
+
+    organization: mergeNested("organization"),
+    dates: mergeNested("dates"),
+    location: mergeNested("location"),
+    links: mergeNested("links"),
+    problem: mergeNested("problem"),
+    solution: mergeNested("solution"),
+    results: mergeNested("results"),
+    relatedRecords: mergeNested("relatedRecords"),
+    presentation: mergeNested("presentation"),
+    visibility: mergeNested("visibility"),
+    privateInformation: mergeNested("privateInformation"),
+
+    id: currentProject?.id,
+
+    createdAt: currentProject?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Project Collection
+ * =========================================
+ */
+
+export function normalizeProjectCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const seenIdentifiers = new Set();
+
+  return values.map(normalizeProject).filter((project) => {
+    if (seenIdentifiers.has(project.id)) {
+      return false;
+    }
+
+    seenIdentifiers.add(project.id);
+
+    return true;
+  });
+}
+
+/*
+ * =========================================
+ * Public Project Transformation
+ * =========================================
+ *
+ * This function removes private and internal
+ * career-management information before the
+ * Project is displayed publicly.
+ */
+
+export function createPublicProject(value) {
+  const project = normalizeProject(value);
+
+  /*
+   * Only active, public media can appear in a
+   * public portfolio.
+   */
+
+  const publicMedia = project.visibility.showMedia
+    ? project.media
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicMediaItem }, order) => ({
+          ...publicMediaItem,
+          order,
+        }))
+    : [];
+
+  /*
+   * A private or archived featured item must
+   * not remain referenced publicly.
+   */
+
+  const publicFeaturedMedia =
+    publicMedia.find(
+      (item) => item.id === project.presentation.featuredMediaId,
+    ) ||
+    publicMedia.find((item) => item.isFeatured) ||
+    publicMedia[0] ||
+    null;
+
+  const normalizedPublicMedia = publicMedia.map((item) => ({
+    ...item,
+
+    isFeatured: item.id === publicFeaturedMedia?.id,
+  }));
+
+  /*
+   * Only active, explicitly public documents
+   * can appear in public output.
+   */
+
+  const publicDocuments = project.visibility.showSupportingDocuments
+    ? project.supportingDocuments
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicDocument }, order) => ({
+          ...publicDocument,
+          order,
+        }))
+    : [];
+
+  const publicDocumentIds = new Set(
+    publicDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  const publicAwards = project.visibility.showAwards
+    ? project.awards.map((award) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => publicDocumentIds.has(documentId),
+        ),
+      }))
+    : [];
+
+  return {
+    modelVersion: project.modelVersion,
+
+    id: project.id,
+
+    title: project.title,
+
+    category: project.category,
+
+    lifecycleStatus: project.lifecycleStatus,
+
+    role: project.role,
+
+    ownership: project.ownership,
+
+    organization: project.visibility.showOrganization
+      ? project.organization
+      : null,
+
+    location: project.visibility.showLocation ? project.location : null,
+
+    dates: project.visibility.showDates ? project.dates : null,
+
+    links: project.visibility.showLinks ? project.links : null,
+
+    problem: project.visibility.showProblem ? project.problem : null,
+
+    solution: project.visibility.showSolution ? project.solution : null,
+
+    results: project.visibility.showResults ? project.results : null,
+
+    skillRelationships: project.visibility.showSkills
+      ? project.skillRelationships
+      : [],
+
+    technologies: project.visibility.showTechnologies
+      ? project.technologies
+      : [],
+
+    relatedRecords: project.visibility.showRelatedRecords
+      ? project.relatedRecords
+      : {
+          experienceRelationships: [],
+          educationRelationships: [],
+          trainingRelationships: [],
+          certificationRelationships: [],
+        },
+
+    awards: publicAwards,
+
+    media: normalizedPublicMedia,
+
+    supportingDocuments: publicDocuments,
+
+    presentation: {
+      shortSummary: project.presentation.shortSummary,
+
+      caseStudy: project.presentation.caseStudy,
+
+      featuredMediaId: publicFeaturedMedia?.id || "",
+
+      isFeatured: project.presentation.isFeatured,
+    },
+
+    updatedAt: project.updatedAt,
+  };
+}
+
+

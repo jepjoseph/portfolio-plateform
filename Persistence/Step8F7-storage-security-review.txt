@@ -1,0 +1,303 @@
+STEP 8F.7 - STORAGE SECURITY REVIEW
+
+================================
+FILE: .\backend\src\services\Storage\projectMediaStorageService.js
+================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+function requireIdentifier(value, label) {
+  const normalized = String(value ?? "").trim();
+
+  if (!normalized) {
+    throw new Error(`${label} is required for Project media storage.`);
+  }
+
+  return normalized;
+}
+
+function hashIdentifier(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function validateFileName(fileName) {
+  const normalized = String(fileName ?? "").trim();
+
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    path.basename(normalized) !== normalized ||
+    !/^[a-f0-9-]{36}\.(?:jpg|jpeg|png|webp|avif|gif|mp4|webm)$/i.test(
+      normalized,
+    )
+  ) {
+    throw new Error("Invalid Project media filename.");
+  }
+
+  return normalized;
+}
+
+export function getProjectMediaStorageRoot() {
+  const environment = getEnvironment();
+
+  const configuredPath = String(
+    environment.PROJECT_MEDIA_STORAGE_PATH || "",
+  ).trim();
+
+  if (!configuredPath) {
+    throw new Error("PROJECT_MEDIA_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(configuredPath);
+}
+
+export function getProjectMediaUserDirectory(userId) {
+  return hashIdentifier(requireIdentifier(userId, "User ID"));
+}
+
+export function getProjectMediaProjectDirectory(projectId) {
+  return hashIdentifier(requireIdentifier(projectId, "Project ID"));
+}
+
+export function getProjectMediaDirectory(userId, projectId) {
+  return path.join(
+    getProjectMediaStorageRoot(),
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+  );
+}
+
+export function createProjectMediaStorageKey(userId, projectId, fileName) {
+  const safeFileName = validateFileName(fileName);
+
+  return [
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+    safeFileName,
+  ].join("/");
+}
+
+export function resolveOwnedProjectMediaPath(userId, projectId, storageKey) {
+  const normalizedKey = String(storageKey ?? "").trim();
+
+  const expectedUserDirectory = getProjectMediaUserDirectory(userId);
+  const expectedProjectDirectory = getProjectMediaProjectDirectory(projectId);
+
+  const parts = normalizedKey.split("/");
+
+  if (
+    parts.length !== 3 ||
+    parts[0] !== expectedUserDirectory ||
+    parts[1] !== expectedProjectDirectory
+  ) {
+    throw new Error(
+      "Project media storage key does not belong to this user and Project.",
+    );
+  }
+
+  const safeFileName = validateFileName(parts[2]);
+
+  const mediaDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const filePath = path.resolve(mediaDirectory, safeFileName);
+
+  if (path.dirname(filePath) !== mediaDirectory) {
+    throw new Error("Project media path is outside the expected directory.");
+  }
+
+  return filePath;
+}
+
+export async function deleteOwnedProjectMedia(userId, projectId, storageKey) {
+  const filePath = resolveOwnedProjectMediaPath(userId, projectId, storageKey);
+
+  try {
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+
+================================
+FILE: .\backend\src\services\Storage\profilePictureStorageService.js
+================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+const environment = getEnvironment();
+
+/*
+ * =========================================
+ * User Storage Identity
+ * =========================================
+ */
+
+export function getProfilePictureUserDirectory(userId) {
+  const normalizedUserId = String(userId || "").trim();
+
+  if (!normalizedUserId) {
+    throw new Error(
+      "An authenticated user ID is required for profile-picture storage.",
+    );
+  }
+
+  return crypto.createHash("sha256").update(normalizedUserId).digest("hex");
+}
+
+/*
+ * =========================================
+ * Storage Root
+ * =========================================
+ */
+
+export function getProfilePictureStorageRoot() {
+  const storageRoot = String(
+    environment.PROFILE_PICTURE_STORAGE_PATH || "",
+  ).trim();
+
+  if (!storageRoot) {
+    throw new Error("PROFILE_PICTURE_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(storageRoot);
+}
+
+/*
+ * =========================================
+ * User Storage Path
+ * =========================================
+ */
+
+export function getProfilePictureUserStoragePath(userId) {
+  return path.join(
+    getProfilePictureStorageRoot(),
+    getProfilePictureUserDirectory(userId),
+  );
+}
+
+/*
+ * =========================================
+ * Storage Key
+ * =========================================
+ */
+
+export function createProfilePictureStorageKey(userId, fileName) {
+  const safeFileName = path.basename(String(fileName || "").trim());
+
+  if (!safeFileName) {
+    throw new Error("A profile-picture filename is required.");
+  }
+
+  return [getProfilePictureUserDirectory(userId), safeFileName].join("/");
+}
+
+export function resolveOwnedProfilePicturePath(userId, storageKey) {
+  const normalizedStorageKey = String(storageKey || "")
+    .trim()
+    .replaceAll("\\", "/");
+
+  if (!normalizedStorageKey) {
+    throw new Error("A profile-picture storage key is required.");
+  }
+
+  const userDirectory = getProfilePictureUserDirectory(userId);
+
+  const expectedPrefix = `${userDirectory}/`;
+
+  if (!normalizedStorageKey.startsWith(expectedPrefix)) {
+    throw new Error(
+      "The profile-picture storage key does not belong to the authenticated user.",
+    );
+  }
+
+  const relativeFileName = normalizedStorageKey.slice(expectedPrefix.length);
+
+  /*
+   * A profile picture must be one file directly inside
+   * the authenticated user's storage directory.
+   */
+
+  if (
+    !relativeFileName ||
+    relativeFileName.includes("/") ||
+    relativeFileName === "." ||
+    relativeFileName === ".." ||
+    path.basename(relativeFileName) !== relativeFileName
+  ) {
+    throw new Error("The profile-picture storage key is invalid.");
+  }
+
+  const userStoragePath = path.resolve(
+    getProfilePictureUserStoragePath(userId),
+  );
+
+  const resolvedFilePath = path.resolve(userStoragePath, relativeFileName);
+
+  /*
+   * Defense in depth:
+   * even after validating the storage key above, verify that
+   * the resulting file remains directly inside this user's
+   * storage directory.
+   */
+
+  if (path.dirname(resolvedFilePath) !== userStoragePath) {
+    throw new Error(
+      "The profile-picture path is outside the authenticated user's storage directory.",
+    );
+  }
+
+  return resolvedFilePath;
+}
+
+export async function deleteOwnedProfilePicture(userId, storageKey) {
+  const filePath = resolveOwnedProfilePicturePath(userId, storageKey);
+
+  try {
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    /*
+     * If the file is already gone, cleanup has still reached
+     * the desired state. Treat deletion as idempotent.
+     */
+
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+

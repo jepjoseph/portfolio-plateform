@@ -1,0 +1,311 @@
+   1: import assert from "node:assert/strict";
+   2: import fs from "node:fs/promises";
+   3: import os from "node:os";
+   4: import path from "node:path";
+   5: import { after, before, test } from "node:test";
+   6: 
+   7: import express from "express";
+   8: import supertest from "supertest";
+   9: 
+  10: import { uploadProjectMedia } from "../../src/middleware/project/projectMediaUploadMiddleware.js";
+  11: import { validateProjectMedia } from "../../src/middleware/project/projectMediaValidationMiddleware.js";
+  12: import { getProjectMediaDirectory } from "../../src/services/Storage/projectMediaStorageService.js";
+  13: 
+  14: const USER_ID = "validation-test-user";
+  15: const PROJECT_ID = "validation-test-project";
+  16: 
+  17: let temporaryDirectory;
+  18: let originalStoragePath;
+  19: 
+  20: before(async () => {
+  21:   temporaryDirectory = await fs.mkdtemp(
+  22:     path.join(os.tmpdir(), "project-media-validation-test-"),
+  23:   );
+  24: 
+  25:   originalStoragePath = process.env.PROJECT_MEDIA_STORAGE_PATH;
+  26:   process.env.PROJECT_MEDIA_STORAGE_PATH = temporaryDirectory;
+  27: });
+  28: 
+  29: after(async () => {
+  30:   if (originalStoragePath === undefined) {
+  31:     delete process.env.PROJECT_MEDIA_STORAGE_PATH;
+  32:   } else {
+  33:     process.env.PROJECT_MEDIA_STORAGE_PATH = originalStoragePath;
+  34:   }
+  35: 
+  36:   if (temporaryDirectory) {
+  37:     await fs.rm(temporaryDirectory, {
+  38:       recursive: true,
+  39:       force: true,
+  40:     });
+  41:   }
+  42: });
+  43: 
+  44: function createApp() {
+  45:   const app = express();
+  46: 
+  47:   app.post(
+  48:     "/projects/:projectId/media",
+  49:     (request, response, next) => {
+  50:       request.auth = { userId: USER_ID };
+  51:       request.authorizedProject = { id: PROJECT_ID };
+  52:       next();
+  53:     },
+  54:     uploadProjectMedia,
+  55:     validateProjectMedia,
+  56:     (request, response) => {
+  57:       response.status(201).json({
+  58:         verifiedMimeType: request.projectMediaFile?.verifiedMimeType,
+  59:         verifiedSize: request.projectMediaFile?.verifiedSize,
+  60:       });
+  61:     },
+  62:   );
+  63: 
+  64:   app.use((error, request, response, next) => {
+  65:     response.status(error.status || 500).json({
+  66:       code: error.code || "INTERNAL_ERROR",
+  67:     });
+  68:   });
+  69: 
+  70:   return app;
+  71: }
+  72: 
+  73: async function getStoredFiles() {
+  74:   const directory = getProjectMediaDirectory(USER_ID, PROJECT_ID);
+  75: 
+  76:   const relativePath = path.relative(temporaryDirectory, directory);
+  77: 
+  78:   assert.ok(
+  79:     relativePath &&
+  80:       relativePath !== ".." &&
+  81:       !relativePath.startsWith(`..${path.sep}`) &&
+  82:       !path.isAbsolute(relativePath),
+  83:     "Test storage directory must be inside temporary storage.",
+  84:   );
+  85: 
+  86:   try {
+  87:     return await fs.readdir(directory);
+  88:   } catch (error) {
+  89:     if (error.code === "ENOENT") {
+  90:       return [];
+  91:     }
+  92: 
+  93:     throw error;
+  94:   }
+  95: }
+  96: 
+  97: test("rejects a request without a media file", async () => {
+  98:   const response = await supertest(createApp())
+  99:     .post(`/projects/${PROJECT_ID}/media`)
+ 100:     .field("description", "No file supplied");
+ 101: 
+ 102:   assert.equal(response.status, 400);
+ 103:   assert.equal(response.body.code, "PROJECT_MEDIA_FILE_REQUIRED");
+ 104:   assert.deepEqual(await getStoredFiles(), []);
+ 105: });
+ 106: 
+ 107: test("rejects forged JPEG content and removes the uploaded file", async () => {
+ 108:   const response = await supertest(createApp())
+ 109:     .post(`/projects/${PROJECT_ID}/media`)
+ 110:     .attach("media", Buffer.from("This is not a JPEG image."), {
+ 111:       filename: "forged.jpg",
+ 112:       contentType: "image/jpeg",
+ 113:     });
+ 114: 
+ 115:   assert.equal(response.status, 400);
+ 116:   assert.equal(
+ 117:     response.body.code,
+ 118:     "PROJECT_MEDIA_CONTENT_TYPE_NOT_ALLOWED",
+ 119:   );
+ 120:   assert.deepEqual(await getStoredFiles(), []);
+ 121: });
+ 122: 
+ 123: test("rejects a mismatched MIME type and removes the uploaded file", async () => {
+ 124:   const pngBytes = Buffer.from(
+ 125:     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=",
+ 126:     "base64",
+ 127:   );
+ 128: 
+ 129:   const response = await supertest(createApp())
+ 130:     .post(`/projects/${PROJECT_ID}/media`)
+ 131:     .attach("media", pngBytes, {
+ 132:       filename: "mismatch.jpg",
+ 133:       contentType: "image/jpeg",
+ 134:     });
+ 135: 
+ 136:   assert.equal(response.status, 400);
+ 137:   assert.equal(response.body.code, "PROJECT_MEDIA_TYPE_MISMATCH");
+ 138:   assert.deepEqual(await getStoredFiles(), []);
+ 139: });
+ 140: 
+ 141: test("accepts a valid PNG image and preserves its contents", async () => {
+ 142:   const pngBytes = Buffer.from(
+ 143:     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=",
+ 144:     "base64",
+ 145:   );
+ 146: 
+ 147:   const response = await supertest(createApp())
+ 148:     .post(`/projects/${PROJECT_ID}/media`)
+ 149:     .attach("media", pngBytes, {
+ 150:       filename: "valid.png",
+ 151:       contentType: "image/png",
+ 152:     });
+ 153: 
+ 154:   assert.equal(response.status, 201);
+ 155:   assert.equal(response.body.verifiedMimeType, "image/png");
+ 156:   assert.equal(response.body.verifiedSize, pngBytes.length);
+ 157: 
+ 158:   const projectDirectory = getProjectMediaDirectory(
+ 159:     USER_ID,
+ 160:     PROJECT_ID,
+ 161:   );
+ 162: 
+ 163:   const storedFiles = await getStoredFiles();
+ 164: 
+ 165:   assert.equal(storedFiles.length, 1);
+ 166:   assert.match(storedFiles[0], /^[a-f0-9-]{36}\.png$/);
+ 167: 
+ 168:   const storedBytes = await fs.readFile(
+ 169:     path.join(projectDirectory, storedFiles[0]),
+ 170:   );
+ 171: 
+ 172:   assert.deepEqual(storedBytes, pngBytes);
+ 173: });
+ 174: 
+ 175: test("rejects PNG images exceeding 20 MiB and removes the file", async () => {
+ 176:   const validPngBytes = Buffer.from(
+ 177:     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=",
+ 178:     "base64",
+ 179:   );
+ 180: 
+ 181:   const oversizedPng = Buffer.alloc(
+ 182:     20 * 1024 * 1024 + 1,
+ 183:   );
+ 184: 
+ 185:   validPngBytes.copy(oversizedPng);
+ 186: 
+ 187:   const response = await supertest(createApp())
+ 188:     .post(`/projects/${PROJECT_ID}/media`)
+ 189:     .attach("media", oversizedPng, {
+ 190:       filename: "oversized.png",
+ 191:       contentType: "image/png",
+ 192:     });
+ 193: 
+ 194: 
+ 195:   assert.equal(response.status, 413);
+ 196:   assert.equal(response.body.code, "PROJECT_MEDIA_TOO_LARGE");
+ 197: 
+ 198:   const storedFiles = await getStoredFiles();
+ 199: 
+ 200:   assert.equal(
+ 201:     storedFiles.length,
+ 202:     1,
+ 203:     "Oversized upload must not leave an additional file.",
+ 204:   );
+ 205: });
+ 206: 
+ 207: 
+ 208: 
+ 209: 
+ 210: test("accepts an MP4 video with a recognized signature", async () => {
+ 211:   const mp4Bytes = Buffer.from(
+ 212:     "000000186674797069736F6D0000020069736F6D6D703431",
+ 213:     "hex",
+ 214:   );
+ 215: 
+ 216:   const response = await supertest(createApp())
+ 217:     .post(`/projects/${PROJECT_ID}/media`)
+ 218:     .attach("media", mp4Bytes, {
+ 219:       filename: "sample.mp4",
+ 220:       contentType: "video/mp4",
+ 221:     });
+ 222: 
+ 223:   assert.equal(response.status, 201);
+ 224:   assert.equal(response.body.verifiedMimeType, "video/mp4");
+ 225:   assert.equal(response.body.verifiedSize, mp4Bytes.length);
+ 226: 
+ 227:   const projectDirectory = getProjectMediaDirectory(
+ 228:     USER_ID,
+ 229:     PROJECT_ID,
+ 230:   );
+ 231: 
+ 232:   const storedFiles = await getStoredFiles();
+ 233:   const mp4Files = storedFiles.filter((name) => name.endsWith(".mp4"));
+ 234: 
+ 235:   assert.equal(mp4Files.length, 1);
+ 236:   assert.match(mp4Files[0], /^[a-f0-9-]{36}\.mp4$/);
+ 237: 
+ 238:   const storedBytes = await fs.readFile(
+ 239:     path.join(projectDirectory, mp4Files[0]),
+ 240:   );
+ 241: 
+ 242:   assert.deepEqual(storedBytes, mp4Bytes);
+ 243: });
+ 244: 
+ 245: test("accepts a WebM video with a recognized signature", async () => {
+ 246:   const webmBytes = Buffer.from(
+ 247:     "1A45DFA39F4286810142F7810142F2810442F381084282847765626D4287810242858102",
+ 248:     "hex",
+ 249:   );
+ 250: 
+ 251:   const response = await supertest(createApp())
+ 252:     .post(`/projects/${PROJECT_ID}/media`)
+ 253:     .attach("media", webmBytes, {
+ 254:       filename: "sample.webm",
+ 255:       contentType: "video/webm",
+ 256:     });
+ 257: 
+ 258:   assert.equal(response.status, 201);
+ 259:   assert.equal(response.body.verifiedMimeType, "video/webm");
+ 260:   assert.equal(response.body.verifiedSize, webmBytes.length);
+ 261: 
+ 262:   const projectDirectory = getProjectMediaDirectory(
+ 263:     USER_ID,
+ 264:     PROJECT_ID,
+ 265:   );
+ 266: 
+ 267:   const storedFiles = await getStoredFiles();
+ 268:   const webmFiles = storedFiles.filter((name) => name.endsWith(".webm"));
+ 269: 
+ 270:   assert.equal(webmFiles.length, 1);
+ 271:   assert.match(webmFiles[0], /^[a-f0-9-]{36}\.webm$/);
+ 272: 
+ 273:   const storedBytes = await fs.readFile(
+ 274:     path.join(projectDirectory, webmFiles[0]),
+ 275:   );
+ 276: 
+ 277:   assert.deepEqual(storedBytes, webmBytes);
+ 278: });
+ 279: 
+ 280: test("rejects MP4 uploads exceeding 100 MiB", async () => {
+ 281:   const mp4Header = Buffer.from(
+ 282:     "000000186674797069736F6D0000020069736F6D6D703431",
+ 283:     "hex",
+ 284:   );
+ 285: 
+ 286:   const oversizedMp4 = Buffer.alloc(
+ 287:     100 * 1024 * 1024 + 1,
+ 288:   );
+ 289: 
+ 290:   mp4Header.copy(oversizedMp4);
+ 291: 
+ 292:   const filesBefore = await getStoredFiles();
+ 293: 
+ 294:   const response = await supertest(createApp())
+ 295:     .post(`/projects/${PROJECT_ID}/media`)
+ 296:     .attach("media", oversizedMp4, {
+ 297:       filename: "oversized.mp4",
+ 298:       contentType: "video/mp4",
+ 299:     });
+ 300: 
+ 301:   assert.equal(response.status, 413);
+ 302:   assert.equal(response.body.code, "PROJECT_MEDIA_TOO_LARGE");
+ 303: 
+ 304:   const filesAfter = await getStoredFiles();
+ 305: 
+ 306:   assert.deepEqual(
+ 307:     filesAfter.sort(),
+ 308:     filesBefore.sort(),
+ 309:     "Rejected video must not leave an additional stored file.",
+ 310:   );
+ 311: });

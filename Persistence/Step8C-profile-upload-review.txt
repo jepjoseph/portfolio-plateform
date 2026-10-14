@@ -1,0 +1,1572 @@
+STEP 8C - PROFILE UPLOAD IMPLEMENTATION REVIEW
+
+BACKEND FILE INVENTORY
+======================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\config\database.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\config\environment.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\config\groqClient.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\config\openaiClient.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\002_user_profiles.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\005_profile_details.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\authenticationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\errorMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\authorizationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profileOwnershipMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureValidationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\uploadMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\skills\skillOwnershipMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\utils\profileResponseUtils.js
+
+PROFILE UPLOAD REFERENCES
+=========================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\app.js:122: express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:5: deleteUncommittedProfilePicture,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:10: import { createProfilePictureStorageKey } from "../services/Storage/profilePictureStorageService.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:63: export async function uploadProfilePictureController(request, response, next) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:66: const uploadedFile = request.profilePictureFile;
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:73: error.name = "ProfilePictureUploadError";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:85: error.name = "ProfilePictureUploadError";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:100: error.name = "ProfilePictureUploadError";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:117: const storageKey = createProfilePictureStorageKey(
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:137: useDefaultAvatar: false,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:145: export async function deleteProfilePictureController(request, response, next) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js:147: const result = await deleteUncommittedProfilePicture({
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:4: import multer from "multer";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:6: import { getProfilePictureUserStoragePath } from "../../services/Storage/profilePictureStorageService.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:39: error.name = "ProfilePictureUploadError";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:53: const storage = multer.diskStorage({
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:71: const userStoragePath = getProfilePictureUserStoragePath(userId);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:110: function profilePictureFileFilter(request, file, callback) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:128: * Multer Upload
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:132: const profilePictureUpload = multer({
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:140: fileFilter: profilePictureFileFilter,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:149: export function uploadProfilePicture(request, response, next) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:150: profilePictureUpload(request, response, (error) => {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:155: if (error instanceof multer.MulterError) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js:192: message: `Multer profile-picture upload error: ${error.code}`,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureValidationMiddleware.js:21: error.name = "ProfilePictureValidationError";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureValidationMiddleware.js:47: export async function validateProfilePicture(request, response, next) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureValidationMiddleware.js:100: request.profilePictureFile = {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:62: profilePictures: pictureRows.map((row) => ({
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:70: useDefaultAvatar: Boolean(row.use_default_avatar),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:87: primaryProfilePictureId: profileRow.primary_profile_picture_id || "",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:157: file_type, file_size, use_default_avatar, image_width,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:234: .input("useDefaultAvatar", sql.Bit, item.useDefaultAvatar)
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:247: file_type, file_size, use_default_avatar, image_width, image_height,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:251: @fileType, @fileSize, @useDefaultAvatar, @imageWidth, @imageHeight,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:306: profile.preferences.primaryProfilePictureId || null,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:351: for (const item of profile.profilePictures) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:1: import { uploadProfilePicture } from "../middleware/profile/profilePictureUploadMiddleware.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:2: import { validateProfilePicture } from "../middleware/profile/profilePictureValidationMiddleware.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:7: deleteProfilePictureController,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:10: uploadProfilePictureController,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:19: uploadProfilePicture,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:20: validateProfilePicture,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:21: uploadProfilePictureController,
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js:24: router.delete("/pictures/upload", deleteProfilePictureController);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:82: const profilePictureSchema = z
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:96: useDefaultAvatar: z.boolean().default(false),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:102: if (picture.useDefaultAvatar && (picture.imageUrl || picture.storageKey)) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:105: path: ["useDefaultAvatar"],
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:106: message: "A default avatar cannot also reference an uploaded image.",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:119: primaryProfilePictureId: z.string().trim().max(200).default(""),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:143: profilePictures: z.array(profilePictureSchema).max(20).default([]),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js:157: ["primaryProfilePictureId", "profilePictures"],
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:6: import { deleteOwnedProfilePicture } from "../Storage/profilePictureStorageService.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:76: updatedProfile.profilePictures
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:85: const orphanedStorageKeys = (previousProfile?.profilePictures || [])
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:98: deleteOwnedProfilePicture(authenticatedUserId, storageKey),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:114: export async function deleteUncommittedProfilePicture({ userId, storageKey }) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:149: const isCommitted = currentProfile.profilePictures.some(
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js:165: return deleteOwnedProfilePicture(authenticatedUserId, normalizedStorageKey);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:15: export function getProfilePictureUserDirectory(userId) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:33: export function getProfilePictureStorageRoot() {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:51: export function getProfilePictureUserStoragePath(userId) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:53: getProfilePictureStorageRoot(),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:54: getProfilePictureUserDirectory(userId),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:64: export function createProfilePictureStorageKey(userId, fileName) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:71: return [getProfilePictureUserDirectory(userId), safeFileName].join("/");
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:74: export function resolveOwnedProfilePicturePath(userId, storageKey) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:83: const userDirectory = getProfilePictureUserDirectory(userId);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:111: getProfilePictureUserStoragePath(userId),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:132: export async function deleteOwnedProfilePicture(userId, storageKey) {
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js:133: const filePath = resolveOwnedProfilePicturePath(userId, storageKey);
+
+PROFILE-RELATED SOURCE FILES
+============================
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\profileController.js
+================================
+import path from "node:path";
+import { getEnvironment } from "../config/environment.js";
+
+import {
+  deleteUncommittedProfilePicture,
+  getAuthenticatedProfile,
+  updateAuthenticatedProfile,
+} from "../services/Service/profileService.js";
+
+import { createProfilePictureStorageKey } from "../services/Storage/profilePictureStorageService.js";
+
+import { parseProfileUpdate } from "../schemas/profileSchemas.js";
+
+const environment = getEnvironment();
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+export async function getMyProfile(request, response, next) {
+  try {
+    const profile = await getAuthenticatedProfile({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile retrieved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProfile(request, response, next) {
+  try {
+    const profileInput = parseProfileUpdate(request.body);
+
+    const profile = await updateAuthenticatedProfile({
+      userId: request.auth.userId,
+      profile: profileInput,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Profile saved successfully.",
+      data: { profile },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadProfilePictureController(request, response, next) {
+  try {
+    const userId = String(request.auth?.userId || "").trim();
+    const uploadedFile = request.profilePictureFile;
+
+    if (!userId) {
+      const error = new Error(
+        "Authenticated user ID is unavailable during profile-picture upload.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_UPLOAD_USER_INVALID";
+      error.status = 401;
+      error.publicMessage =
+        "Your session could not be verified for this upload.";
+
+      throw error;
+    }
+
+    if (!uploadedFile?.filename) {
+      const error = new Error("Verified profile-picture file is unavailable.");
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_FILE_UNAVAILABLE";
+      error.status = 400;
+      error.publicMessage = "The profile picture could not be processed.";
+
+      throw error;
+    }
+
+    const publicBaseUrl = environment.PROFILE_PICTURE_PUBLIC_BASE_URL;
+
+    if (!publicBaseUrl) {
+      const error = new Error(
+        "PROFILE_PICTURE_PUBLIC_BASE_URL is not configured.",
+      );
+
+      error.name = "ProfilePictureUploadError";
+      error.code = "PROFILE_PICTURE_PUBLIC_URL_NOT_CONFIGURED";
+      error.status = 503;
+      error.publicMessage =
+        "Profile-picture storage is temporarily unavailable.";
+
+      throw error;
+    }
+
+    /*
+     * storageKey is intentionally relative.
+     *
+     * Example:
+     * abc123.../550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * Never return the physical D:\ or UNC path.
+     */
+    const storageKey = createProfilePictureStorageKey(
+      userId,
+      uploadedFile.filename,
+    );
+
+    const imageUrl = `${publicBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
+
+    return response.status(201).json({
+      picture: {
+        imageUrl,
+        storageKey,
+
+        /*
+         * originalname is the filename supplied by the
+         * browser, while filename is our generated UUID.
+         */
+        fileName: path.basename(uploadedFile.originalname),
+
+        fileType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.size,
+        useDefaultAvatar: false,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteProfilePictureController(request, response, next) {
+  try {
+    const result = await deleteUncommittedProfilePicture({
+      userId: request.auth.userId,
+      storageKey: request.body?.storageKey,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: result.deleted
+        ? "Temporary profile picture removed successfully."
+        : "Temporary profile picture was already removed.",
+      data: {
+        storageKey: result.storageKey,
+        deleted: result.deleted,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profileOwnershipMiddleware.js
+================================
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js
+================================
+import crypto from "node:crypto";
+import fs from "node:fs";
+
+import multer from "multer";
+
+import { getProfilePictureUserStoragePath } from "../../services/Storage/profilePictureStorageService.js";
+
+/*
+ * =========================================
+ * Configuration
+ * =========================================
+ */
+
+const MAX_PROFILE_PICTURE_SIZE = 20 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/jpg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/webp", ".webp"],
+  ["image/avif", ".avif"],
+  ["image/gif", ".gif"],
+]);
+
+/*
+ * =========================================
+ * Upload Error
+ * =========================================
+ */
+
+function createUploadError({
+  message,
+  code = "PROFILE_PICTURE_UPLOAD_FAILED",
+  status = 400,
+  publicMessage = "The profile picture could not be uploaded.",
+}) {
+  const error = new Error(message);
+
+  error.name = "ProfilePictureUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Storage Configuration
+ * =========================================
+ */
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    try {
+      const userId = String(request.auth?.userId || "").trim();
+
+      if (!userId) {
+        return callback(
+          createUploadError({
+            message:
+              "Authenticated user ID is unavailable during profile-picture upload.",
+            code: "PROFILE_PICTURE_UPLOAD_USER_INVALID",
+            status: 401,
+            publicMessage:
+              "Your session could not be verified for this upload.",
+          }),
+        );
+      }
+
+      const userStoragePath = getProfilePictureUserStoragePath(userId);
+
+      fs.mkdirSync(userStoragePath, {
+        recursive: true,
+      });
+
+      return callback(null, userStoragePath);
+    } catch (error) {
+      return callback(error);
+    }
+  },
+
+  filename(request, file, callback) {
+    const extension = ALLOWED_IMAGE_TYPES.get(file.mimetype);
+
+    if (!extension) {
+      return callback(
+        createUploadError({
+          message: `Unsupported profile-picture MIME type: ${file.mimetype}`,
+          code: "PROFILE_PICTURE_TYPE_NOT_ALLOWED",
+          status: 400,
+          publicMessage:
+            "The profile picture must be a JPEG, PNG, WebP, or AVIF image.",
+        }),
+      );
+    }
+
+    const fileName = `${crypto.randomUUID()}${extension}`;
+
+    return callback(null, fileName);
+  },
+});
+
+/*
+ * =========================================
+ * File Type Filter
+ * =========================================
+ */
+
+function profilePictureFileFilter(request, file, callback) {
+  if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+    return callback(
+      createUploadError({
+        message: `Unsupported profile-picture MIME type: ${file.mimetype}`,
+        code: "PROFILE_PICTURE_TYPE_NOT_ALLOWED",
+        status: 400,
+        publicMessage:
+          "The profile picture must be a JPEG, PNG, WebP, or AVIF image.",
+      }),
+    );
+  }
+
+  return callback(null, true);
+}
+
+/*
+ * =========================================
+ * Multer Upload
+ * =========================================
+ */
+
+const profilePictureUpload = multer({
+  storage,
+
+  limits: {
+    fileSize: MAX_PROFILE_PICTURE_SIZE,
+    files: 1,
+  },
+
+  fileFilter: profilePictureFileFilter,
+}).single("picture");
+
+/*
+ * =========================================
+ * Upload Middleware
+ * =========================================
+ */
+
+export function uploadProfilePicture(request, response, next) {
+  profilePictureUpload(request, response, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return next(
+          createUploadError({
+            message: "Profile picture exceeds the 20 MiB upload limit.",
+            code: "PROFILE_PICTURE_TOO_LARGE",
+            status: 413,
+            publicMessage: "The profile picture must be 20 MB or smaller.",
+          }),
+        );
+      }
+
+      if (error.code === "LIMIT_FILE_COUNT") {
+        return next(
+          createUploadError({
+            message: "More than one profile-picture file was uploaded.",
+            code: "PROFILE_PICTURE_TOO_MANY_FILES",
+            status: 400,
+            publicMessage: "Please upload only one profile picture.",
+          }),
+        );
+      }
+
+      if (error.code === "LIMIT_UNEXPECTED_FILE") {
+        return next(
+          createUploadError({
+            message: "An unexpected profile-picture upload field was received.",
+            code: "PROFILE_PICTURE_UNEXPECTED_FILE",
+            status: 400,
+            publicMessage:
+              'The profile picture must be uploaded using the "picture" field.',
+          }),
+        );
+      }
+
+      return next(
+        createUploadError({
+          message: `Multer profile-picture upload error: ${error.code}`,
+          code: "PROFILE_PICTURE_UPLOAD_INVALID",
+          status: 400,
+          publicMessage: "The profile picture upload could not be processed.",
+        }),
+      );
+    }
+
+    return next(error);
+  });
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureValidationMiddleware.js
+================================
+import fs from "node:fs/promises";
+
+import { fileTypeFromFile } from "file-type";
+
+const ALLOWED_PROFILE_PICTURE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+]);
+
+function createValidationError({
+  message,
+  code = "PROFILE_PICTURE_VALIDATION_FAILED",
+  status = 400,
+  publicMessage = "The uploaded profile picture is invalid.",
+}) {
+  const error = new Error(message);
+
+  error.name = "ProfilePictureValidationError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+async function removeUploadedFile(filePath) {
+  if (!filePath) {
+    return;
+  }
+
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    /*
+     * ENOENT means the file is already gone.
+     * Any other cleanup failure should still be surfaced.
+     */
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+export async function validateProfilePicture(request, response, next) {
+  const uploadedFile = request.file;
+
+  if (!uploadedFile?.path) {
+    return next(
+      createValidationError({
+        message: "No uploaded profile-picture file was available.",
+        code: "PROFILE_PICTURE_FILE_REQUIRED",
+        publicMessage: "Please select a profile picture to upload.",
+      }),
+    );
+  }
+
+  try {
+    const detectedType = await fileTypeFromFile(uploadedFile.path);
+
+    if (
+      !detectedType ||
+      !ALLOWED_PROFILE_PICTURE_TYPES.has(detectedType.mime)
+    ) {
+      await removeUploadedFile(uploadedFile.path);
+
+      return next(
+        createValidationError({
+          message:
+            "The uploaded file does not contain a supported image signature.",
+          code: "PROFILE_PICTURE_CONTENT_TYPE_NOT_ALLOWED",
+          publicMessage:
+            "The uploaded file must be a valid JPEG, PNG, WebP, AVIF, or GIF image.",
+        }),
+      );
+    }
+
+    if (detectedType.mime !== uploadedFile.mimetype) {
+      await removeUploadedFile(uploadedFile.path);
+
+      return next(
+        createValidationError({
+          message:
+            `Profile-picture MIME mismatch: declared ${uploadedFile.mimetype}, ` +
+            `detected ${detectedType.mime}.`,
+          code: "PROFILE_PICTURE_TYPE_MISMATCH",
+          publicMessage:
+            "The uploaded file type does not match its image content.",
+        }),
+      );
+    }
+
+    /*
+     * Store the verified values for downstream code.
+     * From this point forward, detectedType is more trustworthy
+     * than the browser-supplied MIME type.
+     */
+    request.profilePictureFile = {
+      ...uploadedFile,
+      verifiedMimeType: detectedType.mime,
+      verifiedExtension: detectedType.ext,
+    };
+
+    return next();
+  } catch (error) {
+    /*
+     * If validation itself fails, do not leave an uploaded
+     * file behind.
+     */
+    try {
+      await removeUploadedFile(uploadedFile.path);
+    } catch (cleanupError) {
+      console.error("Failed to clean up profile-picture upload:", cleanupError);
+    }
+
+    return next(error);
+  }
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\uploadMiddleware.js
+================================
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js
+================================
+import { getDatabasePool, sql } from "../config/database.js";
+
+const CONTACT_CATEGORIES = [
+  "emails",
+  "phones",
+  "websites",
+  "locations",
+  "socialLinks",
+];
+
+function toIso(value) {
+  return value instanceof Date ? value.toISOString() : String(value || "");
+}
+
+function createEmptyCollections() {
+  return {
+    emails: [],
+    phones: [],
+    websites: [],
+    locations: [],
+    socialLinks: [],
+  };
+}
+
+function mapProfile({ profileRow, titleRows, contactRows, pictureRows }) {
+  if (!profileRow) return null;
+
+  const contacts = createEmptyCollections();
+
+  for (const row of contactRows) {
+    if (!contacts[row.category]) continue;
+
+    contacts[row.category].push({
+      id: row.item_id,
+      type: row.contact_type,
+      value: row.contact_value,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    });
+  }
+
+  return {
+    modelVersion: 1,
+    id: profileRow.user_id,
+    userId: profileRow.user_id,
+    firstName: profileRow.first_name,
+    middleName: profileRow.middle_name,
+    lastName: profileRow.last_name,
+    professionalTitles: titleRows.map((row) => ({
+      id: row.item_id,
+      name: row.title_name,
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    ...contacts,
+    profilePictures: pictureRows.map((row) => ({
+      id: row.item_id,
+      type: row.picture_type,
+      imageUrl: row.image_url,
+      storageKey: row.blob_name,
+      fileName: row.file_name,
+      fileType: row.file_type,
+      fileSize: Number(row.file_size),
+      useDefaultAvatar: Boolean(row.use_default_avatar),
+      width: row.image_width === null ? null : Number(row.image_width),
+      height: row.image_height === null ? null : Number(row.image_height),
+      description: row.description,
+      order: row.display_order,
+      status: row.item_status,
+      createdAt: toIso(row.created_at),
+      updatedAt: toIso(row.updated_at),
+    })),
+    preferences: {
+      primaryProfessionalTitleId:
+        profileRow.primary_professional_title_id || "",
+      primaryEmailId: profileRow.primary_email_id || "",
+      primaryPhoneId: profileRow.primary_phone_id || "",
+      primaryWebsiteId: profileRow.primary_website_id || "",
+      primaryLocationId: profileRow.primary_location_id || "",
+      primarySocialLinkId: profileRow.primary_social_link_id || "",
+      primaryProfilePictureId: profileRow.primary_profile_picture_id || "",
+    },
+    visibility: {
+      isPublic: profileRow.profile_visibility === "public",
+    },
+    status: profileRow.profile_status,
+    createdAt: toIso(profileRow.created_at),
+    updatedAt: toIso(profileRow.updated_at),
+  };
+}
+
+async function readProfile(executor, userId) {
+  const profileResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT
+        user_id,
+        first_name,
+        middle_name,
+        last_name,
+        profile_visibility,
+        profile_status,
+        primary_professional_title_id,
+        primary_email_id,
+        primary_phone_id,
+        primary_website_id,
+        primary_location_id,
+        primary_social_link_id,
+        primary_profile_picture_id,
+        created_at,
+        updated_at
+      FROM dbo.user_profiles
+      WHERE user_id = @userId;
+    `);
+
+  const profileRow = profileResult.recordset[0];
+  if (!profileRow) return null;
+
+  const titleResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, title_name, description, display_order,
+             item_status, created_at, updated_at
+      FROM dbo.user_profile_professional_titles
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  const contactResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, category, contact_type, contact_value, description,
+             display_order, item_status, created_at, updated_at
+      FROM dbo.user_profile_contacts
+      WHERE user_id = @userId
+      ORDER BY category, display_order, created_at;
+    `);
+
+  const pictureResult = await new sql.Request(executor).input(
+    "userId",
+    sql.UniqueIdentifier,
+    userId,
+  ).query(`
+      SELECT item_id, picture_type, image_url, blob_name, file_name,
+             file_type, file_size, use_default_avatar, image_width,
+             image_height, description, display_order, item_status,
+             created_at, updated_at
+      FROM dbo.user_profile_pictures
+      WHERE user_id = @userId
+      ORDER BY display_order, created_at;
+    `);
+
+  return mapProfile({
+    profileRow,
+    titleRows: titleResult.recordset,
+    contactRows: contactResult.recordset,
+    pictureRows: pictureResult.recordset,
+  });
+}
+
+export async function findProfileByUserId(userId) {
+  const pool = await getDatabasePool();
+  return readProfile(pool, userId);
+}
+
+async function insertTitle(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("name", sql.NVarChar(200), item.name)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_professional_titles
+      (user_id, item_id, title_name, description, display_order,
+       item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @name, @description, @displayOrder,
+       @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertContact(transaction, userId, category, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("category", sql.NVarChar(30), category)
+    .input("contactType", sql.NVarChar(30), item.type)
+    .input("contactValue", sql.NVarChar(2048), item.value)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_contacts
+      (user_id, item_id, category, contact_type, contact_value, description,
+       display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @category, @contactType, @contactValue, @description,
+       @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+async function insertPicture(transaction, userId, item) {
+  await new sql.Request(transaction)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("itemId", sql.NVarChar(200), item.id)
+    .input("pictureType", sql.NVarChar(100), item.type)
+    .input("imageUrl", sql.NVarChar(2048), item.imageUrl)
+    .input("storageKey", sql.NVarChar(255), item.storageKey)
+    .input("fileName", sql.NVarChar(255), item.fileName)
+    .input("fileType", sql.NVarChar(100), item.fileType)
+    .input("fileSize", sql.BigInt, item.fileSize)
+    .input("useDefaultAvatar", sql.Bit, item.useDefaultAvatar)
+    .input("imageWidth", sql.Int, item.width)
+    .input("imageHeight", sql.Int, item.height)
+    .input("description", sql.NVarChar(500), item.description)
+    .input("displayOrder", sql.Int, item.order)
+    .input("itemStatus", sql.NVarChar(20), item.status)
+    .input(
+      "createdAt",
+      sql.DateTime2(3),
+      item.createdAt ? new Date(item.createdAt) : new Date(),
+    ).query(`
+      INSERT INTO dbo.user_profile_pictures
+      (user_id, item_id, picture_type, image_url, blob_name, file_name,
+       file_type, file_size, use_default_avatar, image_width, image_height,
+       description, display_order, item_status, created_at, updated_at)
+      VALUES
+      (@userId, @itemId, @pictureType, @imageUrl, @storageKey, @fileName,
+       @fileType, @fileSize, @useDefaultAvatar, @imageWidth, @imageHeight,
+       @description, @displayOrder, @itemStatus, @createdAt, SYSUTCDATETIME());
+    `);
+}
+
+export async function replaceProfileByUserId(userId, profile) {
+  const pool = await getDatabasePool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+  try {
+    const updateResult = await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("firstName", sql.NVarChar(100), profile.firstName)
+      .input("middleName", sql.NVarChar(100), profile.middleName)
+      .input("lastName", sql.NVarChar(100), profile.lastName)
+      .input(
+        "visibility",
+        sql.NVarChar(20),
+        profile.visibility.isPublic ? "public" : "private",
+      )
+      .input("profileStatus", sql.NVarChar(20), profile.status)
+      .input(
+        "primaryTitle",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfessionalTitleId || null,
+      )
+      .input(
+        "primaryEmail",
+        sql.NVarChar(200),
+        profile.preferences.primaryEmailId || null,
+      )
+      .input(
+        "primaryPhone",
+        sql.NVarChar(200),
+        profile.preferences.primaryPhoneId || null,
+      )
+      .input(
+        "primaryWebsite",
+        sql.NVarChar(200),
+        profile.preferences.primaryWebsiteId || null,
+      )
+      .input(
+        "primaryLocation",
+        sql.NVarChar(200),
+        profile.preferences.primaryLocationId || null,
+      )
+      .input(
+        "primarySocial",
+        sql.NVarChar(200),
+        profile.preferences.primarySocialLinkId || null,
+      )
+      .input(
+        "primaryPicture",
+        sql.NVarChar(200),
+        profile.preferences.primaryProfilePictureId || null,
+      ).query(`
+        UPDATE dbo.user_profiles
+        SET first_name = @firstName,
+            middle_name = @middleName,
+            last_name = @lastName,
+            display_name = LTRIM(RTRIM(CONCAT(@firstName, N' ', NULLIF(@middleName, N''), N' ', @lastName))),
+            profile_visibility = @visibility,
+            profile_status = @profileStatus,
+            primary_professional_title_id = @primaryTitle,
+            primary_email_id = @primaryEmail,
+            primary_phone_id = @primaryPhone,
+            primary_website_id = @primaryWebsite,
+            primary_location_id = @primaryLocation,
+            primary_social_link_id = @primarySocial,
+            primary_profile_picture_id = @primaryPicture,
+            updated_at = SYSUTCDATETIME()
+        WHERE user_id = @userId;
+      `);
+
+    if (!updateResult.rowsAffected[0]) {
+      await transaction.rollback();
+      return null;
+    }
+
+    await new sql.Request(transaction).input(
+      "userId",
+      sql.UniqueIdentifier,
+      userId,
+    ).query(`
+        DELETE FROM dbo.user_profile_professional_titles WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_contacts WHERE user_id = @userId;
+        DELETE FROM dbo.user_profile_pictures WHERE user_id = @userId;
+      `);
+
+    for (const item of profile.professionalTitles) {
+      await insertTitle(transaction, userId, item);
+    }
+
+    for (const category of CONTACT_CATEGORIES) {
+      for (const item of profile[category]) {
+        await insertContact(transaction, userId, category, item);
+      }
+    }
+
+    for (const item of profile.profilePictures) {
+      await insertPicture(transaction, userId, item);
+    }
+
+    await transaction.commit();
+    return findProfileByUserId(userId);
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Profile transaction rollback failed:", rollbackError);
+    }
+
+    throw error;
+  }
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\profileRoutes.js
+================================
+import { uploadProfilePicture } from "../middleware/profile/profilePictureUploadMiddleware.js";
+import { validateProfilePicture } from "../middleware/profile/profilePictureValidationMiddleware.js";
+
+import { Router } from "express";
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+import {
+  deleteProfilePictureController,
+  getMyProfile,
+  updateMyProfile,
+  uploadProfilePictureController,
+} from "../controllers/profileController.js";
+
+const router = Router();
+
+router.use(requireAuthentication);
+
+router.post(
+  "/pictures/upload",
+  uploadProfilePicture,
+  validateProfilePicture,
+  uploadProfilePictureController,
+);
+
+router.delete("/pictures/upload", deleteProfilePictureController);
+
+router.get("/me", getMyProfile);
+router.put("/me", updateMyProfile);
+
+export default router;
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js
+================================
+import { z } from "zod";
+
+const itemIdSchema = z.string().trim().min(1).max(200);
+const statusSchema = z.enum(["active", "archived"]);
+
+const timestampSchema = z.string().datetime({ offset: true }).optional();
+
+const commonItemFields = {
+  id: itemIdSchema,
+  description: z.string().trim().max(500).default(""),
+  order: z.number().int().min(0),
+  status: statusSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+};
+
+const professionalTitleSchema = z
+  .object({
+    ...commonItemFields,
+    name: z.string().trim().min(1).max(200),
+  })
+  .strict();
+
+const CONTACT_TYPES = {
+  emails: ["personal", "work", "school", "business", "other"],
+  phones: ["personal", "mobile", "home", "work", "school", "other"],
+  websites: [
+    "portfolio",
+    "personal",
+    "business",
+    "company",
+    "school",
+    "blog",
+    "other",
+  ],
+  locations: ["home", "office", "work", "school", "business", "other"],
+  socialLinks: [
+    "linkedin",
+    "github",
+    "youtube",
+    "facebook",
+    "instagram",
+    "x",
+    "other",
+  ],
+};
+
+const CONTACT_LIMITS = {
+  emails: 320,
+  phones: 50,
+  websites: 2048,
+  locations: 500,
+  socialLinks: 2048,
+};
+
+function createContactSchema(category) {
+  return z
+    .object({
+      ...commonItemFields,
+      type: z.enum(CONTACT_TYPES[category]),
+      value: z.string().trim().min(1).max(CONTACT_LIMITS[category]),
+    })
+    .strict();
+}
+
+const externalUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine(
+    (value) =>
+      !value ||
+      (/^https:\/\//i.test(value) &&
+        !/^https:\/\/(?:localhost|127\.0\.0\.1)/i.test(value)),
+    "Saved picture URLs must use a public HTTPS address.",
+  )
+  .refine(
+    (value) => !/^(?:data|blob):/i.test(value),
+    "Browser-local and embedded image URLs cannot be saved.",
+  );
+
+const profilePictureSchema = z
+  .object({
+    ...commonItemFields,
+    type: z.string().trim().max(100).default(""),
+    imageUrl: externalUrlSchema.default(""),
+    storageKey: z.string().trim().max(255).default(""),
+    fileName: z.string().trim().max(255).default(""),
+    fileType: z.string().trim().max(100).default(""),
+    fileSize: z
+      .number()
+      .int()
+      .min(0)
+      .max(20 * 1024 * 1024)
+      .default(0),
+    useDefaultAvatar: z.boolean().default(false),
+    width: z.number().int().positive().nullable().default(null),
+    height: z.number().int().positive().nullable().default(null),
+  })
+  .strict()
+  .superRefine((picture, context) => {
+    if (picture.useDefaultAvatar && (picture.imageUrl || picture.storageKey)) {
+      context.addIssue({
+        code: "custom",
+        path: ["useDefaultAvatar"],
+        message: "A default avatar cannot also reference an uploaded image.",
+      });
+    }
+  });
+
+const preferenceSchema = z
+  .object({
+    primaryProfessionalTitleId: z.string().trim().max(200).default(""),
+    primaryEmailId: z.string().trim().max(200).default(""),
+    primaryPhoneId: z.string().trim().max(200).default(""),
+    primaryWebsiteId: z.string().trim().max(200).default(""),
+    primaryLocationId: z.string().trim().max(200).default(""),
+    primarySocialLinkId: z.string().trim().max(200).default(""),
+    primaryProfilePictureId: z.string().trim().max(200).default(""),
+  })
+  .strict();
+
+const visibilitySchema = z
+  .object({
+    isPublic: z.boolean().default(false),
+  })
+  .strict();
+
+export const profileUpdateSchema = z
+  .object({
+    firstName: z.string().trim().max(100).default(""),
+    middleName: z.string().trim().max(100).default(""),
+    lastName: z.string().trim().max(100).default(""),
+    professionalTitles: z.array(professionalTitleSchema).max(20).default([]),
+    emails: z.array(createContactSchema("emails")).max(20).default([]),
+    phones: z.array(createContactSchema("phones")).max(20).default([]),
+    websites: z.array(createContactSchema("websites")).max(20).default([]),
+    locations: z.array(createContactSchema("locations")).max(20).default([]),
+    socialLinks: z
+      .array(createContactSchema("socialLinks"))
+      .max(30)
+      .default([]),
+    profilePictures: z.array(profilePictureSchema).max(20).default([]),
+    preferences: preferenceSchema.default({}),
+    visibility: visibilitySchema.default({}),
+    status: statusSchema.default("active"),
+  })
+  .strict()
+  .superRefine((profile, context) => {
+    const mappings = [
+      ["primaryProfessionalTitleId", "professionalTitles"],
+      ["primaryEmailId", "emails"],
+      ["primaryPhoneId", "phones"],
+      ["primaryWebsiteId", "websites"],
+      ["primaryLocationId", "locations"],
+      ["primarySocialLinkId", "socialLinks"],
+      ["primaryProfilePictureId", "profilePictures"],
+    ];
+
+    for (const [preferenceName, collectionName] of mappings) {
+      const requestedId = profile.preferences[preferenceName];
+
+      if (!requestedId) continue;
+
+      const isActiveItem = profile[collectionName].some(
+        (item) => item.id === requestedId && item.status === "active",
+      );
+
+      if (!isActiveItem) {
+        context.addIssue({
+          code: "custom",
+          path: ["preferences", preferenceName],
+          message:
+            "The primary item must reference an active item in its collection.",
+        });
+      }
+    }
+  });
+
+function createValidationError(zodError) {
+  const error = new Error("Profile validation failed.");
+  error.name = "ProfileValidationError";
+  error.code = "PROFILE_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Review the Profile information and try again.";
+  error.errors = zodError.issues.map((issue) => ({
+    field: issue.path.join("."),
+    code: issue.code,
+    message: issue.message,
+  }));
+  error.fieldErrors = {};
+
+  for (const issue of error.errors) {
+    const field = issue.field || "_form";
+    error.fieldErrors[field] ||= [];
+    error.fieldErrors[field].push(issue.message);
+  }
+
+  return error;
+}
+
+export function parseProfileUpdate(input) {
+  const result = profileUpdateSchema.safeParse(input);
+
+  if (!result.success) {
+    throw createValidationError(result.error);
+  }
+
+  return result.data;
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\profileService.js
+================================
+import {
+  findProfileByUserId,
+  replaceProfileByUserId,
+} from "../../repositories/profileRepository.js";
+
+import { deleteOwnedProfilePicture } from "../Storage/profilePictureStorageService.js";
+
+function createProfileError({ message, code, status, publicMessage }) {
+  const error = new Error(message);
+  error.name = "ProfileServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw createProfileError({
+      message: "An authenticated user ID is required.",
+      code: "PROFILE_AUTHENTICATION_REQUIRED",
+      status: 401,
+      publicMessage: "You must sign in to access your Profile.",
+    });
+  }
+
+  return userId.trim();
+}
+
+export async function getAuthenticatedProfile({ userId }) {
+  const profile = await findProfileByUserId(assertUserId(userId));
+
+  if (!profile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  return profile;
+}
+
+export async function updateAuthenticatedProfile({ userId, profile }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  /*
+   * Read the currently persisted Profile before replacing it.
+   *
+   * We need this snapshot so that, after a successful database save,
+   * we can determine which previously committed picture files are no
+   * longer referenced by the Profile.
+   */
+  const previousProfile = await findProfileByUserId(authenticatedUserId);
+
+  const updatedProfile = await replaceProfileByUserId(
+    authenticatedUserId,
+    profile,
+  );
+
+  if (!updatedProfile) {
+    throw createProfileError({
+      message: "The authenticated user Profile could not be updated.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  /*
+   * Build the set of picture storage keys that are still referenced
+   * after the successful database update.
+   */
+  const updatedStorageKeys = new Set(
+    updatedProfile.profilePictures
+      .map((picture) => String(picture.storageKey || "").trim())
+      .filter(Boolean),
+  );
+
+  /*
+   * A previously committed picture becomes orphaned when its storage
+   * key existed before the save but is no longer referenced afterward.
+   */
+  const orphanedStorageKeys = (previousProfile?.profilePictures || [])
+    .map((picture) => String(picture.storageKey || "").trim())
+    .filter((storageKey) => storageKey && !updatedStorageKeys.has(storageKey));
+
+  /*
+   * The database update has already succeeded at this point.
+   *
+   * Filesystem cleanup is therefore best-effort. A cleanup failure must
+   * not make the API report that the Profile save failed when the
+   * database has already committed successfully.
+   */
+  const cleanupResults = await Promise.allSettled(
+    orphanedStorageKeys.map((storageKey) =>
+      deleteOwnedProfilePicture(authenticatedUserId, storageKey),
+    ),
+  );
+
+  for (const cleanupResult of cleanupResults) {
+    if (cleanupResult.status === "rejected") {
+      console.error(
+        "Failed to clean up an orphaned profile picture after Profile save:",
+        cleanupResult.reason,
+      );
+    }
+  }
+
+  return updatedProfile;
+}
+
+export async function deleteUncommittedProfilePicture({ userId, storageKey }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  const normalizedStorageKey = String(storageKey || "").trim();
+
+  if (!normalizedStorageKey) {
+    throw createProfileError({
+      message: "A profile-picture storage key is required for cleanup.",
+      code: "PROFILE_PICTURE_STORAGE_KEY_REQUIRED",
+      status: 400,
+      publicMessage: "The profile picture could not be removed.",
+    });
+  }
+
+  /*
+   * Load the currently committed profile before touching
+   * the filesystem.
+   */
+
+  const currentProfile = await findProfileByUserId(authenticatedUserId);
+
+  if (!currentProfile) {
+    throw createProfileError({
+      message: "The authenticated user does not have a Profile row.",
+      code: "PROFILE_NOT_FOUND",
+      status: 404,
+      publicMessage: "Your Profile could not be found.",
+    });
+  }
+
+  /*
+   * Never allow this cleanup operation to delete a file
+   * that is currently referenced by the persisted profile.
+   */
+
+  const isCommitted = currentProfile.profilePictures.some(
+    (picture) =>
+      String(picture.storageKey || "").trim() === normalizedStorageKey,
+  );
+
+  if (isCommitted) {
+    throw createProfileError({
+      message:
+        "The requested profile picture is currently referenced by the persisted Profile.",
+      code: "PROFILE_PICTURE_IS_COMMITTED",
+      status: 409,
+      publicMessage:
+        "A saved profile picture cannot be removed as a temporary upload.",
+    });
+  }
+
+  return deleteOwnedProfilePicture(authenticatedUserId, normalizedStorageKey);
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\profilePictureStorageService.js
+================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+const environment = getEnvironment();
+
+/*
+ * =========================================
+ * User Storage Identity
+ * =========================================
+ */
+
+export function getProfilePictureUserDirectory(userId) {
+  const normalizedUserId = String(userId || "").trim();
+
+  if (!normalizedUserId) {
+    throw new Error(
+      "An authenticated user ID is required for profile-picture storage.",
+    );
+  }
+
+  return crypto.createHash("sha256").update(normalizedUserId).digest("hex");
+}
+
+/*
+ * =========================================
+ * Storage Root
+ * =========================================
+ */
+
+export function getProfilePictureStorageRoot() {
+  const storageRoot = String(
+    environment.PROFILE_PICTURE_STORAGE_PATH || "",
+  ).trim();
+
+  if (!storageRoot) {
+    throw new Error("PROFILE_PICTURE_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(storageRoot);
+}
+
+/*
+ * =========================================
+ * User Storage Path
+ * =========================================
+ */
+
+export function getProfilePictureUserStoragePath(userId) {
+  return path.join(
+    getProfilePictureStorageRoot(),
+    getProfilePictureUserDirectory(userId),
+  );
+}
+
+/*
+ * =========================================
+ * Storage Key
+ * =========================================
+ */
+
+export function createProfilePictureStorageKey(userId, fileName) {
+  const safeFileName = path.basename(String(fileName || "").trim());
+
+  if (!safeFileName) {
+    throw new Error("A profile-picture filename is required.");
+  }
+
+  return [getProfilePictureUserDirectory(userId), safeFileName].join("/");
+}
+
+export function resolveOwnedProfilePicturePath(userId, storageKey) {
+  const normalizedStorageKey = String(storageKey || "")
+    .trim()
+    .replaceAll("\\", "/");
+
+  if (!normalizedStorageKey) {
+    throw new Error("A profile-picture storage key is required.");
+  }
+
+  const userDirectory = getProfilePictureUserDirectory(userId);
+
+  const expectedPrefix = `${userDirectory}/`;
+
+  if (!normalizedStorageKey.startsWith(expectedPrefix)) {
+    throw new Error(
+      "The profile-picture storage key does not belong to the authenticated user.",
+    );
+  }
+
+  const relativeFileName = normalizedStorageKey.slice(expectedPrefix.length);
+
+  /*
+   * A profile picture must be one file directly inside
+   * the authenticated user's storage directory.
+   */
+
+  if (
+    !relativeFileName ||
+    relativeFileName.includes("/") ||
+    relativeFileName === "." ||
+    relativeFileName === ".." ||
+    path.basename(relativeFileName) !== relativeFileName
+  ) {
+    throw new Error("The profile-picture storage key is invalid.");
+  }
+
+  const userStoragePath = path.resolve(
+    getProfilePictureUserStoragePath(userId),
+  );
+
+  const resolvedFilePath = path.resolve(userStoragePath, relativeFileName);
+
+  /*
+   * Defense in depth:
+   * even after validating the storage key above, verify that
+   * the resulting file remains directly inside this user's
+   * storage directory.
+   */
+
+  if (path.dirname(resolvedFilePath) !== userStoragePath) {
+    throw new Error(
+      "The profile-picture path is outside the authenticated user's storage directory.",
+    );
+  }
+
+  return resolvedFilePath;
+}
+
+export async function deleteOwnedProfilePicture(userId, storageKey) {
+  const filePath = resolveOwnedProfilePicturePath(userId, storageKey);
+
+  try {
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    /*
+     * If the file is already gone, cleanup has still reached
+     * the desired state. Treat deletion as idempotent.
+     */
+
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+
+================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\utils\profileResponseUtils.js
+================================
