@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -110,6 +110,10 @@ export function ProjectDataProvider({ children }) {
 
   const [warnings, setWarnings] = useState([]);
 
+  const [backendStatus, setBackendStatus] = useState("idle");
+
+  const [backendError, setBackendError] = useState(null);
+
   /*
    * =========================================
    * Load Project Records
@@ -117,30 +121,51 @@ export function ProjectDataProvider({ children }) {
    */
 
   const refreshBackendProjects = useCallback(async (options = {}) => {
+  setBackendStatus("loading");
+  setBackendError(null);
+
+  try {
     const records = await fetchProjects(options);
 
     if (!Array.isArray(records)) {
       throw new TypeError("The Project API did not return a Project array.");
     }
 
-    // Read-only integration: do not replace local Project state.
+    setBackendStatus("success");
+
+    // Do not replace browser-local Project records.
     return records;
-  }, []);
+  } catch (caughtError) {
+    setBackendStatus("error");
+    setBackendError(normalizeContextError(caughtError));
+    throw caughtError;
+  }
+}, []);
   const refreshProjects = useCallback(
     async ({ includeArchived = true, preserveCurrentRecords = false } = {}) => {
       setIsLoading(true);
       setLoadStatus("loading");
 
       try {
-        const records = await getProjects({
-          includeArchived,
-        });
+        const records = await fetchProjects();
 
-        setProjects(records);
+        if (!Array.isArray(records)) {
+          throw new TypeError(
+            "The Project API did not return a Project array."
+          );
+        }
+
+        const filteredRecords = includeArchived
+          ? records
+          : records.filter(
+              (project) => project.recordStatus !== "archived"
+            );
+
+        setProjects(filteredRecords);
         setLoadStatus("success");
         setError(null);
 
-        return records;
+        return filteredRecords;
       } catch (caughtError) {
         const normalizedError = normalizeContextError(caughtError);
 
@@ -170,9 +195,13 @@ export function ProjectDataProvider({ children }) {
    */
 
   const synchronizeProjects = useCallback(async () => {
-    const records = await getProjects({
-      includeArchived: true,
-    });
+    const records = await fetchProjects();
+
+    if (!Array.isArray(records)) {
+      throw new TypeError(
+        "The Project API did not return a Project array."
+      );
+    }
 
     setProjects(records);
     setLoadStatus("success");
@@ -475,6 +504,9 @@ export function ProjectDataProvider({ children }) {
       error,
       warnings,
 
+       backendStatus,
+    backendError,
+
       refreshProjects,
       refreshBackendProjects,
       getProjectById,
@@ -499,6 +531,8 @@ export function ProjectDataProvider({ children }) {
       operation,
       error,
       warnings,
+       backendStatus,
+    backendError,
       refreshProjects,
       refreshBackendProjects,
       getProjectById,
@@ -537,3 +571,4 @@ export function useProjectData() {
 }
 
 export default ProjectDataContext;
+
