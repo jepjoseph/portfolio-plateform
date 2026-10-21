@@ -1,0 +1,76 @@
+import {
+  apiGet,
+  apiPost,
+  apiPut,
+  apiPatch,
+  apiDelete,
+} from "../apiClient.js";
+
+const PROJECT_ENDPOINT = "/projects";
+
+function projectPath(projectId) {
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    throw new Error("A valid Project ID is required.");
+  }
+
+  return `${PROJECT_ENDPOINT}/${encodeURIComponent(projectId.trim())}`;
+}
+
+function unwrapProject(response) {
+  return response?.data?.project ?? null;
+}
+
+export async function fetchProjects() {
+  const response = await apiGet(PROJECT_ENDPOINT);
+
+  return response?.data?.projects ?? [];
+}
+
+export async function fetchProjectById(projectId) {
+  const response = await apiGet(projectPath(projectId));
+
+  return unwrapProject(response);
+}
+
+export async function createProjectOnServer(project) {
+  const response = await apiPost(PROJECT_ENDPOINT, project);
+
+  return unwrapProject(response);
+}
+
+export async function updateProjectOnServer(
+  projectId,
+  project,
+  rowVersion,
+) {
+  const response = await apiPut(projectPath(projectId), {
+    project,
+    rowVersion,
+  });
+
+  return unwrapProject(response);
+}
+
+export async function setProjectArchiveStatusOnServer(
+  projectId,
+  archived,
+  rowVersion,
+) {
+  const response = await apiPatch(
+    `${projectPath(projectId)}/archive`,
+    {
+      archived,
+      rowVersion,
+    },
+  );
+
+  return unwrapProject(response);
+}
+
+export async function deleteProjectOnServer(projectId, rowVersion) {
+  const response = await apiDelete(projectPath(projectId), {
+    body: { rowVersion },
+  });
+
+  return response?.data ?? null;
+}

@@ -842,6 +842,7 @@ export function isSupportedProjectDocument(file) {
     "text/plain",
     "text/markdown",
     "text/csv",
+    "text/markdown",
     "application/json",
     "application/zip",
     "application/x-zip-compressed",

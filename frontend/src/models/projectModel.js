@@ -1,4 +1,4 @@
-import {
+﻿import {
   PROJECT_FIELD_LIMITS,
   isValidProjectAwardPlacement,
   isValidProjectCategory,
@@ -822,6 +822,10 @@ export function normalizeProject(value = {}) {
   return {
     modelVersion: PROJECT_MODEL_VERSION,
 
+    ...(typeof source.rowVersion === "string" &&
+    /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+      ? { rowVersion: source.rowVersion }
+      : {}),
     id: normalizeText(source.id, 200) || defaults.id,
 
     title: normalizeText(
@@ -1321,3 +1325,4 @@ export function createPublicProject(value) {
     updatedAt: project.updatedAt,
   };
 }
+

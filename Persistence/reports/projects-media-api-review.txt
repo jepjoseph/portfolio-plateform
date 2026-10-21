@@ -1,0 +1,1361 @@
+﻿============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectController.js
+============================================================
+import {
+  getAuthenticatedProjects,
+  getAuthenticatedProject,
+  createAuthenticatedProject,
+  updateAuthenticatedProject,
+  setAuthenticatedProjectArchiveStatus,
+  deleteAuthenticatedProject,
+} from "../services/Service/projectService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+function projectRequestError(message) {
+  const error = new Error(message);
+  error.name = "ProjectRequestError";
+  error.code = "PROJECT_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireObject(value, name) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw projectRequestError(`${name} must be a JSON object.`);
+  }
+
+  return value;
+}
+
+function requireFields(body, allowedFields) {
+  const input = requireObject(body, "Request body");
+
+  const unexpected = Object.keys(input).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw projectRequestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return input;
+}
+
+export async function listMyProjects(request, response, next) {
+  try {
+    const projects = await getAuthenticatedProjects({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Projects retrieved successfully.",
+      data: { projects },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyProject(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project retrieved successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMyProject(request, response, next) {
+  try {
+    const project = await createAuthenticatedProject({
+      userId: request.auth.userId,
+      project: request.body,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project created successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["project", "rowVersion"]);
+
+    const project = await updateAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      project: body.project,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project updated successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function setMyProjectArchiveStatus(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["archived", "rowVersion"]);
+
+    const project = await setAuthenticatedProjectArchiveStatus({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      archived: body.archived,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: body.archived
+        ? "Project archived successfully."
+        : "Project restored successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["rowVersion"]);
+
+    const result = await deleteAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project deleted successfully.",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\profilePictureUploadMiddleware.js
+============================================================
+import crypto from "node:crypto";
+import fs from "node:fs";
+
+import multer from "multer";
+
+import { getProfilePictureUserStoragePath } from "../../services/Storage/profilePictureStorageService.js";
+
+/*
+ * =========================================
+ * Configuration
+ * =========================================
+ */
+
+const MAX_PROFILE_PICTURE_SIZE = 20 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/jpg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/webp", ".webp"],
+  ["image/avif", ".avif"],
+  ["image/gif", ".gif"],
+]);
+
+/*
+ * =========================================
+ * Upload Error
+ * =========================================
+ */
+
+function createUploadError({
+  message,
+  code = "PROFILE_PICTURE_UPLOAD_FAILED",
+  status = 400,
+  publicMessage = "The profile picture could not be uploaded.",
+}) {
+  const error = new Error(message);
+
+  error.name = "ProfilePictureUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Storage Configuration
+ * =========================================
+ */
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    try {
+      const userId = String(request.auth?.userId || "").trim();
+
+      if (!userId) {
+        return callback(
+          createUploadError({
+            message:
+              "Authenticated user ID is unavailable during profile-picture upload.",
+            code: "PROFILE_PICTURE_UPLOAD_USER_INVALID",
+            status: 401,
+            publicMessage:
+              "Your session could not be verified for this upload.",
+          }),
+        );
+      }
+
+      const userStoragePath = getProfilePictureUserStoragePath(userId);
+
+      fs.mkdirSync(userStoragePath, {
+        recursive: true,
+      });
+
+      return callback(null, userStoragePath);
+    } catch (error) {
+      return callback(error);
+    }
+  },
+
+  filename(request, file, callback) {
+    const extension = ALLOWED_IMAGE_TYPES.get(file.mimetype);
+
+    if (!extension) {
+      return callback(
+        createUploadError({
+          message: `Unsupported profile-picture MIME type: ${file.mimetype}`,
+          code: "PROFILE_PICTURE_TYPE_NOT_ALLOWED",
+          status: 400,
+          publicMessage:
+            "The profile picture must be a JPEG, PNG, WebP, or AVIF image.",
+        }),
+      );
+    }
+
+    const fileName = `${crypto.randomUUID()}${extension}`;
+
+    return callback(null, fileName);
+  },
+});
+
+/*
+ * =========================================
+ * File Type Filter
+ * =========================================
+ */
+
+function profilePictureFileFilter(request, file, callback) {
+  if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+    return callback(
+      createUploadError({
+        message: `Unsupported profile-picture MIME type: ${file.mimetype}`,
+        code: "PROFILE_PICTURE_TYPE_NOT_ALLOWED",
+        status: 400,
+        publicMessage:
+          "The profile picture must be a JPEG, PNG, WebP, or AVIF image.",
+      }),
+    );
+  }
+
+  return callback(null, true);
+}
+
+/*
+ * =========================================
+ * Multer Upload
+ * =========================================
+ */
+
+const profilePictureUpload = multer({
+  storage,
+
+  limits: {
+    fileSize: MAX_PROFILE_PICTURE_SIZE,
+    files: 1,
+  },
+
+  fileFilter: profilePictureFileFilter,
+}).single("picture");
+
+/*
+ * =========================================
+ * Upload Middleware
+ * =========================================
+ */
+
+export function uploadProfilePicture(request, response, next) {
+  profilePictureUpload(request, response, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return next(
+          createUploadError({
+            message: "Profile picture exceeds the 20 MiB upload limit.",
+            code: "PROFILE_PICTURE_TOO_LARGE",
+            status: 413,
+            publicMessage: "The profile picture must be 20 MB or smaller.",
+          }),
+        );
+      }
+
+      if (error.code === "LIMIT_FILE_COUNT") {
+        return next(
+          createUploadError({
+            message: "More than one profile-picture file was uploaded.",
+            code: "PROFILE_PICTURE_TOO_MANY_FILES",
+            status: 400,
+            publicMessage: "Please upload only one profile picture.",
+          }),
+        );
+      }
+
+      if (error.code === "LIMIT_UNEXPECTED_FILE") {
+        return next(
+          createUploadError({
+            message: "An unexpected profile-picture upload field was received.",
+            code: "PROFILE_PICTURE_UNEXPECTED_FILE",
+            status: 400,
+            publicMessage:
+              'The profile picture must be uploaded using the "picture" field.',
+          }),
+        );
+      }
+
+      return next(
+        createUploadError({
+          message: `Multer profile-picture upload error: ${error.code}`,
+          code: "PROFILE_PICTURE_UPLOAD_INVALID",
+          status: 400,
+          publicMessage: "The profile picture upload could not be processed.",
+        }),
+      );
+    }
+
+    return next(error);
+  });
+}
+
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\uploadMiddleware.js
+============================================================
+
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectMediaUploadMiddleware.js
+============================================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import multer from "multer";
+
+import {
+  getProjectMediaDirectory,
+  getProjectMediaStorageRoot,
+} from "../../services/Storage/projectMediaStorageService.js";
+
+/*
+ * =========================================
+ * Project Media Upload Configuration
+ * =========================================
+ */
+
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+
+const ALLOWED_MEDIA_TYPES = new Map([
+  ["image/jpeg", { extension: ".jpg", maxSize: MAX_IMAGE_SIZE }],
+  ["image/png", { extension: ".png", maxSize: MAX_IMAGE_SIZE }],
+  ["image/webp", { extension: ".webp", maxSize: MAX_IMAGE_SIZE }],
+  ["image/avif", { extension: ".avif", maxSize: MAX_IMAGE_SIZE }],
+  ["image/gif", { extension: ".gif", maxSize: MAX_IMAGE_SIZE }],
+  ["video/mp4", { extension: ".mp4", maxSize: MAX_VIDEO_SIZE }],
+  ["video/webm", { extension: ".webm", maxSize: MAX_VIDEO_SIZE }],
+]);
+
+function createUploadError({
+  message,
+  code = "PROJECT_MEDIA_UPLOAD_FAILED",
+  status = 400,
+}) {
+  const error = new Error(message);
+
+  error.name = "ProjectMediaUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Authorized Project Context
+ * =========================================
+ */
+
+function getAuthorizedUploadContext(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const projectId = String(request.params?.projectId ?? "").trim();
+  const authorizedProject = request.authorizedProject;
+
+  if (!userId || !authorizedProject) {
+    throw createUploadError({
+      message: "Project media upload is not authorized.",
+      code: "PROJECT_MEDIA_UPLOAD_UNAUTHORIZED",
+      status: 403,
+    });
+  }
+
+  if (
+    !projectId ||
+    String(authorizedProject.id ?? "").trim() !== projectId
+  ) {
+    throw createUploadError({
+      message: "Authorized Project does not match the upload destination.",
+      code: "PROJECT_MEDIA_UPLOAD_PROJECT_MISMATCH",
+      status: 403,
+    });
+  }
+
+  return { userId, projectId };
+}
+
+/*
+ * =========================================
+ * Storage Directory Safety
+ * =========================================
+ */
+
+async function ensureSafeUploadDirectory(userId, projectId) {
+  const root = getProjectMediaStorageRoot();
+  const destination = getProjectMediaDirectory(userId, projectId);
+
+  await fs.mkdir(root, { recursive: true });
+
+  const relative = path.relative(root, destination);
+
+  if (
+    !relative ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project media upload destination is invalid.");
+  }
+
+  const directories = [
+    root,
+    path.dirname(destination),
+    destination,
+  ];
+
+  for (const directory of directories) {
+    try {
+      await fs.mkdir(directory);
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+    }
+
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project media upload directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalDestination = await fs.realpath(destination);
+  const canonicalRelative = path.relative(
+    canonicalRoot,
+    canonicalDestination,
+  );
+
+  if (
+    !canonicalRelative ||
+    canonicalRelative === ".." ||
+    canonicalRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(canonicalRelative)
+  ) {
+    throw new Error("Project media upload destination escapes storage root.");
+  }
+
+  return destination;
+}
+
+/*
+ * =========================================
+ * Multer Storage
+ * =========================================
+ */
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    let context;
+
+    try {
+      context = getAuthorizedUploadContext(request);
+    } catch (error) {
+      return callback(error);
+    }
+
+    ensureSafeUploadDirectory(context.userId, context.projectId)
+      .then((directory) => callback(null, directory))
+      .catch((error) => callback(error));
+  },
+
+  filename(request, file, callback) {
+    const configuration = ALLOWED_MEDIA_TYPES.get(file.mimetype);
+
+    if (!configuration) {
+      return callback(
+        createUploadError({
+          message: "Unsupported Project media type.",
+          code: "PROJECT_MEDIA_TYPE_NOT_ALLOWED",
+        }),
+      );
+    }
+
+    const filename = `${crypto.randomUUID()}${configuration.extension}`;
+
+    return callback(null, filename);
+  },
+});
+
+/*
+ * =========================================
+ * Media Type Filter
+ * =========================================
+ */
+
+function projectMediaFileFilter(request, file, callback) {
+  try {
+    getAuthorizedUploadContext(request);
+
+    if (!ALLOWED_MEDIA_TYPES.has(file.mimetype)) {
+      throw createUploadError({
+        message: "Unsupported Project media type.",
+        code: "PROJECT_MEDIA_TYPE_NOT_ALLOWED",
+      });
+    }
+
+    return callback(null, true);
+  } catch (error) {
+    return callback(error);
+  }
+}
+
+/*
+ * =========================================
+ * Multer Middleware
+ * =========================================
+ */
+
+const projectMediaUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_VIDEO_SIZE,
+    files: 1,
+  },
+  fileFilter: projectMediaFileFilter,
+}).single("media");
+
+export function uploadProjectMedia(request, response, next) {
+  projectMediaUpload(request, response, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return next(
+          createUploadError({
+            message: "Project media exceeds the 100 MiB upload limit.",
+            code: "PROJECT_MEDIA_TOO_LARGE",
+            status: 413,
+          }),
+        );
+      }
+
+      if (
+        error.code === "LIMIT_FILE_COUNT" ||
+        error.code === "LIMIT_UNEXPECTED_FILE"
+      ) {
+        return next(
+          createUploadError({
+            message: "Upload exactly one file using the media field.",
+            code: "PROJECT_MEDIA_INVALID_FILE_COUNT",
+          }),
+        );
+      }
+
+      return next(
+        createUploadError({
+          message: "Project media upload could not be processed.",
+          code: "PROJECT_MEDIA_UPLOAD_INVALID",
+        }),
+      );
+    }
+
+    return next(error);
+  });
+}
+
+export {
+  ALLOWED_MEDIA_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+};
+
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectMediaValidationMiddleware.js
+============================================================
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { fileTypeFromFile } from "file-type";
+
+import {
+  ALLOWED_MEDIA_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+} from "./projectMediaUploadMiddleware.js";
+
+import {
+  assertSafeProjectMediaDirectory,
+  getProjectMediaDirectory,
+} from "../../services/Storage/projectMediaStorageService.js";
+
+function createValidationError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectMediaValidationError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+function getAuthorizedFilePath(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const projectId = String(request.params?.projectId ?? "").trim();
+  const authorizedProjectId = String(
+    request.authorizedProject?.id ?? "",
+  ).trim();
+
+  if (!userId || !projectId || authorizedProjectId !== projectId) {
+    throw createValidationError(
+      "Project media validation is not authorized.",
+      "PROJECT_MEDIA_VALIDATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const uploadedFile = request.file;
+
+  if (!uploadedFile?.path) {
+    throw createValidationError(
+      "Please select a Project media file to upload.",
+      "PROJECT_MEDIA_FILE_REQUIRED",
+    );
+  }
+
+  const expectedDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const uploadedPath = path.resolve(uploadedFile.path);
+
+  if (path.dirname(uploadedPath) !== expectedDirectory) {
+    throw createValidationError(
+      "Project media file location is invalid.",
+      "PROJECT_MEDIA_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  return uploadedPath;
+}
+
+async function removeRejectedFile(userId, projectId, filePath) {
+  const expectedDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const targetPath = path.resolve(filePath);
+
+  if (path.dirname(targetPath) !== expectedDirectory) {
+    throw new Error(
+      "Rejected Project media file is outside its authorized directory.",
+    );
+  }
+
+  try {
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    const stats = await fs.lstat(targetPath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error(
+        "Rejected Project media target is not a regular file.",
+      );
+    }
+
+    await fs.unlink(targetPath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+export async function validateProjectMedia(request, response, next) {
+  let uploadedPath;
+
+  try {
+    uploadedPath = getAuthorizedFilePath(request);
+
+    await assertSafeProjectMediaDirectory(
+      request.auth.userId,
+      request.params.projectId,
+    );
+
+    const uploadedFile = request.file;
+
+    // Reject symbolic links and non-regular files before reading content.
+    const stats = await fs.lstat(uploadedPath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw createValidationError(
+        "The uploaded media is not a regular file.",
+        "PROJECT_MEDIA_INVALID_FILE",
+      );
+    }
+
+    const detectedType = await fileTypeFromFile(uploadedPath);
+
+    if (
+      !detectedType ||
+      !ALLOWED_MEDIA_TYPES.has(detectedType.mime)
+    ) {
+      throw createValidationError(
+        "The uploaded file does not contain a supported media signature.",
+        "PROJECT_MEDIA_CONTENT_TYPE_NOT_ALLOWED",
+      );
+    }
+
+    if (detectedType.mime !== uploadedFile.mimetype) {
+      throw createValidationError(
+        "The uploaded media type does not match its contents.",
+        "PROJECT_MEDIA_TYPE_MISMATCH",
+      );
+    }
+
+    const maximumSize = detectedType.mime.startsWith("image/")
+      ? MAX_IMAGE_SIZE
+      : MAX_VIDEO_SIZE;
+
+
+    if (stats.size > maximumSize) {
+      throw createValidationError(
+        "The uploaded media exceeds its permitted size.",
+        "PROJECT_MEDIA_TOO_LARGE",
+        413,
+      );
+    }
+
+    request.projectMediaFile = {
+      ...uploadedFile,
+      verifiedMimeType: detectedType.mime,
+      verifiedExtension: detectedType.ext,
+      verifiedSize: stats.size,
+    };
+
+    return next();
+  } catch (error) {
+    if (uploadedPath) {
+      try {
+        await removeRejectedFile(
+          request.auth?.userId,
+          request.params?.projectId,
+          uploadedPath,
+        );
+      } catch (cleanupError) {
+        console.error(
+          "Failed to clean up rejected Project media:",
+          cleanupError,
+        );
+
+        return next(
+          createValidationError(
+            "Project media cleanup failed.",
+            "PROJECT_MEDIA_CLEANUP_FAILED",
+            500,
+          ),
+        );
+      }
+    }
+
+    return next(error);
+  }
+}
+
+
+
+
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\projectNestedValidation.js
+============================================================
+const CATEGORY_VALUES = new Set([
+  "software", "web-application", "mobile-application",
+  "artificial-intelligence", "data", "cloud-infrastructure",
+  "networking", "cybersecurity", "embedded-systems",
+  "electronics", "automation", "internet-of-things",
+  "research", "design", "business", "academic",
+  "community", "other",
+]);
+
+const OPTIONS = {
+  ownership: ["individual", "team", "client", "organization"],
+  source: ["manual", "import", "integration", "ai-assisted"],
+  proficiency: ["", "foundational", "intermediate", "advanced", "expert"],
+  recognitionType: [
+    "", "award", "competition", "grant", "fellowship", "showcase",
+    "publication", "presentation", "patent", "media",
+    "client-recognition", "academic-recognition", "other",
+  ],
+  placement: [
+    "", "winner", "first-place", "second-place", "third-place",
+    "finalist", "semifinalist", "honorable-mention", "selected",
+    "recipient", "participant", "other",
+  ],
+  mediaType: ["image", "video", "diagram"],
+  documentType: [
+    "report", "presentation", "documentation", "source-file",
+    "dataset", "design", "award", "supporting-evidence", "other",
+  ],
+  visibility: ["public", "private"],
+  recordStatus: ["active", "archived"],
+};
+
+const TEXT_LIMITS = {
+  "organization.name": 200,
+  "organization.clientName": 200,
+  "organization.website": 1000,
+  "location.displayValue": 300,
+  "problem.statement": 4000,
+  "problem.targetAudience": 1000,
+  "problem.context": 3000,
+  "problem.importance": 3000,
+  "solution.overview": 4000,
+  "solution.approach": 4000,
+  "solution.architecture": 4000,
+  "results.outcome": 4000,
+  "results.problemsSolved": 3000,
+  "results.impact": 3000,
+  "results.beneficiariesAffected": 2000,
+  "results.lessonsLearned": 3000,
+  "results.futureImprovements": 3000,
+  "presentation.shortSummary": 500,
+  "presentation.caseStudy": 12000,
+  "presentation.featuredMediaId": 200,
+  "privateInformation.notes": 5000,
+  "sourceContext": 5000 / 10,
+};
+
+const COLLECTION_FIELDS = [
+  ["problem.constraints", 1500],
+  ["problem.objectives", 1500],
+  ["solution.features", 1500],
+  ["solution.contributions", 1500],
+];
+
+function object(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function fieldValue(source, path) {
+  return path.split(".").reduce(
+    (current, key) => object(current) ? current[key] : undefined,
+    source,
+  );
+}
+
+function error(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function checkText(errors, field, value, maximum) {
+  if (value === undefined) return;
+
+  if (typeof value !== "string" || value.trim().length > maximum) {
+    error(
+      errors, field, "PROJECT_FIELD_INVALID",
+      `This field must be text with at most ${maximum} characters.`,
+    );
+  }
+}
+
+function checkOption(errors, field, value, options) {
+  if (value === undefined) return;
+
+  if (!options.includes(value)) {
+    error(errors, field, "PROJECT_OPTION_INVALID", "Invalid option.");
+  }
+}
+
+function checkUrl(errors, field, value, maximum = 2000) {
+  if (value === undefined) return;
+
+  checkText(errors, field, value, maximum);
+
+  if (typeof value !== "string" || !value.trim()) return;
+
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+  } catch {
+    error(errors, field, "PROJECT_URL_INVALID", "Invalid HTTP or HTTPS URL.");
+  }
+}
+
+function checkItems(errors, source, path, callback) {
+  const items = fieldValue(source, path);
+  if (items === undefined || !Array.isArray(items)) return;
+
+  items.forEach((item, index) => {
+    const base = `${path}.${index}`;
+
+    if (!object(item)) {
+      error(errors, base, "PROJECT_ITEM_INVALID", "Expected an object.");
+      return;
+    }
+
+    callback(item, base);
+  });
+}
+
+function checkOrderedItems(errors, source, path, maximum) {
+  checkItems(errors, source, path, (item, base) => {
+    checkText(errors, `${base}.id`, item.id, 200);
+    checkText(errors, `${base}.text`, item.text, maximum);
+  });
+}
+
+export function validateNestedProject(source) {
+  const errors = [];
+
+  for (const [field, maximum] of Object.entries(TEXT_LIMITS)) {
+    checkText(errors, field, fieldValue(source, field), maximum);
+  }
+
+  checkOption(errors, "ownership", source.ownership, OPTIONS.ownership);
+  checkOption(errors, "source", source.source, OPTIONS.source);
+
+  if (source.modelVersion !== undefined && source.modelVersion !== 2) {
+    error(errors, "modelVersion", "PROJECT_VERSION_INVALID",
+      "Unsupported Project model version.");
+  }
+
+  for (const field of [
+    "liveUrl", "repositoryUrl", "documentationUrl",
+    "caseStudyUrl", "videoUrl",
+  ]) {
+    checkUrl(errors, `links.${field}`, source.links?.[field]);
+  }
+
+  checkUrl(errors, "organization.website", source.organization?.website, 1000);
+
+  for (const [path, maximum] of COLLECTION_FIELDS) {
+    checkOrderedItems(errors, source, path, maximum);
+  }
+
+  checkItems(errors, source, "results.metrics", (item, base) => {
+    checkText(errors, `${base}.label`, item.label, 200);
+    checkText(errors, `${base}.value`, item.value, 200);
+    checkText(errors, `${base}.description`, item.description, 500);
+  });
+
+  checkItems(errors, source, "skillRelationships", (item, base) => {
+    checkText(errors, `${base}.nameSnapshot`, item.nameSnapshot, 200);
+    checkText(errors, `${base}.usageDescription`, item.usageDescription, 1000);
+    checkOption(errors, `${base}.demonstratedProficiency`,
+      item.demonstratedProficiency, OPTIONS.proficiency);
+
+    if (!item.skillId && !item.nameSnapshot) {
+      error(errors, base, "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A Skill identifier or snapshot is required.");
+    }
+  });
+
+  checkItems(errors, source, "technologies", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 150);
+    checkText(errors, `${base}.category`, item.category, 100);
+  });
+
+  const relationshipTypes = [
+    ["experienceRelationships", "experienceId"],
+    ["educationRelationships", "educationId"],
+    ["trainingRelationships", "trainingId"],
+    ["certificationRelationships", "certificationId"],
+  ];
+
+  for (const [name, idField] of relationshipTypes) {
+    checkItems(errors, source, `relatedRecords.${name}`, (item, base) => {
+      checkText(errors, `${base}.${idField}`, item[idField], 200);
+      checkText(errors, `${base}.description`, item.description, 1000);
+
+      if (!item[idField]) {
+        error(errors, `${base}.${idField}`, "PROJECT_RELATIONSHIP_ID_REQUIRED",
+          "A related record identifier is required.");
+      }
+
+      if (item.snapshot !== undefined && !object(item.snapshot)) {
+        error(errors, `${base}.snapshot`, "PROJECT_SNAPSHOT_INVALID",
+          "Snapshot must be an object.");
+      } else {
+        checkText(errors, `${base}.snapshot.name`, item.snapshot?.name, 200);
+        checkText(errors, `${base}.snapshot.secondaryLabel`,
+          item.snapshot?.secondaryLabel, 200);
+      }
+    });
+  }
+
+  const documentIds = new Set(
+    Array.isArray(source.supportingDocuments)
+      ? source.supportingDocuments.map((item) => item?.id)
+      : [],
+  );
+
+  checkItems(errors, source, "awards", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 250);
+    checkText(errors, `${base}.organization`, item.organization, 250);
+    checkText(errors, `${base}.description`, item.description, 1500);
+    checkOption(errors, `${base}.recognitionType`,
+      item.recognitionType, OPTIONS.recognitionType);
+    checkOption(errors, `${base}.placement`, item.placement, OPTIONS.placement);
+    checkUrl(errors, `${base}.url`, item.url);
+
+    if (item.supportingDocumentIds !== undefined) {
+      if (!Array.isArray(item.supportingDocumentIds) ||
+          item.supportingDocumentIds.length > 10) {
+        error(errors, `${base}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_LIMIT", "Maximum 10 document references.");
+      } else {
+        for (const id of item.supportingDocumentIds) {
+          if (!documentIds.has(id)) {
+            error(errors, `${base}.supportingDocumentIds`,
+              "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+              "Referenced document does not exist in this Project.");
+          }
+        }
+      }
+    }
+  });
+
+  checkItems(errors, source, "media", (item, base) => {
+    checkOption(errors, `${base}.type`, item.type, OPTIONS.mediaType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.caption`, item.caption, 1000);
+    checkText(errors, `${base}.altText`, item.altText, 500);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  checkItems(errors, source, "supportingDocuments", (item, base) => {
+    checkOption(errors, `${base}.documentType`,
+      item.documentType, OPTIONS.documentType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.description`, item.description, 1000);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  if (source.visibility !== undefined) {
+    if (!object(source.visibility)) {
+      error(errors, "visibility", "PROJECT_VISIBILITY_INVALID",
+        "Visibility must be an object.");
+    } else {
+      for (const [name, value] of Object.entries(source.visibility)) {
+        if (typeof value !== "boolean") {
+          error(errors, `visibility.${name}`, "PROJECT_VISIBILITY_INVALID",
+            "Visibility must be true or false.");
+        }
+      }
+    }
+  }
+
+  if (source.presentation?.featuredMediaId) {
+    const featuredId = source.presentation.featuredMediaId;
+    const eligible = Array.isArray(source.media) &&
+      source.media.some((item) =>
+        item?.id === featuredId && item.status !== "archived" &&
+        item.visibility !== "private" &&
+        (item.storageKey || item.externalUrl),
+      );
+
+    if (!eligible) {
+      error(errors, "presentation.featuredMediaId",
+        "PROJECT_FEATURED_MEDIA_INVALID",
+        "Featured media must be active, public, and available.");
+    }
+  }
+
+  return errors;
+}
+
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\projectMediaStorageService.js
+============================================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+function requireIdentifier(value, label) {
+  const normalized = String(value ?? "").trim();
+
+  if (!normalized) {
+    throw new Error(`${label} is required for Project media storage.`);
+  }
+
+  return normalized;
+}
+
+function hashIdentifier(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function validateFileName(fileName) {
+  const normalized = String(fileName ?? "").trim();
+
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    path.basename(normalized) !== normalized ||
+    !/^[a-f0-9-]{36}\.(?:jpg|jpeg|png|webp|avif|gif|mp4|webm)$/i.test(
+      normalized,
+    )
+  ) {
+    throw new Error("Invalid Project media filename.");
+  }
+
+  return normalized;
+}
+
+export function getProjectMediaStorageRoot() {
+  const environment = getEnvironment();
+
+  const configuredPath = String(
+    environment.PROJECT_MEDIA_STORAGE_PATH || "",
+  ).trim();
+
+  if (!configuredPath) {
+    throw new Error("PROJECT_MEDIA_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(configuredPath);
+}
+
+export function getProjectMediaUserDirectory(userId) {
+  return hashIdentifier(requireIdentifier(userId, "User ID"));
+}
+
+export function getProjectMediaProjectDirectory(projectId) {
+  return hashIdentifier(requireIdentifier(projectId, "Project ID"));
+}
+
+export function getProjectMediaDirectory(userId, projectId) {
+  return path.join(
+    getProjectMediaStorageRoot(),
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+  );
+}
+
+export function createProjectMediaStorageKey(userId, projectId, fileName) {
+  const safeFileName = validateFileName(fileName);
+
+  return [
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+    safeFileName,
+  ].join("/");
+}
+
+export function resolveOwnedProjectMediaPath(userId, projectId, storageKey) {
+  const normalizedKey = String(storageKey ?? "").trim();
+
+  const expectedUserDirectory = getProjectMediaUserDirectory(userId);
+  const expectedProjectDirectory = getProjectMediaProjectDirectory(projectId);
+
+  const parts = normalizedKey.split("/");
+
+  if (
+    parts.length !== 3 ||
+    parts[0] !== expectedUserDirectory ||
+    parts[1] !== expectedProjectDirectory
+  ) {
+    throw new Error(
+      "Project media storage key does not belong to this user and Project.",
+    );
+  }
+
+  const safeFileName = validateFileName(parts[2]);
+
+  const mediaDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const filePath = path.resolve(mediaDirectory, safeFileName);
+
+  if (path.dirname(filePath) !== mediaDirectory) {
+    throw new Error("Project media path is outside the expected directory.");
+  }
+
+  return filePath;
+}
+
+export async function assertSafeProjectMediaDirectory(userId, projectId) {
+  const root = getProjectMediaStorageRoot();
+  const userDirectory = path.join(root, getProjectMediaUserDirectory(userId));
+  const projectDirectory = path.join(
+    userDirectory,
+    getProjectMediaProjectDirectory(projectId),
+  );
+
+  const directories = [root, userDirectory, projectDirectory];
+
+  for (const directory of directories) {
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project media storage directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalProjectDirectory = await fs.realpath(projectDirectory);
+
+  const relative = path.relative(
+    canonicalRoot,
+    canonicalProjectDirectory,
+  );
+
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project media directory is outside the storage root.");
+  }
+}
+
+export async function deleteOwnedProjectMedia(userId, projectId, storageKey) {
+  const filePath = resolveOwnedProjectMediaPath(userId, projectId, storageKey);
+
+  try {
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    const stats = await fs.lstat(filePath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error("Project media target is not a regular file.");
+    }
+
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+

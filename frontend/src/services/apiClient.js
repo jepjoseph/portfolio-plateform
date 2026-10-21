@@ -1,4 +1,4 @@
-/*
+﻿/*
  * =========================================
  * API Configuration
  * =========================================
@@ -77,7 +77,7 @@ function normalizeApiBaseUrl(value) {
 }
 
 export const API_BASE_URL = normalizeApiBaseUrl(
-  import.meta.env.VITE_API_BASE_URL,
+  import.meta.env?.VITE_API_BASE_URL,
 );
 
 /*
@@ -333,7 +333,7 @@ function createRequestAbortController({ signal, timeoutMs }) {
     }
   }
 
-  const timeoutId = window.setTimeout(() => {
+  const timeoutId = globalThis.setTimeout(() => {
     wasTimedOut = true;
 
     controller.abort();
@@ -347,7 +347,7 @@ function createRequestAbortController({ signal, timeoutMs }) {
     },
 
     cleanup() {
-      window.clearTimeout(timeoutId);
+      globalThis.clearTimeout(timeoutId);
 
       signal?.removeEventListener?.("abort", handleExternalAbort);
     },
@@ -531,3 +531,4 @@ export function apiDelete(endpoint, options = {}) {
     method: "DELETE",
   });
 }
+

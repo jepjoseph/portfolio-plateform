@@ -1,0 +1,1720 @@
+﻿HEADER RESPONSIVE REVIEW
+
+========================================
+FILE: .\src\components\PublicHeader\PublicHeader.jsx
+========================================
+import { useEffect, useState } from "react";
+
+import { Link, useLocation, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../../context/AuthContext.jsx";
+
+import {
+  ROUTE_TRANSITION_DURATION_MS,
+  runRouteTransition,
+} from "../../utils/routeTransition.js";
+
+import PublicNavigation from "../PublicNavigation/PublicNavigation.jsx";
+
+import "./PublicHeader.css";
+
+/*
+ * =========================================
+ * Modified Navigation
+ * =========================================
+ */
+
+function isModifiedNavigation(event) {
+  return (
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  );
+}
+
+/*
+ * =========================================
+ * Public Header
+ * =========================================
+ */
+
+function PublicHeader() {
+  const navigate = useNavigate();
+
+  const location = useLocation();
+
+  const { isAuthenticated } = useAuth();
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  /*
+   * Close the mobile menu whenever the route
+   * changes.
+   */
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  /*
+   * Close the mobile menu with Escape.
+   */
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
+  /*
+   * =========================================
+   * Authentication Navigation
+   * =========================================
+   */
+
+  function handleAuthenticationNavigation(event, destination) {
+    if (isModifiedNavigation(event)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    setIsMobileMenuOpen(false);
+
+    runRouteTransition(
+      () => {
+        navigate(destination);
+      },
+      {
+        name: "page-to-auth",
+
+        duration: ROUTE_TRANSITION_DURATION_MS,
+      },
+    );
+  }
+
+  function handlePublicNavigation() {
+    setIsMobileMenuOpen(false);
+  }
+
+  return (
+    <header className="public-header">
+      <div className="public-header-inner">
+        <Link
+          to="/"
+          className="public-header-brand"
+          aria-label="Portfolio Platform homepage"
+        >
+          <span className="public-header-brand-mark" aria-hidden="true">
+            PP
+          </span>
+
+          <span className="public-header-brand-text">
+            <strong>Portfolio Platform</strong>
+
+            <small>Build. Present. Grow.</small>
+          </span>
+        </Link>
+
+        <div className="public-header-desktop-navigation">
+          <PublicNavigation
+            variant="public"
+            onNavigate={handlePublicNavigation}
+          />
+        </div>
+
+        <div className="public-header-actions">
+          {isAuthenticated ? (
+            <Link to="/dashboard" className="public-header-primary-action">
+              Open Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/auth/login"
+                className="public-header-secondary-action"
+                onClick={(event) => {
+                  handleAuthenticationNavigation(event, "/auth/login");
+                }}
+              >
+                Sign In
+              </Link>
+
+              <Link
+                to="/auth/register"
+                className="public-header-primary-action"
+                onClick={(event) => {
+                  handleAuthenticationNavigation(event, "/auth/register");
+                }}
+              >
+                Create Account
+              </Link>
+            </>
+          )}
+
+          <button
+            type="button"
+            className="public-header-menu-button"
+            aria-label={
+              isMobileMenuOpen
+                ? "Close public navigation"
+                : "Open public navigation"
+            }
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="public-mobile-navigation"
+            onClick={() => {
+              setIsMobileMenuOpen((currentValue) => !currentValue);
+            }}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="public-mobile-navigation"
+        className={[
+          "public-header-mobile-navigation",
+          isMobileMenuOpen ? "public-header-mobile-navigation--open" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <PublicNavigation
+          variant="public-mobile"
+          onNavigate={handlePublicNavigation}
+        />
+
+        <div className="public-header-mobile-actions">
+          {isAuthenticated ? (
+            <Link to="/dashboard" className="public-header-primary-action">
+              Open Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/auth/login"
+                className="public-header-secondary-action"
+                onClick={(event) => {
+                  handleAuthenticationNavigation(event, "/auth/login");
+                }}
+              >
+                Sign In
+              </Link>
+
+              <Link
+                to="/auth/register"
+                className="public-header-primary-action"
+                onClick={(event) => {
+                  handleAuthenticationNavigation(event, "/auth/register");
+                }}
+              >
+                Create Account
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export default PublicHeader;
+
+========================================
+FILE: .\src\components\PublicHeader\PublicHeader.css
+========================================
+/* =========================================
+   Public Header
+   ========================================= */
+
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: 300;
+
+  width: 100%;
+
+  background: rgba(7, 10, 18, 0.84);
+  border-bottom: 1px solid var(--border-color);
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.public-header-inner {
+  width: min(100% - 48px, 1380px);
+  min-height: 78px;
+
+  display: grid;
+  grid-template-columns:
+    minmax(200px, 1fr)
+    auto
+    minmax(200px, 1fr);
+  align-items: center;
+  gap: 24px;
+
+  margin: 0 auto;
+}
+
+/* =========================================
+   Brand
+   ========================================= */
+
+.public-header-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 11px;
+
+  min-width: 0;
+
+  color: inherit;
+  text-decoration: none;
+}
+
+.public-header-brand:focus-visible {
+  border-radius: 10px;
+
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 5px;
+}
+
+.public-header-brand-mark {
+  width: 38px;
+  height: 38px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 11px;
+
+  background: linear-gradient(135deg, var(--accent), #06b6d4);
+
+  color: #ffffff;
+
+  font-size: 0.64rem;
+  font-weight: 800;
+
+  box-shadow: 0 0 22px rgba(99, 102, 241, 0.22);
+}
+
+.public-header-brand-text {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+.public-header-brand-text strong {
+  color: var(--text-primary);
+
+  font-size: 0.84rem;
+  font-weight: 720;
+}
+
+.public-header-brand-text small {
+  margin-top: 2px;
+
+  color: var(--text-muted);
+
+  font-size: 0.55rem;
+  font-weight: 650;
+
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* =========================================
+   Desktop Navigation
+   ========================================= */
+
+.public-header-desktop-navigation {
+  display: flex;
+  justify-content: center;
+}
+
+.public-navigation-public {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.public-navigation-public .public-navigation-link {
+  position: relative;
+
+  min-height: 39px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 13px;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+
+  color: var(--text-secondary);
+
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-decoration: none;
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.public-navigation-public .public-navigation-link:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.public-navigation-public .public-navigation-link.active {
+  background: var(--accent-soft);
+  color: #c7d2fe;
+}
+
+.public-navigation-public .public-navigation-link.active::after {
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  left: 12px;
+
+  height: 2px;
+
+  border-radius: 999px;
+
+  background: var(--accent);
+
+  content: "";
+}
+
+/* =========================================
+   Header Actions
+   ========================================= */
+
+.public-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 9px;
+}
+
+.public-header-secondary-action,
+.public-header-primary-action {
+  min-height: 39px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+
+  padding: 0 14px;
+
+  border-radius: var(--radius-md);
+
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-decoration: none;
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.public-header-secondary-action {
+  border: 1px solid var(--border-color);
+
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+}
+
+.public-header-secondary-action:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.public-header-primary-action {
+  border: 1px solid transparent;
+
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+
+  color: #ffffff;
+
+  box-shadow: 0 9px 24px rgba(99, 102, 241, 0.18);
+}
+
+.public-header-primary-action:hover {
+  transform: translateY(-1px);
+
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.26);
+}
+
+/* =========================================
+   Mobile Menu Button
+   ========================================= */
+
+.public-header-menu-button {
+  width: 39px;
+  height: 39px;
+
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  padding: 0;
+
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.025);
+
+  cursor: pointer;
+}
+
+.public-header-menu-button span {
+  width: 17px;
+  height: 2px;
+
+  border-radius: 999px;
+
+  background: var(--text-primary);
+}
+
+/* =========================================
+   Mobile Navigation
+   ========================================= */
+
+.public-header-mobile-navigation {
+  display: none;
+}
+
+.public-navigation-public-mobile {
+  display: grid;
+  gap: 5px;
+}
+
+.public-navigation-public-mobile .public-navigation-link {
+  min-height: 42px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 13px;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+
+  color: var(--text-secondary);
+
+  font-size: 0.74rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.public-navigation-public-mobile .public-navigation-link:hover,
+.public-navigation-public-mobile .public-navigation-link.active {
+  background: var(--accent-soft);
+  border-color: rgba(99, 102, 241, 0.18);
+  color: #c7d2fe;
+}
+
+.public-header-mobile-actions {
+  display: none;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 980px) {
+  .public-header-inner {
+    grid-template-columns: 1fr auto;
+
+    width: min(100% - 36px, 1380px);
+  }
+
+  .public-header-desktop-navigation {
+    display: none;
+  }
+
+  .public-header-menu-button {
+    display: flex;
+  }
+
+  .public-header-mobile-navigation--open {
+    width: min(100% - 36px, 1380px);
+
+    display: grid;
+    gap: 16px;
+
+    margin: 0 auto;
+    padding: 10px 0 20px;
+
+    border-top: 1px solid var(--border-color);
+  }
+}
+
+@media (max-width: 640px) {
+  .public-header-inner {
+    min-height: 68px;
+
+    width: min(100% - 28px, 1380px);
+  }
+
+  .public-header-brand-text {
+    display: none;
+  }
+
+  .public-header-actions > .public-header-secondary-action,
+  .public-header-actions > .public-header-primary-action {
+    display: none;
+  }
+
+  .public-header-mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .public-header-mobile-navigation--open {
+    width: min(100% - 28px, 1380px);
+  }
+}
+
+========================================
+FILE: .\src\layouts\AuthLayout\AuthLayout.jsx
+========================================
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { Link, Outlet } from "react-router-dom";
+
+import PublicNavigation from "../../components/PublicNavigation/PublicNavigation.jsx";
+
+import {
+  ROUTE_TRANSITION_DURATION_MS,
+  runRouteTransition,
+} from "../../utils/routeTransition.js";
+
+import "./AuthLayout.css";
+
+/*
+ * =========================================
+ * Modified Click Detection
+ * =========================================
+ */
+
+function isModifiedNavigation(event) {
+  return (
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  );
+}
+
+/*
+ * =========================================
+ * Authentication Layout
+ * =========================================
+ */
+
+function AuthLayout() {
+  const navigate = useNavigate();
+
+  const location = useLocation();
+
+  const currentYear = new Date().getFullYear();
+
+  /*
+   * =========================================
+   * Transition to Destination
+   * =========================================
+   */
+
+  function transitionToDestination(destination) {
+    runRouteTransition(
+      () => {
+        navigate(destination);
+      },
+      {
+        name: "reveal-from-left",
+
+        duration: ROUTE_TRANSITION_DURATION_MS,
+      },
+    );
+  }
+
+  /*
+   * =========================================
+   * Home Navigation
+   * =========================================
+   */
+
+  function handleHomeNavigation(event) {
+    if (isModifiedNavigation(event)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    transitionToDestination("/");
+  }
+
+  function handlePublicNavigation(event, navigationItem) {
+    if (navigationItem?.path === "/") {
+      handleHomeNavigation(event);
+    }
+  }
+
+  /*
+   * =========================================
+   * Go Back
+   * =========================================
+   *
+   * location.key is "default" when the page
+   * was opened directly and there may be no
+   * safe application history entry.
+   */
+
+  function handleGoBack() {
+    runRouteTransition(
+      () => {
+        if (location.key === "default") {
+          navigate("/");
+        } else {
+          navigate(-1);
+        }
+      },
+      {
+        name: "reveal-from-left",
+
+        duration: ROUTE_TRANSITION_DURATION_MS,
+      },
+    );
+  }
+
+  return (
+    <div
+      className="auth-layout"
+      style={{
+        "--auth-transition-duration": `${ROUTE_TRANSITION_DURATION_MS}ms`,
+      }}
+    >
+      {/*
+       * =====================================
+       * Platform Presentation
+       * =====================================
+       */}
+
+      <aside className="auth-layout-presentation">
+        <div className="auth-layout-presentation-home">
+          <PublicNavigation
+            variant="auth"
+            onNavigate={handlePublicNavigation}
+          />
+        </div>
+
+        <div className="auth-layout-presentation-content">
+          <Link
+            to="/"
+            className="auth-layout-brand"
+            aria-label="Portfolio Platform home"
+            onClick={handleHomeNavigation}
+          >
+            <span className="auth-layout-brand-mark" aria-hidden="true">
+              PP
+            </span>
+
+            <span className="auth-layout-brand-text">
+              <strong>Portfolio Platform</strong>
+
+              <small>Build. Present. Grow.</small>
+            </span>
+          </Link>
+
+          <div className="auth-layout-introduction">
+            <span className="auth-layout-eyebrow">
+              Your professional workspace
+            </span>
+
+            <h1>Build a career presence that grows with you.</h1>
+
+            <p>
+              Organize your professional profile, experience, projects, skills,
+              certifications, rÃ©sumÃ©s, and public portfolio from one secure
+              platform.
+            </p>
+          </div>
+
+          <div className="auth-layout-feature-list">
+            <div className="auth-layout-feature">
+              <span className="auth-layout-feature-icon" aria-hidden="true">
+                01
+              </span>
+
+              <div>
+                <strong>One professional profile</strong>
+
+                <p>
+                  Keep your career information organized and ready to reuse.
+                </p>
+              </div>
+            </div>
+
+            <div className="auth-layout-feature">
+              <span className="auth-layout-feature-icon" aria-hidden="true">
+                02
+              </span>
+
+              <div>
+                <strong>RÃ©sumÃ©s built with purpose</strong>
+
+                <p>
+                  Create focused rÃ©sumÃ©s using the experience and skills you
+                  already manage.
+                </p>
+              </div>
+            </div>
+
+            <div className="auth-layout-feature">
+              <span className="auth-layout-feature-icon" aria-hidden="true">
+                03
+              </span>
+
+              <div>
+                <strong>A portfolio ready to share</strong>
+
+                <p>
+                  Publish selected work through a professional public
+                  presentation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="auth-layout-presentation-footer">
+          <span aria-hidden="true">â—ˆ</span>
+
+          <p>
+            Your account is protected with password verification and a one-time
+            email code.
+          </p>
+        </div>
+      </aside>
+
+      {/*
+       * =====================================
+       * Authentication Area
+       * =====================================
+       */}
+
+      <main className="auth-layout-main">
+        <header className="auth-layout-main-header">
+          <div className="auth-layout-mobile-home">
+            <PublicNavigation
+              variant="auth"
+              onNavigate={handlePublicNavigation}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="auth-layout-back-button"
+            onClick={handleGoBack}
+          >
+            <span aria-hidden="true">â†</span>
+            Go back
+          </button>
+        </header>
+
+        <div className="auth-layout-content">
+          <div className="auth-layout-mobile-brand">
+            <Link
+              to="/"
+              className="auth-layout-brand"
+              aria-label="Portfolio Platform home"
+              onClick={handleHomeNavigation}
+            >
+              <span className="auth-layout-brand-mark" aria-hidden="true">
+                PP
+              </span>
+
+              <span className="auth-layout-brand-text">
+                <strong>Portfolio Platform</strong>
+
+                <small>Build. Present. Grow.</small>
+              </span>
+            </Link>
+          </div>
+
+          <div className="auth-layout-outlet">
+            <Outlet />
+          </div>
+
+          <div className="auth-layout-security-note" role="note">
+            <span className="auth-layout-security-icon" aria-hidden="true">
+              âœ“
+            </span>
+
+            <p>
+              Passwords and verification codes are never displayed or emailed
+              back to you. Always keep your sign-in information private.
+            </p>
+          </div>
+        </div>
+
+        <footer className="auth-layout-footer">
+          <p>Â© {currentYear} Portfolio Platform</p>
+
+          <nav aria-label="Authentication legal links">
+            <Link to="/privacy">Privacy</Link>
+
+            <Link to="/terms">Terms</Link>
+
+            <Link to="/contact">Help</Link>
+          </nav>
+        </footer>
+      </main>
+    </div>
+  );
+}
+
+export default AuthLayout;
+
+========================================
+FILE: .\src\layouts\AuthLayout\AuthLayout.css
+========================================
+/* =========================================
+   Authentication Header
+   ========================================= */
+
+.auth-layout-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+
+  padding: 24px 30px;
+}
+
+.auth-layout-back-button {
+  min-height: 39px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  padding: 0 14px;
+
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.auth-layout-back-button:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+
+  transform: translateX(-2px);
+}
+
+.auth-layout-back-button:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+/* =========================================
+   Authentication Layout
+   ========================================= */
+
+.auth-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  display: grid;
+
+  /*
+   * Percentages allow both columns to animate
+   * smoothly between 50/50 and 100/0.
+   */
+
+  grid-template-columns: 50% 50%;
+
+  overflow: hidden;
+
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* =========================================
+   Authentication Entrance Transition
+   ========================================= */
+
+.auth-layout-presentation {
+  transform-origin: left center;
+
+  animation: auth-presentation-enter var(--auth-transition-duration, 1300ms)
+    cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-layout-main {
+  transform-origin: right center;
+
+  animation: auth-main-enter var(--auth-transition-duration, 1300ms)
+    cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-layout-outlet {
+  animation: auth-form-enter var(--auth-form-duration, 1014ms)
+    var(--auth-form-delay, 312ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes auth-presentation-enter {
+  from {
+    opacity: 0.7;
+    transform: translateX(7%) scaleX(1.13);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scaleX(1);
+  }
+}
+
+@keyframes auth-main-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24%) scaleX(0.68);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scaleX(1);
+  }
+}
+
+@keyframes auth-form-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================
+   Real Route Transitions
+   =========================================
+ *
+ * page-to-auth:
+ * Public page disappears, presentation starts
+ * full width, presentation shrinks left, and
+ * authentication expands on the right.
+ *
+ * auth-to-previous:
+ * Authentication shrinks right while the
+ * actual previous page appears on the left
+ * and expands to fill the screen.
+ */
+/* Remove the browser's default crossfade. */
+
+::view-transition-group(root) {
+  animation-duration: var(--route-transition-duration, 1300ms);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
+}
+
+@keyframes route-old-page-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0.25;
+    transform: translateX(18%) scale(0.92);
+  }
+}
+
+/* =========================================
+   Presentation Panel
+   ========================================= */
+
+.auth-layout-presentation {
+  position: relative;
+  isolation: isolate;
+
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  padding: clamp(30px, 4vw, 58px);
+
+  overflow: hidden;
+
+  border-right: 1px solid var(--border-color);
+
+  background:
+    radial-gradient(
+      circle at 18% 14%,
+      rgba(99, 102, 241, 0.26),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 82% 78%,
+      rgba(6, 182, 212, 0.13),
+      transparent 36%
+    ),
+    linear-gradient(145deg, rgba(17, 24, 39, 0.98), rgba(8, 12, 22, 0.98));
+}
+
+.auth-layout-presentation::before {
+  position: absolute;
+  top: -140px;
+  right: -170px;
+  z-index: -1;
+
+  width: 420px;
+  height: 420px;
+
+  border: 1px solid rgba(129, 140, 248, 0.12);
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 0 55px rgba(99, 102, 241, 0.025),
+    0 0 0 110px rgba(99, 102, 241, 0.018);
+
+  content: "";
+
+  pointer-events: none;
+}
+
+.auth-layout-presentation::after {
+  position: absolute;
+  right: -45px;
+  bottom: 12%;
+  z-index: -1;
+
+  width: 150px;
+  height: 150px;
+
+  border-radius: 32px;
+
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.12),
+    rgba(6, 182, 212, 0.04)
+  );
+
+  content: "";
+
+  pointer-events: none;
+
+  transform: rotate(24deg);
+}
+
+.auth-layout-presentation-content {
+  width: min(100%, 590px);
+
+  margin: 0 auto;
+}
+
+/* =========================================
+   Presentation Home Navigation
+   ========================================= */
+
+.auth-layout-presentation-home {
+  position: absolute;
+  top: clamp(30px, 4vw, 58px);
+  left: 50%;
+  z-index: 2;
+
+  display: flex;
+  justify-content: center;
+
+  transform: translateX(-50%);
+}
+
+/* =========================================
+   Brand
+   ========================================= */
+
+.auth-layout-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+
+  color: inherit;
+
+  text-decoration: none;
+}
+
+.auth-layout-brand:focus-visible {
+  border-radius: 10px;
+
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 5px;
+}
+
+.auth-layout-brand-mark {
+  width: 44px;
+  height: 44px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border: 1px solid rgba(165, 180, 252, 0.2);
+  border-radius: 13px;
+
+  background: linear-gradient(135deg, var(--accent), #06b6d4);
+
+  color: #ffffff;
+
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.25);
+}
+
+.auth-layout-brand-text {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+.auth-layout-brand-text strong {
+  color: var(--text-primary);
+
+  font-size: 0.88rem;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.auth-layout-brand-text small {
+  margin-top: 3px;
+
+  color: var(--text-muted);
+
+  font-size: 0.58rem;
+  font-weight: 600;
+
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* =========================================
+   Introduction
+   ========================================= */
+
+.auth-layout-introduction {
+  margin-top: clamp(62px, 10vh, 115px);
+}
+
+.auth-layout-eyebrow {
+  display: block;
+
+  color: var(--accent-hover);
+
+  font-size: 0.65rem;
+  font-weight: 750;
+
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.auth-layout-introduction h1 {
+  max-width: 570px;
+
+  margin: 13px 0 0;
+
+  color: var(--text-primary);
+
+  font-size: clamp(2rem, 3.6vw, 3.4rem);
+  font-weight: 760;
+  line-height: 1.08;
+
+  letter-spacing: -0.045em;
+}
+
+.auth-layout-introduction > p {
+  max-width: 550px;
+
+  margin: 20px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+/* =========================================
+   Feature List
+   ========================================= */
+
+.auth-layout-feature-list {
+  display: grid;
+  gap: 14px;
+
+  margin-top: clamp(34px, 6vh, 60px);
+}
+
+.auth-layout-feature {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 13px;
+
+  padding: 14px 15px;
+
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.auth-layout-feature-icon {
+  width: 31px;
+  height: 31px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 9px;
+
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+
+  font-size: 0.56rem;
+  font-weight: 800;
+}
+
+.auth-layout-feature strong {
+  color: var(--text-primary);
+
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.auth-layout-feature p {
+  margin: 4px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   Presentation Footer
+   ========================================= */
+
+.auth-layout-presentation-footer {
+  width: min(100%, 590px);
+
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  margin: 40px auto 0;
+  padding-top: 20px;
+
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.auth-layout-presentation-footer > span {
+  flex-shrink: 0;
+
+  color: var(--success);
+
+  font-size: 0.78rem;
+}
+
+.auth-layout-presentation-footer p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.64rem;
+  line-height: 1.55;
+}
+
+/* =========================================
+   Main Authentication Area
+   ========================================= */
+
+.auth-layout-main {
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  background:
+    radial-gradient(circle at top, rgba(99, 102, 241, 0.06), transparent 32%),
+    var(--bg-primary);
+}
+
+/* =========================================
+   Authentication Public Navigation
+   ========================================= */
+
+.public-navigation-auth {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.public-navigation-auth .public-navigation-link {
+  position: relative;
+
+  min-height: 39px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 14px;
+
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-decoration: none;
+
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.public-navigation-auth .public-navigation-link:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+
+  transform: translateY(-1px);
+}
+
+.public-navigation-auth .public-navigation-link:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+.public-navigation-auth .public-navigation-link.active {
+  background: var(--accent-soft);
+  border-color: rgba(99, 102, 241, 0.28);
+  color: #c7d2fe;
+}
+
+.public-navigation-auth .public-navigation-link.active::after {
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  left: 12px;
+
+  height: 2px;
+
+  border-radius: 999px;
+
+  background: var(--accent);
+
+  content: "";
+}
+
+/* =========================================
+   Authentication Content
+   ========================================= */
+
+.auth-layout-content {
+  width: min(100% - 40px, 470px);
+
+  align-self: center;
+  justify-self: center;
+
+  padding: 34px 0 42px;
+}
+
+.auth-layout-mobile-brand {
+  display: none;
+}
+
+.auth-layout-outlet {
+  width: 100%;
+}
+
+/* =========================================
+   Security Note
+   ========================================= */
+
+.auth-layout-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  margin-top: 18px;
+  padding: 13px 14px;
+
+  border: 1px solid rgba(34, 197, 94, 0.11);
+  border-radius: var(--radius-md);
+
+  background: rgba(34, 197, 94, 0.035);
+}
+
+.auth-layout-security-icon {
+  width: 20px;
+  height: 20px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.auth-layout-security-note p {
+  margin: 1px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.62rem;
+  line-height: 1.55;
+}
+
+/* =========================================
+   Footer
+   ========================================= */
+
+.auth-layout-footer {
+  align-self: end;
+
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  box-sizing: border-box;
+
+  /*
+   * Smaller bottom padding places the footer
+   * closer to the bottom edge.
+   */
+
+  padding: 22px 30px max(60px, env(safe-area-inset-bottom));
+
+  color: var(--text-muted);
+
+  font-size: 0.61rem;
+}
+
+.auth-layout-footer p {
+  margin: 0;
+}
+
+.auth-layout-footer nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.auth-layout-footer a {
+  color: var(--text-muted);
+
+  text-decoration: none;
+}
+
+.auth-layout-footer a:hover {
+  color: var(--text-secondary);
+
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* =========================================
+   Mobile Home Navigation
+   ========================================= */
+
+.auth-layout-mobile-home {
+  display: none;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media (max-width: 1050px) {
+  .auth-layout-introduction h1 {
+    font-size: 2.15rem;
+  }
+}
+
+@media (max-width: 820px) {
+  .auth-layout-main-header {
+    justify-content: space-between;
+
+    padding: 20px 22px;
+  }
+
+  .auth-layout-mobile-home {
+    display: flex;
+  }
+
+  .auth-layout {
+    display: block;
+    overflow: visible;
+  }
+
+  .auth-layout-presentation {
+    display: none;
+  }
+
+  .auth-layout-main {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .auth-layout-mobile-brand {
+    display: block;
+
+    margin-bottom: 38px;
+  }
+
+  .auth-layout-mobile-home {
+    display: flex;
+
+    padding: 20px 22px;
+  }
+
+  .auth-layout-content {
+    width: min(100% - 36px, 470px);
+
+    padding-top: 16px;
+  }
+
+  .auth-layout-footer {
+    padding: 20px 22px max(8px, env(safe-area-inset-bottom));
+  }
+
+  /*
+   * There is no left panel on mobile.
+   * Fade and shrink the authentication page
+   * before navigating home.
+   */
+
+  .auth-layout--returning-home .auth-layout-main {
+    animation: auth-mobile-return-home var(--auth-transition-duration, 1300ms)
+      cubic-bezier(0.76, 0, 0.24, 1) both;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-layout-main-header {
+    padding: 17px 18px;
+  }
+
+  .auth-layout-back-button {
+    min-height: 36px;
+    padding: 0 11px;
+  }
+
+  .auth-layout-mobile-home {
+    padding: 17px 18px;
+  }
+
+  .auth-layout-content {
+    width: min(100% - 28px, 470px);
+
+    padding: 12px 0 30px;
+  }
+
+  .auth-layout-mobile-brand {
+    margin-bottom: 30px;
+  }
+
+  .auth-layout-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+
+    padding: 18px 18px max(8px, env(safe-area-inset-bottom));
+  }
+}

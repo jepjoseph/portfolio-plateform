@@ -1,0 +1,537 @@
+﻿PROJECT BACKEND API CONTRACT REVIEW
+
+========================================
+FILE: ..\backend\src\routes\projectRoutes.js
+========================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+export default router;
+
+========================================
+FILE: ..\backend\src\controllers\projectController.js
+========================================
+import {
+  getAuthenticatedProjects,
+  getAuthenticatedProject,
+  createAuthenticatedProject,
+  updateAuthenticatedProject,
+  setAuthenticatedProjectArchiveStatus,
+  deleteAuthenticatedProject,
+} from "../services/Service/projectService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+function projectRequestError(message) {
+  const error = new Error(message);
+  error.name = "ProjectRequestError";
+  error.code = "PROJECT_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireObject(value, name) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw projectRequestError(`${name} must be a JSON object.`);
+  }
+
+  return value;
+}
+
+function requireFields(body, allowedFields) {
+  const input = requireObject(body, "Request body");
+
+  const unexpected = Object.keys(input).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw projectRequestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return input;
+}
+
+export async function listMyProjects(request, response, next) {
+  try {
+    const projects = await getAuthenticatedProjects({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Projects retrieved successfully.",
+      data: { projects },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyProject(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project retrieved successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMyProject(request, response, next) {
+  try {
+    const project = await createAuthenticatedProject({
+      userId: request.auth.userId,
+      project: request.body,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project created successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["project", "rowVersion"]);
+
+    const project = await updateAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      project: body.project,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project updated successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function setMyProjectArchiveStatus(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["archived", "rowVersion"]);
+
+    const project = await setAuthenticatedProjectArchiveStatus({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      archived: body.archived,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: body.archived
+        ? "Project archived successfully."
+        : "Project restored successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["rowVersion"]);
+
+    const result = await deleteAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project deleted successfully.",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+FILE: ..\backend\src\controllers\projectMediaController.js
+========================================
+import fs from "node:fs";
+import { promises as fsPromises } from "node:fs";
+
+import {
+  registerProjectMedia,
+  listAuthenticatedProjectMedia,
+  getAuthenticatedProjectMedia,
+  deleteAuthenticatedProjectMedia,
+} from "../services/Service/projectMediaService.js";
+
+import {
+  resolveOwnedProjectMediaPath,
+  assertSafeProjectMediaDirectory,
+} from "../services/Storage/projectMediaStorageService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Upload Project Media
+ * =========================================
+ *
+ * Authentication, ownership, upload, and
+ * file validation must run before this
+ * controller.
+ *
+ * File cleanup is handled by the validation
+ * middleware for rejected uploads.
+ *
+ * Do not delete an uploaded file after an
+ * uncertain database registration outcome.
+ */
+
+export async function uploadMyProjectMedia(request, response, next) {
+  try {
+    const media = await registerProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      uploadedFile: request.projectMediaFile,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project media uploaded successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * GET /api/projects/:projectId/media
+ */
+
+export async function listMyProjectMedia(request, response, next) {
+  try {
+    const media = await listAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project media retrieved successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Serve Project Media
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media/:mediaId
+ *
+ * Authentication and Project ownership
+ * must be verified by the route middleware.
+ */
+
+export async function getMyProjectMedia(request, response, next) {
+  let fileHandle;
+
+  try {
+    const userId = request.auth.userId;
+    const projectId = request.params.projectId;
+    const mediaId = request.params.mediaId;
+
+    /*
+     * Retrieve authorized media metadata.
+     */
+
+    const media = await getAuthenticatedProjectMedia({
+      userId,
+      projectId,
+      mediaId,
+    });
+
+    /*
+     * Resolve the file path using the
+     * existing ownership-aware storage service.
+     */
+
+    const filePath = resolveOwnedProjectMediaPath(
+      userId,
+      projectId,
+      media.storageKey,
+    );
+
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    /*
+     * Open the file without following a
+     * symbolic link on supported platforms.
+     */
+
+    /*
+     * Reject symbolic links and reparse-point-like
+     * targets before opening the file.
+     *
+     * On Windows, O_NOFOLLOW is unavailable.
+     */
+
+    const pathStats = await fsPromises.lstat(filePath);
+
+    if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+      const error = new Error("Project media not found.");
+
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = error.message;
+
+      throw error;
+    }
+
+    /*
+     * Open the file using O_NOFOLLOW where supported.
+     */
+
+    const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+
+    fileHandle = await fsPromises.open(filePath, flags);
+
+    const stats = await fileHandle.stat();
+
+    if (!stats.isFile()) {
+      const error = new Error("Project media is not a regular file.");
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = "Project media not found.";
+      throw error;
+    }
+
+    /*
+     * Set private response headers.
+     */
+
+    setPrivateHeaders(response);
+
+    response.set({
+      "Content-Type": media.mimeType,
+      "Content-Length": String(stats.size),
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
+      "Accept-Ranges": "none",
+    });
+
+    /*
+     * Stream from the already-open file
+     * descriptor rather than reopening
+     * the path.
+     */
+
+    const stream = fileHandle.createReadStream({
+      autoClose: true,
+    });
+
+    fileHandle = null;
+
+    stream.on("error", (error) => {
+      if (!response.headersSent) {
+        next(error);
+      } else {
+        response.destroy(error);
+      }
+    });
+
+    stream.pipe(response);
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close().catch(() => {});
+    }
+
+    if (error.code === "ENOENT") {
+      const notFound = new Error("Project media not found.");
+      notFound.status = 404;
+      notFound.code = "PROJECT_MEDIA_NOT_FOUND";
+      notFound.publicMessage = notFound.message;
+      return next(notFound);
+    }
+
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Delete My Project Media
+ * =========================================
+ */
+
+export async function deleteMyProjectMedia(request, response, next) {
+  try {
+    await deleteAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      mediaId: request.params.mediaId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(204).end();
+  } catch (error) {
+    return next(error);
+  }
+}

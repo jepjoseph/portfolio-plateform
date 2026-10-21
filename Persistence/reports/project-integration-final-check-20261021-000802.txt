@@ -1,0 +1,2104 @@
+PROJECT INTEGRATION - FINAL SOURCE CHECK
+Generated: 2026-10-21 00:08:02
+
+================================================================================
+FILE: frontend\src\services\apiClient.js
+================================================================================
+SIZE: 10947 bytes
+
+/*
+ * =========================================
+ * API Configuration
+ * =========================================
+ */
+
+const DEFAULT_API_ORIGIN = "http://localhost:5000";
+
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/*
+ * =========================================
+ * Authentication Session Event
+ * =========================================
+ */
+
+export const AUTH_SESSION_INVALID_EVENT =
+  "portfolio-platform:auth-session-invalid";
+
+const INVALID_SESSION_CODES = new Set([
+  "AUTHENTICATION_REQUIRED",
+  "SESSION_REFRESH_TOKEN_INVALID",
+  "SESSION_NOT_FOUND",
+  "SESSION_REFRESH_CONFLICT",
+]);
+
+/*
+ * =========================================
+ * Invalid Session Notification
+ * =========================================
+ */
+
+function notifyInvalidAuthenticationSession(error) {
+  if (
+    typeof window === "undefined" ||
+    (Number(error?.status) !== 401 &&
+      error?.code !== "SESSION_REFRESH_CONFLICT")
+  ) {
+    return;
+  }
+
+  if (!INVALID_SESSION_CODES.has(error?.code)) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+      detail: {
+        status: error.status,
+
+        code: error.code,
+
+        message: error.message,
+      },
+    }),
+  );
+}
+
+/*
+ * VITE_API_BASE_URL may be configured as:
+ *
+ * http://localhost:5000
+ *
+ * or:
+ *
+ * http://localhost:5000/api
+ *
+ * Both formats are supported.
+ */
+
+function normalizeApiBaseUrl(value) {
+  const configuredValue = typeof value === "string" ? value.trim() : "";
+
+  const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+
+  return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(
+  import.meta.env?.VITE_API_BASE_URL,
+);
+
+/*
+ * =========================================
+ * API Error
+ * =========================================
+ */
+
+export class ApiError extends Error {
+  constructor({
+    message,
+    status = 0,
+    code = "API_REQUEST_FAILED",
+    fieldErrors = {},
+    errors = [],
+    details = null,
+    method = "",
+    url = "",
+    cause,
+  }) {
+    super(message || "The request could not be completed.", {
+      cause,
+    });
+
+    this.name = "ApiError";
+
+    this.status = Number(status) || 0;
+
+    this.code = code || "API_REQUEST_FAILED";
+
+    this.fieldErrors =
+      fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+
+    this.errors = Array.isArray(errors) ? errors : [];
+
+    this.details = details || null;
+
+    this.method = method;
+
+    this.url = url;
+  }
+}
+
+/*
+ * =========================================
+ * Endpoint Normalization
+ * =========================================
+ */
+
+function normalizeEndpoint(endpoint) {
+  if (typeof endpoint !== "string" || !endpoint.trim()) {
+    throw new TypeError("A relative API endpoint is required.");
+  }
+
+  const normalizedEndpoint = endpoint.trim();
+
+  /*
+   * Prevent accidental cookie-bearing
+   * requests to arbitrary external origins.
+   */
+
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+    throw new TypeError("API endpoints must be relative paths.");
+  }
+
+  return normalizedEndpoint.startsWith("/")
+    ? normalizedEndpoint
+    : `/${normalizedEndpoint}`;
+}
+
+/*
+ * =========================================
+ * Query Parameters
+ * =========================================
+ */
+
+function appendQueryParameters(url, query) {
+  if (!query || typeof query !== "object") {
+    return url;
+  }
+
+  const requestUrl = new URL(url);
+
+  for (const [name, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        requestUrl.searchParams.append(name, String(item));
+      }
+
+      continue;
+    }
+
+    requestUrl.searchParams.set(name, String(value));
+  }
+
+  return requestUrl.toString();
+}
+
+/*
+ * =========================================
+ * Request Body Preparation
+ * =========================================
+ */
+
+function isFormData(value) {
+  return typeof FormData !== "undefined" && value instanceof FormData;
+}
+
+function isUrlSearchParams(value) {
+  return (
+    typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+  );
+}
+
+function isBlob(value) {
+  return typeof Blob !== "undefined" && value instanceof Blob;
+}
+
+function shouldSerializeAsJson(body) {
+  return (
+    body !== undefined &&
+    body !== null &&
+    typeof body === "object" &&
+    !isFormData(body) &&
+    !isUrlSearchParams(body) &&
+    !isBlob(body) &&
+    !(body instanceof ArrayBuffer)
+  );
+}
+
+function prepareRequestBody({ body, headers }) {
+  if (body === undefined || body === null) {
+    return undefined;
+  }
+
+  if (shouldSerializeAsJson(body)) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    return JSON.stringify(body);
+  }
+
+  /*
+   * Never set Content-Type manually for
+   * FormData. The browser must add its
+   * multipart boundary.
+   */
+
+  return body;
+}
+
+/*
+ * =========================================
+ * Response Parsing
+ * =========================================
+ */
+
+async function parseResponseBody(response) {
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        message: "The server returned an invalid JSON response.",
+      };
+    }
+  }
+
+  /*
+   * Some development proxies may omit the
+   * JSON content type. Attempt JSON parsing
+   * before treating the body as plain text.
+   */
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      message: text,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * API Error Creation
+ * =========================================
+ */
+
+function createResponseError({ response, data, method, url }) {
+  const error = new ApiError({
+    message: data?.message || `The server returned HTTP ${response.status}.`,
+
+    status: response.status,
+
+    code: data?.code || "API_REQUEST_FAILED",
+
+    fieldErrors: data?.fieldErrors,
+
+    errors: data?.errors,
+
+    details: data?.details,
+
+    method,
+
+    url,
+  });
+
+  notifyInvalidAuthenticationSession(error);
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Timeout and Abort Signal
+ * =========================================
+ */
+
+function createRequestAbortController({ signal, timeoutMs }) {
+  const controller = new AbortController();
+
+  let wasTimedOut = false;
+
+  const handleExternalAbort = () => {
+    controller.abort(signal?.reason);
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      handleExternalAbort();
+    } else {
+      signal.addEventListener("abort", handleExternalAbort, {
+        once: true,
+      });
+    }
+  }
+
+  const timeoutId = globalThis.setTimeout(() => {
+    wasTimedOut = true;
+
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+
+    wasTimedOut() {
+      return wasTimedOut;
+    },
+
+    cleanup() {
+      globalThis.clearTimeout(timeoutId);
+
+      signal?.removeEventListener?.("abort", handleExternalAbort);
+    },
+  };
+}
+
+/*
+ * =========================================
+ * API Request
+ * =========================================
+ */
+
+export async function apiRequest(
+  endpoint,
+  {
+    method = "GET",
+    body,
+    query,
+    headers: customHeaders,
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    cache = "no-store",
+  } = {},
+) {
+  const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+
+  const normalizedEndpoint = normalizeEndpoint(endpoint);
+
+  const requestUrl = appendQueryParameters(
+    `${API_BASE_URL}${normalizedEndpoint}`,
+    query,
+  );
+
+  const headers = new Headers(customHeaders || {});
+
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+
+  const requestBody = prepareRequestBody({
+    body,
+
+    headers,
+  });
+
+  const abortState = createRequestAbortController({
+    signal,
+
+    timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+  });
+
+  try {
+    const response = await fetch(requestUrl, {
+      method: normalizedMethod,
+
+      /*
+       * Required for HttpOnly session
+       * cookies on cross-origin requests.
+       */
+
+      credentials: "include",
+
+      headers,
+
+      body: ["GET", "HEAD"].includes(normalizedMethod)
+        ? undefined
+        : requestBody,
+
+      signal: abortState.signal,
+
+      cache,
+    });
+
+    const data = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw createResponseError({
+        response,
+
+        data,
+
+        method: normalizedMethod,
+
+        url: requestUrl,
+      });
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (error?.name === "AbortError") {
+      throw new ApiError({
+        message: abortState.wasTimedOut()
+          ? "The server took too long to respond."
+          : "The request was canceled.",
+
+        status: 0,
+
+        code: abortState.wasTimedOut()
+          ? "API_REQUEST_TIMEOUT"
+          : "API_REQUEST_ABORTED",
+
+        method: normalizedMethod,
+
+        url: requestUrl,
+
+        cause: error,
+      });
+    }
+
+    throw new ApiError({
+      message:
+        "Unable to connect to the server. Check your connection and try again.",
+
+      status: 0,
+
+      code: "API_NETWORK_ERROR",
+
+      method: normalizedMethod,
+
+      url: requestUrl,
+
+      cause: error,
+    });
+  } finally {
+    abortState.cleanup();
+  }
+}
+
+/*
+ * =========================================
+ * Convenience Methods
+ * =========================================
+ */
+
+export function apiGet(endpoint, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "GET",
+  });
+}
+
+export function apiPost(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "POST",
+
+    body,
+  });
+}
+
+export function apiPut(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "PUT",
+
+    body,
+  });
+}
+
+export function apiPatch(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "PATCH",
+
+    body,
+  });
+}
+
+export function apiDelete(endpoint, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "DELETE",
+  });
+}
+
+
+================================================================================
+FILE: frontend\src\config\projectConfig.js
+================================================================================
+SIZE: 17644 bytes
+
+/*
+ * =========================================
+ * Project Categories
+ * =========================================
+ */
+
+export const PROJECT_CATEGORY_OPTIONS = [
+  {
+    value: "software",
+    label: "Software Development",
+  },
+  {
+    value: "web-application",
+    label: "Web Application",
+  },
+  {
+    value: "mobile-application",
+    label: "Mobile Application",
+  },
+  {
+    value: "artificial-intelligence",
+    label: "Artificial Intelligence",
+  },
+  {
+    value: "data",
+    label: "Data and Analytics",
+  },
+  {
+    value: "cloud-infrastructure",
+    label: "Cloud and Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "cybersecurity",
+    label: "Cybersecurity",
+  },
+  {
+    value: "embedded-systems",
+    label: "Embedded Systems",
+  },
+  {
+    value: "electronics",
+    label: "Electronics",
+  },
+  {
+    value: "automation",
+    label: "Automation",
+  },
+  {
+    value: "internet-of-things",
+    label: "Internet of Things",
+  },
+  {
+    value: "research",
+    label: "Research",
+  },
+  {
+    value: "design",
+    label: "Design",
+  },
+  {
+    value: "business",
+    label: "Business or Startup",
+  },
+  {
+    value: "academic",
+    label: "Academic Project",
+  },
+  {
+    value: "community",
+    label: "Community Project",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Project Lifecycle
+ * =========================================
+ *
+ * This represents the actual lifecycle of the
+ * project. It is separate from recordStatus,
+ * which controls library archiving.
+ */
+
+export const PROJECT_LIFECYCLE_STATUS_OPTIONS = [
+  {
+    value: "planned",
+    label: "Planned",
+  },
+  {
+    value: "in-progress",
+    label: "In Progress",
+  },
+  {
+    value: "completed",
+    label: "Completed",
+  },
+  {
+    value: "maintained",
+    label: "Maintained",
+  },
+  {
+    value: "paused",
+    label: "Paused",
+  },
+  {
+    value: "cancelled",
+    label: "Cancelled",
+  },
+];
+
+/*
+ * =========================================
+ * Project Ownership
+ * =========================================
+ */
+
+export const PROJECT_OWNERSHIP_OPTIONS = [
+  {
+    value: "individual",
+    label: "Individual Project",
+  },
+  {
+    value: "team",
+    label: "Team Project",
+  },
+  {
+    value: "client",
+    label: "Client Project",
+  },
+  {
+    value: "organization",
+    label: "Organization Project",
+  },
+];
+
+/*
+ * =========================================
+ * Record Sources
+ * =========================================
+ */
+
+export const PROJECT_SOURCE_OPTIONS = [
+  {
+    value: "manual",
+    label: "Manually Added",
+  },
+  {
+    value: "import",
+    label: "Imported",
+  },
+  {
+    value: "integration",
+    label: "Integration",
+  },
+  {
+    value: "ai-assisted",
+    label: "AI Assisted",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const PROJECT_RECORD_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+  },
+];
+
+/*
+ * =========================================
+ * Demonstrated Skill Proficiency
+ * =========================================
+ *
+ * This describes the proficiency demonstrated
+ * specifically within a Project. It can differ
+ * from the general Skill Library proficiency.
+ */
+
+export const PROJECT_SKILL_PROFICIENCY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "foundational",
+    label: "Foundational",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+  },
+  {
+    value: "expert",
+    label: "Expert",
+  },
+];
+
+/*
+ * =========================================
+ * Technology Categories
+ * =========================================
+ */
+
+export const PROJECT_TECHNOLOGY_CATEGORY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "programming-language",
+    label: "Programming Language",
+  },
+  {
+    value: "framework-library",
+    label: "Framework or Library",
+  },
+  {
+    value: "database",
+    label: "Database",
+  },
+  {
+    value: "cloud-platform",
+    label: "Cloud Platform",
+  },
+  {
+    value: "infrastructure",
+    label: "Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "hardware",
+    label: "Hardware",
+  },
+  {
+    value: "embedded-platform",
+    label: "Embedded Platform",
+  },
+  {
+    value: "development-tool",
+    label: "Development Tool",
+  },
+  {
+    value: "design-tool",
+    label: "Design Tool",
+  },
+  {
+    value: "testing-tool",
+    label: "Testing Tool",
+  },
+  {
+    value: "methodology",
+    label: "Methodology",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Recognition Types
+ * =========================================
+ */
+
+export const PROJECT_RECOGNITION_TYPE_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "award",
+    label: "Award",
+  },
+  {
+    value: "competition",
+    label: "Competition",
+  },
+  {
+    value: "grant",
+    label: "Grant",
+  },
+  {
+    value: "fellowship",
+    label: "Fellowship",
+  },
+  {
+    value: "showcase",
+    label: "Showcase Selection",
+  },
+  {
+    value: "publication",
+    label: "Publication",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "patent",
+    label: "Patent or Invention",
+  },
+  {
+    value: "media",
+    label: "Media Recognition",
+  },
+  {
+    value: "client-recognition",
+    label: "Client Recognition",
+  },
+  {
+    value: "academic-recognition",
+    label: "Academic Recognition",
+  },
+  {
+    value: "other",
+    label: "Other Recognition",
+  },
+];
+
+/*
+ * =========================================
+ * Award Placements
+ * =========================================
+ */
+
+export const PROJECT_AWARD_PLACEMENT_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "winner",
+    label: "Winner",
+  },
+  {
+    value: "first-place",
+    label: "First Place",
+  },
+  {
+    value: "second-place",
+    label: "Second Place",
+  },
+  {
+    value: "third-place",
+    label: "Third Place",
+  },
+  {
+    value: "finalist",
+    label: "Finalist",
+  },
+  {
+    value: "semifinalist",
+    label: "Semifinalist",
+  },
+  {
+    value: "honorable-mention",
+    label: "Honorable Mention",
+  },
+  {
+    value: "selected",
+    label: "Selected",
+  },
+  {
+    value: "recipient",
+    label: "Recipient",
+  },
+  {
+    value: "participant",
+    label: "Participant",
+  },
+  {
+    value: "other",
+    label: "Other Placement",
+  },
+];
+
+/*
+ * =========================================
+ * Media Types
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_TYPE_OPTIONS = [
+  {
+    value: "image",
+    label: "Image",
+  },
+  {
+    value: "video",
+    label: "Video",
+  },
+  {
+    value: "diagram",
+    label: "Architecture Diagram",
+  },
+];
+
+/*
+ * =========================================
+ * Document Types
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_TYPE_OPTIONS = [
+  {
+    value: "report",
+    label: "Report",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "documentation",
+    label: "Documentation",
+  },
+  {
+    value: "source-file",
+    label: "Source File or Archive",
+  },
+  {
+    value: "dataset",
+    label: "Dataset",
+  },
+  {
+    value: "design",
+    label: "Design Document",
+  },
+  {
+    value: "award",
+    label: "Award Evidence",
+  },
+  {
+    value: "supporting-evidence",
+    label: "Supporting Evidence",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Asset Visibility
+ * =========================================
+ */
+
+export const PROJECT_ASSET_VISIBILITY_OPTIONS = [
+  {
+    value: "public",
+    label: "Public",
+  },
+  {
+    value: "private",
+    label: "Private",
+  },
+];
+
+/*
+ * =========================================
+ * Accepted Media Files
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+].join(",");
+
+/*
+ * =========================================
+ * Accepted Document Files
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+].join(",");
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ *
+ * These limits should later be mirrored in
+ * backend validation and database columns.
+ */
+
+export const PROJECT_FIELD_LIMITS = Object.freeze({
+  title: 200,
+  role: 160,
+
+  organizationName: 200,
+  clientName: 200,
+  website: 1000,
+
+  locationDisplayValue: 300,
+
+  url: 2000,
+
+  problemStatement: 4000,
+  targetAudience: 1000,
+  context: 3000,
+  importance: 3000,
+
+  overview: 4000,
+  approach: 4000,
+  architecture: 4000,
+
+  outcome: 4000,
+  problemsSolved: 3000,
+  impact: 3000,
+  beneficiariesAffected: 2000,
+  lessonsLearned: 3000,
+  futureImprovements: 3000,
+
+  shortSummary: 500,
+  caseStudy: 12000,
+
+  orderedItemText: 1500,
+
+  metricLabel: 200,
+  metricValue: 200,
+  metricDescription: 500,
+
+  relationshipName: 200,
+  relationshipDescription: 1000,
+
+  skillProficiency: 50,
+
+  technologyName: 150,
+  technologyCategory: 100,
+
+  awardName: 250,
+  awardOrganization: 250,
+  awardRecognitionType: 100,
+  awardPlacement: 100,
+  awardDescription: 1500,
+
+  mediaName: 255,
+  mediaCaption: 1000,
+  mediaAltText: 500,
+
+  documentName: 255,
+  documentDescription: 1000,
+
+  sourceContext: 500,
+  privateNotes: 5000,
+
+  maximumObjectives: 25,
+  maximumConstraints: 25,
+  maximumFeatures: 40,
+  maximumContributions: 40,
+  maximumMetrics: 25,
+
+  maximumSkills: 60,
+  maximumTechnologies: 60,
+  maximumRelationshipsPerType: 50,
+
+  maximumAwards: 20,
+  maximumAwardDocuments: 10,
+
+  maximumMedia: 30,
+  maximumDocuments: 30,
+
+  maximumImageBytes: 12 * 1024 * 1024,
+  maximumVideoBytes: 150 * 1024 * 1024,
+  maximumDocumentBytes: 20 * 1024 * 1024,
+});
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+function getOptionLabel(options, value, fallback = "") {
+  return findOption(options, value)?.label || fallback;
+}
+
+/*
+ * =========================================
+ * Project Option Validation
+ * =========================================
+ */
+
+export function isValidProjectCategory(value) {
+  return Boolean(findOption(PROJECT_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectLifecycleStatus(value) {
+  return Boolean(findOption(PROJECT_LIFECYCLE_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectOwnership(value) {
+  return Boolean(findOption(PROJECT_OWNERSHIP_OPTIONS, value));
+}
+
+export function isValidProjectSource(value) {
+  return Boolean(findOption(PROJECT_SOURCE_OPTIONS, value));
+}
+
+export function isValidProjectRecordStatus(value) {
+  return Boolean(findOption(PROJECT_RECORD_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectSkillProficiency(value) {
+  return Boolean(findOption(PROJECT_SKILL_PROFICIENCY_OPTIONS, value));
+}
+
+export function isValidProjectTechnologyCategory(value) {
+  return Boolean(findOption(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectRecognitionType(value) {
+  return Boolean(findOption(PROJECT_RECOGNITION_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectAwardPlacement(value) {
+  return Boolean(findOption(PROJECT_AWARD_PLACEMENT_OPTIONS, value));
+}
+
+export function isValidProjectMediaType(value) {
+  return Boolean(findOption(PROJECT_MEDIA_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectDocumentType(value) {
+  return Boolean(findOption(PROJECT_DOCUMENT_TYPE_OPTIONS, value));
+}
+
+/*
+ * =========================================
+ * Display Labels
+ * =========================================
+ */
+
+export function getProjectCategoryLabel(value) {
+  return getOptionLabel(PROJECT_CATEGORY_OPTIONS, value, "Other");
+}
+
+export function getProjectLifecycleStatusLabel(value) {
+  return getOptionLabel(PROJECT_LIFECYCLE_STATUS_OPTIONS, value, "Planned");
+}
+
+export function getProjectOwnershipLabel(value) {
+  return getOptionLabel(PROJECT_OWNERSHIP_OPTIONS, value, "Individual Project");
+}
+
+export function getProjectSourceLabel(value) {
+  return getOptionLabel(PROJECT_SOURCE_OPTIONS, value, "Manually Added");
+}
+
+export function getProjectRecordStatusLabel(value) {
+  return getOptionLabel(PROJECT_RECORD_STATUS_OPTIONS, value, "Active");
+}
+
+export function getProjectSkillProficiencyLabel(value) {
+  return getOptionLabel(PROJECT_SKILL_PROFICIENCY_OPTIONS, value);
+}
+
+export function getProjectTechnologyCategoryLabel(value) {
+  return getOptionLabel(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value);
+}
+
+export function getProjectRecognitionTypeLabel(value) {
+  return getOptionLabel(PROJECT_RECOGNITION_TYPE_OPTIONS, value);
+}
+
+export function getProjectAwardPlacementLabel(value) {
+  return getOptionLabel(PROJECT_AWARD_PLACEMENT_OPTIONS, value);
+}
+
+export function getProjectMediaTypeLabel(value) {
+  return getOptionLabel(PROJECT_MEDIA_TYPE_OPTIONS, value, "Image");
+}
+
+export function getProjectDocumentTypeLabel(value) {
+  return getOptionLabel(
+    PROJECT_DOCUMENT_TYPE_OPTIONS,
+    value,
+    "Supporting Evidence",
+  );
+}
+
+/*
+ * =========================================
+ * File Helpers
+ * =========================================
+ */
+
+function getFileType(file) {
+  return typeof file?.type === "string"
+    ? file.type.trim().toLocaleLowerCase()
+    : "";
+}
+
+function getFileName(file) {
+  return typeof file?.name === "string"
+    ? file.name.trim().toLocaleLowerCase()
+    : "";
+}
+
+function hasFileExtension(fileName, extensions) {
+  return extensions.some((extension) => fileName.endsWith(extension));
+}
+
+/*
+ * =========================================
+ * Media Validation
+ * =========================================
+ */
+
+export function isSupportedProjectMedia(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+  ];
+
+  const supportedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".mp4",
+    ".webm",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectMediaWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const isVideo =
+    mimeType.startsWith("video/") ||
+    hasFileExtension(fileName, [".mp4", ".webm"]);
+
+  const maximumSize = isVideo
+    ? PROJECT_FIELD_LIMITS.maximumVideoBytes
+    : PROJECT_FIELD_LIMITS.maximumImageBytes;
+
+  return fileSize <= maximumSize;
+}
+
+/*
+ * =========================================
+ * Document Validation
+ * =========================================
+ */
+
+export function isSupportedProjectDocument(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "application/pdf",
+
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/markdown",
+    "application/json",
+    "application/zip",
+    "application/x-zip-compressed",
+
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  const supportedExtensions = [
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".md",
+    ".csv",
+    ".json",
+    ".zip",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectDocumentWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  return (
+    Number.isFinite(fileSize) &&
+    fileSize > 0 &&
+    fileSize <= PROJECT_FIELD_LIMITS.maximumDocumentBytes
+  );
+}
+
+================================================================================
+FILE: frontend\package.json
+================================================================================
+SIZE: 494 bytes
+
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "oxlint": "^1.79.0",
+    "vite": "^8.2.2"
+  }
+}
+
+================================================================================
+FILE: frontend\src\services\Project\projectStorage.js
+================================================================================
+SIZE: 13341 bytes
+
+import {
+  PROJECT_MODEL_VERSION,
+  normalizeProjectCollection,
+} from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * Storage Configuration
+ * =========================================
+ */
+
+export const PROJECT_STORAGE_KEY =
+  "portfolio-platform:projects";
+
+export const PROJECT_STORAGE_RECOVERY_KEY =
+  "portfolio-platform:projects:recovery";
+
+export const PROJECT_STORAGE_VERSION = 2;
+
+/*
+ * =========================================
+ * Storage Error
+ * =========================================
+ */
+
+function createProjectStorageError(
+  code,
+  message,
+  publicMessage,
+  cause = null,
+) {
+  const error = new Error(message);
+
+  error.name = "ProjectStorageError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Browser Storage
+ * =========================================
+ */
+
+function getBrowserStorage() {
+  if (typeof window === "undefined") {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_ENVIRONMENT_UNAVAILABLE",
+      "Window is unavailable.",
+      "Project storage is not supported in this environment.",
+    );
+  }
+
+  try {
+    if (!window.localStorage) {
+      throw new Error("localStorage is unavailable.");
+    }
+
+    return window.localStorage;
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_ACCESS_DENIED",
+      "Browser localStorage could not be accessed.",
+      "Project storage is unavailable. Check your browser privacy and storage settings.",
+      cause,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Empty Storage Document
+ * =========================================
+ */
+
+function createEmptyProjectStorageDocument() {
+  return {
+    storageVersion: PROJECT_STORAGE_VERSION,
+
+    projectModelVersion: PROJECT_MODEL_VERSION,
+
+    projectRecords: [],
+
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/*
+ * =========================================
+ * Recovery Copy
+ * =========================================
+ *
+ * If stored JSON is corrupted, retain its raw
+ * value under a recovery key before reporting
+ * the error. This avoids silently discarding
+ * potentially recoverable Project metadata.
+ */
+
+function preserveRecoveryCopy(
+  storage,
+  rawValue,
+  reason,
+) {
+  if (!rawValue) {
+    return;
+  }
+
+  try {
+    storage.setItem(
+      PROJECT_STORAGE_RECOVERY_KEY,
+      JSON.stringify({
+        originalStorageKey: PROJECT_STORAGE_KEY,
+        reason,
+        recoveredAt: new Date().toISOString(),
+        rawValue,
+      }),
+    );
+  } catch {
+    /*
+     * Recovery storage is best effort. Do not
+     * replace the original error if the browser
+     * cannot save the recovery copy.
+     */
+  }
+}
+
+/*
+ * =========================================
+ * Record Collection Resolution
+ * =========================================
+ */
+
+function getStoredRecordCollection(document) {
+  if (Array.isArray(document.projectRecords)) {
+    return document.projectRecords;
+  }
+
+  if (Array.isArray(document.projects)) {
+    return document.projects;
+  }
+
+  if (Array.isArray(document.records)) {
+    return document.records;
+  }
+
+  /*
+   * A completely absent collection represents
+   * an empty library. A present collection with
+   * the wrong type represents corruption.
+   */
+
+  const hasCollectionProperty =
+    Object.prototype.hasOwnProperty.call(
+      document,
+      "projectRecords",
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      document,
+      "projects",
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      document,
+      "records",
+    );
+
+  if (!hasCollectionProperty) {
+    return [];
+  }
+
+  throw createProjectStorageError(
+    "PROJECT_STORAGE_RECORDS_INVALID",
+    "The stored Project collection is not an array.",
+    "The saved Project Library contains an invalid record collection.",
+  );
+}
+
+/*
+ * =========================================
+ * Storage Migration
+ * =========================================
+ */
+
+function migrateProjectStorageDocument(
+  storedDocument,
+) {
+  /*
+   * Original storage sometimes contained only
+   * the Project array.
+   */
+
+  if (Array.isArray(storedDocument)) {
+    return {
+      document: {
+        ...createEmptyProjectStorageDocument(),
+
+        projectRecords:
+          normalizeProjectCollection(
+            storedDocument,
+          ),
+      },
+
+      wasMigrated: true,
+    };
+  }
+
+  if (
+    !storedDocument ||
+    typeof storedDocument !== "object"
+  ) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_DOCUMENT_INVALID",
+      "Stored Project data has an invalid structure.",
+      "The saved Project Library has an invalid format.",
+    );
+  }
+
+  const storedVersion =
+    Number(storedDocument.storageVersion) || 1;
+
+  if (storedVersion > PROJECT_STORAGE_VERSION) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_VERSION_UNSUPPORTED",
+      `Stored Project version ${storedVersion} is newer than supported version ${PROJECT_STORAGE_VERSION}.`,
+      "This Project Library was created by a newer version of the application and cannot be opened safely.",
+    );
+  }
+
+  const storedRecords =
+    getStoredRecordCollection(storedDocument);
+
+  /*
+   * normalizeProjectCollection performs the
+   * model migration. It upgrades version-1
+   * Projects to the current model structure.
+   */
+
+  const normalizedRecords =
+    normalizeProjectCollection(storedRecords);
+
+  const wasMigrated =
+    storedVersion !== PROJECT_STORAGE_VERSION ||
+    Number(storedDocument.projectModelVersion) !==
+      PROJECT_MODEL_VERSION ||
+    !Array.isArray(storedDocument.projectRecords);
+
+  return {
+    document: {
+      storageVersion: PROJECT_STORAGE_VERSION,
+
+      projectModelVersion: PROJECT_MODEL_VERSION,
+
+      projectRecords: normalizedRecords,
+
+      updatedAt:
+        typeof storedDocument.updatedAt ===
+        "string"
+          ? storedDocument.updatedAt
+          : new Date().toISOString(),
+    },
+
+    wasMigrated,
+  };
+}
+
+/*
+ * =========================================
+ * Parse Storage Document
+ * =========================================
+ */
+
+function parseProjectStorageDocument(rawValue) {
+  if (!rawValue) {
+    return {
+      document:
+        createEmptyProjectStorageDocument(),
+
+      wasMigrated: false,
+    };
+  }
+
+  let parsedValue;
+
+  try {
+    parsedValue = JSON.parse(rawValue);
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_JSON_INVALID",
+      "Unable to parse stored Project data.",
+      "The saved Project Library could not be read because its data is damaged.",
+      cause,
+    );
+  }
+
+  return migrateProjectStorageDocument(
+    parsedValue,
+  );
+}
+
+/*
+ * =========================================
+ * Internal Document Write
+ * =========================================
+ */
+
+function writeStorageDocument(
+  storage,
+  document,
+) {
+  let serializedDocument;
+
+  try {
+    serializedDocument = JSON.stringify(document);
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_SERIALIZATION_FAILED",
+      "Project storage could not be serialized.",
+      "Your Project records could not be prepared for storage.",
+      cause,
+    );
+  }
+
+  try {
+    storage.setItem(
+      PROJECT_STORAGE_KEY,
+      serializedDocument,
+    );
+  } catch (cause) {
+    const isQuotaError =
+      cause?.name === "QuotaExceededError" ||
+      cause?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+      cause?.code === 22 ||
+      cause?.code === 1014;
+
+    throw createProjectStorageError(
+      isQuotaError
+        ? "PROJECT_STORAGE_QUOTA_EXCEEDED"
+        : "PROJECT_STORAGE_WRITE_FAILED",
+
+      isQuotaError
+        ? "Project localStorage quota was exceeded."
+        : "Unable to write Project Library storage.",
+
+      isQuotaError
+        ? "The browser does not have enough storage space for the Project Library metadata."
+        : "Your Project records could not be saved.",
+
+      cause,
+    );
+  }
+
+  return document;
+}
+
+/*
+ * =========================================
+ * Read Project Storage
+ * =========================================
+ */
+
+export function readProjectStorage({
+  persistMigration = true,
+} = {}) {
+  const storage = getBrowserStorage();
+
+  let rawValue;
+
+  try {
+    rawValue = storage.getItem(
+      PROJECT_STORAGE_KEY,
+    );
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_READ_FAILED",
+      "Unable to read Project Library storage.",
+      "Your saved Project records could not be loaded.",
+      cause,
+    );
+  }
+
+  try {
+    const {
+      document,
+      wasMigrated,
+    } = parseProjectStorageDocument(rawValue);
+
+    /*
+     * Persist successful migrations so every
+     * future read uses the current schema.
+     */
+
+    if (
+      rawValue &&
+      wasMigrated &&
+      persistMigration
+    ) {
+      return writeStorageDocument(
+        storage,
+        {
+          ...document,
+          updatedAt: new Date().toISOString(),
+        },
+      );
+    }
+
+    return document;
+  } catch (error) {
+    preserveRecoveryCopy(
+      storage,
+      rawValue,
+      error?.code || "PROJECT_STORAGE_READ_FAILED",
+    );
+
+    if (error?.name === "ProjectStorageError") {
+      throw error;
+    }
+
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_READ_FAILED",
+      "Unable to read Project Library storage.",
+      "Your saved Project records could not be loaded.",
+      error,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Write Project Storage
+ * =========================================
+ */
+
+export function writeProjectStorage(
+  projectRecords,
+) {
+  if (!Array.isArray(projectRecords)) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_WRITE_INPUT_INVALID",
+      "Project records must be supplied as an array.",
+      "The Project Library could not be saved because the record collection is invalid.",
+    );
+  }
+
+  const storage = getBrowserStorage();
+
+  const document = {
+    storageVersion: PROJECT_STORAGE_VERSION,
+
+    projectModelVersion: PROJECT_MODEL_VERSION,
+
+    projectRecords:
+      normalizeProjectCollection(
+        projectRecords,
+      ),
+
+    updatedAt: new Date().toISOString(),
+  };
+
+  return writeStorageDocument(
+    storage,
+    document,
+  );
+}
+
+/*
+ * =========================================
+ * Read Stored Projects
+ * =========================================
+ */
+
+export function readStoredProjects() {
+  return readProjectStorage().projectRecords;
+}
+
+/*
+ * =========================================
+ * Replace Stored Projects
+ * =========================================
+ */
+
+export function replaceStoredProjects(
+  projectRecords,
+) {
+  return writeProjectStorage(
+    projectRecords,
+  ).projectRecords;
+}
+
+/*
+ * =========================================
+ * Update Stored Projects
+ * =========================================
+ */
+
+export function updateStoredProjects(updater) {
+  if (typeof updater !== "function") {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_UPDATER_INVALID",
+      "The Project updater must be a function.",
+      "The Project Library could not be updated.",
+    );
+  }
+
+  const currentRecords = readStoredProjects();
+
+  /*
+   * Supply a new array so the updater cannot
+   * mutate the collection currently returned
+   * by the storage reader.
+   */
+
+  const nextRecords = updater([
+    ...currentRecords,
+  ]);
+
+  if (!Array.isArray(nextRecords)) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_UPDATE_RESULT_INVALID",
+      "The Project updater did not return an array.",
+      "The Project Library could not be updated.",
+    );
+  }
+
+  return replaceStoredProjects(nextRecords);
+}
+
+/*
+ * =========================================
+ * Recovery Information
+ * =========================================
+ */
+
+export function readProjectStorageRecovery() {
+  const storage = getBrowserStorage();
+
+  let rawRecoveryValue;
+
+  try {
+    rawRecoveryValue = storage.getItem(
+      PROJECT_STORAGE_RECOVERY_KEY,
+    );
+  } catch {
+    return null;
+  }
+
+  if (!rawRecoveryValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawRecoveryValue);
+  } catch {
+    return {
+      reason:
+        "PROJECT_STORAGE_RECOVERY_JSON_INVALID",
+
+      rawValue: rawRecoveryValue,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * Clear Recovery Information
+ * =========================================
+ */
+
+export function clearProjectStorageRecovery() {
+  const storage = getBrowserStorage();
+
+  try {
+    storage.removeItem(
+      PROJECT_STORAGE_RECOVERY_KEY,
+    );
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_RECOVERY_CLEAR_FAILED",
+      "Unable to clear Project recovery information.",
+      "The Project recovery information could not be removed.",
+      cause,
+    );
+  }
+}
+
+================================================================================
+PROJECT TEST FILES
+================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectApiAdapter.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectApiErrors.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectApiService.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectFeaturedMedia.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectModelRowVersion.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectStorageIsolation.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectStorageIsolation.test.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectStorageIsolation.test.js.before-featured-media.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectStorageIsolation.test.js.before-order-fix.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Project\projectStorageIsolation.test.js.before-rollback-test.bak
+
+================================================================================
+CURRENT GIT STATUS
+================================================================================
+ M backend
+ M frontend/src/config/projectConfig.js
+ M frontend/src/context/ProjectDataContext.jsx
+ M frontend/src/layouts/AuthLayout/AuthLayout.css
+ M frontend/src/models/projectModel.js
+ M frontend/src/pages/Projects/components/ProjectDetailViewer/ProjectDetailViewer.jsx
+ M frontend/src/pages/Projects/components/ProjectDocumentEditor/ProjectDocumentEditor.jsx
+ M frontend/src/services/Project/projectService.js
+ M frontend/src/services/apiClient.js
+?? Persistence/backups/
+?? Persistence/reports/
+?? frontend/src/layouts/AuthLayout/AuthLayout.css.20261020-230451.bak
+?? frontend/src/models/projectModel.js.bak
+?? frontend/src/pages/Projects/components/ProjectDetailViewer/ProjectDetailViewer.jsx.20261020-223930.bak
+?? frontend/src/pages/Projects/components/ProjectDocumentEditor/ProjectDocumentEditor.jsx.20261020-223930.bak
+?? frontend/src/services/Project/projectApiAdapter.js
+?? frontend/src/services/Project/projectApiService.js
+?? frontend/src/services/Project/projectApiService.js.bak
+?? frontend/src/services/Project/projectApiService.js.bak-20261020-234542
+?? frontend/src/services/Project/projectApiService.js.before-restore-20261020-234859.bak
+?? frontend/src/services/Project/projectFeaturedMedia.js
+?? frontend/src/services/Project/projectService.js.bak
+?? frontend/src/services/Project/projectService.js.featured-media.bak
+?? frontend/src/services/Project/projectService.js.helper-integration.bak
+?? frontend/src/services/apiClient.js.bak
+?? frontend/tests/

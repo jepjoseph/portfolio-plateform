@@ -1,0 +1,44 @@
+﻿import test, { mock } from "node:test";
+import assert from "node:assert/strict";
+
+test("Project service loads with isolated storage dependencies", async () => {
+  const assetWrites = [];
+  const assetDeletes = [];
+
+  mock.module("../../src/services/Project/projectAssetStorage.js", {
+    namedExports: {
+      writeProjectAsset: async (asset) => {
+        assetWrites.push(asset);
+        return {
+          storageKey: "test-storage-key",
+          projectId: asset.projectId,
+          assetId: asset.assetId || "test-asset",
+          kind: asset.kind || "media",
+        };
+      },
+      deleteProjectAssets: async (keys) => {
+        assetDeletes.push(...keys);
+        return keys.length;
+      },
+      deleteProjectAssetsForProject: async () => 0,
+    },
+  });
+
+  mock.module("../../src/services/Project/projectStorage.js", {
+    namedExports: {
+      readStoredProjects: () => [],
+      replaceStoredProjects: (projects) => projects,
+    },
+  });
+
+  const service = await import(
+    "../../src/services/Project/projectService.js"
+  );
+
+  assert.equal(typeof service.createProject, "function");
+  assert.equal(typeof service.updateProject, "function");
+  assert.equal(typeof service.deleteProject, "function");
+
+  assert.deepEqual(assetWrites, []);
+  assert.deepEqual(assetDeletes, []);
+});

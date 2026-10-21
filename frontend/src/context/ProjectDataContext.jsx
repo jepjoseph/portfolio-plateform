@@ -17,6 +17,7 @@ import {
 } from "../services/Project/projectService.js";
 
 import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+import { fetchProjects } from "../services/Project/projectApiService.js";
 
 /*
  * =========================================
@@ -115,13 +116,23 @@ export function ProjectDataProvider({ children }) {
    * =========================================
    */
 
+  const refreshBackendProjects = useCallback(async (options = {}) => {
+    const records = await fetchProjects(options);
+
+    if (!Array.isArray(records)) {
+      throw new TypeError("The Project API did not return a Project array.");
+    }
+
+    // Read-only integration: do not replace local Project state.
+    return records;
+  }, []);
   const refreshProjects = useCallback(
     async ({ includeArchived = true, preserveCurrentRecords = false } = {}) => {
       setIsLoading(true);
       setLoadStatus("loading");
 
       try {
-        const records = getProjects({
+        const records = await getProjects({
           includeArchived,
         });
 
@@ -158,8 +169,8 @@ export function ProjectDataProvider({ children }) {
    * every time a Project is saved.
    */
 
-  const synchronizeProjects = useCallback(() => {
-    const records = getProjects({
+  const synchronizeProjects = useCallback(async () => {
+    const records = await getProjects({
       includeArchived: true,
     });
 
@@ -247,7 +258,7 @@ export function ProjectDataProvider({ children }) {
          * transaction at this point.
          */
 
-        synchronizeProjects();
+        await synchronizeProjects();
 
         const operationWarnings = normalizeOperationWarnings(result);
 
@@ -465,6 +476,7 @@ export function ProjectDataProvider({ children }) {
       warnings,
 
       refreshProjects,
+      refreshBackendProjects,
       getProjectById,
 
       createProject,
@@ -488,6 +500,7 @@ export function ProjectDataProvider({ children }) {
       error,
       warnings,
       refreshProjects,
+      refreshBackendProjects,
       getProjectById,
       createProject,
       updateProject,

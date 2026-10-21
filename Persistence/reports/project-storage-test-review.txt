@@ -1,0 +1,2148 @@
+﻿
+================================================================================
+FILE: .\src\services\Project\projectAssetStorage.js
+================================================================================
+    1: import {
+    2:   isProjectDocumentWithinSizeLimit,
+    3:   isProjectMediaWithinSizeLimit,
+    4:   isSupportedProjectDocument,
+    5:   isSupportedProjectMedia,
+    6: } from "../../config/projectConfig.js";
+    7: 
+    8: import { createProjectId } from "../../models/projectModel.js";
+    9: 
+   10: /*
+   11:  * =========================================
+   12:  * IndexedDB Configuration
+   13:  * =========================================
+   14:  */
+   15: 
+   16: export const PROJECT_ASSET_DATABASE_NAME = "portfolio-platform:project-assets";
+   17: 
+   18: export const PROJECT_ASSET_DATABASE_VERSION = 1;
+   19: 
+   20: export const PROJECT_ASSET_STORE_NAME = "assets";
+   21: 
+   22: export const PROJECT_ID_INDEX_NAME = "projectId";
+   23: 
+   24: export const ASSET_KIND_INDEX_NAME = "kind";
+   25: 
+   26: /*
+   27:  * =========================================
+   28:  * Primitive Helpers
+   29:  * =========================================
+   30:  */
+   31: 
+   32: function getText(value) {
+   33:   return typeof value === "string" ? value.trim() : "";
+   34: }
+   35: 
+   36: function getArray(value) {
+   37:   return Array.isArray(value) ? value : [];
+   38: }
+   39: 
+   40: /*
+   41:  * =========================================
+   42:  * Storage Error
+   43:  * =========================================
+   44:  */
+   45: 
+   46: function createProjectAssetStorageError({
+   47:   code = "PROJECT_ASSET_STORAGE_ERROR",
+   48:   message,
+   49:   publicMessage,
+   50:   cause = null,
+   51:   details = {},
+   52: }) {
+   53:   const error = new Error(message);
+   54: 
+   55:   error.name = "ProjectAssetStorageError";
+   56:   error.code = code;
+   57:   error.publicMessage = publicMessage;
+   58: 
+   59:   Object.assign(error, details);
+   60: 
+   61:   if (cause) {
+   62:     error.cause = cause;
+   63:   }
+   64: 
+   65:   return error;
+   66: }
+   67: 
+   68: /*
+   69:  * =========================================
+   70:  * Quota Error Detection
+   71:  * =========================================
+   72:  */
+   73: 
+   74: function isStorageQuotaError(error) {
+   75:   return (
+   76:     error?.name === "QuotaExceededError" ||
+   77:     error?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+   78:     error?.code === 22 ||
+   79:     error?.code === 1014
+   80:   );
+   81: }
+   82: 
+   83: /*
+   84:  * =========================================
+   85:  * IndexedDB Availability
+   86:  * =========================================
+   87:  */
+   88: 
+   89: function getIndexedDb() {
+   90:   if (typeof window === "undefined" || !window.indexedDB) {
+   91:     throw createProjectAssetStorageError({
+   92:       code: "PROJECT_ASSET_STORAGE_UNAVAILABLE",
+   93: 
+   94:       message: "IndexedDB is unavailable.",
+   95: 
+   96:       publicMessage:
+   97:         "Project media and document storage is not supported in this browser.",
+   98:     });
+   99:   }
+  100: 
+  101:   return window.indexedDB;
+  102: }
+  103: 
+  104: /*
+  105:  * =========================================
+  106:  * Promise Helpers
+  107:  * =========================================
+  108:  */
+  109: 
+  110: function requestToPromise(request) {
+  111:   return new Promise((resolve, reject) => {
+  112:     request.onsuccess = () => {
+  113:       resolve(request.result);
+  114:     };
+  115: 
+  116:     request.onerror = () => {
+  117:       reject(request.error);
+  118:     };
+  119:   });
+  120: }
+  121: 
+  122: function transactionToPromise(transaction) {
+  123:   return new Promise((resolve, reject) => {
+  124:     transaction.oncomplete = () => {
+  125:       resolve();
+  126:     };
+  127: 
+  128:     transaction.onerror = () => {
+  129:       reject(transaction.error);
+  130:     };
+  131: 
+  132:     transaction.onabort = () => {
+  133:       reject(
+  134:         transaction.error ||
+  135:           new Error("The IndexedDB transaction was aborted."),
+  136:       );
+  137:     };
+  138:   });
+  139: }
+  140: 
+  141: /*
+  142:  * =========================================
+  143:  * Open Database
+  144:  * =========================================
+  145:  */
+  146: 
+  147: function openProjectAssetDatabase() {
+  148:   return new Promise((resolve, reject) => {
+  149:     const request = getIndexedDb().open(
+  150:       PROJECT_ASSET_DATABASE_NAME,
+  151:       PROJECT_ASSET_DATABASE_VERSION,
+  152:     );
+  153: 
+  154:     request.onupgradeneeded = () => {
+  155:       const database = request.result;
+  156: 
+  157:       let store;
+  158: 
+  159:       if (!database.objectStoreNames.contains(PROJECT_ASSET_STORE_NAME)) {
+  160:         store = database.createObjectStore(PROJECT_ASSET_STORE_NAME, {
+  161:           keyPath: "storageKey",
+  162:         });
+  163:       } else {
+  164:         store = request.transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+  165:       }
+  166: 
+  167:       if (!store.indexNames.contains(PROJECT_ID_INDEX_NAME)) {
+  168:         store.createIndex(PROJECT_ID_INDEX_NAME, "projectId", {
+  169:           unique: false,
+  170:         });
+  171:       }
+  172: 
+  173:       if (!store.indexNames.contains(ASSET_KIND_INDEX_NAME)) {
+  174:         store.createIndex(ASSET_KIND_INDEX_NAME, "kind", {
+  175:           unique: false,
+  176:         });
+  177:       }
+  178:     };
+  179: 
+  180:     request.onsuccess = () => {
+  181:       const database = request.result;
+  182: 
+  183:       /*
+  184:        * A tab holding an old database connection
+  185:        * must close it when another tab upgrades
+  186:        * the database.
+  187:        */
+  188: 
+  189:       database.onversionchange = () => {
+  190:         database.close();
+  191:       };
+  192: 
+  193:       resolve(database);
+  194:     };
+  195: 
+  196:     request.onerror = () => {
+  197:       reject(
+  198:         createProjectAssetStorageError({
+  199:           code: "PROJECT_ASSET_DATABASE_OPEN_FAILED",
+  200: 
+  201:           message: "Unable to open Project asset storage.",
+  202: 
+  203:           publicMessage: "Project file storage could not be opened.",
+  204: 
+  205:           cause: request.error,
+  206:         }),
+  207:       );
+  208:     };
+  209: 
+  210:     request.onblocked = () => {
+  211:       reject(
+  212:         createProjectAssetStorageError({
+  213:           code: "PROJECT_ASSET_DATABASE_BLOCKED",
+  214: 
+  215:           message: "The Project asset database operation was blocked.",
+  216: 
+  217:           publicMessage: "Close other tabs using this portfolio and try again.",
+  218:         }),
+  219:       );
+  220:     };
+  221:   });
+  222: }
+  223: 
+  224: /*
+  225:  * =========================================
+  226:  * Asset Kind
+  227:  * =========================================
+  228:  */
+  229: 
+  230: function normalizeAssetKind(kind) {
+  231:   return kind === "document" ? "document" : "media";
+  232: }
+  233: 
+  234: /*
+  235:  * =========================================
+  236:  * File Validation
+  237:  * =========================================
+  238:  */
+  239: 
+  240: function validateProjectAssetFile(file, kind) {
+  241:   if (!file || typeof file !== "object" || typeof file.slice !== "function") {
+  242:     throw createProjectAssetStorageError({
+  243:       code: "PROJECT_ASSET_FILE_REQUIRED",
+  244: 
+  245:       message: "A valid File or Blob-like object is required.",
+  246: 
+  247:       publicMessage: "Select a valid Project file before uploading.",
+  248:     });
+  249:   }
+  250: 
+  251:   const isSupported =
+  252:     kind === "media"
+  253:       ? isSupportedProjectMedia(file)
+  254:       : isSupportedProjectDocument(file);
+  255: 
+  256:   if (!isSupported) {
+  257:     throw createProjectAssetStorageError({
+  258:       code: "PROJECT_ASSET_FILE_TYPE_UNSUPPORTED",
+  259: 
+  260:       message: "The selected Project asset type is unsupported.",
+  261: 
+  262:       publicMessage:
+  263:         kind === "media"
+  264:           ? "Upload a supported JPG, PNG, WebP, GIF, MP4, or WebM file."
+  265:           : "Upload a supported Project document type.",
+  266:     });
+  267:   }
+  268: 
+  269:   const isWithinSizeLimit =
+  270:     kind === "media"
+  271:       ? isProjectMediaWithinSizeLimit(file)
+  272:       : isProjectDocumentWithinSizeLimit(file);
+  273: 
+  274:   if (!isWithinSizeLimit) {
+  275:     throw createProjectAssetStorageError({
+  276:       code: "PROJECT_ASSET_FILE_SIZE_INVALID",
+  277: 
+  278:       message: "The selected Project asset exceeds its size limit or is empty.",
+  279: 
+  280:       publicMessage:
+  281:         kind === "media"
+  282:           ? "The selected image or video is empty or exceeds the permitted size."
+  283:           : "The selected document is empty or exceeds the permitted size.",
+  284:     });
+  285:   }
+  286: }
+  287: 
+  288: /*
+  289:  * =========================================
+  290:  * Public Asset Metadata
+  291:  * =========================================
+  292:  */
+  293: 
+  294: function createAssetMetadata(record) {
+  295:   if (!record) {
+  296:     return null;
+  297:   }
+  298: 
+  299:   return {
+  300:     storageKey: record.storageKey,
+  301: 
+  302:     projectId: record.projectId,
+  303: 
+  304:     assetId: record.assetId,
+  305: 
+  306:     kind: record.kind,
+  307: 
+  308:     fileName: record.fileName,
+  309: 
+  310:     mimeType: record.mimeType,
+  311: 
+  312:     fileSize: record.fileSize,
+  313: 
+  314:     createdAt: record.createdAt,
+  315: 
+  316:     updatedAt: record.updatedAt,
+  317:   };
+  318: }
+  319: 
+  320: /*
+  321:  * =========================================
+  322:  * Write Asset
+  323:  * =========================================
+  324:  */
+  325: 
+  326: export async function writeProjectAsset({
+  327:   file,
+  328:   projectId,
+  329:   assetId = "",
+  330:   storageKey = "",
+  331:   kind = "media",
+  332: } = {}) {
+  333:   const normalizedKind = normalizeAssetKind(kind);
+  334: 
+  335:   const normalizedProjectId = getText(projectId);
+  336: 
+  337:   if (!normalizedProjectId) {
+  338:     throw createProjectAssetStorageError({
+  339:       code: "PROJECT_ASSET_PROJECT_ID_REQUIRED",
+  340: 
+  341:       message: "A Project identifier is required before storing an asset.",
+  342: 
+  343:       publicMessage:
+  344:         "The Project file cannot be saved because the Project could not be identified.",
+  345:     });
+  346:   }
+  347: 
+  348:   validateProjectAssetFile(file, normalizedKind);
+  349: 
+  350:   const resolvedAssetId = getText(assetId) || createProjectId("project-asset");
+  351: 
+  352:   const resolvedStorageKey =
+  353:     getText(storageKey) ||
+  354:     `project:${normalizedProjectId}:${normalizedKind}:${resolvedAssetId}`;
+  355: 
+  356:   const database = await openProjectAssetDatabase();
+  357: 
+  358:   const timestamp = new Date().toISOString();
+  359: 
+  360:   try {
+  361:     const transaction = database.transaction(
+  362:       PROJECT_ASSET_STORE_NAME,
+  363:       "readwrite",
+  364:     );
+  365: 
+  366:     const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+  367: 
+  368:     /*
+  369:      * The read and write are handled within the
+  370:      * same request callback so the transaction
+  371:      * cannot become inactive between operations.
+  372:      */
+  373: 
+  374:     const existingRequest = store.get(resolvedStorageKey);
+  375: 
+  376:     const preparedRecordPromise = new Promise((resolve, reject) => {
+  377:       existingRequest.onerror = () => {
+  378:         reject(existingRequest.error);
+  379:       };
+  380: 
+  381:       existingRequest.onsuccess = () => {
+  382:         const existingRecord = existingRequest.result;
+  383: 
+  384:         /*
+  385:          * Never allow a storage key belonging
+  386:          * to another Project to be overwritten.
+  387:          */
+  388: 
+  389:         if (
+  390:           existingRecord &&
+  391:           existingRecord.projectId !== normalizedProjectId
+  392:         ) {
+  393:           transaction.abort();
+  394: 
+  395:           reject(
+  396:             createProjectAssetStorageError({
+  397:               code: "PROJECT_ASSET_STORAGE_KEY_CONFLICT",
+  398: 
+  399:               message:
+  400:                 "The requested asset storage key belongs to another Project.",
+  401: 
+  402:               publicMessage:
+  403:                 "The Project file could not be saved because its storage identifier conflicts with another file.",
+  404:             }),
+  405:           );
+  406: 
+  407:           return;
+  408:         }
+  409: 
+  410:         const blob = file.slice(
+  411:           0,
+  412:           file.size,
+  413:           file.type || "application/octet-stream",
+  414:         );
+  415: 
+  416:         const record = {
+  417:           storageKey: resolvedStorageKey,
+  418: 
+  419:           projectId: normalizedProjectId,
+  420: 
+  421:           assetId: resolvedAssetId,
+  422: 
+  423:           kind: normalizedKind,
+  424: 
+  425:           fileName: getText(file.name),
+  426: 
+  427:           mimeType: getText(file.type) || "application/octet-stream",
+  428: 
+  429:           fileSize: Number(file.size) || 0,
+  430: 
+  431:           blob,
+  432: 
+  433:           createdAt: existingRecord?.createdAt || timestamp,
+  434: 
+  435:           updatedAt: timestamp,
+  436:         };
+  437: 
+  438:         const putRequest = store.put(record);
+  439: 
+  440:         putRequest.onerror = () => {
+  441:           reject(putRequest.error);
+  442:         };
+  443: 
+  444:         putRequest.onsuccess = () => {
+  445:           resolve(record);
+  446:         };
+  447:       };
+  448:     });
+  449: 
+  450:     const [record] = await Promise.all([
+  451:       preparedRecordPromise,
+  452:       transactionToPromise(transaction),
+  453:     ]);
+  454: 
+  455:     return createAssetMetadata(record);
+  456:   } catch (error) {
+  457:     if (error?.name === "ProjectAssetStorageError") {
+  458:       throw error;
+  459:     }
+  460: 
+  461:     const quotaExceeded = isStorageQuotaError(error);
+  462: 
+  463:     throw createProjectAssetStorageError({
+  464:       code: quotaExceeded
+  465:         ? "PROJECT_ASSET_QUOTA_EXCEEDED"
+  466:         : "PROJECT_ASSET_WRITE_FAILED",
+  467: 
+  468:       message: quotaExceeded
+  469:         ? "IndexedDB storage quota was exceeded."
+  470:         : "Unable to save a Project asset.",
+  471: 
+  472:       publicMessage: quotaExceeded
+  473:         ? "The browser does not have enough storage space for this Project file. Remove unused files or choose a smaller file."
+  474:         : "The selected Project file could not be saved.",
+  475: 
+  476:       cause: error,
+  477:     });
+  478:   } finally {
+  479:     database.close();
+  480:   }
+  481: }
+  482: 
+  483: /*
+  484:  * =========================================
+  485:  * Read Asset
+  486:  * =========================================
+  487:  */
+  488: 
+  489: export async function readProjectAsset(storageKey) {
+  490:   const normalizedStorageKey = getText(storageKey);
+  491: 
+  492:   if (!normalizedStorageKey) {
+  493:     return null;
+  494:   }
+  495: 
+  496:   const database = await openProjectAssetDatabase();
+  497: 
+  498:   try {
+  499:     const transaction = database.transaction(
+  500:       PROJECT_ASSET_STORE_NAME,
+  501:       "readonly",
+  502:     );
+  503: 
+  504:     const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+  505: 
+  506:     const record = await requestToPromise(store.get(normalizedStorageKey));
+  507: 
+  508:     await transactionToPromise(transaction);
+  509: 
+  510:     return record || null;
+  511:   } catch (error) {
+  512:     throw createProjectAssetStorageError({
+  513:       code: "PROJECT_ASSET_READ_FAILED",
+  514: 
+  515:       message: "Unable to read a Project asset.",
+  516: 
+  517:       publicMessage: "The Project file could not be loaded.",
+  518: 
+  519:       cause: error,
+  520:     });
+  521:   } finally {
+  522:     database.close();
+  523:   }
+  524: }
+  525: 
+  526: /*
+  527:  * =========================================
+  528:  * Asset Existence
+  529:  * =========================================
+  530:  */
+  531: 
+  532: export async function hasProjectAsset(storageKey) {
+  533:   const record = await readProjectAsset(storageKey);
+  534: 
+  535:   return Boolean(record?.blob);
+  536: }
+  537: 
+  538: /*
+  539:  * =========================================
+  540:  * Create Object URL
+  541:  * =========================================
+  542:  */
+  543: 
+  544: export async function createProjectAssetUrl(storageKey) {
+  545:   const normalizedStorageKey = getText(storageKey);
+  546: 
+  547:   if (!normalizedStorageKey) {
+  548:     throw createProjectAssetStorageError({
+  549:       code: "PROJECT_ASSET_STORAGE_KEY_REQUIRED",
+  550: 
+  551:       message: "An asset storage key is required.",
+  552: 
+  553:       publicMessage: "The Project file could not be identified.",
+  554:     });
+  555:   }
+  556: 
+  557:   const record = await readProjectAsset(normalizedStorageKey);
+  558: 
+  559:   if (!record?.blob) {
+  560:     throw createProjectAssetStorageError({
+  561:       code: "PROJECT_ASSET_NOT_FOUND",
+  562: 
+  563:       message: `Project asset not found: ${normalizedStorageKey}`,
+  564: 
+  565:       publicMessage:
+  566:         "The Project file is no longer available in browser storage.",
+  567:     });
+  568:   }
+  569: 
+  570:   if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+  571:     throw createProjectAssetStorageError({
+  572:       code: "PROJECT_ASSET_URL_UNAVAILABLE",
+  573: 
+  574:       message: "Object URLs are unavailable.",
+  575: 
+  576:       publicMessage:
+  577:         "The Project file cannot be previewed in this environment.",
+  578:     });
+  579:   }
+  580: 
+  581:   return URL.createObjectURL(record.blob);
+  582: }
+  583: 
+  584: /*
+  585:  * =========================================
+  586:  * Revoke Object URL
+  587:  * =========================================
+  588:  */
+  589: 
+  590: export function revokeProjectAssetUrl(objectUrl) {
+  591:   if (
+  592:     typeof objectUrl === "string" &&
+  593:     objectUrl.startsWith("blob:") &&
+  594:     typeof URL !== "undefined" &&
+  595:     typeof URL.revokeObjectURL === "function"
+  596:   ) {
+  597:     URL.revokeObjectURL(objectUrl);
+  598:   }
+  599: }
+  600: 
+  601: /*
+  602:  * =========================================
+  603:  * List Project Asset Metadata
+  604:  * =========================================
+  605:  *
+  606:  * Blob data is removed from the returned
+  607:  * records to avoid unnecessarily retaining
+  608:  * large file data in application state.
+  609:  */
+  610: 
+  611: export async function listProjectAssets(projectId, { kind = "all" } = {}) {
+  612:   const normalizedProjectId = getText(projectId);
+  613: 
+  614:   if (!normalizedProjectId) {
+  615:     return [];
+  616:   }
+  617: 
+  618:   const normalizedKind = kind === "media" || kind === "document" ? kind : "all";
+  619: 
+  620:   const database = await openProjectAssetDatabase();
+  621: 
+  622:   try {
+  623:     const transaction = database.transaction(
+  624:       PROJECT_ASSET_STORE_NAME,
+  625:       "readonly",
+  626:     );
+  627: 
+  628:     const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+  629: 
+  630:     const index = store.index(PROJECT_ID_INDEX_NAME);
+  631: 
+  632:     const records = await requestToPromise(index.getAll(normalizedProjectId));
+  633: 
+  634:     await transactionToPromise(transaction);
+  635: 
+  636:     return getArray(records)
+  637:       .filter(
+  638:         (record) => normalizedKind === "all" || record.kind === normalizedKind,
+  639:       )
+  640:       .map(createAssetMetadata);
+  641:   } catch (error) {
+  642:     throw createProjectAssetStorageError({
+  643:       code: "PROJECT_ASSET_LIST_FAILED",
+  644: 
+  645:       message: "Unable to list Project assets.",
+  646: 
+  647:       publicMessage: "The Project file list could not be loaded.",
+  648: 
+  649:       cause: error,
+  650:     });
+  651:   } finally {
+  652:     database.close();
+  653:   }
+  654: }
+  655: 
+  656: /*
+  657:  * =========================================
+  658:  * Delete Assets by Storage Key
+  659:  * =========================================
+  660:  */
+  661: 
+  662: export async function deleteProjectAssets(storageKeys = []) {
+  663:   const normalizedStorageKeys = [
+  664:     ...new Set(getArray(storageKeys).map(getText).filter(Boolean)),
+  665:   ];
+  666: 
+  667:   if (normalizedStorageKeys.length === 0) {
+  668:     return 0;
+  669:   }
+  670: 
+  671:   const database = await openProjectAssetDatabase();
+  672: 
+  673:   try {
+  674:     const transaction = database.transaction(
+  675:       PROJECT_ASSET_STORE_NAME,
+  676:       "readwrite",
+  677:     );
+  678: 
+  679:     const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+  680: 
+  681:     normalizedStorageKeys.forEach((normalizedStorageKey) => {
+  682:       store.delete(normalizedStorageKey);
+  683:     });
+  684: 
+  685:     await transactionToPromise(transaction);
+  686: 
+  687:     return normalizedStorageKeys.length;
+  688:   } catch (error) {
+  689:     throw createProjectAssetStorageError({
+  690:       code: "PROJECT_ASSET_DELETE_FAILED",
+  691: 
+  692:       message: "Unable to delete Project assets.",
+  693: 
+  694:       publicMessage: "One or more Project files could not be removed.",
+  695: 
+  696:       cause: error,
+  697:     });
+  698:   } finally {
+  699:     database.close();
+  700:   }
+  701: }
+  702: 
+  703: /*
+  704:  * =========================================
+  705:  * Delete All Assets for Project
+  706:  * =========================================
+  707:  *
+  708:  * A cursor is used instead of getAll(). This
+  709:  * prevents every large Blob from being loaded
+  710:  * into application memory before deletion.
+  711:  */
+  712: 
+  713: export async function deleteProjectAssetsForProject(projectId) {
+  714:   const normalizedProjectId = getText(projectId);
+  715: 
+  716:   if (!normalizedProjectId) {
+  717:     return 0;
+  718:   }
+  719: 
+  720:   const database = await openProjectAssetDatabase();
+  721: 
+  722:   try {
+  723:     const transaction = database.transaction(
+  724:       PROJECT_ASSET_STORE_NAME,
+  725:       "readwrite",
+  726:     );
+  727: 
+  728:     const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+  729: 
+  730:     const index = store.index(PROJECT_ID_INDEX_NAME);
+  731: 
+  732:     if (typeof IDBKeyRange === "undefined") {
+  733:       throw new Error("IDBKeyRange is unavailable.");
+  734:     }
+  735: 
+  736:     const keyRange = IDBKeyRange.only(normalizedProjectId);
+  737: 
+  738:     /*
+  739:      * This variable is updated while the cursor
+  740:      * deletes each matching Project asset.
+  741:      */
+  742: 
+  743:     let cursorDeletedCount = 0;
+  744: 
+  745:     const cursorPromise = new Promise((resolve, reject) => {
+  746:       const cursorRequest = index.openCursor(keyRange);
+  747: 
+  748:       cursorRequest.onerror = () => {
+  749:         reject(
+  750:           cursorRequest.error || new Error("The Project asset cursor failed."),
+  751:         );
+  752:       };
+  753: 
+  754:       cursorRequest.onsuccess = () => {
+  755:         const cursor = cursorRequest.result;
+  756: 
+  757:         /*
+  758:          * No cursor means every matching asset
+  759:          * has been processed.
+  760:          */
+  761: 
+  762:         if (!cursor) {
+  763:           resolve(cursorDeletedCount);
+  764: 
+  765:           return;
+  766:         }
+  767: 
+  768:         const deleteRequest = cursor.delete();
+  769: 
+  770:         deleteRequest.onerror = () => {
+  771:           reject(
+  772:             deleteRequest.error ||
+  773:               new Error("A Project asset could not be deleted."),
+  774:           );
+  775:         };
+  776: 
+  777:         deleteRequest.onsuccess = () => {
+  778:           cursorDeletedCount += 1;
+  779: 
+  780:           cursor.continue();
+  781:         };
+  782:       };
+  783:     });
+  784: 
+  785:     /*
+  786:      * Use a different variable name for the
+  787:      * resolved count to avoid redeclaration.
+  788:      */
+  789: 
+  790:     const [completedDeletedCount] = await Promise.all([
+  791:       cursorPromise,
+  792:       transactionToPromise(transaction),
+  793:     ]);
+  794: 
+  795:     return completedDeletedCount;
+  796:   } catch (error) {
+  797:     throw createProjectAssetStorageError({
+  798:       code: "PROJECT_ASSET_PROJECT_DELETE_FAILED",
+  799: 
+  800:       message: "Unable to delete Project assets.",
+  801: 
+  802:       publicMessage: "One or more Project files could not be removed.",
+  803: 
+  804:       cause: error,
+  805:     });
+  806:   } finally {
+  807:     database.close();
+  808:   }
+  809: }
+
+================================================================================
+FILE: .\src\services\Project\projectStorage.js
+================================================================================
+    1: import {
+    2:   PROJECT_MODEL_VERSION,
+    3:   normalizeProjectCollection,
+    4: } from "../../models/projectModel.js";
+    5: 
+    6: /*
+    7:  * =========================================
+    8:  * Storage Configuration
+    9:  * =========================================
+   10:  */
+   11: 
+   12: export const PROJECT_STORAGE_KEY =
+   13:   "portfolio-platform:projects";
+   14: 
+   15: export const PROJECT_STORAGE_RECOVERY_KEY =
+   16:   "portfolio-platform:projects:recovery";
+   17: 
+   18: export const PROJECT_STORAGE_VERSION = 2;
+   19: 
+   20: /*
+   21:  * =========================================
+   22:  * Storage Error
+   23:  * =========================================
+   24:  */
+   25: 
+   26: function createProjectStorageError(
+   27:   code,
+   28:   message,
+   29:   publicMessage,
+   30:   cause = null,
+   31: ) {
+   32:   const error = new Error(message);
+   33: 
+   34:   error.name = "ProjectStorageError";
+   35:   error.code = code;
+   36:   error.publicMessage = publicMessage;
+   37: 
+   38:   if (cause) {
+   39:     error.cause = cause;
+   40:   }
+   41: 
+   42:   return error;
+   43: }
+   44: 
+   45: /*
+   46:  * =========================================
+   47:  * Browser Storage
+   48:  * =========================================
+   49:  */
+   50: 
+   51: function getBrowserStorage() {
+   52:   if (typeof window === "undefined") {
+   53:     throw createProjectStorageError(
+   54:       "PROJECT_STORAGE_ENVIRONMENT_UNAVAILABLE",
+   55:       "Window is unavailable.",
+   56:       "Project storage is not supported in this environment.",
+   57:     );
+   58:   }
+   59: 
+   60:   try {
+   61:     if (!window.localStorage) {
+   62:       throw new Error("localStorage is unavailable.");
+   63:     }
+   64: 
+   65:     return window.localStorage;
+   66:   } catch (cause) {
+   67:     throw createProjectStorageError(
+   68:       "PROJECT_STORAGE_ACCESS_DENIED",
+   69:       "Browser localStorage could not be accessed.",
+   70:       "Project storage is unavailable. Check your browser privacy and storage settings.",
+   71:       cause,
+   72:     );
+   73:   }
+   74: }
+   75: 
+   76: /*
+   77:  * =========================================
+   78:  * Empty Storage Document
+   79:  * =========================================
+   80:  */
+   81: 
+   82: function createEmptyProjectStorageDocument() {
+   83:   return {
+   84:     storageVersion: PROJECT_STORAGE_VERSION,
+   85: 
+   86:     projectModelVersion: PROJECT_MODEL_VERSION,
+   87: 
+   88:     projectRecords: [],
+   89: 
+   90:     updatedAt: new Date().toISOString(),
+   91:   };
+   92: }
+   93: 
+   94: /*
+   95:  * =========================================
+   96:  * Recovery Copy
+   97:  * =========================================
+   98:  *
+   99:  * If stored JSON is corrupted, retain its raw
+  100:  * value under a recovery key before reporting
+  101:  * the error. This avoids silently discarding
+  102:  * potentially recoverable Project metadata.
+  103:  */
+  104: 
+  105: function preserveRecoveryCopy(
+  106:   storage,
+  107:   rawValue,
+  108:   reason,
+  109: ) {
+  110:   if (!rawValue) {
+  111:     return;
+  112:   }
+  113: 
+  114:   try {
+  115:     storage.setItem(
+  116:       PROJECT_STORAGE_RECOVERY_KEY,
+  117:       JSON.stringify({
+  118:         originalStorageKey: PROJECT_STORAGE_KEY,
+  119:         reason,
+  120:         recoveredAt: new Date().toISOString(),
+  121:         rawValue,
+  122:       }),
+  123:     );
+  124:   } catch {
+  125:     /*
+  126:      * Recovery storage is best effort. Do not
+  127:      * replace the original error if the browser
+  128:      * cannot save the recovery copy.
+  129:      */
+  130:   }
+  131: }
+  132: 
+  133: /*
+  134:  * =========================================
+  135:  * Record Collection Resolution
+  136:  * =========================================
+  137:  */
+  138: 
+  139: function getStoredRecordCollection(document) {
+  140:   if (Array.isArray(document.projectRecords)) {
+  141:     return document.projectRecords;
+  142:   }
+  143: 
+  144:   if (Array.isArray(document.projects)) {
+  145:     return document.projects;
+  146:   }
+  147: 
+  148:   if (Array.isArray(document.records)) {
+  149:     return document.records;
+  150:   }
+  151: 
+  152:   /*
+  153:    * A completely absent collection represents
+  154:    * an empty library. A present collection with
+  155:    * the wrong type represents corruption.
+  156:    */
+  157: 
+  158:   const hasCollectionProperty =
+  159:     Object.prototype.hasOwnProperty.call(
+  160:       document,
+  161:       "projectRecords",
+  162:     ) ||
+  163:     Object.prototype.hasOwnProperty.call(
+  164:       document,
+  165:       "projects",
+  166:     ) ||
+  167:     Object.prototype.hasOwnProperty.call(
+  168:       document,
+  169:       "records",
+  170:     );
+  171: 
+  172:   if (!hasCollectionProperty) {
+  173:     return [];
+  174:   }
+  175: 
+  176:   throw createProjectStorageError(
+  177:     "PROJECT_STORAGE_RECORDS_INVALID",
+  178:     "The stored Project collection is not an array.",
+  179:     "The saved Project Library contains an invalid record collection.",
+  180:   );
+  181: }
+  182: 
+  183: /*
+  184:  * =========================================
+  185:  * Storage Migration
+  186:  * =========================================
+  187:  */
+  188: 
+  189: function migrateProjectStorageDocument(
+  190:   storedDocument,
+  191: ) {
+  192:   /*
+  193:    * Original storage sometimes contained only
+  194:    * the Project array.
+  195:    */
+  196: 
+  197:   if (Array.isArray(storedDocument)) {
+  198:     return {
+  199:       document: {
+  200:         ...createEmptyProjectStorageDocument(),
+  201: 
+  202:         projectRecords:
+  203:           normalizeProjectCollection(
+  204:             storedDocument,
+  205:           ),
+  206:       },
+  207: 
+  208:       wasMigrated: true,
+  209:     };
+  210:   }
+  211: 
+  212:   if (
+  213:     !storedDocument ||
+  214:     typeof storedDocument !== "object"
+  215:   ) {
+  216:     throw createProjectStorageError(
+  217:       "PROJECT_STORAGE_DOCUMENT_INVALID",
+  218:       "Stored Project data has an invalid structure.",
+  219:       "The saved Project Library has an invalid format.",
+  220:     );
+  221:   }
+  222: 
+  223:   const storedVersion =
+  224:     Number(storedDocument.storageVersion) || 1;
+  225: 
+  226:   if (storedVersion > PROJECT_STORAGE_VERSION) {
+  227:     throw createProjectStorageError(
+  228:       "PROJECT_STORAGE_VERSION_UNSUPPORTED",
+  229:       `Stored Project version ${storedVersion} is newer than supported version ${PROJECT_STORAGE_VERSION}.`,
+  230:       "This Project Library was created by a newer version of the application and cannot be opened safely.",
+  231:     );
+  232:   }
+  233: 
+  234:   const storedRecords =
+  235:     getStoredRecordCollection(storedDocument);
+  236: 
+  237:   /*
+  238:    * normalizeProjectCollection performs the
+  239:    * model migration. It upgrades version-1
+  240:    * Projects to the current model structure.
+  241:    */
+  242: 
+  243:   const normalizedRecords =
+  244:     normalizeProjectCollection(storedRecords);
+  245: 
+  246:   const wasMigrated =
+  247:     storedVersion !== PROJECT_STORAGE_VERSION ||
+  248:     Number(storedDocument.projectModelVersion) !==
+  249:       PROJECT_MODEL_VERSION ||
+  250:     !Array.isArray(storedDocument.projectRecords);
+  251: 
+  252:   return {
+  253:     document: {
+  254:       storageVersion: PROJECT_STORAGE_VERSION,
+  255: 
+  256:       projectModelVersion: PROJECT_MODEL_VERSION,
+  257: 
+  258:       projectRecords: normalizedRecords,
+  259: 
+  260:       updatedAt:
+  261:         typeof storedDocument.updatedAt ===
+  262:         "string"
+  263:           ? storedDocument.updatedAt
+  264:           : new Date().toISOString(),
+  265:     },
+  266: 
+  267:     wasMigrated,
+  268:   };
+  269: }
+  270: 
+  271: /*
+  272:  * =========================================
+  273:  * Parse Storage Document
+  274:  * =========================================
+  275:  */
+  276: 
+  277: function parseProjectStorageDocument(rawValue) {
+  278:   if (!rawValue) {
+  279:     return {
+  280:       document:
+  281:         createEmptyProjectStorageDocument(),
+  282: 
+  283:       wasMigrated: false,
+  284:     };
+  285:   }
+  286: 
+  287:   let parsedValue;
+  288: 
+  289:   try {
+  290:     parsedValue = JSON.parse(rawValue);
+  291:   } catch (cause) {
+  292:     throw createProjectStorageError(
+  293:       "PROJECT_STORAGE_JSON_INVALID",
+  294:       "Unable to parse stored Project data.",
+  295:       "The saved Project Library could not be read because its data is damaged.",
+  296:       cause,
+  297:     );
+  298:   }
+  299: 
+  300:   return migrateProjectStorageDocument(
+  301:     parsedValue,
+  302:   );
+  303: }
+  304: 
+  305: /*
+  306:  * =========================================
+  307:  * Internal Document Write
+  308:  * =========================================
+  309:  */
+  310: 
+  311: function writeStorageDocument(
+  312:   storage,
+  313:   document,
+  314: ) {
+  315:   let serializedDocument;
+  316: 
+  317:   try {
+  318:     serializedDocument = JSON.stringify(document);
+  319:   } catch (cause) {
+  320:     throw createProjectStorageError(
+  321:       "PROJECT_STORAGE_SERIALIZATION_FAILED",
+  322:       "Project storage could not be serialized.",
+  323:       "Your Project records could not be prepared for storage.",
+  324:       cause,
+  325:     );
+  326:   }
+  327: 
+  328:   try {
+  329:     storage.setItem(
+  330:       PROJECT_STORAGE_KEY,
+  331:       serializedDocument,
+  332:     );
+  333:   } catch (cause) {
+  334:     const isQuotaError =
+  335:       cause?.name === "QuotaExceededError" ||
+  336:       cause?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+  337:       cause?.code === 22 ||
+  338:       cause?.code === 1014;
+  339: 
+  340:     throw createProjectStorageError(
+  341:       isQuotaError
+  342:         ? "PROJECT_STORAGE_QUOTA_EXCEEDED"
+  343:         : "PROJECT_STORAGE_WRITE_FAILED",
+  344: 
+  345:       isQuotaError
+  346:         ? "Project localStorage quota was exceeded."
+  347:         : "Unable to write Project Library storage.",
+  348: 
+  349:       isQuotaError
+  350:         ? "The browser does not have enough storage space for the Project Library metadata."
+  351:         : "Your Project records could not be saved.",
+  352: 
+  353:       cause,
+  354:     );
+  355:   }
+  356: 
+  357:   return document;
+  358: }
+  359: 
+  360: /*
+  361:  * =========================================
+  362:  * Read Project Storage
+  363:  * =========================================
+  364:  */
+  365: 
+  366: export function readProjectStorage({
+  367:   persistMigration = true,
+  368: } = {}) {
+  369:   const storage = getBrowserStorage();
+  370: 
+  371:   let rawValue;
+  372: 
+  373:   try {
+  374:     rawValue = storage.getItem(
+  375:       PROJECT_STORAGE_KEY,
+  376:     );
+  377:   } catch (cause) {
+  378:     throw createProjectStorageError(
+  379:       "PROJECT_STORAGE_READ_FAILED",
+  380:       "Unable to read Project Library storage.",
+  381:       "Your saved Project records could not be loaded.",
+  382:       cause,
+  383:     );
+  384:   }
+  385: 
+  386:   try {
+  387:     const {
+  388:       document,
+  389:       wasMigrated,
+  390:     } = parseProjectStorageDocument(rawValue);
+  391: 
+  392:     /*
+  393:      * Persist successful migrations so every
+  394:      * future read uses the current schema.
+  395:      */
+  396: 
+  397:     if (
+  398:       rawValue &&
+  399:       wasMigrated &&
+  400:       persistMigration
+  401:     ) {
+  402:       return writeStorageDocument(
+  403:         storage,
+  404:         {
+  405:           ...document,
+  406:           updatedAt: new Date().toISOString(),
+  407:         },
+  408:       );
+  409:     }
+  410: 
+  411:     return document;
+  412:   } catch (error) {
+  413:     preserveRecoveryCopy(
+  414:       storage,
+  415:       rawValue,
+  416:       error?.code || "PROJECT_STORAGE_READ_FAILED",
+  417:     );
+  418: 
+  419:     if (error?.name === "ProjectStorageError") {
+  420:       throw error;
+  421:     }
+  422: 
+  423:     throw createProjectStorageError(
+  424:       "PROJECT_STORAGE_READ_FAILED",
+  425:       "Unable to read Project Library storage.",
+  426:       "Your saved Project records could not be loaded.",
+  427:       error,
+  428:     );
+  429:   }
+  430: }
+  431: 
+  432: /*
+  433:  * =========================================
+  434:  * Write Project Storage
+  435:  * =========================================
+  436:  */
+  437: 
+  438: export function writeProjectStorage(
+  439:   projectRecords,
+  440: ) {
+  441:   if (!Array.isArray(projectRecords)) {
+  442:     throw createProjectStorageError(
+  443:       "PROJECT_STORAGE_WRITE_INPUT_INVALID",
+  444:       "Project records must be supplied as an array.",
+  445:       "The Project Library could not be saved because the record collection is invalid.",
+  446:     );
+  447:   }
+  448: 
+  449:   const storage = getBrowserStorage();
+  450: 
+  451:   const document = {
+  452:     storageVersion: PROJECT_STORAGE_VERSION,
+  453: 
+  454:     projectModelVersion: PROJECT_MODEL_VERSION,
+  455: 
+  456:     projectRecords:
+  457:       normalizeProjectCollection(
+  458:         projectRecords,
+  459:       ),
+  460: 
+  461:     updatedAt: new Date().toISOString(),
+  462:   };
+  463: 
+  464:   return writeStorageDocument(
+  465:     storage,
+  466:     document,
+  467:   );
+  468: }
+  469: 
+  470: /*
+  471:  * =========================================
+  472:  * Read Stored Projects
+  473:  * =========================================
+  474:  */
+  475: 
+  476: export function readStoredProjects() {
+  477:   return readProjectStorage().projectRecords;
+  478: }
+  479: 
+  480: /*
+  481:  * =========================================
+  482:  * Replace Stored Projects
+  483:  * =========================================
+  484:  */
+  485: 
+  486: export function replaceStoredProjects(
+  487:   projectRecords,
+  488: ) {
+  489:   return writeProjectStorage(
+  490:     projectRecords,
+  491:   ).projectRecords;
+  492: }
+  493: 
+  494: /*
+  495:  * =========================================
+  496:  * Update Stored Projects
+  497:  * =========================================
+  498:  */
+  499: 
+  500: export function updateStoredProjects(updater) {
+  501:   if (typeof updater !== "function") {
+  502:     throw createProjectStorageError(
+  503:       "PROJECT_STORAGE_UPDATER_INVALID",
+  504:       "The Project updater must be a function.",
+  505:       "The Project Library could not be updated.",
+  506:     );
+  507:   }
+  508: 
+  509:   const currentRecords = readStoredProjects();
+  510: 
+  511:   /*
+  512:    * Supply a new array so the updater cannot
+  513:    * mutate the collection currently returned
+  514:    * by the storage reader.
+  515:    */
+  516: 
+  517:   const nextRecords = updater([
+  518:     ...currentRecords,
+  519:   ]);
+  520: 
+  521:   if (!Array.isArray(nextRecords)) {
+  522:     throw createProjectStorageError(
+  523:       "PROJECT_STORAGE_UPDATE_RESULT_INVALID",
+  524:       "The Project updater did not return an array.",
+  525:       "The Project Library could not be updated.",
+  526:     );
+  527:   }
+  528: 
+  529:   return replaceStoredProjects(nextRecords);
+  530: }
+  531: 
+  532: /*
+  533:  * =========================================
+  534:  * Recovery Information
+  535:  * =========================================
+  536:  */
+  537: 
+  538: export function readProjectStorageRecovery() {
+  539:   const storage = getBrowserStorage();
+  540: 
+  541:   let rawRecoveryValue;
+  542: 
+  543:   try {
+  544:     rawRecoveryValue = storage.getItem(
+  545:       PROJECT_STORAGE_RECOVERY_KEY,
+  546:     );
+  547:   } catch {
+  548:     return null;
+  549:   }
+  550: 
+  551:   if (!rawRecoveryValue) {
+  552:     return null;
+  553:   }
+  554: 
+  555:   try {
+  556:     return JSON.parse(rawRecoveryValue);
+  557:   } catch {
+  558:     return {
+  559:       reason:
+  560:         "PROJECT_STORAGE_RECOVERY_JSON_INVALID",
+  561: 
+  562:       rawValue: rawRecoveryValue,
+  563:     };
+  564:   }
+  565: }
+  566: 
+  567: /*
+  568:  * =========================================
+  569:  * Clear Recovery Information
+  570:  * =========================================
+  571:  */
+  572: 
+  573: export function clearProjectStorageRecovery() {
+  574:   const storage = getBrowserStorage();
+  575: 
+  576:   try {
+  577:     storage.removeItem(
+  578:       PROJECT_STORAGE_RECOVERY_KEY,
+  579:     );
+  580:   } catch (cause) {
+  581:     throw createProjectStorageError(
+  582:       "PROJECT_STORAGE_RECOVERY_CLEAR_FAILED",
+  583:       "Unable to clear Project recovery information.",
+  584:       "The Project recovery information could not be removed.",
+  585:       cause,
+  586:     );
+  587:   }
+  588: }
+
+================================================================================
+FILE: .\src\services\Project\projectService.js
+================================================================================
+    1: import {
+    2:   createProject as createProjectModel,
+    3:   createProjectDocument,
+    4:   createProjectMedia,
+    5:   createPublicProject,
+    6:   normalizeProject,
+    7:   updateProjectModel,
+    8: } from "../../models/projectModel.js";
+    9: 
+   10: import {
+   11:   deleteProjectAssets,
+   12:   deleteProjectAssetsForProject,
+   13:   writeProjectAsset,
+   14: } from "./projectAssetStorage.js";
+   15: 
+   16: import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
+   17: 
+   18: import { validateProject } from "./projectValidation.js";
+   19: import { prepareFeaturedProjectMedia } from "./projectFeaturedMedia.js";
+   20: 
+   21: /*
+   22:  * =========================================
+   23:  * Primitive Helpers
+   24:  * =========================================
+   25:  */
+   26: 
+   27: function getText(value) {
+   28:   return typeof value === "string" ? value.trim() : "";
+   29: }
+   30: 
+   31: function getArray(value) {
+   32:   return Array.isArray(value) ? value : [];
+   33: }
+   34: 
+   35: /*
+   36:  * =========================================
+   37:  * Service Error
+   38:  * =========================================
+   39:  */
+   40: 
+   41: function createProjectServiceError(code, message, publicMessage, details = {}) {
+   42:   const error = new Error(message);
+   43: 
+   44:   error.name = "ProjectServiceError";
+   45:   error.code = code;
+   46:   error.publicMessage = publicMessage;
+   47: 
+   48:   Object.assign(error, details);
+   49: 
+   50:   return error;
+   51: }
+   52: 
+   53: /*
+   54:  * =========================================
+   55:  * Validate Project for Storage
+   56:  * =========================================
+   57:  */
+   58: 
+   59: function validateForSave(project, collections) {
+   60:   const validation = validateProject(project, collections);
+   61: 
+   62:   if (!validation.isValid) {
+   63:     throw createProjectServiceError(
+   64:       "PROJECT_VALIDATION_ERROR",
+   65:       "Project validation failed.",
+   66:       "Correct the highlighted Project fields before saving.",
+   67:       {
+   68:         validation,
+   69:         errors: validation.errors,
+   70:         warnings: validation.warnings,
+   71:         fieldErrors: validation.fieldErrors,
+   72:       },
+   73:     );
+   74:   }
+   75: 
+   76:   return validation;
+   77: }
+   78: 
+   79: /*
+   80:  * =========================================
+   81:  * Project Identifier Validation
+   82:  * =========================================
+   83:  */
+   84: 
+   85: function requireProjectId(projectId) {
+   86:   const normalizedProjectId = getText(projectId);
+   87: 
+   88:   if (!normalizedProjectId) {
+   89:     throw createProjectServiceError(
+   90:       "PROJECT_ID_REQUIRED",
+   91:       "A Project identifier is required.",
+   92:       "The selected Project could not be identified.",
+   93:     );
+   94:   }
+   95: 
+   96:   return normalizedProjectId;
+   97: }
+   98: 
+   99: /*
+  100:  * =========================================
+  101:  * Find Project
+  102:  * =========================================
+  103:  */
+  104: 
+  105: function findProjectIndex(records, projectId) {
+  106:   return records.findIndex((project) => project.id === projectId);
+  107: }
+  108: 
+  109: /*
+  110:  * =========================================
+  111:  * Duplicate Identity
+  112:  * =========================================
+  113:  *
+  114:  * Projects may share a title when they belong
+  115:  * to different organizations or clients.
+  116:  */
+  117: 
+  118: function createProjectIdentity(project) {
+  119:   const title = getText(project?.title).normalize("NFKC").toLocaleLowerCase();
+  120: 
+  121:   const organization = getText(
+  122:     project?.organization?.name || project?.organization?.clientName,
+  123:   )
+  124:     .normalize("NFKC")
+  125:     .toLocaleLowerCase();
+  126: 
+  127:   return {
+  128:     title,
+  129:     organization,
+  130:   };
+  131: }
+  132: 
+  133: function ensureUniqueProject(records, candidate, excludedProjectId = "") {
+  134:   const candidateIdentity = createProjectIdentity(candidate);
+  135: 
+  136:   if (!candidateIdentity.title) {
+  137:     return;
+  138:   }
+  139: 
+  140:   const duplicate = records.find((project) => {
+  141:     if (project.id === excludedProjectId) {
+  142:       return false;
+  143:     }
+  144: 
+  145:     const existingIdentity = createProjectIdentity(project);
+  146: 
+  147:     /*
+  148:      * When neither record identifies an
+  149:      * organization, the normalized title alone
+  150:      * is used to prevent accidental duplicates.
+  151:      */
+  152: 
+  153:     return (
+  154:       existingIdentity.title === candidateIdentity.title &&
+  155:       existingIdentity.organization === candidateIdentity.organization
+  156:     );
+  157:   });
+  158: 
+  159:   if (!duplicate) {
+  160:     return;
+  161:   }
+  162: 
+  163:   throw createProjectServiceError(
+  164:     "PROJECT_DUPLICATE",
+  165:     `A matching Project already exists: ${duplicate.id}`,
+  166:     candidateIdentity.organization
+  167:       ? "A Project with this title and organization already exists."
+  168:       : "A Project with this title already exists.",
+  169:     {
+  170:       project: duplicate,
+  171: 
+  172:       fieldErrors: {
+  173:         title: "A matching Project record already exists.",
+  174:       },
+  175:     },
+  176:   );
+  177: }
+  178: 
+  179: /*
+  180:  * =========================================
+  181:  * Store Upload Collection
+  182:  * =========================================
+  183:  */
+  184: 
+  185: async function storeProjectUploads(projectId, uploads, kind) {
+  186:   const uploadCollection = getArray(uploads);
+  187: 
+  188:   const metadata = [];
+  189: 
+  190:   const createdStorageKeys = [];
+  191: 
+  192:   try {
+  193:     for (let index = 0; index < uploadCollection.length; index += 1) {
+  194:       const upload = uploadCollection[index];
+  195: 
+  196:       if (!(upload?.file instanceof Blob)) {
+  197:         throw createProjectServiceError(
+  198:           "PROJECT_UPLOAD_FILE_INVALID",
+  199:           `Project ${kind} upload does not contain a valid Blob.`,
+  200:           `One of the selected Project ${
+  201:             kind === "media" ? "media files" : "documents"
+  202:           } is invalid.`,
+  203:         );
+  204:       }
+  205: 
+  206:       const storedAsset = await writeProjectAsset({
+  207:         file: upload.file,
+  208: 
+  209:         projectId,
+  210: 
+  211:         assetId: upload.assetId || upload.id,
+  212: 
+  213:         storageKey: upload.storageKey,
+  214: 
+  215:         kind,
+  216:       });
+  217: 
+  218:       createdStorageKeys.push(storedAsset.storageKey);
+  219: 
+  220:       const metadataValues = {
+  221:         ...upload,
+  222: 
+  223:         /*
+  224:          * File objects must never be included
+  225:          * in localStorage metadata.
+  226:          */
+  227: 
+  228:         file: undefined,
+  229: 
+  230:         id: storedAsset.assetId,
+  231: 
+  232:         fileName: storedAsset.fileName,
+  233: 
+  234:         mimeType: storedAsset.mimeType,
+  235: 
+  236:         fileSize: storedAsset.fileSize,
+  237: 
+  238:         storageProvider: "indexed-db",
+  239: 
+  240:         storageKey: storedAsset.storageKey,
+  241: 
+  242:         uploadedAt: storedAsset.updatedAt,
+  243:       };
+  244: 
+  245:       metadata.push(
+  246:         kind === "media"
+  247:           ? createProjectMedia(metadataValues, index)
+  248:           : createProjectDocument(metadataValues, index),
+  249:       );
+  250:     }
+  251: 
+  252:     return {
+  253:       metadata,
+  254:       createdStorageKeys,
+  255:     };
+  256:   } catch (error) {
+  257:     /*
+  258:      * If one upload fails, remove every asset
+  259:      * already created during this collection.
+  260:      */
+  261: 
+  262:     await deleteProjectAssets(createdStorageKeys).catch(() => {});
+  263: 
+  264:     throw error;
+  265:   }
+  266: }
+  267: 
+  268: /*
+  269:  * =========================================
+  270:  * Prepare Project Assets
+  271:  * =========================================
+  272:  */
+  273: 
+  274: async function prepareProjectAssets(
+  275:   project,
+  276:   { mediaUploads = [], documentUploads = [] } = {},
+  277: ) {
+  278:   const storedMedia = await storeProjectUploads(
+  279:     project.id,
+  280:     mediaUploads,
+  281:     "media",
+  282:   );
+  283: 
+  284:   try {
+  285:     const storedDocuments = await storeProjectUploads(
+  286:       project.id,
+  287:       documentUploads,
+  288:       "document",
+  289:     );
+  290: 
+  291:     /*
+  292:      * A staged upload selected in the Media
+  293:      * Editor must take priority. Before upload,
+  294:      * its ID cannot be resolved by normalizeProject
+  295:      * because it is not yet part of project.media.
+  296:      */
+  297: 
+  298:     const featuredMediaResult = prepareFeaturedProjectMedia(
+  299:       getArray(project.media),
+  300:       storedMedia.metadata,
+  301:       getText(project.presentation?.featuredMediaId),
+  302:     );
+  303:     const preparedProject = normalizeProject({
+  304:       ...project,
+  305: 
+  306:       media: featuredMediaResult.media,
+  307: 
+  308:       supportingDocuments: [
+  309:         ...getArray(project.supportingDocuments),
+  310: 
+  311:         ...storedDocuments.metadata,
+  312:       ],
+  313: 
+  314:       presentation: {
+  315:         ...project.presentation,
+  316: 
+  317:         featuredMediaId: featuredMediaResult.featuredMediaId,
+  318:       },
+  319:     });
+  320: 
+  321:     return {
+  322:       project: preparedProject,
+  323: 
+  324:       createdStorageKeys: [
+  325:         ...storedMedia.createdStorageKeys,
+  326:         ...storedDocuments.createdStorageKeys,
+  327:       ],
+  328:     };
+  329:   } catch (error) {
+  330:     /*
+  331:      * Document storage failed after media was
+  332:      * saved, so the new media must be rolled
+  333:      * back as well.
+  334:      */
+  335: 
+  336:     await deleteProjectAssets(storedMedia.createdStorageKeys).catch(() => {});
+  337: 
+  338:     throw error;
+  339:   }
+  340: }
+  341: 
+  342: /*
+  343:  * =========================================
+  344:  * Safe Removed-Asset Cleanup
+  345:  * =========================================
+  346:  */
+  347: 
+  348: async function removeUnreferencedAssets(project, requestedStorageKeys) {
+  349:   const referencedStorageKeys = new Set([
+  350:     ...getArray(project.media)
+  351:       .map((mediaItem) => getText(mediaItem.storageKey))
+  352:       .filter(Boolean),
+  353: 
+  354:     ...getArray(project.supportingDocuments)
+  355:       .map((documentRecord) => getText(documentRecord.storageKey))
+  356:       .filter(Boolean),
+  357:   ]);
+  358: 
+  359:   const removableStorageKeys = [
+  360:     ...new Set(getArray(requestedStorageKeys).map(getText).filter(Boolean)),
+  361:   ].filter((storageKey) => !referencedStorageKeys.has(storageKey));
+  362: 
+  363:   if (removableStorageKeys.length === 0) {
+  364:     return 0;
+  365:   }
+  366: 
+  367:   return deleteProjectAssets(removableStorageKeys);
+  368: }
+  369: 
+  370: /*
+  371:  * =========================================
+  372:  * Get Projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+  385:  * =========================================
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+  389: 
+  390: export function getProjectById(projectId, { includeArchived = true } = {}) {
+  391:   const normalizedProjectId = requireProjectId(projectId);
+  392: 
+  393:   const project =
+  394:     readStoredProjects().find((record) => record.id === normalizedProjectId) ||
+  395:     null;
+  396: 
+  397:   if (project?.recordStatus === "archived" && !includeArchived) {
+  398:     return null;
+  399:   }
+  400: 
+  401:   return project;
+  402: }
+  403: 
+  404: /*
+  405:  * =========================================
+  406:  * Public Projects
+  407:  * =========================================
+  408:  */
+  409: 
+  410: export function getPublicProjects() {
+  411:   return getProjects({
+  412:     includeArchived: false,
+  413:   }).map(createPublicProject);
+  414: }
+  415: 
+  416: /*
+  417:  * =========================================
+  418:  * Public Project by ID
+  419:  * =========================================
+  420:  */
+  421: 
+  422: export function getPublicProjectById(projectId) {
+  423:   const project = getProjectById(projectId, {
+  424:     includeArchived: false,
+  425:   });
+  426: 
+  427:   return project ? createPublicProject(project) : null;
+  428: }
+  429: 
+  430: /*
+  431:  * =========================================
+  432:  * Create Project
+  433:  * =========================================
+  434:  */
+  435: 
+  436: export async function createProject(
+  437:   projectData,
+  438:   {
+  439:     collections = {},
+  440:     mediaUploads = [],
+  441:     documentUploads = [],
+  442:     removedAssetStorageKeys = [],
+  443:   } = {},
+  444: ) {
+  445:   const records = readStoredProjects();
+  446: 
+  447:   let project = createProjectModel(projectData);
+  448: 
+  449:   ensureUniqueProject(records, project);
+  450: 
+  451:   const preparedAssets = await prepareProjectAssets(project, {
+  452:     mediaUploads,
+  453:     documentUploads,
+  454:   });
+  455: 
+  456:   project = preparedAssets.project;
+  457: 
+  458:   try {
+  459:     const validation = validateForSave(project, collections);
+  460: 
+  461:     /*
+  462:      * Store metadata only after every staged
+  463:      * asset was written successfully.
+  464:      */
+  465: 
+  466:     replaceStoredProjects([...records, project]);
+  467: 
+  468:     /*
+  469:      * This collection is normally empty while
+  470:      * creating, but accepting it keeps the
+  471:      * service contract consistent.
+  472:      */
+  473: 
+  474:     await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+  475:       () => {},
+  476:     );
+  477: 
+  478:     return {
+  479:       project,
+  480:       warnings: validation.warnings,
+  481:     };
+  482:   } catch (error) {
+  483:     /*
+  484:      * Metadata was not saved, so every new
+  485:      * IndexedDB asset must be removed.
+  486:      */
+  487: 
+  488:     await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+  489:       () => {},
+  490:     );
+  491: 
+  492:     throw error;
+  493:   }
+  494: }
+  495: 
+  496: /*
+  497:  * =========================================
+  498:  * Update Project
+  499:  * =========================================
+  500:  */
+  501: 
+  502: export async function updateProject(
+  503:   projectId,
+  504:   updates,
+  505:   {
+  506:     collections = {},
+  507:     mediaUploads = [],
+  508:     documentUploads = [],
+  509:     removedAssetStorageKeys = [],
+  510:   } = {},
+  511: ) {
+  512:   const normalizedProjectId = requireProjectId(projectId);
+  513: 
+  514:   const records = readStoredProjects();
+  515: 
+  516:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  517: 
+  518:   if (projectIndex < 0) {
+  519:     throw createProjectServiceError(
+  520:       "PROJECT_NOT_FOUND",
+  521:       `Project not found: ${normalizedProjectId}`,
+  522:       "The selected Project could not be found.",
+  523:       {
+  524:         projectId: normalizedProjectId,
+  525:       },
+  526:     );
+  527:   }
+  528: 
+  529:   let project = updateProjectModel(records[projectIndex], updates);
+  530: 
+  531:   ensureUniqueProject(records, project, project.id);
+  532: 
+  533:   const preparedAssets = await prepareProjectAssets(project, {
+  534:     mediaUploads,
+  535:     documentUploads,
+  536:   });
+  537: 
+  538:   project = preparedAssets.project;
+  539: 
+  540:   try {
+  541:     const validation = validateForSave(project, collections);
+  542: 
+  543:     const nextRecords = [...records];
+  544: 
+  545:     nextRecords[projectIndex] = project;
+  546: 
+  547:     /*
+  548:      * Save updated metadata before deleting
+  549:      * old assets. If this write fails, existing
+  550:      * files remain recoverable.
+  551:      */
+  552: 
+  553:     replaceStoredProjects(nextRecords);
+  554: 
+  555:     /*
+  556:      * Asset deletion occurs only after the new
+  557:      * Project record has been saved.
+  558:      */
+  559: 
+  560:     await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+  561:       () => {},
+  562:     );
+  563: 
+  564:     return {
+  565:       project,
+  566:       warnings: validation.warnings,
+  567:     };
+  568:   } catch (error) {
+  569:     /*
+  570:      * Preserve all pre-existing files and remove
+  571:      * only assets created during this attempt.
+  572:      */
+  573: 
+  574:     await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+  575:       () => {},
+  576:     );
+  577: 
+  578:     throw error;
+  579:   }
+  580: }
+  581: 
+  582: /*
+  583:  * =========================================
+  584:  * Archive Project
+  585:  * =========================================
+  586:  */
+  587: 
+  588: export async function archiveProject(projectId) {
+  589:   const normalizedProjectId = requireProjectId(projectId);
+  590: 
+  591:   const records = readStoredProjects();
+  592: 
+  593:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  594: 
+  595:   if (projectIndex < 0) {
+  596:     throw createProjectServiceError(
+  597:       "PROJECT_NOT_FOUND",
+  598:       `Project not found: ${normalizedProjectId}`,
+  599:       "The selected Project could not be found.",
+  600:       {
+  601:         projectId: normalizedProjectId,
+  602:       },
+  603:     );
+  604:   }
+  605: 
+  606:   const project = records[projectIndex];
+  607: 
+  608:   if (project.recordStatus === "archived") {
+  609:     return project;
+  610:   }
+  611: 
+  612:   const archivedProject = normalizeProject({
+  613:     ...project,
+  614: 
+  615:     recordStatus: "archived",
+  616: 
+  617:     updatedAt: new Date().toISOString(),
+  618:   });
+  619: 
+  620:   const nextRecords = [...records];
+  621: 
+  622:   nextRecords[projectIndex] = archivedProject;
+  623: 
+  624:   replaceStoredProjects(nextRecords);
+  625: 
+  626:   return archivedProject;
+  627: }
+  628: 
+  629: /*
+  630:  * =========================================
+  631:  * Restore Project
+  632:  * =========================================
+  633:  */
+  634: 
+  635: export async function restoreProject(projectId) {
+  636:   const normalizedProjectId = requireProjectId(projectId);
+  637: 
+  638:   const records = readStoredProjects();
+  639: 
+  640:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  641: 
+  642:   if (projectIndex < 0) {
+  643:     throw createProjectServiceError(
+  644:       "PROJECT_NOT_FOUND",
+  645:       `Project not found: ${normalizedProjectId}`,
+  646:       "The selected Project could not be found.",
+  647:       {
+  648:         projectId: normalizedProjectId,
+  649:       },
+  650:     );
+  651:   }
+  652: 
+  653:   const project = records[projectIndex];
+  654: 
+  655:   if (project.recordStatus === "active") {
+  656:     return project;
+  657:   }
+  658: 
+  659:   const restoredProject = normalizeProject({
+  660:     ...project,
+  661: 
+  662:     recordStatus: "active",
+  663: 
+  664:     updatedAt: new Date().toISOString(),
+  665:   });
+  666: 
+  667:   const nextRecords = [...records];
+  668: 
+  669:   nextRecords[projectIndex] = restoredProject;
+  670: 
+  671:   replaceStoredProjects(nextRecords);
+  672: 
+  673:   return restoredProject;
+  674: }
+  675: 
+  676: /*
+  677:  * =========================================
+  678:  * Delete Project Permanently
+  679:  * =========================================
+  680:  */
+  681: 
+  682: export async function deleteProject(projectId) {
+  683:   const normalizedProjectId = requireProjectId(projectId);
+  684: 
+  685:   const records = readStoredProjects();
+  686: 
+  687:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  688: 
+  689:   if (projectIndex < 0) {
+  690:     throw createProjectServiceError(
+  691:       "PROJECT_NOT_FOUND",
+  692:       `Project not found: ${normalizedProjectId}`,
+  693:       "The selected Project could not be found.",
+  694:       {
+  695:         projectId: normalizedProjectId,
+  696:       },
+  697:     );
+  698:   }
+  699: 
+  700:   const deletedProject = records[projectIndex];
+  701: 
+  702:   const nextRecords = records.filter(
+  703:     (project) => project.id !== normalizedProjectId,
+  704:   );
+  705: 
+  706:   /*
+  707:    * Delete metadata first. If localStorage
+  708:    * fails, the Project and all assets remain.
+  709:    */
+  710: 
+  711:   replaceStoredProjects(nextRecords);
+  712: 
+  713:   /*
+  714:    * Once metadata is removed, delete every
+  715:    * IndexedDB asset owned by this Project.
+  716:    *
+  717:    * Cleanup is best effort because the Project
+  718:    * metadata has already been deleted.
+  719:    */
+  720: 
+  721:   let assetCleanupError = null;
+  722: 
+  723:   try {
+  724:     await deleteProjectAssetsForProject(normalizedProjectId);
+  725:   } catch (error) {
+  726:     assetCleanupError = error;
+  727:   }
+  728: 
+  729:   return {
+  730:     ...deletedProject,
+  731: 
+  732:     assetCleanupWarning: assetCleanupError
+  733:       ? "The Project was deleted, but one or more locally stored files could not be cleaned up."
+  734:       : "",
+  735:   };
+  736: }
+  737: 
+  738: 
+  739: 

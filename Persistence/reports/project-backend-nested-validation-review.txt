@@ -1,0 +1,320 @@
+﻿PROJECT BACKEND NESTED VALIDATION REVIEW
+
+========================================
+FILE: ..\backend\src\schemas\projectNestedValidation.js
+========================================
+const CATEGORY_VALUES = new Set([
+  "software", "web-application", "mobile-application",
+  "artificial-intelligence", "data", "cloud-infrastructure",
+  "networking", "cybersecurity", "embedded-systems",
+  "electronics", "automation", "internet-of-things",
+  "research", "design", "business", "academic",
+  "community", "other",
+]);
+
+const OPTIONS = {
+  ownership: ["individual", "team", "client", "organization"],
+  source: ["manual", "import", "integration", "ai-assisted"],
+  proficiency: ["", "foundational", "intermediate", "advanced", "expert"],
+  recognitionType: [
+    "", "award", "competition", "grant", "fellowship", "showcase",
+    "publication", "presentation", "patent", "media",
+    "client-recognition", "academic-recognition", "other",
+  ],
+  placement: [
+    "", "winner", "first-place", "second-place", "third-place",
+    "finalist", "semifinalist", "honorable-mention", "selected",
+    "recipient", "participant", "other",
+  ],
+  mediaType: ["image", "video", "diagram"],
+  documentType: [
+    "report", "presentation", "documentation", "source-file",
+    "dataset", "design", "award", "supporting-evidence", "other",
+  ],
+  visibility: ["public", "private"],
+  recordStatus: ["active", "archived"],
+};
+
+const TEXT_LIMITS = {
+  "organization.name": 200,
+  "organization.clientName": 200,
+  "organization.website": 1000,
+  "location.displayValue": 300,
+  "problem.statement": 4000,
+  "problem.targetAudience": 1000,
+  "problem.context": 3000,
+  "problem.importance": 3000,
+  "solution.overview": 4000,
+  "solution.approach": 4000,
+  "solution.architecture": 4000,
+  "results.outcome": 4000,
+  "results.problemsSolved": 3000,
+  "results.impact": 3000,
+  "results.beneficiariesAffected": 2000,
+  "results.lessonsLearned": 3000,
+  "results.futureImprovements": 3000,
+  "presentation.shortSummary": 500,
+  "presentation.caseStudy": 12000,
+  "presentation.featuredMediaId": 200,
+  "privateInformation.notes": 5000,
+  "sourceContext": 5000 / 10,
+};
+
+const COLLECTION_FIELDS = [
+  ["problem.constraints", 1500],
+  ["problem.objectives", 1500],
+  ["solution.features", 1500],
+  ["solution.contributions", 1500],
+];
+
+function object(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function fieldValue(source, path) {
+  return path.split(".").reduce(
+    (current, key) => object(current) ? current[key] : undefined,
+    source,
+  );
+}
+
+function error(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function checkText(errors, field, value, maximum) {
+  if (value === undefined) return;
+
+  if (typeof value !== "string" || value.trim().length > maximum) {
+    error(
+      errors, field, "PROJECT_FIELD_INVALID",
+      `This field must be text with at most ${maximum} characters.`,
+    );
+  }
+}
+
+function checkOption(errors, field, value, options) {
+  if (value === undefined) return;
+
+  if (!options.includes(value)) {
+    error(errors, field, "PROJECT_OPTION_INVALID", "Invalid option.");
+  }
+}
+
+function checkUrl(errors, field, value, maximum = 2000) {
+  if (value === undefined) return;
+
+  checkText(errors, field, value, maximum);
+
+  if (typeof value !== "string" || !value.trim()) return;
+
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+  } catch {
+    error(errors, field, "PROJECT_URL_INVALID", "Invalid HTTP or HTTPS URL.");
+  }
+}
+
+function checkItems(errors, source, path, callback) {
+  const items = fieldValue(source, path);
+  if (items === undefined || !Array.isArray(items)) return;
+
+  items.forEach((item, index) => {
+    const base = `${path}.${index}`;
+
+    if (!object(item)) {
+      error(errors, base, "PROJECT_ITEM_INVALID", "Expected an object.");
+      return;
+    }
+
+    callback(item, base);
+  });
+}
+
+function checkOrderedItems(errors, source, path, maximum) {
+  checkItems(errors, source, path, (item, base) => {
+    checkText(errors, `${base}.id`, item.id, 200);
+    checkText(errors, `${base}.text`, item.text, maximum);
+  });
+}
+
+export function validateNestedProject(source) {
+  const errors = [];
+
+  for (const [field, maximum] of Object.entries(TEXT_LIMITS)) {
+    checkText(errors, field, fieldValue(source, field), maximum);
+  }
+
+  checkOption(errors, "ownership", source.ownership, OPTIONS.ownership);
+  checkOption(errors, "source", source.source, OPTIONS.source);
+
+  if (source.modelVersion !== undefined && source.modelVersion !== 2) {
+    error(errors, "modelVersion", "PROJECT_VERSION_INVALID",
+      "Unsupported Project model version.");
+  }
+
+  for (const field of [
+    "liveUrl", "repositoryUrl", "documentationUrl",
+    "caseStudyUrl", "videoUrl",
+  ]) {
+    checkUrl(errors, `links.${field}`, source.links?.[field]);
+  }
+
+  checkUrl(errors, "organization.website", source.organization?.website, 1000);
+
+  for (const [path, maximum] of COLLECTION_FIELDS) {
+    checkOrderedItems(errors, source, path, maximum);
+  }
+
+  checkItems(errors, source, "results.metrics", (item, base) => {
+    checkText(errors, `${base}.label`, item.label, 200);
+    checkText(errors, `${base}.value`, item.value, 200);
+    checkText(errors, `${base}.description`, item.description, 500);
+  });
+
+  checkItems(errors, source, "skillRelationships", (item, base) => {
+    checkText(errors, `${base}.nameSnapshot`, item.nameSnapshot, 200);
+    checkText(errors, `${base}.usageDescription`, item.usageDescription, 1000);
+    checkOption(errors, `${base}.demonstratedProficiency`,
+      item.demonstratedProficiency, OPTIONS.proficiency);
+
+    if (!item.skillId && !item.nameSnapshot) {
+      error(errors, base, "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A Skill identifier or snapshot is required.");
+    }
+  });
+
+  checkItems(errors, source, "technologies", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 150);
+    checkText(errors, `${base}.category`, item.category, 100);
+  });
+
+  const relationshipTypes = [
+    ["experienceRelationships", "experienceId"],
+    ["educationRelationships", "educationId"],
+    ["trainingRelationships", "trainingId"],
+    ["certificationRelationships", "certificationId"],
+  ];
+
+  for (const [name, idField] of relationshipTypes) {
+    checkItems(errors, source, `relatedRecords.${name}`, (item, base) => {
+      checkText(errors, `${base}.${idField}`, item[idField], 200);
+      checkText(errors, `${base}.description`, item.description, 1000);
+
+      if (!item[idField]) {
+        error(errors, `${base}.${idField}`, "PROJECT_RELATIONSHIP_ID_REQUIRED",
+          "A related record identifier is required.");
+      }
+
+      if (item.snapshot !== undefined && !object(item.snapshot)) {
+        error(errors, `${base}.snapshot`, "PROJECT_SNAPSHOT_INVALID",
+          "Snapshot must be an object.");
+      } else {
+        checkText(errors, `${base}.snapshot.name`, item.snapshot?.name, 200);
+        checkText(errors, `${base}.snapshot.secondaryLabel`,
+          item.snapshot?.secondaryLabel, 200);
+      }
+    });
+  }
+
+  const documentIds = new Set(
+    Array.isArray(source.supportingDocuments)
+      ? source.supportingDocuments.map((item) => item?.id)
+      : [],
+  );
+
+  checkItems(errors, source, "awards", (item, base) => {
+    checkText(errors, `${base}.name`, item.name, 250);
+    checkText(errors, `${base}.organization`, item.organization, 250);
+    checkText(errors, `${base}.description`, item.description, 1500);
+    checkOption(errors, `${base}.recognitionType`,
+      item.recognitionType, OPTIONS.recognitionType);
+    checkOption(errors, `${base}.placement`, item.placement, OPTIONS.placement);
+    checkUrl(errors, `${base}.url`, item.url);
+
+    if (item.supportingDocumentIds !== undefined) {
+      if (!Array.isArray(item.supportingDocumentIds) ||
+          item.supportingDocumentIds.length > 10) {
+        error(errors, `${base}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_LIMIT", "Maximum 10 document references.");
+      } else {
+        for (const id of item.supportingDocumentIds) {
+          if (!documentIds.has(id)) {
+            error(errors, `${base}.supportingDocumentIds`,
+              "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+              "Referenced document does not exist in this Project.");
+          }
+        }
+      }
+    }
+  });
+
+  checkItems(errors, source, "media", (item, base) => {
+    checkOption(errors, `${base}.type`, item.type, OPTIONS.mediaType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.caption`, item.caption, 1000);
+    checkText(errors, `${base}.altText`, item.altText, 500);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  checkItems(errors, source, "supportingDocuments", (item, base) => {
+    checkOption(errors, `${base}.documentType`,
+      item.documentType, OPTIONS.documentType);
+    checkOption(errors, `${base}.visibility`,
+      item.visibility, OPTIONS.visibility);
+    checkOption(errors, `${base}.status`,
+      item.status, OPTIONS.recordStatus);
+    checkText(errors, `${base}.name`, item.name, 255);
+    checkText(errors, `${base}.description`, item.description, 1000);
+    checkUrl(errors, `${base}.externalUrl`, item.externalUrl);
+
+    if (!item.storageKey && !item.externalUrl) {
+      error(errors, base, "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A storage key or external URL is required.");
+    }
+  });
+
+  if (source.visibility !== undefined) {
+    if (!object(source.visibility)) {
+      error(errors, "visibility", "PROJECT_VISIBILITY_INVALID",
+        "Visibility must be an object.");
+    } else {
+      for (const [name, value] of Object.entries(source.visibility)) {
+        if (typeof value !== "boolean") {
+          error(errors, `visibility.${name}`, "PROJECT_VISIBILITY_INVALID",
+            "Visibility must be true or false.");
+        }
+      }
+    }
+  }
+
+  if (source.presentation?.featuredMediaId) {
+    const featuredId = source.presentation.featuredMediaId;
+    const eligible = Array.isArray(source.media) &&
+      source.media.some((item) =>
+        item?.id === featuredId && item.status !== "archived" &&
+        item.visibility !== "private" &&
+        (item.storageKey || item.externalUrl),
+      );
+
+    if (!eligible) {
+      error(errors, "presentation.featuredMediaId",
+        "PROJECT_FEATURED_MEDIA_INVALID",
+        "Featured media must be active, public, and available.");
+    }
+  }
+
+  return errors;
+}

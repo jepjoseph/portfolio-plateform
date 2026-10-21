@@ -8,7 +8,7 @@
   justify-content: flex-end;
   gap: 16px;
 
-  padding: 24px 30px;
+  padding: 2px 30px;
 }
 
 .auth-layout-back-button {
@@ -585,7 +585,7 @@
   align-self: center;
   justify-self: center;
 
-  padding: 34px 0 42px;
+  padding: 3px 0 4px;
 }
 
 .auth-layout-mobile-brand {
@@ -605,8 +605,8 @@
   align-items: flex-start;
   gap: 10px;
 
-  margin-top: 18px;
-  padding: 13px 14px;
+  margin-top: 5px;
+  padding: 1px 14px;
 
   border: 1px solid rgba(34, 197, 94, 0.11);
   border-radius: var(--radius-md);
@@ -704,6 +704,27 @@
    Responsive
    ========================================= */
 
+/* Auth navigation overlap fix */
+@media (min-width: 821px) and (max-width: 1450px) {
+  .auth-layout-presentation-home {
+    position: relative;
+    top: auto;
+    left: auto;
+
+    width: 100%;
+    justify-content: flex-start;
+
+    transform: none;
+  }
+
+  .auth-layout-presentation-content {
+    padding-top: 28px;
+  }
+
+  .public-navigation-auth {
+    flex-wrap: wrap;
+  }
+}
 @media (max-width: 1050px) {
   .auth-layout-introduction h1 {
     font-size: 2.15rem;

@@ -1,0 +1,1540 @@
+﻿============================================================
+PORTFOLIO PLATFORM - PROFILE STORAGE TEST REVIEW
+============================================================
+Backend directory: D:\Documents\Project\Portfolio\portfolio-plateform\backend
+Report generated: 2026-10-19 15:10:21
+
+
+============================================================
+FILE: src/config/environment.js
+============================================================
+import { z } from "zod";
+
+/*
+ * =========================================
+ * Boolean Environment Values
+ * =========================================
+ */
+
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
+const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+
+/*
+ * =========================================
+ * Optional Text Normalization
+ * =========================================
+ */
+
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue || undefined;
+}
+
+/*
+ * =========================================
+ * Boolean Normalization
+ * =========================================
+ */
+
+function normalizeBooleanValue(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (TRUE_VALUES.has(normalizedValue)) {
+    return true;
+  }
+
+  if (FALSE_VALUES.has(normalizedValue)) {
+    return false;
+  }
+
+  return value;
+}
+
+/*
+ * =========================================
+ * Environment Schema
+ * =========================================
+ */
+
+const environmentSchema = z
+  .object({
+    /*
+     * =========================================
+     * Application
+     * =========================================
+     */
+
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+
+    PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+
+    FRONTEND_URL: z.string().trim().min(1).default("http://localhost:5173"),
+
+    PROFILE_PICTURE_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROFILE_PICTURE_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    PROJECT_MEDIA_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROJECT_MEDIA_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Connection
+     * =========================================
+     */
+
+    DB_HOST: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
+
+    DB_NAME: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_USER: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PASSWORD: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Security
+     * =========================================
+     */
+
+    DB_ENCRYPT: z.preprocess(normalizeBooleanValue, z.boolean()).default(true),
+
+    DB_TRUST_SERVER_CERTIFICATE: z
+      .preprocess(normalizeBooleanValue, z.boolean())
+      .default(false),
+
+    /*
+     * =========================================
+     * Database Timeouts
+     * =========================================
+     */
+
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+
+    DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Database Pool
+     * =========================================
+     */
+
+    DB_POOL_MIN: z.coerce.number().int().min(0).default(0),
+
+    DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+
+    DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Authentication Security Secrets
+     * =========================================
+     *
+     * These secrets are optional while the
+     * authentication routes are not active.
+     *
+     * Authentication utilities will reject
+     * operations if the secrets are missing.
+     */
+
+    AUTH_OTP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_TOKEN_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_IP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Email Delivery
+     * =========================================
+     */
+
+    EMAIL_PROVIDER: z.enum(["development", "resend"]).default("development"),
+
+    EMAIL_FROM_NAME: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .default("PortAncest Portfolio Platform"),
+
+    EMAIL_FROM_ADDRESS: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().email().optional(),
+    ),
+
+    RESEND_API_KEY: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().min(20).optional(),
+    ),
+
+    /*
+     * Authentication Sessions
+     */
+
+    SESSION_REFRESH_TOKEN_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .default(30),
+
+    SESSION_COOKIE_NAME: z
+      .string()
+      .trim()
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        "SESSION_COOKIE_NAME contains unsupported characters.",
+      )
+      .default("portfolio_refresh_token"),
+
+    SESSION_COOKIE_PATH: z.string().trim().startsWith("/").default("/api"),
+
+    SESSION_COOKIE_DOMAIN: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    SESSION_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  })
+
+  /*
+   * =========================================
+   * Cross-Field Validation
+   * =========================================
+   */
+
+  .superRefine((values, context) => {
+    /*
+     * =========================================
+     * Database Configuration Validation
+     * =========================================
+     */
+
+    const databaseFields = [
+      ["DB_HOST", values.DB_HOST],
+
+      ["DB_NAME", values.DB_NAME],
+
+      ["DB_USER", values.DB_USER],
+
+      ["DB_PASSWORD", values.DB_PASSWORD],
+    ];
+
+    /*
+     * The API can temporarily run without a
+     * database.
+     *
+     * However, when any required database value
+     * is supplied, all required database values
+     * must be supplied.
+     */
+
+    const hasAnyDatabaseValue = databaseFields.some(([, value]) =>
+      Boolean(value),
+    );
+
+    if (hasAnyDatabaseValue) {
+      for (const [fieldName, value] of databaseFields) {
+        if (!value) {
+          context.addIssue({
+            code: "custom",
+
+            path: [fieldName],
+
+            message: `${fieldName} is required when database access is configured.`,
+          });
+        }
+      }
+    }
+
+    /*
+     * =========================================
+     * Database Pool Validation
+     * =========================================
+     */
+
+    if (values.DB_POOL_MIN > values.DB_POOL_MAX) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["DB_POOL_MIN"],
+
+        message: "DB_POOL_MIN cannot be greater than DB_POOL_MAX.",
+      });
+    }
+
+    /*
+     * =========================================
+     * Prevents OTPs from accidentally being printed in Azure production logs
+     * =========================================
+     */
+
+    if (
+      values.NODE_ENV === "production" &&
+      values.EMAIL_PROVIDER === "development"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["EMAIL_PROVIDER"],
+
+        message: "The development email provider cannot be used in production.",
+      });
+    }
+
+    if (
+      values.SESSION_COOKIE_SAME_SITE === "none" &&
+      values.NODE_ENV !== "production"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["SESSION_COOKIE_SAME_SITE"],
+
+        message:
+          'SameSite "none" requires a secure production HTTPS environment.',
+      });
+    }
+
+    /*
+     * =========================================
+     * Resend Configuration
+     * =========================================
+     */
+
+    if (values.EMAIL_PROVIDER === "resend") {
+      if (!values.RESEND_API_KEY) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["RESEND_API_KEY"],
+
+          message: "RESEND_API_KEY is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+
+      if (!values.EMAIL_FROM_ADDRESS) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["EMAIL_FROM_ADDRESS"],
+
+          message:
+            "EMAIL_FROM_ADDRESS is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+    }
+  });
+
+/*
+ * =========================================
+ * Cached Environment
+ * =========================================
+ */
+
+let cachedEnvironment;
+
+/*
+ * =========================================
+ * Read and Validate Environment
+ * =========================================
+ */
+
+export function getEnvironment() {
+  if (cachedEnvironment) {
+    return cachedEnvironment;
+  }
+
+  const result = environmentSchema.safeParse(process.env);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map(
+        (issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`,
+      )
+      .join("\n");
+
+    throw new Error(`Invalid environment configuration:\n${details}`);
+  }
+
+  cachedEnvironment = Object.freeze(result.data);
+
+  return cachedEnvironment;
+}
+
+/*
+ * =========================================
+ * Database Configuration Status
+ * =========================================
+ */
+
+export function isDatabaseConfigured(environment = getEnvironment()) {
+  return Boolean(
+    environment.DB_HOST &&
+    environment.DB_NAME &&
+    environment.DB_USER &&
+    environment.DB_PASSWORD,
+  );
+}
+
+/*
+ * =========================================
+ * Authentication Secret Access
+ * =========================================
+ *
+ * This function prevents authentication
+ * operations from running without all three
+ * security secrets.
+ */
+
+export function getAuthenticationSecrets(environment = getEnvironment()) {
+  const secrets = {
+    otp: environment.AUTH_OTP_HMAC_SECRET,
+
+    token: environment.AUTH_TOKEN_HMAC_SECRET,
+
+    ip: environment.AUTH_IP_HMAC_SECRET,
+  };
+
+  const missingSecrets = Object.entries(secrets)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missingSecrets.length > 0) {
+    const error = new Error(
+      `Authentication security secrets are missing: ${missingSecrets.join(", ")}.`,
+    );
+
+    error.name = "AuthenticationConfigurationError";
+
+    error.code = "AUTHENTICATION_NOT_CONFIGURED";
+
+    error.status = 503;
+
+    error.publicMessage = "Authentication service is temporarily unavailable.";
+
+    throw error;
+  }
+
+  return Object.freeze(secrets);
+}
+
+============================================================
+FILE: src/middleware/profile/profilePictureUploadMiddleware.js
+============================================================
+import crypto from "node:crypto";
+import fs from "node:fs";
+
+import multer from "multer";
+
+import { getProfilePictureUserStoragePath } from "../../services/Storage/profilePictureStorageService.js";
+
+/*
+ * =========================================
+ * Configuration
+ * =========================================
+ */
+
+const MAX_PROFILE_PICTURE_SIZE = 20 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/jpg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/webp", ".webp"],
+  ["image/avif", ".avif"],
+  ["image/gif", ".gif"],
+]);
+
+/*
+ * =========================================
+ * Upload Error
+ * =========================================
+ */
+
+function createUploadError({
+  message,
+  code = "PROFILE_PICTURE_UPLOAD_FAILED",
+  status = 400,
+  publicMessage = "The profile picture could not be uploaded.",
+}) {
+  const error = new Error(message);
+
+  error.name = "ProfilePictureUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Storage Configuration
+ * =========================================
+ */
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    try {
+      const userId = String(request.auth?.userId || "").trim();
+
+      if (!userId) {
+        return callback(
+          createUploadError({
+            message:
+              "Authenticated user ID is unavailable during profile-picture upload.",
+            code: "PROFILE_PICTURE_UPLOAD_USER_INVALID",
+            status: 401,
+            publicMessage:
+              "Your session could not be verified for this upload.",
+          }),
+        );
+      }
+
+      const userStoragePath = getProfilePictureUserStoragePath(userId);
+
+      fs.mkdirSync(userStoragePath, {
+        recursive: true,
+      });
+
+      return callback(null, userStoragePath);
+    } catch (error) {
+      return callback(error);
+    }
+  },
+
+  filename(request, file, callback) {
+    const extension = ALLOWED_IMAGE_TYPES.get(file.mimetype);
+
+    if (!extension) {
+      return callback(
+        createUploadError({
+          message: `Unsupported profile-picture MIME type: ${file.mimetype}`,
+          code: "PROFILE_PICTURE_TYPE_NOT_ALLOWED",
+          status: 400,
+          publicMessage:
+            "The profile picture must be a JPEG, PNG, WebP, or AVIF image.",
+        }),
+      );
+    }
+
+    const fileName = `${crypto.randomUUID()}${extension}`;
+
+    return callback(null, fileName);
+  },
+});
+
+/*
+ * =========================================
+ * File Type Filter
+ * =========================================
+ */
+
+function profilePictureFileFilter(request, file, callback) {
+  if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+    return callback(
+      createUploadError({
+        message: `Unsupported profile-picture MIME type: ${file.mimetype}`,
+        code: "PROFILE_PICTURE_TYPE_NOT_ALLOWED",
+        status: 400,
+        publicMessage:
+          "The profile picture must be a JPEG, PNG, WebP, or AVIF image.",
+      }),
+    );
+  }
+
+  return callback(null, true);
+}
+
+/*
+ * =========================================
+ * Multer Upload
+ * =========================================
+ */
+
+const profilePictureUpload = multer({
+  storage,
+
+  limits: {
+    fileSize: MAX_PROFILE_PICTURE_SIZE,
+    files: 1,
+  },
+
+  fileFilter: profilePictureFileFilter,
+}).single("picture");
+
+/*
+ * =========================================
+ * Upload Middleware
+ * =========================================
+ */
+
+export function uploadProfilePicture(request, response, next) {
+  profilePictureUpload(request, response, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return next(
+          createUploadError({
+            message: "Profile picture exceeds the 20 MiB upload limit.",
+            code: "PROFILE_PICTURE_TOO_LARGE",
+            status: 413,
+            publicMessage: "The profile picture must be 20 MB or smaller.",
+          }),
+        );
+      }
+
+      if (error.code === "LIMIT_FILE_COUNT") {
+        return next(
+          createUploadError({
+            message: "More than one profile-picture file was uploaded.",
+            code: "PROFILE_PICTURE_TOO_MANY_FILES",
+            status: 400,
+            publicMessage: "Please upload only one profile picture.",
+          }),
+        );
+      }
+
+      if (error.code === "LIMIT_UNEXPECTED_FILE") {
+        return next(
+          createUploadError({
+            message: "An unexpected profile-picture upload field was received.",
+            code: "PROFILE_PICTURE_UNEXPECTED_FILE",
+            status: 400,
+            publicMessage:
+              'The profile picture must be uploaded using the "picture" field.',
+          }),
+        );
+      }
+
+      return next(
+        createUploadError({
+          message: `Multer profile-picture upload error: ${error.code}`,
+          code: "PROFILE_PICTURE_UPLOAD_INVALID",
+          status: 400,
+          publicMessage: "The profile picture upload could not be processed.",
+        }),
+      );
+    }
+
+    return next(error);
+  });
+}
+
+============================================================
+FILE: src/services/Storage/profilePictureStorageService.js
+============================================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+const environment = getEnvironment();
+
+/*
+ * =========================================
+ * User Storage Identity
+ * =========================================
+ */
+
+export function getProfilePictureUserDirectory(userId) {
+  const normalizedUserId = String(userId || "").trim();
+
+  if (!normalizedUserId) {
+    throw new Error(
+      "An authenticated user ID is required for profile-picture storage.",
+    );
+  }
+
+  return crypto.createHash("sha256").update(normalizedUserId).digest("hex");
+}
+
+/*
+ * =========================================
+ * Storage Root
+ * =========================================
+ */
+
+export function getProfilePictureStorageRoot() {
+  const storageRoot = String(
+    environment.PROFILE_PICTURE_STORAGE_PATH || "",
+  ).trim();
+
+  if (!storageRoot) {
+    throw new Error("PROFILE_PICTURE_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(storageRoot);
+}
+
+/*
+ * =========================================
+ * User Storage Path
+ * =========================================
+ */
+
+export function getProfilePictureUserStoragePath(userId) {
+  return path.join(
+    getProfilePictureStorageRoot(),
+    getProfilePictureUserDirectory(userId),
+  );
+}
+
+/*
+ * =========================================
+ * Storage Key
+ * =========================================
+ */
+
+export function createProfilePictureStorageKey(userId, fileName) {
+  const safeFileName = path.basename(String(fileName || "").trim());
+
+  if (!safeFileName) {
+    throw new Error("A profile-picture filename is required.");
+  }
+
+  return [getProfilePictureUserDirectory(userId), safeFileName].join("/");
+}
+
+export function resolveOwnedProfilePicturePath(userId, storageKey) {
+  const normalizedStorageKey = String(storageKey || "")
+    .trim()
+    .replaceAll("\\", "/");
+
+  if (!normalizedStorageKey) {
+    throw new Error("A profile-picture storage key is required.");
+  }
+
+  const userDirectory = getProfilePictureUserDirectory(userId);
+
+  const expectedPrefix = `${userDirectory}/`;
+
+  if (!normalizedStorageKey.startsWith(expectedPrefix)) {
+    throw new Error(
+      "The profile-picture storage key does not belong to the authenticated user.",
+    );
+  }
+
+  const relativeFileName = normalizedStorageKey.slice(expectedPrefix.length);
+
+  /*
+   * A profile picture must be one file directly inside
+   * the authenticated user's storage directory.
+   */
+
+  if (
+    !relativeFileName ||
+    relativeFileName.includes("/") ||
+    relativeFileName === "." ||
+    relativeFileName === ".." ||
+    path.basename(relativeFileName) !== relativeFileName
+  ) {
+    throw new Error("The profile-picture storage key is invalid.");
+  }
+
+  const userStoragePath = path.resolve(
+    getProfilePictureUserStoragePath(userId),
+  );
+
+  const resolvedFilePath = path.resolve(userStoragePath, relativeFileName);
+
+  /*
+   * Defense in depth:
+   * even after validating the storage key above, verify that
+   * the resulting file remains directly inside this user's
+   * storage directory.
+   */
+
+  if (path.dirname(resolvedFilePath) !== userStoragePath) {
+    throw new Error(
+      "The profile-picture path is outside the authenticated user's storage directory.",
+    );
+  }
+
+  return resolvedFilePath;
+}
+
+export async function deleteOwnedProfilePicture(userId, storageKey) {
+  const filePath = resolveOwnedProfilePicturePath(userId, storageKey);
+
+  try {
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    /*
+     * If the file is already gone, cleanup has still reached
+     * the desired state. Treat deletion as idempotent.
+     */
+
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+============================================================
+FILE: test/api/profileApi.test.js
+============================================================
+import "dotenv/config";
+
+import fs from "node:fs";
+import path from "node:path";
+import assert from "node:assert/strict";
+import { beforeEach, describe, it, mock } from "node:test";
+import express from "express";
+import supertest from "supertest";
+
+process.env.NODE_ENV = "test";
+process.env.SESSION_COOKIE_NAME = "portfolio_refresh_token";
+process.env.SESSION_COOKIE_PATH = "/api";
+process.env.SESSION_COOKIE_SAME_SITE = "lax";
+delete process.env.SESSION_COOKIE_DOMAIN;
+
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+const SESSION_ID = "22222222-2222-4222-8222-222222222222";
+const TOKEN = "profile-test-refresh-token-12345678901234567890";
+
+const TEST_PROFILE_PICTURE_PATH =
+  "D:\\Documents\\Perso Folder\\Pictures\\Jean Pierre.jpg";
+
+const PROFILE_PICTURE_STORAGE_PATH = process.env.PROFILE_PICTURE_STORAGE_PATH;
+
+let state;
+
+function createProfile() {
+  return {
+    modelVersion: 1,
+    id: USER_ID,
+    userId: USER_ID,
+    firstName: "Jean",
+    middleName: "Pierre",
+    lastName: "Joseph",
+    professionalTitles: [],
+    emails: [],
+    phones: [],
+    websites: [],
+    locations: [],
+    socialLinks: [],
+    profilePictures: [],
+    preferences: {
+      primaryProfessionalTitleId: "",
+      primaryEmailId: "",
+      primaryPhoneId: "",
+      primaryWebsiteId: "",
+      primaryLocationId: "",
+      primarySocialLinkId: "",
+      primaryProfilePictureId: "",
+    },
+    visibility: { isPublic: false },
+    status: "active",
+    createdAt: "2026-09-23T00:00:00.000Z",
+    updatedAt: "2026-09-23T00:00:00.000Z",
+  };
+}
+
+function resetState() {
+  state = {
+    getInput: null,
+    updateInput: null,
+    deletePictureInput: null,
+    getError: null,
+    updateError: null,
+    deletePictureError: null,
+    profile: createProfile(),
+  };
+}
+
+resetState();
+
+mock.module("../../src/services/Service/sessionService.js", {
+  exports: {
+    async getAuthenticatedSession() {
+      return {
+        user: {
+          id: USER_ID,
+          email: "jean@example.com",
+          emailVerifiedAt: "2026-09-23T00:00:00.000Z",
+          accountStatus: "active",
+        },
+        roles: ["user"],
+        session: {
+          id: SESSION_ID,
+          deviceName: "Test Browser",
+          createdAt: "2026-09-23T00:00:00.000Z",
+          lastUsedAt: "2026-09-23T00:00:00.000Z",
+          expiresAt: "2026-10-23T00:00:00.000Z",
+          isCurrent: true,
+        },
+      };
+    },
+  },
+});
+
+mock.module("../../src/services/Service/profileService.js", {
+  exports: {
+    async getAuthenticatedProfile(input) {
+      state.getInput = input;
+
+      if (state.getError) {
+        throw state.getError;
+      }
+
+      return state.profile;
+    },
+
+    async updateAuthenticatedProfile(input) {
+      state.updateInput = input;
+
+      if (state.updateError) {
+        throw state.updateError;
+      }
+
+      state.profile = {
+        ...state.profile,
+        ...input.profile,
+      };
+
+      return state.profile;
+    },
+    async deleteUncommittedProfilePicture(input) {
+      state.deletePictureInput = input;
+
+      if (state.deletePictureError) {
+        throw state.deletePictureError;
+      }
+
+      return {
+        deleted: true,
+        storageKey: input.storageKey,
+      };
+    },
+  },
+});
+
+const { default: profileRoutes } =
+  await import("../../src/routes/profileRoutes.js");
+
+const { globalErrorHandler, notFoundHandler } =
+  await import("../../src/middleware/errorMiddleware.js");
+
+const app = express();
+
+app.use(express.json({ limit: "1mb" }));
+app.use("/api/profile", profileRoutes);
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
+
+const api = supertest(app);
+
+function cookie() {
+  return `portfolio_refresh_token=${encodeURIComponent(TOKEN)}`;
+}
+
+function updateBody() {
+  const { modelVersion, id, userId, createdAt, updatedAt, ...body } =
+    createProfile();
+
+  return body;
+}
+
+describe("profile API", () => {
+  beforeEach(resetState);
+
+  it("returns the authenticated user's Profile", async () => {
+    const response = await api
+      .get("/api/profile/me")
+      .set("Cookie", cookie())
+      .expect(200);
+
+    assert.equal(response.body.status, "success");
+    assert.equal(response.body.data.profile.userId, USER_ID);
+
+    assert.deepEqual(state.getInput, {
+      userId: USER_ID,
+    });
+
+    assert.match(response.headers["cache-control"], /no-store/);
+  });
+
+  it("does not accept ownership from the request body", async () => {
+    const response = await api
+      .put("/api/profile/me")
+      .set("Cookie", cookie())
+      .send({
+        ...updateBody(),
+        userId: "99999999-9999-4999-8999-999999999999",
+      })
+      .expect(400);
+
+    assert.equal(response.body.code, "PROFILE_VALIDATION_FAILED");
+
+    assert.equal(state.updateInput, null);
+  });
+
+  it("updates the Profile using the authenticated user ID", async () => {
+    const body = {
+      ...updateBody(),
+      firstName: "  Jean  ",
+    };
+
+    const response = await api
+      .put("/api/profile/me")
+      .set("Cookie", cookie())
+      .send(body)
+      .expect(200);
+
+    assert.equal(state.updateInput.userId, USER_ID);
+
+    assert.equal(state.updateInput.profile.firstName, "Jean");
+
+    assert.equal(response.body.data.profile.firstName, "Jean");
+  });
+
+  it("requires an authenticated cookie", async () => {
+    await api.get("/api/profile/me").expect(401);
+
+    assert.equal(state.getInput, null);
+  });
+
+  it("rejects browser-local picture URLs", async () => {
+    const body = updateBody();
+
+    body.profilePictures = [
+      {
+        id: "picture-test",
+        type: "profile",
+        imageUrl: "blob:http://localhost/picture",
+        storageKey: "",
+        fileName: "picture.png",
+        fileType: "image/png",
+        fileSize: 100,
+        useDefaultAvatar: false,
+        width: 100,
+        height: 100,
+        description: "",
+        order: 0,
+        status: "active",
+        createdAt: "2026-09-23T00:00:00.000Z",
+        updatedAt: "2026-09-23T00:00:00.000Z",
+      },
+    ];
+
+    const response = await api
+      .put("/api/profile/me")
+      .set("Cookie", cookie())
+      .send(body)
+      .expect(400);
+
+    assert.equal(response.body.code, "PROFILE_VALIDATION_FAILED");
+
+    assert.equal(state.updateInput, null);
+  });
+
+  it("deletes an uncommitted profile picture for the authenticated user", async () => {
+    const storageKey =
+      "a".repeat(64) + "/550e8400-e29b-41d4-a716-446655440000.jpg";
+
+    const response = await api
+      .delete("/api/profile/pictures/upload")
+      .set("Cookie", cookie())
+      .send({
+        storageKey,
+      })
+      .expect(200);
+
+    assert.deepEqual(state.deletePictureInput, {
+      userId: USER_ID,
+      storageKey,
+    });
+
+    assert.equal(response.body.status, "success");
+    assert.equal(response.body.data.deleted, true);
+    assert.equal(response.body.data.storageKey, storageKey);
+
+    assert.match(response.headers["cache-control"], /no-store/);
+  });
+
+  it("uploads a profile picture for the authenticated user", async () => {
+    assert.ok(
+      PROFILE_PICTURE_STORAGE_PATH,
+      "PROFILE_PICTURE_STORAGE_PATH must be configured for this test.",
+    );
+
+    const response = await api
+      .post("/api/profile/pictures/upload")
+      .set("Cookie", cookie())
+      .attach("picture", TEST_PROFILE_PICTURE_PATH)
+      .expect(201);
+
+    const picture = response.body.picture;
+
+    assert.ok(picture);
+
+    assert.equal(picture.fileName, "Jean Pierre.jpg");
+
+    assert.equal(picture.fileType, "image/jpeg");
+
+    assert.equal(picture.fileSize, 43093);
+
+    assert.equal(picture.useDefaultAvatar, false);
+
+    assert.match(
+      picture.imageUrl,
+      /^https:\/\/api\.motich\.com\/uploads\/profile-pictures\/[a-f0-9]{64}\/[0-9a-f-]+\.jpg$/,
+    );
+
+    assert.match(picture.storageKey, /^[a-f0-9]{64}\/[0-9a-f-]+\.jpg$/);
+
+    const uploadedFilePath = path.join(
+      PROFILE_PICTURE_STORAGE_PATH,
+      ...picture.storageKey.split("/"),
+    );
+
+    assert.equal(
+      fs.existsSync(uploadedFilePath),
+      true,
+      "Uploaded profile picture should exist in storage.",
+    );
+
+    fs.unlinkSync(uploadedFilePath);
+
+    const userDirectory = path.dirname(uploadedFilePath);
+
+    if (
+      fs.existsSync(userDirectory) &&
+      fs.readdirSync(userDirectory).length === 0
+    ) {
+      fs.rmdirSync(userDirectory);
+    }
+
+    assert.equal(
+      fs.existsSync(uploadedFilePath),
+      false,
+      "Test profile picture should be removed after verification.",
+    );
+  });
+});
+
+============================================================
+FILE: test/api/profilePictureStatic.test.js
+============================================================
+import "dotenv/config";
+
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { after, before, describe, it } from "node:test";
+import supertest from "supertest";
+
+process.env.NODE_ENV = "test";
+
+const TEST_USER_DIRECTORY = "static-serving-test-user";
+const TEST_FILE_NAME = "profile-picture.jpg";
+
+const PROFILE_PICTURE_STORAGE_PATH = process.env.PROFILE_PICTURE_STORAGE_PATH;
+
+let testDirectory;
+let testFilePath;
+
+const { default: app } = await import("../../src/app.js");
+
+const api = supertest(app);
+
+describe("profile picture static serving", () => {
+  before(() => {
+    assert.ok(
+      PROFILE_PICTURE_STORAGE_PATH,
+      "PROFILE_PICTURE_STORAGE_PATH must be configured for this test.",
+    );
+
+    testDirectory = path.join(
+      PROFILE_PICTURE_STORAGE_PATH,
+      TEST_USER_DIRECTORY,
+    );
+
+    testFilePath = path.join(testDirectory, TEST_FILE_NAME);
+
+    fs.mkdirSync(testDirectory, {
+      recursive: true,
+    });
+
+    fs.writeFileSync(testFilePath, Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  });
+
+  after(() => {
+    if (testFilePath && fs.existsSync(testFilePath)) {
+      fs.unlinkSync(testFilePath);
+    }
+
+    if (
+      testDirectory &&
+      fs.existsSync(testDirectory) &&
+      fs.readdirSync(testDirectory).length === 0
+    ) {
+      fs.rmdirSync(testDirectory);
+    }
+  });
+
+  it("serves a stored profile picture as a public image", async () => {
+    const response = await api
+      .get(`/uploads/profile-pictures/${TEST_USER_DIRECTORY}/${TEST_FILE_NAME}`)
+      .expect(200);
+
+    assert.equal(response.headers["content-type"], "image/jpeg");
+
+    assert.equal(
+      response.headers["cross-origin-resource-policy"],
+      "cross-origin",
+    );
+
+    assert.equal(Number(response.headers["content-length"]), 4);
+  });
+
+  it("does not expose a directory index", async () => {
+    await api
+      .get(`/uploads/profile-pictures/${TEST_USER_DIRECTORY}/`)
+      .expect(404);
+  });
+
+  it("returns 404 for a profile picture that does not exist", async () => {
+    await api
+      .get(`/uploads/profile-pictures/${TEST_USER_DIRECTORY}/missing.jpg`)
+      .expect(404);
+  });
+});
+
+============================================================
+FILE: test/middleware/profilePictureUploadMiddleware.test.js
+============================================================
+import "dotenv/config";
+import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+
+import express from "express";
+import request from "supertest";
+
+import { getEnvironment } from "../../src/config/environment.js";
+import { uploadProfilePicture } from "../../src/middleware/profile/profilePictureUploadMiddleware.js";
+import { validateProfilePicture } from "../../src/middleware/profile/profilePictureValidationMiddleware.js";
+
+const environment = getEnvironment();
+
+const TEST_USER_ID = "profile-picture-middleware-test-user";
+
+const TEST_IMAGE_PATH =
+  "D:\\Documents\\Perso Folder\\Pictures\\Jean Pierre.jpg";
+
+test("uploads a profile picture into the authenticated user's storage directory", async () => {
+  const app = express();
+
+  /*
+   * Simulate the authentication middleware.
+   * The real application will obtain this value
+   * from the authenticated session.
+   */
+  app.use((request, response, next) => {
+    request.auth = {
+      userId: TEST_USER_ID,
+    };
+
+    next();
+  });
+
+  app.post(
+    "/upload",
+    uploadProfilePicture,
+    validateProfilePicture,
+    (request, response) => {
+      response.status(201).json({
+        file: {
+          filename: request.profilePictureFile.filename,
+          path: request.profilePictureFile.path,
+          mimetype: request.profilePictureFile.mimetype,
+          size: request.profilePictureFile.size,
+          verifiedMimeType: request.profilePictureFile.verifiedMimeType,
+          verifiedExtension: request.profilePictureFile.verifiedExtension,
+        },
+      });
+    },
+  );
+
+  const response = await request(app)
+    .post("/upload")
+    .attach("picture", TEST_IMAGE_PATH);
+
+  assert.equal(response.status, 201);
+
+  assert.equal(response.body.file.mimetype, "image/jpeg");
+
+  assert.equal(response.body.file.verifiedMimeType, "image/jpeg");
+
+  assert.equal(response.body.file.verifiedExtension, "jpg");
+
+  assert.equal(response.body.file.size, 43093);
+
+  /*
+   * Reproduce the same user-directory calculation
+   * performed by the upload middleware.
+   */
+  const expectedUserDirectory = crypto
+    .createHash("sha256")
+    .update(TEST_USER_ID)
+    .digest("hex");
+
+  const expectedDirectory = path.join(
+    environment.PROFILE_PICTURE_STORAGE_PATH,
+    expectedUserDirectory,
+  );
+
+  const uploadedFilePath = path.join(
+    expectedDirectory,
+    response.body.file.filename,
+  );
+
+  assert.equal(fs.existsSync(uploadedFilePath), true);
+
+  /*
+   * Clean up the test upload after successful
+   * verification.
+   */
+  fs.unlinkSync(uploadedFilePath);
+
+  /*
+   * Remove the test user's directory if empty.
+   */
+  if (fs.readdirSync(expectedDirectory).length === 0) {
+    fs.rmdirSync(expectedDirectory);
+  }
+
+  assert.equal(fs.existsSync(uploadedFilePath), false);
+});
+
+test("rejects fake JPEG content and removes the uploaded file", async () => {
+  const app = express();
+
+  app.use((request, response, next) => {
+    request.auth = {
+      userId: TEST_USER_ID,
+    };
+
+    next();
+  });
+
+  app.post(
+    "/upload",
+    uploadProfilePicture,
+    validateProfilePicture,
+    (request, response) => {
+      response.status(201).json({
+        message: "Upload accepted.",
+      });
+    },
+  );
+
+  /*
+   * Multer sees this as image/jpeg because we explicitly
+   * declare that MIME type, but the actual bytes are
+   * ordinary text and therefore not a real JPEG.
+   */
+  const fakeImage = Buffer.from("This is not a JPEG image.", "utf8");
+
+  const response = await request(app)
+    .post("/upload")
+    .attach("picture", fakeImage, {
+      filename: "fake-profile.jpg",
+      contentType: "image/jpeg",
+    });
+
+  assert.equal(response.status, 400);
+
+  /*
+   * Verify that validation did not leave the rejected
+   * upload behind on the storage server.
+   */
+  const expectedUserDirectory = crypto
+    .createHash("sha256")
+    .update(TEST_USER_ID)
+    .digest("hex");
+
+  const expectedDirectory = path.join(
+    environment.PROFILE_PICTURE_STORAGE_PATH,
+    expectedUserDirectory,
+  );
+
+  if (fs.existsSync(expectedDirectory)) {
+    assert.equal(
+      fs.readdirSync(expectedDirectory).length,
+      0,
+      "Rejected upload should not remain in storage.",
+    );
+
+    fs.rmdirSync(expectedDirectory);
+  }
+});
+
+test("rejects a profile picture larger than 20 MiB", async () => {
+  const app = express();
+
+  app.use((request, response, next) => {
+    request.auth = {
+      userId: TEST_USER_ID,
+    };
+
+    next();
+  });
+
+  app.post(
+    "/upload",
+    uploadProfilePicture,
+    validateProfilePicture,
+    (request, response) => {
+      response.status(201).json({
+        message: "Upload accepted.",
+      });
+    },
+  );
+
+  /*
+   * 20 MiB is allowed.
+   * This buffer is one byte larger than that limit.
+   */
+  const oversizedImage = Buffer.alloc(20 * 1024 * 1024 + 1, 0);
+
+  const response = await request(app)
+    .post("/upload")
+    .attach("picture", oversizedImage, {
+      filename: "oversized.jpg",
+      contentType: "image/jpeg",
+    });
+
+  assert.equal(response.status, 413);
+
+  /*
+   * Multer must not leave the rejected upload
+   * behind in the user's storage directory.
+   */
+  const expectedUserDirectory = crypto
+    .createHash("sha256")
+    .update(TEST_USER_ID)
+    .digest("hex");
+
+  const expectedDirectory = path.join(
+    environment.PROFILE_PICTURE_STORAGE_PATH,
+    expectedUserDirectory,
+  );
+
+  if (fs.existsSync(expectedDirectory)) {
+    assert.equal(
+      fs.readdirSync(expectedDirectory).length,
+      0,
+      "Oversized upload should not remain in storage.",
+    );
+
+    fs.rmdirSync(expectedDirectory);
+  }
+});
+
+============================================================
+FILE: test-local-sql.mjs
+============================================================
+import sql from "mssql";
+
+const config = {
+  server: "MOTHVBEE01",
+  port: 1435,
+  database: "portfolio-platform-db",
+  user: "portfolio_app",
+  password: process.env.LOCAL_SQL_TEST_PASSWORD,
+  options: {
+    encrypt: true,
+    trustServerCertificate: true,
+  },
+};
+
+if (!config.password) {
+  throw new Error("Missing local SQL test password.");
+}
+
+let pool;
+
+try {
+  pool = await sql.connect(config);
+
+  const result = await pool.request().query(`
+    SELECT
+      DB_NAME() AS databaseName,
+      SUSER_SNAME() AS loginName,
+      COUNT(*) AS userCount
+    FROM dbo.users;
+  `);
+
+  console.log(result.recordset[0]);
+} catch (error) {
+  console.error("SQL connection failed:", error.message);
+  process.exitCode = 1;
+} finally {
+  if (pool) {
+    await pool.close();
+  }
+}

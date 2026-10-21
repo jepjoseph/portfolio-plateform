@@ -1,4 +1,4 @@
-import {
+﻿import {
   createProject as createProjectModel,
   createProjectDocument,
   createProjectMedia,
@@ -16,6 +16,7 @@ import {
 import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
 
 import { validateProject } from "./projectValidation.js";
+import { prepareFeaturedProjectMedia } from "./projectFeaturedMedia.js";
 
 /*
  * =========================================
@@ -294,44 +295,15 @@ async function prepareProjectAssets(
      * because it is not yet part of project.media.
      */
 
-    const uploadedFeaturedMedia = storedMedia.metadata.find(
-      (mediaItem) => mediaItem.isFeatured && isEligibleFeaturedMedia(mediaItem),
+    const featuredMediaResult = prepareFeaturedProjectMedia(
+      getArray(project.media),
+      storedMedia.metadata,
+      getText(project.presentation?.featuredMediaId),
     );
-
-    const requestedFeaturedMediaId = getText(
-      project.presentation?.featuredMediaId,
-    );
-
-    const featuredMedia =
-      uploadedFeaturedMedia ||
-      completeMedia.find(
-        (mediaItem) =>
-          mediaItem.id === requestedFeaturedMediaId &&
-          isEligibleFeaturedMedia(mediaItem),
-      ) ||
-      completeMedia.find(
-        (mediaItem) =>
-          mediaItem.isFeatured && isEligibleFeaturedMedia(mediaItem),
-      ) ||
-      completeMedia.find(isEligibleFeaturedMedia) ||
-      null;
-
-    const existingMedia = getArray(project.media).map((mediaItem) => ({
-      ...mediaItem,
-
-      isFeatured: uploadedFeaturedMedia ? false : mediaItem.isFeatured,
-    }));
-
-    const completeMedia = [...existingMedia, ...storedMedia.metadata];
-
     const preparedProject = normalizeProject({
       ...project,
 
-      media: completeMedia.map((mediaItem) => ({
-        ...mediaItem,
-
-        isFeatured: mediaItem.id === featuredMedia?.id,
-      })),
+      media: featuredMediaResult.media,
 
       supportingDocuments: [
         ...getArray(project.supportingDocuments),
@@ -342,7 +314,7 @@ async function prepareProjectAssets(
       presentation: {
         ...project.presentation,
 
-        featuredMediaId: featuredMedia?.id || "",
+        featuredMediaId: featuredMediaResult.featuredMediaId,
       },
     });
 
@@ -762,3 +734,6 @@ export async function deleteProject(projectId) {
       : "",
   };
 }
+
+
+

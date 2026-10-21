@@ -609,6 +609,51 @@ function DocumentRow({
  * =========================================
  */
 
+function MarkdownTextPreview({ url }) {
+  const [content, setContent] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setContent("");
+    setError("");
+
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load Markdown document.");
+        }
+
+        return response.text();
+      })
+      .then(setContent)
+      .catch((loadError) => {
+        if (loadError.name !== "AbortError") {
+          setError("Markdown preview unavailable.");
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  if (error) {
+    return <p role="alert">{error}</p>;
+  }
+
+  return (
+    <pre style={{
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      padding: "1rem",
+      overflow: "auto",
+      width: "100%",
+      maxHeight: "70vh",
+    }}>
+      {content}
+    </pre>
+  );
+}
 function DocumentPreview({ preview, onClose }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -625,6 +670,7 @@ function DocumentPreview({ preview, onClose }) {
   }, [onClose]);
 
   const isImage = preview.mimeType.startsWith("image/");
+  const isMarkdown = preview.mimeType === "text/markdown" || /\.md$/i.test(preview.title);
 
   return (
     <div
@@ -661,6 +707,8 @@ function DocumentPreview({ preview, onClose }) {
         <div className="project-document-preview-content">
           {isImage ? (
             <img src={preview.url} alt={preview.title} />
+          ) : isMarkdown ? (
+            <MarkdownTextPreview url={preview.url} />
           ) : (
             <iframe src={preview.url} title={preview.title} />
           )}

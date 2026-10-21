@@ -1,0 +1,1768 @@
+﻿PROJECT FINAL INTEGRATION CONTRACT REVIEW
+
+===== FILE: backend\src\schemas\projectSchemas.js =====
+import { validateNestedProject } from "./projectNestedValidation.js";
+
+const PROJECT_ID_PATTERN =
+  /^project-(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|[0-9]{10,17}-[a-z0-9]{1,20})$/i;
+
+const CATEGORIES = new Set([
+  "software",
+  "web-application",
+  "mobile-application",
+  "artificial-intelligence",
+  "data",
+  "cloud-infrastructure",
+  "networking",
+  "cybersecurity",
+  "embedded-systems",
+  "electronics",
+  "automation",
+  "internet-of-things",
+  "research",
+  "design",
+  "business",
+  "academic",
+  "community",
+  "other",
+]);
+
+const LIFECYCLE_STATUSES = new Set([
+  "planned",
+  "in-progress",
+  "completed",
+  "maintained",
+  "paused",
+  "cancelled",
+]);
+
+const RECORD_STATUSES = new Set(["active", "archived"]);
+
+const SERVER_OWNED_FIELDS = [
+  "userId",
+  "user_id",
+  "createdAt",
+  "updatedAt",
+  "rowVersion",
+];
+
+function createValidationError(errors) {
+  const error = new Error("Project validation failed.");
+
+  error.name = "ProjectValidationError";
+  error.code = "PROJECT_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Please correct the Project information.";
+  error.errors = errors;
+
+  error.fieldErrors = {};
+
+  for (const item of errors) {
+    if (!error.fieldErrors[item.field]) {
+      error.fieldErrors[item.field] = item.message;
+    }
+  }
+
+  return error;
+}
+
+function addError(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isValidProjectDate(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const match = value.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+export function parseProjectInput(value) {
+  const errors = [];
+
+  if (!isPlainObject(value)) {
+    throw createValidationError([
+      {
+        field: "project",
+        code: "PROJECT_OBJECT_REQUIRED",
+        message: "Project data must be an object.",
+      },
+    ]);
+  }
+
+  for (const field of SERVER_OWNED_FIELDS) {
+    if (Object.hasOwn(value, field)) {
+      addError(
+        errors,
+        field,
+        "PROJECT_SERVER_FIELD_FORBIDDEN",
+        `${field} cannot be supplied by the client.`,
+      );
+    }
+  }
+
+  if (typeof value.id !== "string" || !PROJECT_ID_PATTERN.test(value.id)) {
+    addError(
+      errors,
+      "id",
+      "PROJECT_ID_INVALID",
+      "A valid Project identifier is required.",
+    );
+  }
+
+  if (
+    typeof value.title !== "string" ||
+    !value.title.trim() ||
+    value.title.trim().length > 200
+  ) {
+    addError(
+      errors,
+      "title",
+      "PROJECT_TITLE_INVALID",
+      "Project title must contain 1 to 200 characters.",
+    );
+  }
+
+  if (
+    typeof value.role !== "string" ||
+    !value.role.trim() ||
+    value.role.trim().length > 160
+  ) {
+    addError(
+      errors,
+      "role",
+      "PROJECT_ROLE_INVALID",
+      "Project role must contain 1 to 160 characters.",
+    );
+  }
+
+  if (!CATEGORIES.has(value.category)) {
+    addError(
+      errors,
+      "category",
+      "PROJECT_CATEGORY_INVALID",
+      "Select a valid Project category.",
+    );
+  }
+
+  if (!LIFECYCLE_STATUSES.has(value.lifecycleStatus)) {
+    addError(
+      errors,
+      "lifecycleStatus",
+      "PROJECT_LIFECYCLE_INVALID",
+      "Select a valid lifecycle status.",
+    );
+  }
+
+  if (!RECORD_STATUSES.has(value.recordStatus)) {
+    addError(
+      errors,
+      "recordStatus",
+      "PROJECT_RECORD_STATUS_INVALID",
+      "Select a valid record status.",
+    );
+  }
+
+  if (!isPlainObject(value.dates)) {
+    addError(
+      errors,
+      "dates",
+      "PROJECT_DATES_INVALID",
+      "Project dates must be an object.",
+    );
+  } else {
+    if (!isValidProjectDate(value.dates.startDate)) {
+      addError(
+        errors,
+        "dates.startDate",
+        "PROJECT_START_DATE_INVALID",
+        "A valid Project start date is required.",
+      );
+    }
+
+    if (value.dates.endDate && !isValidProjectDate(value.dates.endDate)) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_END_DATE_INVALID",
+        "Enter a valid Project end date.",
+      );
+    }
+
+    if (value.dates.isCurrent === true && value.dates.endDate) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_CURRENT_END_DATE_CONFLICT",
+        "An ongoing Project cannot have an end date.",
+      );
+    }
+
+    if (
+      value.dates.isCurrent === true &&
+      !["in-progress", "maintained"].includes(value.lifecycleStatus)
+    ) {
+      addError(
+        errors,
+        "lifecycleStatus",
+        "PROJECT_CURRENT_LIFECYCLE_CONFLICT",
+        "An ongoing Project must be In Progress or Maintained.",
+      );
+    }
+
+    if (
+      ["completed", "cancelled"].includes(value.lifecycleStatus) &&
+      value.dates.isCurrent !== true &&
+      !value.dates.endDate
+    ) {
+      addError(
+        errors,
+        "dates.endDate",
+        "PROJECT_END_DATE_REQUIRED",
+        "A completion or cancellation date is required.",
+      );
+    }
+
+    if (
+      isValidProjectDate(value.dates.startDate) &&
+      isValidProjectDate(value.dates.endDate)
+    ) {
+      const start = new Date(
+        value.dates.startDate.length === 7
+          ? `${value.dates.startDate}-01`
+          : value.dates.startDate,
+      );
+
+      const end = new Date(
+        value.dates.endDate.length === 7
+          ? `${value.dates.endDate}-01`
+          : value.dates.endDate,
+      );
+
+      if (end < start) {
+        addError(
+          errors,
+          "dates.endDate",
+          "PROJECT_DATE_ORDER_INVALID",
+          "End date cannot be earlier than start date.",
+        );
+      }
+    }
+  }
+
+  if (
+    !isPlainObject(value.presentation) ||
+    typeof value.presentation.isFeatured !== "boolean"
+  ) {
+    addError(
+      errors,
+      "presentation.isFeatured",
+      "PROJECT_FEATURED_INVALID",
+      "Project featured status must be a boolean.",
+    );
+  }
+
+  const urlFields = [
+    ["organization.website", value.organization?.website],
+    ...[
+      "liveUrl",
+      "repositoryUrl",
+      "documentationUrl",
+      "caseStudyUrl",
+      "videoUrl",
+    ].map((name) => [`links.${name}`, value.links?.[name]]),
+  ];
+
+  for (const [field, urlValue] of urlFields) {
+    if (urlValue === undefined || urlValue === "") continue;
+
+    let valid = false;
+
+    if (typeof urlValue === "string") {
+      try {
+        const parsed = new URL(urlValue);
+        valid = ["http:", "https:"].includes(parsed.protocol);
+      } catch {
+        valid = false;
+      }
+    }
+
+    if (!valid) {
+      addError(
+        errors,
+        field,
+        "PROJECT_URL_INVALID",
+        "Enter a valid HTTP or HTTPS URL.",
+      );
+    }
+  }
+
+  const collectionLimits = [
+    ["problem.objectives", value.problem?.objectives, 25],
+    ["problem.constraints", value.problem?.constraints, 25],
+    ["solution.features", value.solution?.features, 40],
+    ["solution.contributions", value.solution?.contributions, 40],
+    ["results.metrics", value.results?.metrics, 25],
+    ["skillRelationships", value.skillRelationships, 60],
+    ["technologies", value.technologies, 60],
+    ["awards", value.awards, 20],
+    ["media", value.media, 30],
+    ["supportingDocuments", value.supportingDocuments, 30],
+    ...[
+      "experienceRelationships",
+      "educationRelationships",
+      "trainingRelationships",
+      "certificationRelationships",
+    ].map((name) => [
+      `relatedRecords.${name}`,
+      value.relatedRecords?.[name],
+      50,
+    ]),
+  ];
+
+  for (const [field, items, maximum] of collectionLimits) {
+    if (items === undefined) continue;
+
+    if (!Array.isArray(items) || items.length > maximum) {
+      addError(
+        errors,
+        field,
+        "PROJECT_COLLECTION_INVALID",
+        `This collection must contain at most ${maximum} items.`,
+      );
+    }
+  }
+  errors.push(...validateNestedProject(value));
+
+  if (errors.length > 0) {
+    throw createValidationError(errors);
+  }
+
+  return structuredClone(value);
+}
+
+export function parseProjectRowVersion(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9+/]{11}=$/.test(value)) {
+    throw createValidationError([
+      {
+        field: "rowVersion",
+        code: "PROJECT_VERSION_INVALID",
+        message: "A valid Project version is required.",
+      },
+    ]);
+  }
+
+  return value;
+}
+
+
+===== FILE: backend\src\repositories\projectRepository.js =====
+import { getDatabasePool, sql } from "../config/database.js";
+
+const PROJECT_COLUMNS = `
+  id,
+  user_id,
+  title,
+  category,
+  lifecycle_status,
+  record_status,
+  is_featured,
+  project_data,
+  created_at,
+  updated_at,
+  row_version
+`;
+
+function mapProjectRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  const projectData =
+    typeof row.project_data === "string"
+      ? JSON.parse(row.project_data)
+      : row.project_data;
+
+  return {
+    ...projectData,
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    lifecycleStatus: row.lifecycle_status,
+    recordStatus: row.record_status,
+    presentation: {
+      ...(projectData.presentation || {}),
+      isFeatured: Boolean(row.is_featured),
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    rowVersion: Buffer.from(row.row_version).toString("base64"),
+  };
+}
+
+function bindProjectParameters(request, userId, project) {
+  return request
+    .input("id", sql.NVarChar(200), project.id)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("title", sql.NVarChar(500), project.title)
+    .input("category", sql.NVarChar(100), project.category)
+    .input("lifecycleStatus", sql.NVarChar(50), project.lifecycleStatus)
+    .input("recordStatus", sql.NVarChar(20), project.recordStatus)
+    .input("isFeatured", sql.Bit, Boolean(project.presentation?.isFeatured))
+    .input("projectData", sql.NVarChar(sql.MAX), JSON.stringify(project));
+}
+
+export async function listProjectsByUser(userId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId).query(`
+      SELECT ${PROJECT_COLUMNS}
+      FROM dbo.projects
+      WHERE user_id = @userId
+      ORDER BY updated_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapProjectRow);
+}
+
+export async function findProjectById(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId).query(`
+      SELECT ${PROJECT_COLUMNS}
+      FROM dbo.projects
+      WHERE user_id = @userId
+        AND id = @id;
+    `);
+
+  return mapProjectRow(result.recordset[0]);
+}
+
+export async function createProject(userId, project) {
+  const pool = await getDatabasePool();
+
+  await bindProjectParameters(pool.request(), userId, project).query(`
+    INSERT INTO dbo.projects (
+      id,
+      user_id,
+      title,
+      category,
+      lifecycle_status,
+      record_status,
+      is_featured,
+      project_data
+    )
+    VALUES (
+      @id,
+      @userId,
+      @title,
+      @category,
+      @lifecycleStatus,
+      @recordStatus,
+      @isFeatured,
+      @projectData
+    );
+  `);
+
+  return findProjectById(userId, project.id);
+}
+
+export async function updateProject(userId, project, expectedRowVersion) {
+  const pool = await getDatabasePool();
+
+  const request = bindProjectParameters(pool.request(), userId, project).input(
+    "expectedRowVersion",
+    sql.Binary(8),
+    Buffer.from(expectedRowVersion, "base64"),
+  );
+
+  const result = await request.query(`
+    UPDATE dbo.projects
+    SET
+      title = @title,
+      category = @category,
+      lifecycle_status = @lifecycleStatus,
+      record_status = @recordStatus,
+      is_featured = @isFeatured,
+      project_data = @projectData,
+      updated_at = SYSUTCDATETIME()
+    WHERE id = @id
+      AND user_id = @userId
+      AND row_version = @expectedRowVersion;
+  `);
+
+  if (result.rowsAffected[0] === 0) {
+    return null;
+  }
+
+  return findProjectById(userId, project.id);
+}
+
+export async function deleteProject(userId, projectId, expectedRowVersion) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), projectId)
+    .input(
+      "expectedRowVersion",
+      sql.Binary(8),
+      Buffer.from(expectedRowVersion, "base64"),
+    ).query(`
+      DELETE FROM dbo.projects
+      WHERE id = @id
+        AND user_id = @userId
+        AND row_version = @expectedRowVersion;
+    `);
+
+  return result.rowsAffected[0] > 0;
+}
+
+
+===== FILE: frontend\src\services\Project\projectValidation.js =====
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../../config/projectConfig.js";
+
+import { normalizeProject } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * Validation Result Helpers
+ * =========================================
+ */
+
+function addError(errors, fieldErrors, field, code, message) {
+  errors.push({
+    field,
+    code,
+    message,
+  });
+
+  if (!fieldErrors[field]) {
+    fieldErrors[field] = message;
+  }
+}
+
+function addWarning(warnings, field, code, message) {
+  warnings.push({
+    field,
+    code,
+    message,
+  });
+}
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+/*
+ * =========================================
+ * URL Validation
+ * =========================================
+ */
+
+function isValidUrl(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return true;
+  }
+
+  try {
+    const url = new URL(normalizedValue);
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * =========================================
+ * Date Validation
+ * =========================================
+ */
+
+function parseProjectDate(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const match = normalizedValue.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    match[3] &&
+    (parsedDate.getUTCFullYear() !== year ||
+      parsedDate.getUTCMonth() !== month - 1 ||
+      parsedDate.getUTCDate() !== day)
+  ) {
+    return null;
+  }
+
+  return parsedDate.getTime();
+}
+
+/*
+ * =========================================
+ * Length Validation
+ * =========================================
+ */
+
+function validateMaximumLength({
+  value,
+  maximumLength,
+  field,
+  label,
+  errors,
+  fieldErrors,
+}) {
+  if (typeof value === "string" && value.trim().length > maximumLength) {
+    addError(
+      errors,
+      fieldErrors,
+      field,
+      "PROJECT_FIELD_TOO_LONG",
+      `${label} cannot exceed ${maximumLength} characters.`,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Project Validation
+ * =========================================
+ */
+
+export function validateProject(value, collections = {}) {
+  const source = getObject(value);
+
+  const project = normalizeProject(source);
+
+  const errors = [];
+  const warnings = [];
+  const fieldErrors = {};
+
+  const sourceOrganization = getObject(source.organization);
+
+  const sourceDates = getObject(source.dates);
+
+  const sourceLinks = getObject(source.links);
+
+  const sourceProblem = getObject(source.problem);
+
+  const sourceSolution = getObject(source.solution);
+
+  const sourceResults = getObject(source.results);
+
+  const sourcePresentation = getObject(source.presentation);
+
+  const sourcePrivateInformation = getObject(source.privateInformation);
+
+  /*
+   * =========================================
+   * Required Fields
+   * =========================================
+   */
+
+  if (!project.title) {
+    addError(
+      errors,
+      fieldErrors,
+      "title",
+      "PROJECT_TITLE_REQUIRED",
+      "Enter a project title.",
+    );
+  }
+
+  if (!project.role) {
+    addError(
+      errors,
+      fieldErrors,
+      "role",
+      "PROJECT_ROLE_REQUIRED",
+      "Describe your role in this project.",
+    );
+  }
+
+  if (!project.dates.startDate) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.startDate",
+      "PROJECT_START_DATE_REQUIRED",
+      "Enter the project start date.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Option Validation
+   * =========================================
+   */
+
+  if (source.category && !isValidProjectCategory(source.category)) {
+    addError(
+      errors,
+      fieldErrors,
+      "category",
+      "PROJECT_CATEGORY_INVALID",
+      "Select a valid project category.",
+    );
+  }
+
+  const suppliedLifecycleStatus =
+    source.lifecycleStatus || source.projectStatus;
+
+  if (
+    suppliedLifecycleStatus &&
+    !isValidProjectLifecycleStatus(suppliedLifecycleStatus)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "lifecycleStatus",
+      "PROJECT_LIFECYCLE_INVALID",
+      "Select a valid project lifecycle status.",
+    );
+  }
+
+  if (source.ownership && !isValidProjectOwnership(source.ownership)) {
+    addError(
+      errors,
+      fieldErrors,
+      "ownership",
+      "PROJECT_OWNERSHIP_INVALID",
+      "Select a valid project ownership type.",
+    );
+  }
+
+  if (source.source && !isValidProjectSource(source.source)) {
+    addError(
+      errors,
+      fieldErrors,
+      "source",
+      "PROJECT_SOURCE_INVALID",
+      "Select a valid record source.",
+    );
+  }
+
+  if (source.recordStatus && !isValidProjectRecordStatus(source.recordStatus)) {
+    addError(
+      errors,
+      fieldErrors,
+      "recordStatus",
+      "PROJECT_RECORD_STATUS_INVALID",
+      "Select a valid Project record status.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Date Validation
+   * =========================================
+   */
+
+  const startDateValue = parseProjectDate(sourceDates.startDate);
+
+  const endDateValue = parseProjectDate(sourceDates.endDate);
+
+  if (sourceDates.startDate && startDateValue === null) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.startDate",
+      "PROJECT_START_DATE_INVALID",
+      "Enter a valid project start date.",
+    );
+  }
+
+  if (sourceDates.endDate && endDateValue === null) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_END_DATE_INVALID",
+      "Enter a valid project end date.",
+    );
+  }
+
+  if (
+    !project.dates.isCurrent &&
+    ["completed", "cancelled"].includes(project.lifecycleStatus) &&
+    !project.dates.endDate
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_END_DATE_REQUIRED",
+      "Enter the project completion or cancellation date.",
+    );
+  }
+
+  if (
+    startDateValue !== null &&
+    endDateValue !== null &&
+    endDateValue < startDateValue
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_DATE_ORDER_INVALID",
+      "The end date cannot be earlier than the start date.",
+    );
+  }
+
+  if (project.dates.isCurrent && project.dates.endDate) {
+    addError(
+      errors,
+      fieldErrors,
+      "dates.endDate",
+      "PROJECT_CURRENT_END_DATE_CONFLICT",
+      "An ongoing project cannot have an end date.",
+    );
+  }
+
+  if (
+    project.dates.isCurrent &&
+    !["in-progress", "maintained"].includes(project.lifecycleStatus)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "lifecycleStatus",
+      "PROJECT_CURRENT_LIFECYCLE_CONFLICT",
+      "An ongoing project must be In Progress or Maintained.",
+    );
+  }
+
+  if (
+    ["in-progress", "maintained"].includes(project.lifecycleStatus) &&
+    !project.dates.isCurrent
+  ) {
+    addWarning(
+      warnings,
+      "dates.isCurrent",
+      "PROJECT_CURRENT_STATUS_RECOMMENDED",
+      "Consider marking an In Progress or Maintained project as ongoing.",
+    );
+  }
+
+  /*
+   * =========================================
+   * URL Validation
+   * =========================================
+   */
+
+  Object.entries(sourceLinks).forEach(([fieldName, urlValue]) => {
+    if (!isValidUrl(urlValue)) {
+      addError(
+        errors,
+        fieldErrors,
+        `links.${fieldName}`,
+        "PROJECT_URL_INVALID",
+        "Enter a complete HTTP or HTTPS address.",
+      );
+    }
+  });
+
+  if (!isValidUrl(sourceOrganization.website)) {
+    addError(
+      errors,
+      fieldErrors,
+      "organization.website",
+      "PROJECT_ORGANIZATION_URL_INVALID",
+      "Enter a complete HTTP or HTTPS organization address.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Maximum Field Lengths
+   * =========================================
+   */
+
+  [
+    [source.title, PROJECT_FIELD_LIMITS.title, "title", "Project title"],
+    [source.role, PROJECT_FIELD_LIMITS.role, "role", "Project role"],
+    [
+      sourceOrganization.name,
+      PROJECT_FIELD_LIMITS.organizationName,
+      "organization.name",
+      "Organization name",
+    ],
+    [
+      sourceOrganization.clientName,
+      PROJECT_FIELD_LIMITS.clientName,
+      "organization.clientName",
+      "Client name",
+    ],
+    [
+      sourceProblem.statement,
+      PROJECT_FIELD_LIMITS.problemStatement,
+      "problem.statement",
+      "Problem statement",
+    ],
+    [
+      sourceProblem.targetAudience,
+      PROJECT_FIELD_LIMITS.targetAudience,
+      "problem.targetAudience",
+      "Target audience",
+    ],
+    [
+      sourceProblem.context,
+      PROJECT_FIELD_LIMITS.context,
+      "problem.context",
+      "Project context",
+    ],
+    [
+      sourceProblem.importance,
+      PROJECT_FIELD_LIMITS.importance,
+      "problem.importance",
+      "Project importance",
+    ],
+    [
+      sourceSolution.overview,
+      PROJECT_FIELD_LIMITS.overview,
+      "solution.overview",
+      "Solution overview",
+    ],
+    [
+      sourceSolution.approach,
+      PROJECT_FIELD_LIMITS.approach,
+      "solution.approach",
+      "Implementation approach",
+    ],
+    [
+      sourceSolution.architecture,
+      PROJECT_FIELD_LIMITS.architecture,
+      "solution.architecture",
+      "Architecture summary",
+    ],
+    [
+      sourceResults.outcome,
+      PROJECT_FIELD_LIMITS.outcome,
+      "results.outcome",
+      "Project outcome",
+    ],
+    [
+      sourceResults.problemsSolved,
+      PROJECT_FIELD_LIMITS.problemsSolved,
+      "results.problemsSolved",
+      "Problems solved",
+    ],
+    [
+      sourceResults.impact,
+      PROJECT_FIELD_LIMITS.impact,
+      "results.impact",
+      "Project impact",
+    ],
+    [
+      sourceResults.beneficiariesAffected,
+      PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      "results.beneficiariesAffected",
+      "Affected beneficiaries",
+    ],
+    [
+      sourcePresentation.shortSummary,
+      PROJECT_FIELD_LIMITS.shortSummary,
+      "presentation.shortSummary",
+      "Portfolio summary",
+    ],
+    [
+      sourcePresentation.caseStudy,
+      PROJECT_FIELD_LIMITS.caseStudy,
+      "presentation.caseStudy",
+      "Detailed case study",
+    ],
+    [
+      sourcePrivateInformation.notes,
+      PROJECT_FIELD_LIMITS.privateNotes,
+      "privateInformation.notes",
+      "Private notes",
+    ],
+  ].forEach(([fieldValue, limit, field, label]) => {
+    validateMaximumLength({
+      value: fieldValue,
+      maximumLength: limit,
+      field,
+      label,
+      errors,
+      fieldErrors,
+    });
+  });
+
+  /*
+   * =========================================
+   * Collection Limits
+   * =========================================
+   */
+
+  const collectionLimits = [
+    [
+      sourceProblem.objectives,
+      PROJECT_FIELD_LIMITS.maximumObjectives,
+      "problem.objectives",
+      "objectives",
+    ],
+    [
+      sourceProblem.constraints,
+      PROJECT_FIELD_LIMITS.maximumConstraints,
+      "problem.constraints",
+      "constraints",
+    ],
+    [
+      sourceSolution.features,
+      PROJECT_FIELD_LIMITS.maximumFeatures,
+      "solution.features",
+      "features",
+    ],
+    [
+      sourceSolution.contributions,
+      PROJECT_FIELD_LIMITS.maximumContributions,
+      "solution.contributions",
+      "contributions",
+    ],
+    [
+      sourceResults.metrics,
+      PROJECT_FIELD_LIMITS.maximumMetrics,
+      "results.metrics",
+      "metrics",
+    ],
+    [
+      source.skillRelationships,
+      PROJECT_FIELD_LIMITS.maximumSkills,
+      "skillRelationships",
+      "related Skills",
+    ],
+    [
+      source.technologies,
+      PROJECT_FIELD_LIMITS.maximumTechnologies,
+      "technologies",
+      "technologies",
+    ],
+    [source.awards, PROJECT_FIELD_LIMITS.maximumAwards, "awards", "awards"],
+    [source.media, PROJECT_FIELD_LIMITS.maximumMedia, "media", "media items"],
+    [
+      source.supportingDocuments,
+      PROJECT_FIELD_LIMITS.maximumDocuments,
+      "supportingDocuments",
+      "documents",
+    ],
+  ];
+
+  collectionLimits.forEach(([collection, maximum, field, label]) => {
+    if (Array.isArray(collection) && collection.length > maximum) {
+      addError(
+        errors,
+        fieldErrors,
+        field,
+        "PROJECT_COLLECTION_LIMIT_EXCEEDED",
+        `Add no more than ${maximum} ${label}.`,
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Skills
+   * =========================================
+   */
+
+  const availableSkillIds = Array.isArray(collections.skills)
+    ? new Set(collections.skills.map((skill) => skill?.id).filter(Boolean))
+    : null;
+
+  project.skillRelationships.forEach((relationship, index) => {
+    if (!relationship.skillId && !relationship.nameSnapshot) {
+      addError(
+        errors,
+        fieldErrors,
+        `skillRelationships.${index}`,
+        "PROJECT_SKILL_IDENTITY_REQUIRED",
+        "A related Skill must have an identifier or readable snapshot.",
+      );
+    }
+
+    if (
+      relationship.demonstratedProficiency &&
+      !isValidProjectSkillProficiency(relationship.demonstratedProficiency)
+    ) {
+      addError(
+        errors,
+        fieldErrors,
+        `skillRelationships.${index}.demonstratedProficiency`,
+        "PROJECT_SKILL_PROFICIENCY_INVALID",
+        "Select a valid demonstrated proficiency.",
+      );
+    }
+
+    /*
+     * A missing central record is a warning.
+     * The snapshot keeps the Project readable.
+     */
+
+    if (
+      availableSkillIds &&
+      relationship.skillId &&
+      !availableSkillIds.has(relationship.skillId)
+    ) {
+      addWarning(
+        warnings,
+        `skillRelationships.${index}`,
+        "PROJECT_SKILL_NOT_FOUND",
+        `The Skill â€œ${
+          relationship.nameSnapshot || relationship.skillId
+        }â€ is no longer available in the Skill Library. Its snapshot will be preserved.`,
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Related Professional Records
+   * =========================================
+   */
+
+  const relationshipCollections = [
+    {
+      relationshipName: "experienceRelationships",
+      idField: "experienceId",
+      records: collections.experiences,
+      label: "Experience",
+    },
+    {
+      relationshipName: "educationRelationships",
+      idField: "educationId",
+      records: collections.educationRecords,
+      label: "Education",
+    },
+    {
+      relationshipName: "trainingRelationships",
+      idField: "trainingId",
+      records: collections.trainingRecords,
+      label: "Training",
+    },
+    {
+      relationshipName: "certificationRelationships",
+      idField: "certificationId",
+      records: collections.certifications,
+      label: "Certification",
+    },
+  ];
+
+  relationshipCollections.forEach(
+    ({ relationshipName, idField, records, label }) => {
+      if (!Array.isArray(records)) {
+        return;
+      }
+
+      const availableIds = new Set(
+        records.map((record) => record?.id).filter(Boolean),
+      );
+
+      project.relatedRecords[relationshipName].forEach(
+        (relationship, index) => {
+          if (!relationship[idField]) {
+            addError(
+              errors,
+              fieldErrors,
+              `relatedRecords.${relationshipName}.${index}`,
+              "PROJECT_RELATIONSHIP_ID_REQUIRED",
+              `A related ${label} record must have an identifier.`,
+            );
+
+            return;
+          }
+
+          if (!availableIds.has(relationship[idField])) {
+            addWarning(
+              warnings,
+              `relatedRecords.${relationshipName}.${index}`,
+              "PROJECT_RELATIONSHIP_NOT_FOUND",
+              `A related ${label} record is no longer available. Its readable snapshot will be preserved.`,
+            );
+          }
+        },
+      );
+    },
+  );
+
+  /*
+   * =========================================
+   * Awards and Recognition
+   * =========================================
+   */
+
+  const documentIds = new Set(
+    project.supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  project.awards.forEach((award, index) => {
+    if (
+      award.recognitionType &&
+      !isValidProjectRecognitionType(award.recognitionType)
+    ) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.recognitionType`,
+        "PROJECT_RECOGNITION_TYPE_INVALID",
+        "Select a valid recognition type.",
+      );
+    }
+
+    if (award.placement && !isValidProjectAwardPlacement(award.placement)) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.placement`,
+        "PROJECT_AWARD_PLACEMENT_INVALID",
+        "Select a valid award placement.",
+      );
+    }
+
+    if (!isValidUrl(award.url)) {
+      addError(
+        errors,
+        fieldErrors,
+        `awards.${index}.url`,
+        "PROJECT_AWARD_URL_INVALID",
+        "Enter a complete HTTP or HTTPS award address.",
+      );
+    }
+
+    award.supportingDocumentIds.forEach((documentId) => {
+      if (!documentIds.has(documentId)) {
+        addError(
+          errors,
+          fieldErrors,
+          `awards.${index}.supportingDocumentIds`,
+          "PROJECT_AWARD_DOCUMENT_NOT_FOUND",
+          "An award references a Project document that is no longer available.",
+        );
+      }
+    });
+  });
+
+  /*
+   * =========================================
+   * Media
+   * =========================================
+   */
+
+  project.media.forEach((mediaItem, index) => {
+    if (!isValidProjectMediaType(mediaItem.type)) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}.type`,
+        "PROJECT_MEDIA_TYPE_INVALID",
+        "Select a valid project media type.",
+      );
+    }
+
+    if (!mediaItem.storageKey && !mediaItem.externalUrl) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}`,
+        "PROJECT_MEDIA_SOURCE_REQUIRED",
+        "Project media must have a stored file or external address.",
+      );
+    }
+
+    if (!isValidUrl(mediaItem.externalUrl)) {
+      addError(
+        errors,
+        fieldErrors,
+        `media.${index}.externalUrl`,
+        "PROJECT_MEDIA_URL_INVALID",
+        "Enter a complete HTTP or HTTPS media address.",
+      );
+    }
+
+    if (mediaItem.type !== "video" && !mediaItem.altText) {
+      addWarning(
+        warnings,
+        `media.${index}.altText`,
+        "PROJECT_MEDIA_ALT_TEXT_RECOMMENDED",
+        `Add alternative text for â€œ${
+          mediaItem.name || "this image"
+        }â€ to improve accessibility.`,
+      );
+    }
+  });
+
+  const activeMedia = project.media.filter(
+    (mediaItem) => mediaItem.status !== "archived",
+  );
+
+  const featuredMediaId = project.presentation.featuredMediaId;
+
+  if (
+    featuredMediaId &&
+    !activeMedia.some((mediaItem) => mediaItem.id === featuredMediaId)
+  ) {
+    addError(
+      errors,
+      fieldErrors,
+      "presentation.featuredMediaId",
+      "PROJECT_FEATURED_MEDIA_NOT_FOUND",
+      "The selected featured media is no longer available.",
+    );
+  }
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  project.supportingDocuments.forEach((documentRecord, index) => {
+    if (!isValidProjectDocumentType(documentRecord.documentType)) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}.documentType`,
+        "PROJECT_DOCUMENT_TYPE_INVALID",
+        "Select a valid Project document type.",
+      );
+    }
+
+    if (!documentRecord.storageKey && !documentRecord.externalUrl) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}`,
+        "PROJECT_DOCUMENT_SOURCE_REQUIRED",
+        "A Project document must have a stored file or external address.",
+      );
+    }
+
+    if (!isValidUrl(documentRecord.externalUrl)) {
+      addError(
+        errors,
+        fieldErrors,
+        `supportingDocuments.${index}.externalUrl`,
+        "PROJECT_DOCUMENT_URL_INVALID",
+        "Enter a complete HTTP or HTTPS document address.",
+      );
+    }
+  });
+
+  /*
+   * =========================================
+   * Professional Completeness Warnings
+   * =========================================
+   */
+
+  if (!project.problem.statement) {
+    addWarning(
+      warnings,
+      "problem.statement",
+      "PROJECT_PROBLEM_RECOMMENDED",
+      "Add the problem or opportunity the project addressed.",
+    );
+  }
+
+  if (!project.problem.importance) {
+    addWarning(
+      warnings,
+      "problem.importance",
+      "PROJECT_IMPORTANCE_RECOMMENDED",
+      "Explain why this project was professionally important.",
+    );
+  }
+
+  if (!project.solution.overview) {
+    addWarning(
+      warnings,
+      "solution.overview",
+      "PROJECT_SOLUTION_RECOMMENDED",
+      "Add a concise explanation of the solution.",
+    );
+  }
+
+  if (project.solution.contributions.length === 0) {
+    addWarning(
+      warnings,
+      "solution.contributions",
+      "PROJECT_CONTRIBUTIONS_RECOMMENDED",
+      "Describe your personal contributions to the project.",
+    );
+  }
+
+  if (project.lifecycleStatus === "completed" && !project.results.outcome) {
+    addWarning(
+      warnings,
+      "results.outcome",
+      "PROJECT_OUTCOME_RECOMMENDED",
+      "Add the completed Projectâ€™s final outcome.",
+    );
+  }
+
+  if (
+    project.lifecycleStatus === "completed" &&
+    !project.results.problemsSolved
+  ) {
+    addWarning(
+      warnings,
+      "results.problemsSolved",
+      "PROJECT_PROBLEMS_SOLVED_RECOMMENDED",
+      "Explain which problems the completed project solved.",
+    );
+  }
+
+  if (
+    project.lifecycleStatus === "completed" &&
+    project.results.metrics.length === 0
+  ) {
+    addWarning(
+      warnings,
+      "results.metrics",
+      "PROJECT_METRICS_RECOMMENDED",
+      "Add measurable evidence of the projectâ€™s result when available.",
+    );
+  }
+
+  if (!project.presentation.shortSummary) {
+    addWarning(
+      warnings,
+      "presentation.shortSummary",
+      "PROJECT_SUMMARY_RECOMMENDED",
+      `Add a portfolio summary of up to ${PROJECT_FIELD_LIMITS.shortSummary} characters.`,
+    );
+  }
+
+  if (activeMedia.length === 0) {
+    addWarning(
+      warnings,
+      "media",
+      "PROJECT_MEDIA_RECOMMENDED",
+      "Add a featured image or video to strengthen the portfolio presentation.",
+    );
+  }
+
+  if (project.presentation.isFeatured && activeMedia.length === 0) {
+    addWarning(
+      warnings,
+      "presentation.isFeatured",
+      "PROJECT_FEATURED_MEDIA_RECOMMENDED",
+      "A featured Project should have a strong public image or video.",
+    );
+  }
+
+  return {
+    isValid: errors.length === 0,
+
+    project,
+
+    errors,
+
+    warnings,
+
+    fieldErrors,
+  };
+}
+
+/*
+ * =========================================
+ * Validation Summary
+ * =========================================
+ */
+
+export function getProjectValidationSummary(value) {
+  const project = normalizeProject(value);
+
+  const activePublicMedia = project.media.filter(
+    (mediaItem) =>
+      mediaItem.status !== "archived" && mediaItem.visibility === "public",
+  );
+
+  const checks = [
+    {
+      id: "identity",
+      complete: Boolean(project.title && project.role),
+    },
+    {
+      id: "timeline",
+      complete: Boolean(
+        project.dates.startDate &&
+        (project.dates.isCurrent ||
+          project.dates.endDate ||
+          !["completed", "cancelled"].includes(project.lifecycleStatus)),
+      ),
+    },
+    {
+      id: "problem",
+      complete: Boolean(project.problem.statement),
+    },
+    {
+      id: "importance",
+      complete: Boolean(project.problem.importance),
+    },
+    {
+      id: "solution",
+      complete: Boolean(project.solution.overview),
+    },
+    {
+      id: "contributions",
+      complete: project.solution.contributions.length > 0,
+    },
+    {
+      id: "results",
+      complete: Boolean(
+        project.results.outcome || project.lifecycleStatus !== "completed",
+      ),
+    },
+    {
+      id: "evidence",
+      complete:
+        project.results.metrics.length > 0 ||
+        project.supportingDocuments.length > 0,
+    },
+    {
+      id: "skills",
+      complete: project.skillRelationships.length > 0,
+    },
+    {
+      id: "technologies",
+      complete: project.technologies.length > 0,
+    },
+    {
+      id: "summary",
+      complete: Boolean(project.presentation.shortSummary),
+    },
+    {
+      id: "media",
+      complete: activePublicMedia.length > 0,
+    },
+  ];
+
+  const completedCount = checks.filter((check) => check.complete).length;
+
+  const percentage = Math.round((completedCount / checks.length) * 100);
+
+  let level = "Basic";
+
+  if (percentage >= 90) {
+    level = "Portfolio Ready";
+  } else if (percentage >= 70) {
+    level = "Strong";
+  } else if (percentage >= 50) {
+    level = "Developing";
+  }
+
+  return `${completedCount} of ${checks.length} professional elements completed Â· ${level}`;
+}
+
+===== FRONTEND PROJECT CONSUMERS =====
+
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\projectConfig.js
+LineNumber : 698
+Line       : export function getProjectSourceLabel(value) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\projectConfig.js
+LineNumber : 706
+Line       : export function getProjectSkillProficiencyLabel(value) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\projectConfig.js
+LineNumber : 722
+Line       : export function getProjectMediaTypeLabel(value) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 14
+Line       :   getProjects,
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 124
+Line       :         const records = getProjects({
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 162
+Line       :     const records = getProjects({
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 402
+Line       :   const getProjectById = useCallback(
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 468
+Line       :       getProjectById,
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 491
+Line       :       getProjectById,
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 516
+Line       : export function useProjectData() {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+LineNumber : 520
+Line       :     throw new Error("useProjectData must be used inside ProjectDataProvider.");
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Dashboard\Dashboard.jsx
+LineNumber : 9
+Line       : import { useProjectData } from "../../context/ProjectDataContext.jsx";
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Dashboard\Dashboard.jsx
+LineNumber : 160
+Line       :   const { projects, isLoading: areProjectsLoading } = useProjectData();
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\Portfolio.jsx
+LineNumber : 7
+Line       : import { useProjectData } from "../../context/ProjectDataContext.jsx";
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\Portfolio.jsx
+LineNumber : 77
+Line       :     useProjectData();
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx
+LineNumber : 9
+Line       :   getProjectSkillProficiencyLabel,
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx
+LineNumber : 621
+Line       :                               {getProjectSkillProficiencyLabel(
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx
+LineNumber : 3
+Line       : import { useProjectData } from "../../context/ProjectDataContext.jsx";
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx
+LineNumber : 6
+Line       :   getProjectStatistics,
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx
+LineNumber : 50
+Line       :   } = useProjectData();
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx
+LineNumber : 107
+Line       :   const statistics = useMemo(() => getProjectStatistics(projects), [projects]);
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+LineNumber : 489
+Line       : export async function readProjectAsset(storageKey) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+LineNumber : 533
+Line       :   const record = await readProjectAsset(storageKey);
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+LineNumber : 557
+Line       :   const record = await readProjectAsset(normalizedStorageKey);
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+LineNumber : 376
+Line       : export function getProjects({ includeArchived = false } = {}) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+LineNumber : 390
+Line       : export function getProjectById(projectId, { includeArchived = true } = {}) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+LineNumber : 410
+Line       : export function getPublicProjects() {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+LineNumber : 411
+Line       :   return getProjects({
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+LineNumber : 422
+Line       : export function getPublicProjectById(projectId) {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+LineNumber : 423
+Line       :   const project = getProjectById(projectId, {
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+LineNumber : 7
+Line       :   getProjectSkillProficiencyLabel,
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+LineNumber : 385
+Line       :       getProjectSkillProficiencyLabel(relationship?.demonstratedProficiency),
+
+Path       : D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+LineNumber : 889
+Line       : export function getProjectStatistics(projects) {
+
+
+
+

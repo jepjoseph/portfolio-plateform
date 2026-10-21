@@ -961,6 +961,51 @@ function ProjectLink({ href, label }) {
  * =========================================
  */
 
+function MarkdownTextPreview({ url }) {
+  const [content, setContent] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setContent("");
+    setError("");
+
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load Markdown document.");
+        }
+
+        return response.text();
+      })
+      .then(setContent)
+      .catch((loadError) => {
+        if (loadError.name !== "AbortError") {
+          setError("Markdown preview unavailable.");
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  if (error) {
+    return <p role="alert">{error}</p>;
+  }
+
+  return (
+    <pre style={{
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      padding: "1rem",
+      overflow: "auto",
+      width: "100%",
+      maxHeight: "70vh",
+    }}>
+      {content}
+    </pre>
+  );
+}
 function ProjectDocumentPreview({ documentRecord, onClose }) {
   const closeButtonRef = useRef(null);
 
@@ -1047,6 +1092,7 @@ function ProjectDocumentPreview({ documentRecord, onClose }) {
     documentRecord?.name || documentRecord?.fileName || "Project Document";
 
   const isImage = documentRecord?.mimeType?.startsWith("image/");
+  const isMarkdown = documentRecord?.mimeType === "text/markdown" || /\.md$/i.test(documentRecord?.fileName || title);
 
   return (
     <div
@@ -1104,7 +1150,11 @@ function ProjectDocumentPreview({ documentRecord, onClose }) {
             />
           )}
 
-          {documentUrl && !loadError && !isImage && (
+          {documentUrl && !loadError && isMarkdown && (
+            <MarkdownTextPreview url={documentUrl} />
+          )}
+
+          {documentUrl && !loadError && !isImage && !isMarkdown && (
             <iframe src={documentUrl} title={title} />
           )}
         </div>
