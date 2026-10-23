@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  createProjectAssetUrl,
-  revokeProjectAssetUrl,
-} from "../../../../services/Project/projectAssetStorage.js";
+  resolveProjectAssetUrl,
+  releaseProjectAssetUrl,
+} from "../../../../services/Project/projectAssetResolver.js";
 
 import "./ProjectMediaViewer.css";
 
@@ -130,14 +130,14 @@ function ProjectMediaViewer({
       return undefined;
     }
 
-    createProjectAssetUrl(selectedMedia.storageKey)
+    resolveProjectAssetUrl({ projectId: project?.id, asset: selectedMedia, kind: "media" })
       .then((url) => {
         createdObjectUrl = url;
 
         if (isActive) {
           setAssetUrl(url);
         } else {
-          revokeProjectAssetUrl(url);
+          releaseProjectAssetUrl(url);
         }
       })
       .catch((error) => {
@@ -156,7 +156,7 @@ function ProjectMediaViewer({
       isActive = false;
 
       if (createdObjectUrl) {
-        revokeProjectAssetUrl(createdObjectUrl);
+        releaseProjectAssetUrl(createdObjectUrl);
       }
     };
   }, [
@@ -306,7 +306,7 @@ function ProjectMediaViewer({
               onClick={onClose}
               aria-label="Close project media viewer"
             >
-              ×
+              Ã—
             </button>
           </header>
 
@@ -391,7 +391,7 @@ function ProjectMediaViewer({
             onClick={onClose}
             aria-label="Close project media viewer"
           >
-            ×
+            Ã—
           </button>
         </header>
 
@@ -400,7 +400,7 @@ function ProjectMediaViewer({
             <div className="project-media-viewer-state" role="status">
               <span className="project-media-viewer-loader" />
 
-              <p>Loading Project media…</p>
+              <p>Loading Project mediaâ€¦</p>
             </div>
           )}
 
@@ -446,7 +446,7 @@ function ProjectMediaViewer({
                 onClick={showPreviousMedia}
                 aria-label="View previous Project media"
               >
-                ‹
+                â€¹
               </button>
 
               <button
@@ -455,7 +455,7 @@ function ProjectMediaViewer({
                 onClick={showNextMedia}
                 aria-label="View next Project media"
               >
-                ›
+                â€º
               </button>
             </>
           )}
@@ -480,7 +480,7 @@ function ProjectMediaViewer({
                   aria-current={selected ? "true" : undefined}
                   aria-label={`View ${mediaItem.name || `media ${index + 1}`}`}
                 >
-                  <span>{isVideoMedia(mediaItem) ? "▶" : "IMG"}</span>
+                  <span>{isVideoMedia(mediaItem) ? "â–¶" : "IMG"}</span>
 
                   <strong>{mediaItem.name || `Media ${index + 1}`}</strong>
 
@@ -505,10 +505,10 @@ function ProjectMediaViewer({
 
             <small>
               {selectedIndex + 1} of {media.length}
-              {isVideo ? " · Video" : " · Image"}
+              {isVideo ? " Â· Video" : " Â· Image"}
               {selectedMedia.visibility === "private"
-                ? " · Private"
-                : " · Public"}
+                ? " Â· Private"
+                : " Â· Public"}
             </small>
           </div>
 

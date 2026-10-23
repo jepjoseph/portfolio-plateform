@@ -6,10 +6,9 @@ import {
   getProjectOwnershipLabel,
 } from "../../../config/projectConfig.js";
 
-import {
-  createProjectAssetUrl,
-  revokeProjectAssetUrl,
-} from "../../../services/Project/projectAssetStorage.js";
+import { resolveProjectAssetUrl } from "../../../services/Project/projectAssetResolver.js";
+
+import { revokeProjectAssetUrl } from "../../../services/Project/projectAssetStorage.js";
 
 import {
   getProjectDateRange,
@@ -505,24 +504,33 @@ function PortfolioProjectEntry({ project }) {
     setMediaUrl("");
     setMediaError(false);
 
-    if (!featuredMedia?.storageKey) {
-      setMediaUrl(featuredMedia?.externalUrl || "");
-
+    if (!featuredMedia) {
       return undefined;
     }
 
-    createProjectAssetUrl(featuredMedia.storageKey)
+    resolveProjectAssetUrl({
+      projectId: project?.id,
+      asset: featuredMedia,
+      kind: "media",
+    })
       .then((url) => {
-        createdUrl = url;
+        if (!url) {
+          if (isActive) {
+            setMediaError(true);
+          }
+          return;
+        }
 
         if (isActive) {
+          createdUrl = url;
           setMediaUrl(url);
         } else {
           revokeProjectAssetUrl(url);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (isActive) {
+          console.error("Failed to load Portfolio featured media:", error);
           setMediaError(true);
         }
       });
@@ -530,9 +538,18 @@ function PortfolioProjectEntry({ project }) {
     return () => {
       isActive = false;
 
-      revokeProjectAssetUrl(createdUrl);
+      if (createdUrl) {
+        revokeProjectAssetUrl(createdUrl);
+      }
     };
-  }, [featuredMedia?.storageKey, featuredMedia?.externalUrl]);
+  }, [
+    project?.id,
+    featuredMedia?.id,
+    featuredMedia?.storageKey,
+    featuredMedia?.storageProvider,
+    featuredMedia?.backendAssetId,
+    featuredMedia?.externalUrl,
+  ]);
 
   const title = project?.title || "Untitled Project";
 

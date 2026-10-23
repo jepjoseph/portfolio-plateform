@@ -1,4 +1,4 @@
-﻿import {
+import {
   PROJECT_FIELD_LIMITS,
   isValidProjectAwardPlacement,
   isValidProjectCategory,
@@ -339,6 +339,8 @@ export function createProjectMedia(value = {}, order = 0) {
       normalizeText(source.storageProvider, 100) ||
       (source.storageKey ? "indexed-db" : ""),
 
+    backendAssetId: normalizeText(source.backendAssetId, 200),
+
     storageKey: normalizeText(source.storageKey, 500),
 
     externalUrl: normalizeText(
@@ -396,6 +398,8 @@ export function createProjectDocument(value = {}, order = 0) {
     storageProvider:
       normalizeText(source.storageProvider, 100) ||
       (source.storageKey ? "indexed-db" : ""),
+
+    backendAssetId: normalizeText(source.backendAssetId, 200),
 
     storageKey: normalizeText(source.storageKey, 500),
 

@@ -13,9 +13,9 @@ import {
 import { createPublicProject } from "../../../../models/projectModel.js";
 
 import {
-  createProjectAssetUrl,
-  revokeProjectAssetUrl,
-} from "../../../../services/Project/projectAssetStorage.js";
+  resolveProjectAssetUrl,
+  releaseProjectAssetUrl,
+} from "../../../../services/Project/projectAssetResolver.js";
 
 import {
   formatProjectDate,
@@ -116,14 +116,14 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
       return undefined;
     }
 
-    createProjectAssetUrl(featuredMedia.storageKey)
+    resolveProjectAssetUrl({ projectId: project?.id, asset: featuredMedia, kind: "media" })
       .then((url) => {
         createdObjectUrl = url;
 
         if (isActive) {
           setFeaturedMediaUrl(url);
         } else {
-          revokeProjectAssetUrl(url);
+          releaseProjectAssetUrl(url);
         }
       })
       .catch(() => {
@@ -136,7 +136,7 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
       isActive = false;
 
       if (createdObjectUrl) {
-        revokeProjectAssetUrl(createdObjectUrl);
+        releaseProjectAssetUrl(createdObjectUrl);
       }
     };
   }, [
@@ -325,7 +325,7 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
                 onClick={onClose}
                 aria-label="Close Project viewer"
               >
-                ×
+                Ãƒâ€”
               </button>
             </div>
           </header>
@@ -356,7 +356,7 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
 
                   {hasOrganization && (
                     <>
-                      <span aria-hidden="true"> · </span>
+                      <span aria-hidden="true"> Ã‚Â· </span>
 
                       {publicProject.organization.name ||
                         publicProject.organization.clientName}
@@ -726,7 +726,7 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
                             award.date ? formatProjectDate(award.date) : "",
                           ]
                             .filter(Boolean)
-                            .join(" · ")}
+                            .join(" Ã‚Â· ")}
                         </span>
 
                         {award.description && <p>{award.description}</p>}
@@ -772,7 +772,7 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
                               formatFileSize(documentRecord.fileSize),
                             ]
                               .filter(Boolean)
-                              .join(" · ")}
+                              .join(" Ã‚Â· ")}
                           </span>
 
                           {documentRecord.description && (
@@ -826,7 +826,7 @@ function ProjectDetailViewer({ project, onClose, onEdit }) {
       )}
 
       {selectedDocument && (
-        <ProjectDocumentPreview
+        <ProjectDocumentPreview projectId={project?.id}
           documentRecord={selectedDocument}
           onClose={() => setSelectedDocument(null)}
         />
@@ -950,7 +950,7 @@ function ProjectLink({ href, label }) {
     <a href={href} target="_blank" rel="noopener noreferrer">
       {label}
 
-      <span aria-hidden="true">↗</span>
+      <span aria-hidden="true">Ã¢â€ â€”</span>
     </a>
   );
 }
@@ -1006,7 +1006,7 @@ function MarkdownTextPreview({ url }) {
     </pre>
   );
 }
-function ProjectDocumentPreview({ documentRecord, onClose }) {
+function ProjectDocumentPreview({ projectId, documentRecord, onClose }) {
   const closeButtonRef = useRef(null);
 
   const [documentUrl, setDocumentUrl] = useState("");
@@ -1036,14 +1036,14 @@ function ProjectDocumentPreview({ documentRecord, onClose }) {
       return undefined;
     }
 
-    createProjectAssetUrl(documentRecord.storageKey)
+    resolveProjectAssetUrl({ projectId, asset: documentRecord, kind: "document" })
       .then((url) => {
         createdObjectUrl = url;
 
         if (isActive) {
           setDocumentUrl(url);
         } else {
-          revokeProjectAssetUrl(url);
+          releaseProjectAssetUrl(url);
         }
       })
       .catch((error) => {
@@ -1062,7 +1062,7 @@ function ProjectDocumentPreview({ documentRecord, onClose }) {
       isActive = false;
 
       if (createdObjectUrl) {
-        revokeProjectAssetUrl(createdObjectUrl);
+        releaseProjectAssetUrl(createdObjectUrl);
       }
     };
   }, [
@@ -1123,13 +1123,13 @@ function ProjectDocumentPreview({ documentRecord, onClose }) {
             onClick={onClose}
             aria-label="Close document preview"
           >
-            ×
+            Ãƒâ€”
           </button>
         </header>
 
         <div className="project-detail-document-content">
           {!documentUrl && !loadError && (
-            <div role="status">Loading document…</div>
+            <div role="status">Loading documentÃ¢â‚¬Â¦</div>
           )}
 
           {loadError && (

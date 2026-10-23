@@ -7,7 +7,10 @@ import {
 } from "../../../../config/projectConfig.js";
 
 import {
-  createProjectAssetUrl,
+  resolveProjectAssetUrl,
+} from "../../../../services/Project/projectAssetResolver.js";
+
+import {
   revokeProjectAssetUrl,
 } from "../../../../services/Project/projectAssetStorage.js";
 
@@ -89,7 +92,7 @@ function ProjectItem({
 
   /*
    * =========================================
-   * Load IndexedDB Thumbnail
+   * Load Featured Media Preview
    * =========================================
    */
 
@@ -100,22 +103,33 @@ function ProjectItem({
     setThumbnailUrl("");
     setThumbnailError(false);
 
-    if (!featuredMedia?.storageKey) {
+    if (!featuredMedia) {
       return undefined;
     }
 
-    createProjectAssetUrl(featuredMedia.storageKey)
+    resolveProjectAssetUrl({
+      projectId: project?.id,
+      asset: featuredMedia,
+      kind: "media",
+    })
       .then((url) => {
-        createdObjectUrl = url;
+        if (!url) {
+          if (isActive) {
+            setThumbnailError(true);
+          }
+          return;
+        }
 
         if (isActive) {
+          createdObjectUrl = url;
           setThumbnailUrl(url);
         } else {
           revokeProjectAssetUrl(url);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (isActive) {
+          console.error("Failed to load Project media preview:", error);
           setThumbnailError(true);
         }
       });
@@ -128,8 +142,11 @@ function ProjectItem({
       }
     };
   }, [
+    project?.id,
     featuredMedia?.id,
     featuredMedia?.storageKey,
+    featuredMedia?.storageProvider,
+    featuredMedia?.backendAssetId,
     featuredMedia?.externalUrl,
   ]);
 
