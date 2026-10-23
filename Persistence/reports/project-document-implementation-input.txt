@@ -1,0 +1,1643 @@
+﻿===== frontend\src\config\projectConfig.js =====
+/*
+ * =========================================
+ * Project Categories
+ * =========================================
+ */
+
+export const PROJECT_CATEGORY_OPTIONS = [
+  {
+    value: "software",
+    label: "Software Development",
+  },
+  {
+    value: "web-application",
+    label: "Web Application",
+  },
+  {
+    value: "mobile-application",
+    label: "Mobile Application",
+  },
+  {
+    value: "artificial-intelligence",
+    label: "Artificial Intelligence",
+  },
+  {
+    value: "data",
+    label: "Data and Analytics",
+  },
+  {
+    value: "cloud-infrastructure",
+    label: "Cloud and Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "cybersecurity",
+    label: "Cybersecurity",
+  },
+  {
+    value: "embedded-systems",
+    label: "Embedded Systems",
+  },
+  {
+    value: "electronics",
+    label: "Electronics",
+  },
+  {
+    value: "automation",
+    label: "Automation",
+  },
+  {
+    value: "internet-of-things",
+    label: "Internet of Things",
+  },
+  {
+    value: "research",
+    label: "Research",
+  },
+  {
+    value: "design",
+    label: "Design",
+  },
+  {
+    value: "business",
+    label: "Business or Startup",
+  },
+  {
+    value: "academic",
+    label: "Academic Project",
+  },
+  {
+    value: "community",
+    label: "Community Project",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Project Lifecycle
+ * =========================================
+ *
+ * This represents the actual lifecycle of the
+ * project. It is separate from recordStatus,
+ * which controls library archiving.
+ */
+
+export const PROJECT_LIFECYCLE_STATUS_OPTIONS = [
+  {
+    value: "planned",
+    label: "Planned",
+  },
+  {
+    value: "in-progress",
+    label: "In Progress",
+  },
+  {
+    value: "completed",
+    label: "Completed",
+  },
+  {
+    value: "maintained",
+    label: "Maintained",
+  },
+  {
+    value: "paused",
+    label: "Paused",
+  },
+  {
+    value: "cancelled",
+    label: "Cancelled",
+  },
+];
+
+/*
+ * =========================================
+ * Project Ownership
+ * =========================================
+ */
+
+export const PROJECT_OWNERSHIP_OPTIONS = [
+  {
+    value: "individual",
+    label: "Individual Project",
+  },
+  {
+    value: "team",
+    label: "Team Project",
+  },
+  {
+    value: "client",
+    label: "Client Project",
+  },
+  {
+    value: "organization",
+    label: "Organization Project",
+  },
+];
+
+/*
+ * =========================================
+ * Record Sources
+ * =========================================
+ */
+
+export const PROJECT_SOURCE_OPTIONS = [
+  {
+    value: "manual",
+    label: "Manually Added",
+  },
+  {
+    value: "import",
+    label: "Imported",
+  },
+  {
+    value: "integration",
+    label: "Integration",
+  },
+  {
+    value: "ai-assisted",
+    label: "AI Assisted",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const PROJECT_RECORD_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+  },
+];
+
+/*
+ * =========================================
+ * Demonstrated Skill Proficiency
+ * =========================================
+ *
+ * This describes the proficiency demonstrated
+ * specifically within a Project. It can differ
+ * from the general Skill Library proficiency.
+ */
+
+export const PROJECT_SKILL_PROFICIENCY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "foundational",
+    label: "Foundational",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+  },
+  {
+    value: "expert",
+    label: "Expert",
+  },
+];
+
+/*
+ * =========================================
+ * Technology Categories
+ * =========================================
+ */
+
+export const PROJECT_TECHNOLOGY_CATEGORY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "programming-language",
+    label: "Programming Language",
+  },
+  {
+    value: "framework-library",
+    label: "Framework or Library",
+  },
+  {
+    value: "database",
+    label: "Database",
+  },
+  {
+    value: "cloud-platform",
+    label: "Cloud Platform",
+  },
+  {
+    value: "infrastructure",
+    label: "Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "hardware",
+    label: "Hardware",
+  },
+  {
+    value: "embedded-platform",
+    label: "Embedded Platform",
+  },
+  {
+    value: "development-tool",
+    label: "Development Tool",
+  },
+  {
+    value: "design-tool",
+    label: "Design Tool",
+  },
+  {
+    value: "testing-tool",
+    label: "Testing Tool",
+  },
+  {
+    value: "methodology",
+    label: "Methodology",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Recognition Types
+ * =========================================
+ */
+
+export const PROJECT_RECOGNITION_TYPE_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "award",
+    label: "Award",
+  },
+  {
+    value: "competition",
+    label: "Competition",
+  },
+  {
+    value: "grant",
+    label: "Grant",
+  },
+  {
+    value: "fellowship",
+    label: "Fellowship",
+  },
+  {
+    value: "showcase",
+    label: "Showcase Selection",
+  },
+  {
+    value: "publication",
+    label: "Publication",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "patent",
+    label: "Patent or Invention",
+  },
+  {
+    value: "media",
+    label: "Media Recognition",
+  },
+  {
+    value: "client-recognition",
+    label: "Client Recognition",
+  },
+  {
+    value: "academic-recognition",
+    label: "Academic Recognition",
+  },
+  {
+    value: "other",
+    label: "Other Recognition",
+  },
+];
+
+/*
+ * =========================================
+ * Award Placements
+ * =========================================
+ */
+
+export const PROJECT_AWARD_PLACEMENT_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "winner",
+    label: "Winner",
+  },
+  {
+    value: "first-place",
+    label: "First Place",
+  },
+  {
+    value: "second-place",
+    label: "Second Place",
+  },
+  {
+    value: "third-place",
+    label: "Third Place",
+  },
+  {
+    value: "finalist",
+    label: "Finalist",
+  },
+  {
+    value: "semifinalist",
+    label: "Semifinalist",
+  },
+  {
+    value: "honorable-mention",
+    label: "Honorable Mention",
+  },
+  {
+    value: "selected",
+    label: "Selected",
+  },
+  {
+    value: "recipient",
+    label: "Recipient",
+  },
+  {
+    value: "participant",
+    label: "Participant",
+  },
+  {
+    value: "other",
+    label: "Other Placement",
+  },
+];
+
+/*
+ * =========================================
+ * Media Types
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_TYPE_OPTIONS = [
+  {
+    value: "image",
+    label: "Image",
+  },
+  {
+    value: "video",
+    label: "Video",
+  },
+  {
+    value: "diagram",
+    label: "Architecture Diagram",
+  },
+];
+
+/*
+ * =========================================
+ * Document Types
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_TYPE_OPTIONS = [
+  {
+    value: "report",
+    label: "Report",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "documentation",
+    label: "Documentation",
+  },
+  {
+    value: "source-file",
+    label: "Source File or Archive",
+  },
+  {
+    value: "dataset",
+    label: "Dataset",
+  },
+  {
+    value: "design",
+    label: "Design Document",
+  },
+  {
+    value: "award",
+    label: "Award Evidence",
+  },
+  {
+    value: "supporting-evidence",
+    label: "Supporting Evidence",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Asset Visibility
+ * =========================================
+ */
+
+export const PROJECT_ASSET_VISIBILITY_OPTIONS = [
+  {
+    value: "public",
+    label: "Public",
+  },
+  {
+    value: "private",
+    label: "Private",
+  },
+];
+
+/*
+ * =========================================
+ * Accepted Media Files
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+].join(",");
+
+/*
+ * =========================================
+ * Accepted Document Files
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+].join(",");
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ *
+ * These limits should later be mirrored in
+ * backend validation and database columns.
+ */
+
+export const PROJECT_FIELD_LIMITS = Object.freeze({
+  title: 200,
+  role: 160,
+
+  organizationName: 200,
+  clientName: 200,
+  website: 1000,
+
+  locationDisplayValue: 300,
+
+  url: 2000,
+
+  problemStatement: 4000,
+  targetAudience: 1000,
+  context: 3000,
+  importance: 3000,
+
+  overview: 4000,
+  approach: 4000,
+  architecture: 4000,
+
+  outcome: 4000,
+  problemsSolved: 3000,
+  impact: 3000,
+  beneficiariesAffected: 2000,
+  lessonsLearned: 3000,
+  futureImprovements: 3000,
+
+  shortSummary: 500,
+  caseStudy: 12000,
+
+  orderedItemText: 1500,
+
+  metricLabel: 200,
+  metricValue: 200,
+  metricDescription: 500,
+
+  relationshipName: 200,
+  relationshipDescription: 1000,
+
+  skillProficiency: 50,
+
+  technologyName: 150,
+  technologyCategory: 100,
+
+  awardName: 250,
+  awardOrganization: 250,
+  awardRecognitionType: 100,
+  awardPlacement: 100,
+  awardDescription: 1500,
+
+  mediaName: 255,
+  mediaCaption: 1000,
+  mediaAltText: 500,
+
+  documentName: 255,
+  documentDescription: 1000,
+
+  sourceContext: 500,
+  privateNotes: 5000,
+
+  maximumObjectives: 25,
+  maximumConstraints: 25,
+  maximumFeatures: 40,
+  maximumContributions: 40,
+  maximumMetrics: 25,
+
+  maximumSkills: 60,
+  maximumTechnologies: 60,
+  maximumRelationshipsPerType: 50,
+
+  maximumAwards: 20,
+  maximumAwardDocuments: 10,
+
+  maximumMedia: 30,
+  maximumDocuments: 30,
+
+  maximumImageBytes: 12 * 1024 * 1024,
+  maximumVideoBytes: 150 * 1024 * 1024,
+  maximumDocumentBytes: 20 * 1024 * 1024,
+});
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+function getOptionLabel(options, value, fallback = "") {
+  return findOption(options, value)?.label || fallback;
+}
+
+/*
+ * =========================================
+ * Project Option Validation
+ * =========================================
+ */
+
+export function isValidProjectCategory(value) {
+  return Boolean(findOption(PROJECT_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectLifecycleStatus(value) {
+  return Boolean(findOption(PROJECT_LIFECYCLE_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectOwnership(value) {
+  return Boolean(findOption(PROJECT_OWNERSHIP_OPTIONS, value));
+}
+
+export function isValidProjectSource(value) {
+  return Boolean(findOption(PROJECT_SOURCE_OPTIONS, value));
+}
+
+export function isValidProjectRecordStatus(value) {
+  return Boolean(findOption(PROJECT_RECORD_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectSkillProficiency(value) {
+  return Boolean(findOption(PROJECT_SKILL_PROFICIENCY_OPTIONS, value));
+}
+
+export function isValidProjectTechnologyCategory(value) {
+  return Boolean(findOption(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectRecognitionType(value) {
+  return Boolean(findOption(PROJECT_RECOGNITION_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectAwardPlacement(value) {
+  return Boolean(findOption(PROJECT_AWARD_PLACEMENT_OPTIONS, value));
+}
+
+export function isValidProjectMediaType(value) {
+  return Boolean(findOption(PROJECT_MEDIA_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectDocumentType(value) {
+  return Boolean(findOption(PROJECT_DOCUMENT_TYPE_OPTIONS, value));
+}
+
+/*
+ * =========================================
+ * Display Labels
+ * =========================================
+ */
+
+export function getProjectCategoryLabel(value) {
+  return getOptionLabel(PROJECT_CATEGORY_OPTIONS, value, "Other");
+}
+
+export function getProjectLifecycleStatusLabel(value) {
+  return getOptionLabel(PROJECT_LIFECYCLE_STATUS_OPTIONS, value, "Planned");
+}
+
+export function getProjectOwnershipLabel(value) {
+  return getOptionLabel(PROJECT_OWNERSHIP_OPTIONS, value, "Individual Project");
+}
+
+export function getProjectSourceLabel(value) {
+  return getOptionLabel(PROJECT_SOURCE_OPTIONS, value, "Manually Added");
+}
+
+export function getProjectRecordStatusLabel(value) {
+  return getOptionLabel(PROJECT_RECORD_STATUS_OPTIONS, value, "Active");
+}
+
+export function getProjectSkillProficiencyLabel(value) {
+  return getOptionLabel(PROJECT_SKILL_PROFICIENCY_OPTIONS, value);
+}
+
+export function getProjectTechnologyCategoryLabel(value) {
+  return getOptionLabel(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value);
+}
+
+export function getProjectRecognitionTypeLabel(value) {
+  return getOptionLabel(PROJECT_RECOGNITION_TYPE_OPTIONS, value);
+}
+
+export function getProjectAwardPlacementLabel(value) {
+  return getOptionLabel(PROJECT_AWARD_PLACEMENT_OPTIONS, value);
+}
+
+export function getProjectMediaTypeLabel(value) {
+  return getOptionLabel(PROJECT_MEDIA_TYPE_OPTIONS, value, "Image");
+}
+
+export function getProjectDocumentTypeLabel(value) {
+  return getOptionLabel(
+    PROJECT_DOCUMENT_TYPE_OPTIONS,
+    value,
+    "Supporting Evidence",
+  );
+}
+
+/*
+ * =========================================
+ * File Helpers
+ * =========================================
+ */
+
+function getFileType(file) {
+  return typeof file?.type === "string"
+    ? file.type.trim().toLocaleLowerCase()
+    : "";
+}
+
+function getFileName(file) {
+  return typeof file?.name === "string"
+    ? file.name.trim().toLocaleLowerCase()
+    : "";
+}
+
+function hasFileExtension(fileName, extensions) {
+  return extensions.some((extension) => fileName.endsWith(extension));
+}
+
+/*
+ * =========================================
+ * Media Validation
+ * =========================================
+ */
+
+export function isSupportedProjectMedia(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+  ];
+
+  const supportedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".mp4",
+    ".webm",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectMediaWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const isVideo =
+    mimeType.startsWith("video/") ||
+    hasFileExtension(fileName, [".mp4", ".webm"]);
+
+  const maximumSize = isVideo
+    ? PROJECT_FIELD_LIMITS.maximumVideoBytes
+    : PROJECT_FIELD_LIMITS.maximumImageBytes;
+
+  return fileSize <= maximumSize;
+}
+
+/*
+ * =========================================
+ * Document Validation
+ * =========================================
+ */
+
+export function isSupportedProjectDocument(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "application/pdf",
+
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/markdown",
+    "application/json",
+    "application/zip",
+    "application/x-zip-compressed",
+
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  const supportedExtensions = [
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".md",
+    ".csv",
+    ".json",
+    ".zip",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectDocumentWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  return (
+    Number.isFinite(fileSize) &&
+    fileSize > 0 &&
+    fileSize <= PROJECT_FIELD_LIMITS.maximumDocumentBytes
+  );
+}
+
+===== backend\src\config\environment.js =====
+import { z } from "zod";
+
+/*
+ * =========================================
+ * Boolean Environment Values
+ * =========================================
+ */
+
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
+const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+
+/*
+ * =========================================
+ * Optional Text Normalization
+ * =========================================
+ */
+
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue || undefined;
+}
+
+/*
+ * =========================================
+ * Boolean Normalization
+ * =========================================
+ */
+
+function normalizeBooleanValue(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (TRUE_VALUES.has(normalizedValue)) {
+    return true;
+  }
+
+  if (FALSE_VALUES.has(normalizedValue)) {
+    return false;
+  }
+
+  return value;
+}
+
+/*
+ * =========================================
+ * Environment Schema
+ * =========================================
+ */
+
+const environmentSchema = z
+  .object({
+    /*
+     * =========================================
+     * Application
+     * =========================================
+     */
+
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+
+    PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+
+    FRONTEND_URL: z.string().trim().min(1).default("http://localhost:5173"),
+
+    PROFILE_PICTURE_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROFILE_PICTURE_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    PROJECT_MEDIA_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROJECT_MEDIA_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Connection
+     * =========================================
+     */
+
+    DB_HOST: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
+
+    DB_NAME: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_USER: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PASSWORD: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Security
+     * =========================================
+     */
+
+    DB_ENCRYPT: z.preprocess(normalizeBooleanValue, z.boolean()).default(true),
+
+    DB_TRUST_SERVER_CERTIFICATE: z
+      .preprocess(normalizeBooleanValue, z.boolean())
+      .default(false),
+
+    /*
+     * =========================================
+     * Database Timeouts
+     * =========================================
+     */
+
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+
+    DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Database Pool
+     * =========================================
+     */
+
+    DB_POOL_MIN: z.coerce.number().int().min(0).default(0),
+
+    DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+
+    DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Authentication Security Secrets
+     * =========================================
+     *
+     * These secrets are optional while the
+     * authentication routes are not active.
+     *
+     * Authentication utilities will reject
+     * operations if the secrets are missing.
+     */
+
+    AUTH_OTP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_TOKEN_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_IP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Email Delivery
+     * =========================================
+     */
+
+    EMAIL_PROVIDER: z.enum(["development", "resend"]).default("development"),
+
+    EMAIL_FROM_NAME: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .default("PortAncest Portfolio Platform"),
+
+    EMAIL_FROM_ADDRESS: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().email().optional(),
+    ),
+
+    RESEND_API_KEY: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().min(20).optional(),
+    ),
+
+    /*
+     * Authentication Sessions
+     */
+
+    SESSION_REFRESH_TOKEN_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .default(30),
+
+    SESSION_COOKIE_NAME: z
+      .string()
+      .trim()
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        "SESSION_COOKIE_NAME contains unsupported characters.",
+      )
+      .default("portfolio_refresh_token"),
+
+    SESSION_COOKIE_PATH: z.string().trim().startsWith("/").default("/api"),
+
+    SESSION_COOKIE_DOMAIN: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    SESSION_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  })
+
+  /*
+   * =========================================
+   * Cross-Field Validation
+   * =========================================
+   */
+
+  .superRefine((values, context) => {
+    /*
+     * =========================================
+     * Database Configuration Validation
+     * =========================================
+     */
+
+    const databaseFields = [
+      ["DB_HOST", values.DB_HOST],
+
+      ["DB_NAME", values.DB_NAME],
+
+      ["DB_USER", values.DB_USER],
+
+      ["DB_PASSWORD", values.DB_PASSWORD],
+    ];
+
+    /*
+     * The API can temporarily run without a
+     * database.
+     *
+     * However, when any required database value
+     * is supplied, all required database values
+     * must be supplied.
+     */
+
+    const hasAnyDatabaseValue = databaseFields.some(([, value]) =>
+      Boolean(value),
+    );
+
+    if (hasAnyDatabaseValue) {
+      for (const [fieldName, value] of databaseFields) {
+        if (!value) {
+          context.addIssue({
+            code: "custom",
+
+            path: [fieldName],
+
+            message: `${fieldName} is required when database access is configured.`,
+          });
+        }
+      }
+    }
+
+    /*
+     * =========================================
+     * Database Pool Validation
+     * =========================================
+     */
+
+    if (values.DB_POOL_MIN > values.DB_POOL_MAX) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["DB_POOL_MIN"],
+
+        message: "DB_POOL_MIN cannot be greater than DB_POOL_MAX.",
+      });
+    }
+
+    /*
+     * =========================================
+     * Prevents OTPs from accidentally being printed in Azure production logs
+     * =========================================
+     */
+
+    if (
+      values.NODE_ENV === "production" &&
+      values.EMAIL_PROVIDER === "development"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["EMAIL_PROVIDER"],
+
+        message: "The development email provider cannot be used in production.",
+      });
+    }
+
+    if (
+      values.SESSION_COOKIE_SAME_SITE === "none" &&
+      values.NODE_ENV !== "production"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["SESSION_COOKIE_SAME_SITE"],
+
+        message:
+          'SameSite "none" requires a secure production HTTPS environment.',
+      });
+    }
+
+    /*
+     * =========================================
+     * Resend Configuration
+     * =========================================
+     */
+
+    if (values.EMAIL_PROVIDER === "resend") {
+      if (!values.RESEND_API_KEY) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["RESEND_API_KEY"],
+
+          message: "RESEND_API_KEY is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+
+      if (!values.EMAIL_FROM_ADDRESS) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["EMAIL_FROM_ADDRESS"],
+
+          message:
+            "EMAIL_FROM_ADDRESS is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+    }
+  });
+
+/*
+ * =========================================
+ * Cached Environment
+ * =========================================
+ */
+
+let cachedEnvironment;
+
+/*
+ * =========================================
+ * Read and Validate Environment
+ * =========================================
+ */
+
+export function getEnvironment() {
+  if (cachedEnvironment) {
+    return cachedEnvironment;
+  }
+
+  const result = environmentSchema.safeParse(process.env);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map(
+        (issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`,
+      )
+      .join("\n");
+
+    throw new Error(`Invalid environment configuration:\n${details}`);
+  }
+
+  cachedEnvironment = Object.freeze(result.data);
+
+  return cachedEnvironment;
+}
+
+/*
+ * =========================================
+ * Database Configuration Status
+ * =========================================
+ */
+
+export function isDatabaseConfigured(environment = getEnvironment()) {
+  return Boolean(
+    environment.DB_HOST &&
+    environment.DB_NAME &&
+    environment.DB_USER &&
+    environment.DB_PASSWORD,
+  );
+}
+
+/*
+ * =========================================
+ * Authentication Secret Access
+ * =========================================
+ *
+ * This function prevents authentication
+ * operations from running without all three
+ * security secrets.
+ */
+
+export function getAuthenticationSecrets(environment = getEnvironment()) {
+  const secrets = {
+    otp: environment.AUTH_OTP_HMAC_SECRET,
+
+    token: environment.AUTH_TOKEN_HMAC_SECRET,
+
+    ip: environment.AUTH_IP_HMAC_SECRET,
+  };
+
+  const missingSecrets = Object.entries(secrets)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missingSecrets.length > 0) {
+    const error = new Error(
+      `Authentication security secrets are missing: ${missingSecrets.join(", ")}.`,
+    );
+
+    error.name = "AuthenticationConfigurationError";
+
+    error.code = "AUTHENTICATION_NOT_CONFIGURED";
+
+    error.status = 503;
+
+    error.publicMessage = "Authentication service is temporarily unavailable.";
+
+    throw error;
+  }
+
+  return Object.freeze(secrets);
+}
+
+===== backend\src\config\database.js =====
+import sql from "mssql";
+
+import { getEnvironment, isDatabaseConfigured } from "./environment.js";
+
+/*
+ * =========================================
+ * Shared Connection State
+ * =========================================
+ */
+
+let connectionPool = null;
+
+let connectionPromise = null;
+
+/*
+ * =========================================
+ * Database Configuration
+ * =========================================
+ */
+
+function createDatabaseConfig() {
+  const environment = getEnvironment();
+
+  return {
+    server: environment.DB_HOST,
+
+    port: environment.DB_PORT,
+
+    database: environment.DB_NAME,
+
+    user: environment.DB_USER,
+
+    password: environment.DB_PASSWORD,
+
+    connectionTimeout: environment.DB_CONNECTION_TIMEOUT_MS,
+
+    requestTimeout: environment.DB_REQUEST_TIMEOUT_MS,
+
+    pool: {
+      min: environment.DB_POOL_MIN,
+
+      max: environment.DB_POOL_MAX,
+
+      idleTimeoutMillis: environment.DB_POOL_IDLE_TIMEOUT_MS,
+    },
+
+    options: {
+      encrypt: environment.DB_ENCRYPT,
+
+      trustServerCertificate: environment.DB_TRUST_SERVER_CERTIFICATE,
+
+      enableArithAbort: true,
+    },
+  };
+}
+
+/*
+ * =========================================
+ * Connect to Database
+ * =========================================
+ */
+
+export async function connectDatabase() {
+  const environment = getEnvironment();
+
+  if (!isDatabaseConfigured(environment)) {
+    const error = new Error("Database access has not been configured.");
+
+    error.name = "DatabaseConfigurationError";
+
+    error.code = "DATABASE_NOT_CONFIGURED";
+
+    error.status = 503;
+
+    error.publicMessage = "Database service is not configured.";
+
+    throw error;
+  }
+
+  /*
+   * Reuse an existing connected pool.
+   */
+
+  if (connectionPool?.connected) {
+    return connectionPool;
+  }
+
+  /*
+   * Reuse an in-progress connection attempt.
+   * This prevents multiple pools from being
+   * created simultaneously.
+   */
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  const nextPool = new sql.ConnectionPool(createDatabaseConfig());
+
+  nextPool.on("error", (error) => {
+    console.error("MSSQL connection pool error:", error.message);
+  });
+
+  connectionPromise = nextPool
+    .connect()
+    .then((connectedPool) => {
+      connectionPool = connectedPool;
+
+      console.log(
+        `Connected to SQL Server database "${environment.DB_NAME}" on ${environment.DB_HOST}.`,
+      );
+
+      return connectedPool;
+    })
+    .catch((error) => {
+      connectionPool = null;
+
+      throw error;
+    })
+    .finally(() => {
+      connectionPromise = null;
+    });
+
+  return connectionPromise;
+}
+
+/*
+ * =========================================
+ * Get Database Pool
+ * =========================================
+ */
+
+export async function getDatabasePool() {
+  return connectDatabase();
+}
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+export async function checkDatabaseHealth() {
+  const startedAt = Date.now();
+
+  try {
+    const pool = await getDatabasePool();
+
+    await pool.request().query("SELECT 1 AS healthy;");
+
+    return {
+      status: "ok",
+
+      configured: true,
+
+      responseTimeMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    const isNotConfigured = error.code === "DATABASE_NOT_CONFIGURED";
+
+    return {
+      status: isNotConfigured ? "not-configured" : "error",
+
+      configured: !isNotConfigured,
+
+      responseTimeMs: Date.now() - startedAt,
+
+      error,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * Close Database Pool
+ * =========================================
+ */
+
+export async function closeDatabase() {
+  /*
+   * If a connection attempt is still running,
+   * wait for it before closing the pool.
+   */
+
+  if (connectionPromise) {
+    try {
+      await connectionPromise;
+    } catch {
+      /*
+       * A failed connection does not leave
+       * an active pool to close.
+       */
+    }
+  }
+
+  if (!connectionPool) {
+    return;
+  }
+
+  const poolToClose = connectionPool;
+
+  connectionPool = null;
+
+  await poolToClose.close();
+
+  console.log("SQL Server connection pool closed.");
+}
+
+/*
+ * =========================================
+ * SQL Types
+ * =========================================
+ *
+ * Repositories can import sql from this module
+ * when creating parameterized requests.
+ */
+
+export { sql };
+
+===== backend\package.json =====
+{
+  "name": "portfolio-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend API for the portfolio and resume platform",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+    "db:migrate": "node src/database/runMigrations.js",
+    "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+    "test:local-sql": "node test-local-sql.mjs",
+    "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+    "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+    "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+    "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+    "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+    "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+    "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+    "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+    "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+    "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+    "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+    "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+    "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+    "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+    "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+    "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+    "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+    "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  },
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "file-type": "^22.1.1",
+    "groq-sdk": "^1.6.0",
+    "helmet": "^8.3.0",
+    "mssql": "^12.7.2",
+    "multer": "^2.4.0",
+    "openai": "^7.9.0",
+    "resend": "^6.28.1",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
+  }
+}
+
+===== DATABASE MIGRATION / SCHEMA FILES =====
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\migration005-checksum-test.mjs
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\runMigrations.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\001_authentication_foundation.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\002_user_profiles.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\003_user_settings.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\004_support_contact_requests.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\005_profile_details.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\006_projects.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\007_project_media.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\contactSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\experienceOverviewSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\experienceSkillSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\loginSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\profileSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\projectSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\registrationSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\resumeSummarySchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\sessionManagementSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\skillSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\project\verifyProjectMediaMigration.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\schemas\projectSchemas.test.js

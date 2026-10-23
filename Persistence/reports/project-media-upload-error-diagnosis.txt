@@ -1,0 +1,625 @@
+﻿==================================================
+FILE: backend\src\routes\projectRoutes.js
+==================================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+export default router;
+
+==================================================
+FILE: backend\src\middleware\projectMediaUpload.js
+==================================================
+FILE NOT FOUND
+
+==================================================
+FILE: backend\src\middleware\projectMediaValidation.js
+==================================================
+FILE NOT FOUND
+
+==================================================
+FILE: backend\src\services\Storage\projectMediaStorageService.js
+==================================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+function requireIdentifier(value, label) {
+  const normalized = String(value ?? "").trim();
+
+  if (!normalized) {
+    throw new Error(`${label} is required for Project media storage.`);
+  }
+
+  return normalized;
+}
+
+function hashIdentifier(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function validateFileName(fileName) {
+  const normalized = String(fileName ?? "").trim();
+
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    path.basename(normalized) !== normalized ||
+    !/^[a-f0-9-]{36}\.(?:jpg|jpeg|png|webp|avif|gif|mp4|webm)$/i.test(
+      normalized,
+    )
+  ) {
+    throw new Error("Invalid Project media filename.");
+  }
+
+  return normalized;
+}
+
+export function getProjectMediaStorageRoot() {
+  const environment = getEnvironment();
+
+  const configuredPath = String(
+    environment.PROJECT_MEDIA_STORAGE_PATH || "",
+  ).trim();
+
+  if (!configuredPath) {
+    throw new Error("PROJECT_MEDIA_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(configuredPath);
+}
+
+export function getProjectMediaUserDirectory(userId) {
+  return hashIdentifier(requireIdentifier(userId, "User ID"));
+}
+
+export function getProjectMediaProjectDirectory(projectId) {
+  return hashIdentifier(requireIdentifier(projectId, "Project ID"));
+}
+
+export function getProjectMediaDirectory(userId, projectId) {
+  return path.join(
+    getProjectMediaStorageRoot(),
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+  );
+}
+
+export function createProjectMediaStorageKey(userId, projectId, fileName) {
+  const safeFileName = validateFileName(fileName);
+
+  return [
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+    safeFileName,
+  ].join("/");
+}
+
+export function resolveOwnedProjectMediaPath(userId, projectId, storageKey) {
+  const normalizedKey = String(storageKey ?? "").trim();
+
+  const expectedUserDirectory = getProjectMediaUserDirectory(userId);
+  const expectedProjectDirectory = getProjectMediaProjectDirectory(projectId);
+
+  const parts = normalizedKey.split("/");
+
+  if (
+    parts.length !== 3 ||
+    parts[0] !== expectedUserDirectory ||
+    parts[1] !== expectedProjectDirectory
+  ) {
+    throw new Error(
+      "Project media storage key does not belong to this user and Project.",
+    );
+  }
+
+  const safeFileName = validateFileName(parts[2]);
+
+  const mediaDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const filePath = path.resolve(mediaDirectory, safeFileName);
+
+  if (path.dirname(filePath) !== mediaDirectory) {
+    throw new Error("Project media path is outside the expected directory.");
+  }
+
+  return filePath;
+}
+
+export async function assertSafeProjectMediaDirectory(userId, projectId) {
+  const root = getProjectMediaStorageRoot();
+  const userDirectory = path.join(root, getProjectMediaUserDirectory(userId));
+  const projectDirectory = path.join(
+    userDirectory,
+    getProjectMediaProjectDirectory(projectId),
+  );
+
+  const directories = [root, userDirectory, projectDirectory];
+
+  for (const directory of directories) {
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project media storage directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalProjectDirectory = await fs.realpath(projectDirectory);
+
+  const relative = path.relative(
+    canonicalRoot,
+    canonicalProjectDirectory,
+  );
+
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project media directory is outside the storage root.");
+  }
+}
+
+export async function deleteOwnedProjectMedia(userId, projectId, storageKey) {
+  const filePath = resolveOwnedProjectMediaPath(userId, projectId, storageKey);
+
+  try {
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    const stats = await fs.lstat(filePath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error("Project media target is not a regular file.");
+    }
+
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+
+==================================================
+FILE: backend\src\repositories\projectMediaRepository.js
+==================================================
+
+import { getDatabasePool, sql } from "../config/database.js";
+
+/*
+ * =========================================
+ * Project Media Columns
+ * =========================================
+ */
+
+const PROJECT_MEDIA_COLUMNS = `
+  id,
+  project_id,
+  user_id,
+  storage_key,
+  original_file_name,
+  mime_type,
+  file_size,
+  created_at
+`;
+
+/*
+ * =========================================
+ * Map Database Row
+ * =========================================
+ */
+
+function mapProjectMediaRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    storageKey: row.storage_key,
+    originalFileName: row.original_file_name,
+    mimeType: row.mime_type,
+    fileSize: Number(row.file_size),
+    createdAt: row.created_at,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project Media Metadata
+ * =========================================
+ */
+
+export async function createProjectMedia(userId, projectId, media) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("storageKey", sql.NVarChar(500), media.storageKey)
+    .input(
+      "originalFileName",
+      sql.NVarChar(255),
+      media.originalFileName,
+    )
+    .input("mimeType", sql.NVarChar(100), media.mimeType)
+    .input("fileSize", sql.BigInt, media.fileSize)
+    .query(`
+      INSERT INTO dbo.project_media (
+        project_id,
+        user_id,
+        storage_key,
+        original_file_name,
+        mime_type,
+        file_size
+      )
+      OUTPUT
+        INSERTED.id,
+        INSERTED.project_id,
+        INSERTED.user_id,
+        INSERTED.storage_key,
+        INSERTED.original_file_name,
+        INSERTED.mime_type,
+        INSERTED.file_size,
+        INSERTED.created_at
+      VALUES (
+        @projectId,
+        @userId,
+        @storageKey,
+        @originalFileName,
+        @mimeType,
+        @fileSize
+      );
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+/*
+ * =========================================
+ * List Project Media
+ * =========================================
+ */
+
+export async function listProjectMedia(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .query(`
+      SELECT ${PROJECT_MEDIA_COLUMNS}
+      FROM dbo.project_media
+      WHERE user_id = @userId
+        AND project_id = @projectId
+      ORDER BY created_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapProjectMediaRow);
+}
+
+/*
+ * =========================================
+ * Find Project Media
+ * =========================================
+ */
+
+export async function findProjectMediaById(
+  userId,
+  projectId,
+  mediaId,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("mediaId", sql.UniqueIdentifier, mediaId)
+    .query(`
+      SELECT ${PROJECT_MEDIA_COLUMNS}
+      FROM dbo.project_media
+      WHERE id = @mediaId
+        AND project_id = @projectId
+        AND user_id = @userId;
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+/*
+ * =========================================
+ * Delete Project Media Metadata
+ * =========================================
+ */
+
+export async function deleteProjectMedia(
+  userId,
+  projectId,
+  mediaId,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("mediaId", sql.UniqueIdentifier, mediaId)
+    .query(`
+      DELETE FROM dbo.project_media
+      OUTPUT
+        DELETED.id,
+        DELETED.project_id,
+        DELETED.user_id,
+        DELETED.storage_key,
+        DELETED.original_file_name,
+        DELETED.mime_type,
+        DELETED.file_size,
+        DELETED.created_at
+      WHERE id = @mediaId
+        AND project_id = @projectId
+        AND user_id = @userId;
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+
+/*
+ * =========================================
+ * Find Project Media by Storage Key
+ * =========================================
+ *
+ * Used to check whether media metadata
+ * exists after a database registration error.
+ */
+
+export async function findProjectMediaByStorageKey(
+  userId,
+  projectId,
+  storageKey,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("storageKey", sql.NVarChar(500), storageKey)
+    .query(`
+      SELECT
+        ${PROJECT_MEDIA_COLUMNS}
+      FROM dbo.project_media
+      WHERE user_id = @userId
+        AND project_id = @projectId
+        AND storage_key = @storageKey;
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+==================================================
+FILE: backend\src\database\migrations\007_project_media.sql
+==================================================
+/*
+ * Portfolio Platform
+ * Project Media Metadata
+ * Migration 007
+ *
+ * Stores metadata only. Uploaded file bytes remain
+ * in private filesystem storage.
+ *
+ * Do not add GO statements to migration files.
+ */
+
+ALTER TABLE dbo.projects
+ADD CONSTRAINT UQ_projects_id_user
+UNIQUE (id, user_id);
+
+CREATE TABLE dbo.project_media
+(
+    id UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT DF_project_media_id DEFAULT NEWID(),
+
+    project_id NVARCHAR(200) NOT NULL,
+
+    user_id UNIQUEIDENTIFIER NOT NULL,
+
+    storage_key NVARCHAR(500) NOT NULL,
+
+    original_file_name NVARCHAR(255) NOT NULL,
+
+    mime_type NVARCHAR(100) NOT NULL,
+
+    file_size BIGINT NOT NULL,
+
+    created_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_project_media_created_at
+        DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT PK_project_media
+        PRIMARY KEY CLUSTERED (id),
+
+    CONSTRAINT FK_project_media_project_owner
+        FOREIGN KEY (project_id, user_id)
+        REFERENCES dbo.projects(id, user_id),
+
+    CONSTRAINT UQ_project_media_storage_key
+        UNIQUE (storage_key),
+
+    CONSTRAINT CK_project_media_file_size
+        CHECK (
+            (mime_type IN (
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp',
+                N'image/avif',
+                N'image/gif'
+            ) AND file_size BETWEEN 1 AND 20971520)
+            OR
+            (mime_type IN (
+                N'video/mp4',
+                N'video/webm'
+            ) AND file_size BETWEEN 1 AND 104857600)
+        ),
+
+    CONSTRAINT CK_project_media_mime_type
+        CHECK (
+            mime_type IN (
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp',
+                N'image/avif',
+                N'image/gif',
+                N'video/mp4',
+                N'video/webm'
+            )
+        ),
+
+    CONSTRAINT CK_project_media_storage_key
+        CHECK (
+            LEN(LTRIM(RTRIM(storage_key))) > 0
+        ),
+
+    CONSTRAINT CK_project_media_original_file_name
+        CHECK (
+            LEN(LTRIM(RTRIM(original_file_name))) > 0
+        )
+);
+
+CREATE INDEX IX_project_media_project_created
+    ON dbo.project_media (project_id, created_at DESC);
+
+CREATE INDEX IX_project_media_user_project
+    ON dbo.project_media (user_id, project_id);
+

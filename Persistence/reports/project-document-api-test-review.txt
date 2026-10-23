@@ -1,0 +1,1400 @@
+﻿PROJECT DOCUMENT API TEST REVIEW
+
+========================================
+FILE: package.json
+========================================
+{
+  "name": "portfolio-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend API for the portfolio and resume platform",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+    "db:migrate": "node src/database/runMigrations.js",
+    "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+    "test:local-sql": "node test-local-sql.mjs",
+    "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+    "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+    "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+    "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+    "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+    "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+    "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+    "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+    "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+    "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+    "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+    "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+    "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+    "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+    "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+    "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+    "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+    "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  },
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "file-type": "^22.1.1",
+    "groq-sdk": "^1.6.0",
+    "helmet": "^8.3.0",
+    "mssql": "^12.7.2",
+    "multer": "^2.4.0",
+    "openai": "^7.9.0",
+    "resend": "^6.28.1",
+    "yauzl": "^3.4.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
+  }
+}
+
+========================================
+FILE: src\app.js
+========================================
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+
+import userRoutes from "./routes/userRoutes.js";
+
+import { checkDatabaseHealth } from "./config/database.js";
+
+import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+
+import aiRoutes from "./routes/aiRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
+
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middleware/errorMiddleware.js";
+
+import supportRoutes from "./routes/supportRoutes.js";
+
+/*
+ * =========================================
+ * Environment and Application
+ * =========================================
+ */
+
+const environment = getEnvironment();
+
+const app = express();
+
+/*
+ * =========================================
+ * Express Information Header
+ * =========================================
+ */
+
+app.disable("x-powered-by");
+
+/*
+ * =========================================
+ * Security Headers
+ * =========================================
+ */
+
+app.use(helmet());
+
+/*
+ * =========================================
+ * Allowed Frontend Origins
+ * =========================================
+ */
+
+const allowedOrigins = environment.FRONTEND_URL.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/*
+ * =========================================
+ * CORS
+ * =========================================
+ */
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      /*
+       * Postman, curl and server-to-server
+       * requests may not include Origin.
+       */
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      const error = new Error(`Origin not allowed by CORS: ${origin}`);
+
+      error.name = "CorsOriginError";
+
+      error.code = "CORS_ORIGIN_DENIED";
+
+      error.status = 403;
+
+      error.publicMessage = "This website is not allowed to access the API.";
+
+      return callback(error);
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+/*
+ * =========================================
+ * Public Profile Pictures
+ * =========================================
+ */
+
+if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+  app.use(
+    "/uploads/profile-pictures",
+    (request, response, next) => {
+      /*
+       * Profile pictures are intentionally public assets.
+       * Allow the portfolio frontend to display them even
+       * though the frontend and API use different origins.
+       */
+
+      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      next();
+    },
+    express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+      fallthrough: true,
+      index: false,
+      dotfiles: "deny",
+    }),
+  );
+}
+
+/*
+ * =========================================
+ * Request Body
+ * =========================================
+ */
+
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
+/*
+ * =========================================
+ * API Health Check
+ * =========================================
+ */
+
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+
+    service: "portfolio-platform-api",
+
+    environment: environment.NODE_ENV,
+
+    databaseConfigured: isDatabaseConfigured(environment),
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+app.get("/api/health/database", async (req, res) => {
+  const health = await checkDatabaseHealth();
+
+  const isHealthy = health.status === "ok";
+
+  let message = "Database connection is unavailable.";
+
+  if (isHealthy) {
+    message = "Database connection is healthy.";
+  } else if (health.status === "not-configured") {
+    message = "Database service is not configured.";
+  }
+
+  return res.status(isHealthy ? 200 : 503).json({
+    status: health.status,
+
+    service: "portfolio-platform-database",
+
+    configured: health.configured,
+
+    responseTimeMs: health.responseTimeMs,
+
+    message,
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Application Routes
+ * =========================================
+ */
+app.use("/api/auth", authRoutes);
+
+app.use("/api/ai", aiRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/support", supportRoutes);
+
+app.use("/api/profile", profileRoutes);
+app.use("/api/projects", projectRoutes);
+/*
+ * The Profile and Skill routes remain disabled
+ * until their repositories and authentication
+ * middleware are implemented.
+ *
+ * Later:
+ *
+ * app.use("/api/profile", profileRoutes);
+ * app.use("/api/skills", skillRoutes);
+ */
+
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+app.use(notFoundHandler);
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+app.use(globalErrorHandler);
+
+export default app;
+
+========================================
+FILE: src\middleware\auth\requireAuthentication.js
+========================================
+FILE NOT FOUND
+
+========================================
+FILE: src\middleware\project\projectOwnershipMiddleware.js
+========================================
+import { getAuthenticatedProject } from "../../services/Service/projectService.js";
+
+/*
+ * =========================================
+ * Project Ownership Middleware
+ * =========================================
+ *
+ * Verifies that the requested Project belongs
+ * to the authenticated user.
+ *
+ * This middleware must run after authentication
+ * and before Project media upload processing.
+ */
+
+export async function requireProjectOwnership(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth?.userId,
+      projectId: request.params.projectId,
+    });
+
+    request.authorizedProject = project;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+FILE: test\api\projectMediaApi.test.js
+========================================
+import "dotenv/config";
+
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { after, beforeEach, describe, it, mock } from "node:test";
+
+import express from "express";
+import supertest from "supertest";
+
+/*
+ * =========================================
+ * Test Environment Configuration
+ * =========================================
+ */
+
+process.env.NODE_ENV = "test";
+process.env.SESSION_COOKIE_NAME = "portfolio_refresh_token";
+process.env.SESSION_COOKIE_PATH = "/api";
+process.env.SESSION_COOKIE_SAME_SITE = "lax";
+
+delete process.env.SESSION_COOKIE_DOMAIN;
+
+/*
+ * =========================================
+ * Isolated Project Media Test Storage
+ * =========================================
+ */
+
+const TEST_MEDIA_ROOT = fs.mkdtempSync(
+  path.join(os.tmpdir(), "portfolio-project-media-test-"),
+);
+
+process.env.PROJECT_MEDIA_STORAGE_PATH = TEST_MEDIA_ROOT;
+
+after(() => {
+  fs.rmSync(TEST_MEDIA_ROOT, {
+    recursive: true,
+    force: true,
+  });
+});
+
+/*
+ * =========================================
+ * Test Constants
+ * =========================================
+ */
+
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+
+const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+
+const SESSION_ID = "22222222-2222-4222-8222-222222222222";
+
+const TOKEN = "project-test-refresh-token-12345678901234567890";
+
+/*
+ * =========================================
+ * Test State
+ * =========================================
+ */
+
+let state;
+
+function resetState() {
+  state = {
+    project: {
+      id: PROJECT_ID,
+      userId: USER_ID,
+      title: "Portfolio Platform",
+      archived: false,
+    },
+
+    ownershipCalls: [],
+
+    registeredUpload: null,
+
+    listMediaCalls: [],
+
+    getMediaCalls: [],
+
+    deleteMediaCalls: [],
+  };
+}
+
+resetState();
+
+/*
+ * =========================================
+ * Mock Authentication Session
+ * =========================================
+ */
+
+mock.module("../../src/services/Service/sessionService.js", {
+  exports: {
+    async getAuthenticatedSession() {
+      return {
+        user: {
+          id: USER_ID,
+          email: "project-test@example.com",
+          emailVerifiedAt: "2026-09-23T00:00:00.000Z",
+          accountStatus: "active",
+        },
+
+        roles: ["user"],
+
+        session: {
+          id: SESSION_ID,
+          deviceName: "Test Browser",
+          createdAt: "2026-09-23T00:00:00.000Z",
+          lastUsedAt: "2026-09-23T00:00:00.000Z",
+          expiresAt: "2026-10-23T00:00:00.000Z",
+          isCurrent: true,
+        },
+      };
+    },
+  },
+});
+
+/*
+ * =========================================
+ * Mock Project Service
+ * =========================================
+ */
+
+mock.module("../../src/services/Service/projectService.js", {
+  exports: {
+    async getAuthenticatedProjects() {
+      return [state.project];
+    },
+
+    async getAuthenticatedProject(input) {
+      state.ownershipCalls.push(input);
+
+      if (input.userId !== USER_ID || input.projectId !== PROJECT_ID) {
+        const error = new Error("Project not found.");
+
+        error.code = "PROJECT_NOT_FOUND";
+        error.status = 404;
+        error.publicMessage = error.message;
+
+        throw error;
+      }
+
+      return state.project;
+    },
+
+    async createAuthenticatedProject() {
+      return state.project;
+    },
+
+    async updateAuthenticatedProject() {
+      return state.project;
+    },
+
+    async setAuthenticatedProjectArchiveStatus() {
+      return state.project;
+    },
+
+    async deleteAuthenticatedProject() {
+      return { deleted: true };
+    },
+  },
+});
+
+/*
+ * =========================================
+ * Mock Project Media Registration
+ * =========================================
+ *
+ * The database registration is mocked.
+ *
+ * The real Multer upload middleware and
+ * file validation middleware still execute.
+ */
+
+mock.module("../../src/services/Service/projectMediaService.js", {
+  exports: {
+    async listAuthenticatedProjectMedia({ userId, projectId }) {
+      state.listMediaCalls.push({ userId, projectId });
+
+      return [
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          projectId,
+          storageKey: createProjectMediaStorageKey(
+            userId,
+            projectId,
+            "44444444-4444-4444-8444-444444444444.png",
+          ),
+          originalFileName: "portfolio.png",
+          mimeType: "image/png",
+          fileSize: 2048,
+        },
+      ];
+    },
+    async registerProjectMedia({ userId, projectId, uploadedFile }) {
+      state.registeredUpload = {
+        userId,
+        projectId,
+        uploadedFile,
+      };
+
+      return {
+        id: "44444444-4444-4444-8444-444444444444",
+        projectId,
+        storageKey: "test/media.png",
+        originalFileName: uploadedFile.originalname,
+        mimeType: uploadedFile.verifiedMimeType,
+        fileSize: uploadedFile.verifiedSize,
+      };
+    },
+    async getAuthenticatedProjectMedia({ userId, projectId, mediaId }) {
+      state.getMediaCalls.push({
+        userId,
+        projectId,
+        mediaId,
+      });
+
+      const fileName = "44444444-4444-4444-8444-444444444444.png";
+
+      const storageKey = createProjectMediaStorageKey(
+        userId,
+        projectId,
+        fileName,
+      );
+
+      return {
+        id: mediaId,
+        projectId,
+        storageKey,
+        originalFileName: "portfolio.png",
+        mimeType: "image/png",
+        fileSize: 68,
+      };
+    },
+
+    async deleteAuthenticatedProjectMedia({ userId, projectId, mediaId }) {
+      state.deleteMediaCalls.push({
+        userId,
+        projectId,
+        mediaId,
+      });
+
+      return {
+        id: mediaId,
+        projectId,
+        storageKey: createProjectMediaStorageKey(
+          userId,
+          projectId,
+          "44444444-4444-4444-8444-444444444444.png",
+        ),
+        originalFileName: "portfolio.png",
+        mimeType: "image/png",
+        fileSize: 68,
+      };
+    },
+  },
+});
+
+/*
+ * =========================================
+ * Import Application Routes
+ * =========================================
+ */
+
+const { default: projectRoutes } =
+  await import("../../src/routes/projectRoutes.js");
+
+const { globalErrorHandler, notFoundHandler } =
+  await import("../../src/middleware/errorMiddleware.js");
+
+const {
+  getProjectMediaStorageRoot,
+  getProjectMediaDirectory,
+  createProjectMediaStorageKey,
+} = await import("../../src/services/Storage/projectMediaStorageService.js");
+
+/*
+ * =========================================
+ * Express Test Application
+ * =========================================
+ */
+
+const app = express();
+
+app.use(express.json({ limit: "1mb" }));
+
+app.use("/api/projects", projectRoutes);
+
+app.use(notFoundHandler);
+
+app.use(globalErrorHandler);
+
+const api = supertest(app);
+
+/*
+ * =========================================
+ * Authentication Helper
+ * =========================================
+ */
+
+function authenticated(request) {
+  return request.set(
+    "Cookie",
+    `portfolio_refresh_token=${encodeURIComponent(TOKEN)}`,
+  );
+}
+
+/*
+ * =========================================
+ * Project Media API Tests
+ * =========================================
+ */
+
+describe("Project media API", () => {
+  beforeEach(resetState);
+
+  /*
+   * -----------------------------------------
+   * Test 1 - Authentication Required
+   * -----------------------------------------
+   */
+
+  it("rejects uploads without authentication", async () => {
+    const response = await api
+      .post(`/api/projects/${PROJECT_ID}/media`)
+      .attach("media", Buffer.from("test"), "test.png")
+      .expect(401);
+
+    assert.equal(state.ownershipCalls.length, 0);
+
+    assert.notEqual(response.body.status, "success");
+  });
+
+  /*
+   * -----------------------------------------
+   * Test 2 - Project Ownership Required
+   * -----------------------------------------
+   */
+
+  it("rejects uploads to a Project the user does not own", async () => {
+    const OTHER_PROJECT_ID = "99999999-9999-4999-8999-999999999999";
+
+    const response = await authenticated(
+      api.post(`/api/projects/${OTHER_PROJECT_ID}/media`),
+    )
+      .attach("media", Buffer.from("test"), "test.png")
+      .expect(404);
+
+    assert.deepEqual(state.ownershipCalls, [
+      {
+        userId: USER_ID,
+        projectId: OTHER_PROJECT_ID,
+      },
+    ]);
+
+    assert.equal(response.body.code, "PROJECT_NOT_FOUND");
+  });
+
+  it("rejects a symbolic link pointing outside Project media storage", async (t) => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+    const FILE_NAME = `${MEDIA_ID}.png`;
+
+    const directory = getProjectMediaDirectory(USER_ID, PROJECT_ID);
+    const filePath = path.join(directory, FILE_NAME);
+
+    const outsideFile = path.join(TEST_MEDIA_ROOT, "outside-private-file.png");
+
+    fs.mkdirSync(directory, { recursive: true });
+
+    // Remove any file left by another test.
+    fs.rmSync(filePath, { force: true });
+
+    fs.writeFileSync(outsideFile, Buffer.from("PRIVATE_TEST_CONTENT"));
+
+    try {
+      fs.symlinkSync(outsideFile, filePath, "file");
+    } catch (error) {
+      if (["EPERM", "EACCES", "ENOTSUP"].includes(error.code)) {
+        t.skip(`Symbolic links unavailable: ${error.code}`);
+        return;
+      }
+
+      throw error;
+    }
+
+    try {
+      const response = await authenticated(
+        api.get(`/api/projects/${PROJECT_ID}/media/${MEDIA_ID}`),
+      ).expect(404);
+
+      assert.equal(response.body.code, "PROJECT_MEDIA_NOT_FOUND");
+
+      assert.equal(state.getMediaCalls.length, 1);
+    } finally {
+      fs.rmSync(filePath, { force: true });
+      fs.rmSync(outsideFile, { force: true });
+    }
+  });
+
+  /*
+   * -----------------------------------------
+   * Test 3 - Successful PNG Upload
+   * -----------------------------------------
+   */
+
+  it("uploads and validates a PNG for an owned Project", async () => {
+    /*
+     * Create a small PNG image in memory.
+     */
+
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==",
+      "base64",
+    );
+
+    /*
+     * Verify that the storage service uses
+     * our isolated temporary directory.
+     *
+     * This assertion runs BEFORE uploading.
+     */
+
+    assert.equal(
+      getProjectMediaStorageRoot(),
+      path.resolve(TEST_MEDIA_ROOT),
+      "Media uploads must use isolated test storage.",
+    );
+
+    /*
+     * Send an authenticated multipart request.
+     *
+     * The field name must be "media".
+     */
+
+    const response = await authenticated(
+      api.post(`/api/projects/${PROJECT_ID}/media`),
+    )
+      .attach("media", png, {
+        filename: "portfolio.png",
+        contentType: "image/png",
+      })
+      .expect(201);
+
+    /*
+     * Verify the HTTP response.
+     */
+
+    assert.equal(response.body.status, "success");
+
+    assert.equal(response.body.data.media.mimeType, "image/png");
+
+    assert.match(response.headers["cache-control"], /no-store/);
+
+    /*
+     * Verify that the controller passed
+     * the correct authenticated user,
+     * Project ID, and validated file.
+     */
+
+    assert.ok(state.registeredUpload, "Media registration should be called.");
+
+    assert.equal(state.registeredUpload.userId, USER_ID);
+
+    assert.equal(state.registeredUpload.projectId, PROJECT_ID);
+
+    assert.equal(
+      state.registeredUpload.uploadedFile.verifiedMimeType,
+      "image/png",
+    );
+
+    assert.equal(state.registeredUpload.uploadedFile.verifiedSize, png.length);
+
+    /*
+     * Verify the uploaded file exists
+     * in the isolated storage directory.
+     */
+
+    const uploadedPath = state.registeredUpload.uploadedFile.path;
+
+    assert.ok(
+      fs.existsSync(uploadedPath),
+      "The uploaded file should exist on disk.",
+    );
+
+    assert.equal(fs.statSync(uploadedPath).isFile(), true);
+
+    /*
+     * Verify the uploaded file is stored
+     * inside the temporary test directory.
+     */
+
+    const relativePath = path.relative(TEST_MEDIA_ROOT, uploadedPath);
+
+    assert.ok(
+      relativePath !== "" &&
+        relativePath !== ".." &&
+        !relativePath.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relativePath),
+      "Uploaded file must remain inside isolated test storage.",
+    );
+
+    /*
+     * Verify that the stored file content
+     * matches the original PNG exactly.
+     */
+
+    assert.equal(
+      fs.readFileSync(uploadedPath).equals(png),
+      true,
+      "Stored file contents should match the uploaded PNG.",
+    );
+
+    /*
+     * Verify ownership was checked.
+     */
+
+    assert.deepEqual(state.ownershipCalls, [
+      {
+        userId: USER_ID,
+        projectId: PROJECT_ID,
+      },
+    ]);
+  });
+
+  /*
+   * =========================================
+   * Media Retrieval Security Tests
+   * =========================================
+   */
+
+  it("rejects media retrieval without authentication", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+
+    await api.get(`/api/projects/${PROJECT_ID}/media/${MEDIA_ID}`).expect(401);
+
+    assert.equal(state.ownershipCalls.length, 0);
+    assert.equal(state.getMediaCalls.length, 0);
+  });
+
+  it("rejects media retrieval from a Project the user does not own", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+    const OTHER_PROJECT_ID = "99999999-9999-4999-8999-999999999999";
+
+    const response = await authenticated(
+      api.get(`/api/projects/${OTHER_PROJECT_ID}/media/${MEDIA_ID}`),
+    ).expect(404);
+
+    assert.equal(response.body.code, "PROJECT_NOT_FOUND");
+    assert.equal(state.getMediaCalls.length, 0);
+  });
+
+  it("returns 404 when the stored media file does not exist", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+    const FILE_NAME = `${MEDIA_ID}.png`;
+
+    const directory = getProjectMediaDirectory(USER_ID, PROJECT_ID);
+    const filePath = path.join(directory, FILE_NAME);
+
+    // Ensure the directory exists, but the target file does not.
+    fs.mkdirSync(directory, { recursive: true });
+    fs.rmSync(filePath, { force: true });
+
+    const response = await authenticated(
+      api.get(`/api/projects/${PROJECT_ID}/media/${MEDIA_ID}`),
+    ).expect(404);
+
+    assert.equal(response.body.code, "PROJECT_MEDIA_NOT_FOUND");
+
+    assert.equal(state.getMediaCalls.length, 1);
+  });
+
+  it("lists media belonging to an authenticated Project owner", async () => {
+    const response = await authenticated(
+      api.get(`/api/projects/${PROJECT_ID}/media`),
+    ).expect(200);
+
+    assert.equal(response.body.status, "success");
+
+    assert.equal(response.body.data.media.length, 1);
+
+    assert.equal(response.body.data.media[0].originalFileName, "portfolio.png");
+
+    assert.deepEqual(state.listMediaCalls, [
+      {
+        userId: USER_ID,
+        projectId: PROJECT_ID,
+      },
+    ]);
+
+    assert.deepEqual(state.ownershipCalls, [
+      {
+        userId: USER_ID,
+        projectId: PROJECT_ID,
+      },
+    ]);
+
+    assert.match(response.headers["cache-control"], /no-store/);
+  });
+
+  it("retrieves a stored PNG for an authenticated Project owner", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+
+    const FILE_NAME = `${MEDIA_ID}.png`;
+
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==",
+      "base64",
+    );
+
+    assert.equal(getProjectMediaStorageRoot(), path.resolve(TEST_MEDIA_ROOT));
+
+    const directory = getProjectMediaDirectory(USER_ID, PROJECT_ID);
+
+    fs.mkdirSync(directory, { recursive: true });
+
+    const filePath = path.join(directory, FILE_NAME);
+
+    fs.writeFileSync(filePath, png);
+
+    const response = await authenticated(
+      api.get(`/api/projects/${PROJECT_ID}/media/${MEDIA_ID}`),
+    ).expect(200);
+
+    assert.equal(response.headers["content-type"], "image/png");
+
+    assert.match(response.headers["cache-control"], /no-store/);
+
+    assert.equal(response.body.equals(png), true);
+
+    assert.deepEqual(state.getMediaCalls, [
+      {
+        userId: USER_ID,
+        projectId: PROJECT_ID,
+        mediaId: MEDIA_ID,
+      },
+    ]);
+  });
+
+  it("deletes media belonging to an authenticated Project owner", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+
+    const response = await authenticated(
+      api.delete(`/api/projects/${PROJECT_ID}/media/${MEDIA_ID}`),
+    ).expect(204);
+
+    assert.equal(response.text, "");
+
+    assert.deepEqual(state.deleteMediaCalls, [
+      {
+        userId: USER_ID,
+        projectId: PROJECT_ID,
+        mediaId: MEDIA_ID,
+      },
+    ]);
+  });
+
+  it("rejects media deletion without authentication", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+
+    await api
+      .delete(`/api/projects/${PROJECT_ID}/media/${MEDIA_ID}`)
+      .expect(401);
+
+    assert.equal(state.ownershipCalls.length, 0);
+    assert.equal(state.deleteMediaCalls.length, 0);
+  });
+
+  it("rejects media deletion from a Project the user does not own", async () => {
+    const MEDIA_ID = "44444444-4444-4444-8444-444444444444";
+    const OTHER_PROJECT_ID = "99999999-9999-4999-8999-999999999999";
+
+    const response = await authenticated(
+      api.delete(`/api/projects/${OTHER_PROJECT_ID}/media/${MEDIA_ID}`),
+    ).expect(404);
+
+    assert.equal(response.body.code, "PROJECT_NOT_FOUND");
+    assert.equal(state.deleteMediaCalls.length, 0);
+  });
+});
+
+========================================
+FILE: test\project\projectMediaService.test.js
+========================================
+import assert from "node:assert/strict";
+import path from "node:path";
+import { mock, test } from "node:test";
+
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+const PROJECT_ID = "project-test";
+const FILENAME = "33333333-3333-4333-8333-333333333333.png";
+const STORAGE_KEY = `owner/project/${FILENAME}`;
+const FILE_PATH = path.resolve("test-media", FILENAME);
+
+let repositoryError = null;
+let lookupError = null;
+let storedMedia = null;
+let lookupResult = null;
+
+let mediaToFind = null;
+let deletedMedia = null;
+
+let deleteFileError = null;
+let deleteDatabaseError = null;
+
+let findMediaCalls = [];
+let deleteFileCalls = [];
+let deleteDatabaseCalls = [];
+
+let databaseCalls = [];
+let lookupCalls = [];
+let directoryChecks = [];
+
+let deletionOrder = [];
+
+mock.module("../../src/repositories/projectMediaRepository.js", {
+  exports: {
+    createProjectMedia: async (...args) => {
+      databaseCalls.push(args);
+
+      if (repositoryError) {
+        throw repositoryError;
+      }
+
+      return storedMedia;
+    },
+
+    findProjectMediaByStorageKey: async (...args) => {
+      lookupCalls.push(args);
+
+      if (lookupError) {
+        throw lookupError;
+      }
+
+      return lookupResult;
+    },
+    findProjectMediaById: async (...args) => {
+      findMediaCalls.push(args);
+      return mediaToFind;
+    },
+
+    deleteProjectMedia: async (...args) => {
+      deletionOrder.push("database");
+      deleteDatabaseCalls.push(args);
+
+      if (deleteDatabaseError) {
+        throw deleteDatabaseError;
+      }
+
+      return deletedMedia;
+    },
+
+    listProjectMedia: async () => [],
+  },
+});
+
+mock.module("../../src/services/Storage/projectMediaStorageService.js", {
+  exports: {
+    createProjectMediaStorageKey: () => STORAGE_KEY,
+    resolveOwnedProjectMediaPath: () => FILE_PATH,
+    assertSafeProjectMediaDirectory: async (...args) => {
+      directoryChecks.push(args);
+    },
+    deleteOwnedProjectMedia: async (...args) => {
+      deletionOrder.push("file");
+      deleteFileCalls.push(args);
+
+      if (deleteFileError) {
+        throw deleteFileError;
+      }
+
+      return {
+        deleted: true,
+        storageKey: args[2],
+      };
+    },
+  },
+});
+
+const { registerProjectMedia, deleteAuthenticatedProjectMedia } =
+  await import("../../src/services/Service/projectMediaService.js");
+
+function validUploadedFile() {
+  return {
+    filename: FILENAME,
+    path: FILE_PATH,
+    originalname: "portfolio.png",
+    verifiedMimeType: "image/png",
+    verifiedSize: 2048,
+  };
+}
+
+function resetMocks() {
+  repositoryError = null;
+  lookupError = null;
+
+  storedMedia = {
+    id: "44444444-4444-4444-8444-444444444444",
+    projectId: PROJECT_ID,
+    storageKey: STORAGE_KEY,
+    originalFileName: "portfolio.png",
+    mimeType: "image/png",
+    fileSize: 2048,
+  };
+
+  mediaToFind = { ...storedMedia };
+  deletedMedia = { ...storedMedia };
+
+  deleteFileError = null;
+  deleteDatabaseError = null;
+
+  findMediaCalls = [];
+  deleteFileCalls = [];
+  deleteDatabaseCalls = [];
+  deletionOrder = [];
+
+  lookupResult = null;
+  databaseCalls = [];
+  lookupCalls = [];
+  directoryChecks = [];
+}
+
+function registrationInput() {
+  return {
+    userId: USER_ID,
+    projectId: PROJECT_ID,
+    uploadedFile: validUploadedFile(),
+  };
+}
+
+test("registers verified Project media metadata", async () => {
+  resetMocks();
+
+  const result = await registerProjectMedia(registrationInput());
+
+  assert.deepEqual(result, storedMedia);
+  assert.deepEqual(databaseCalls, [
+    [
+      USER_ID,
+      PROJECT_ID,
+      {
+        storageKey: STORAGE_KEY,
+        originalFileName: "portfolio.png",
+        mimeType: "image/png",
+        fileSize: 2048,
+      },
+    ],
+  ]);
+
+  assert.deepEqual(directoryChecks, [[USER_ID, PROJECT_ID]]);
+  assert.equal(lookupCalls.length, 0);
+});
+
+test("rejects registration without user authorization", async () => {
+  resetMocks();
+
+  await assert.rejects(
+    registerProjectMedia({
+      ...registrationInput(),
+      userId: "",
+    }),
+    {
+      code: "PROJECT_MEDIA_REGISTRATION_UNAUTHORIZED",
+      status: 403,
+    },
+  );
+
+  assert.equal(databaseCalls.length, 0);
+});
+
+test("rejects missing validated upload", async () => {
+  resetMocks();
+
+  await assert.rejects(
+    registerProjectMedia({
+      ...registrationInput(),
+      uploadedFile: null,
+    }),
+    { code: "PROJECT_MEDIA_FILE_REQUIRED" },
+  );
+
+  assert.equal(databaseCalls.length, 0);
+});
+
+test("rejects incomplete validation metadata", async () => {
+  resetMocks();
+
+  await assert.rejects(
+    registerProjectMedia({
+      ...registrationInput(),
+      uploadedFile: {
+        ...validUploadedFile(),
+        verifiedMimeType: "",
+      },
+    }),
+    { code: "PROJECT_MEDIA_VALIDATION_INCOMPLETE" },
+  );
+
+  assert.equal(databaseCalls.length, 0);
+});
+
+test("rejects an unexpected uploaded file path", async () => {
+  resetMocks();
+
+  await assert.rejects(
+    registerProjectMedia({
+      ...registrationInput(),
+      uploadedFile: {
+        ...validUploadedFile(),
+        path: path.resolve("other-directory", FILENAME),
+      },
+    }),
+    {
+      code: "PROJECT_MEDIA_INVALID_FILE_LOCATION",
+      status: 403,
+    },
+  );
+
+  assert.equal(databaseCalls.length, 0);
+});
+
+test("returns existing media when reconciliation finds the record", async () => {
+  resetMocks();
+
+  repositoryError = new Error("Database response lost.");
+  lookupResult = storedMedia;
+
+  const result = await registerProjectMedia(registrationInput());
+
+  assert.deepEqual(result, storedMedia);
+  assert.equal(databaseCalls.length, 1);
+  assert.deepEqual(lookupCalls, [[USER_ID, PROJECT_ID, STORAGE_KEY]]);
+});
+
+test("preserves uncertain registration when lookup returns null", async () => {
+  resetMocks();
+
+  repositoryError = new Error("Database insert failed.");
+
+  await assert.rejects(registerProjectMedia(registrationInput()), {
+    code: "PROJECT_MEDIA_REGISTRATION_UNCONFIRMED",
+    status: 503,
+  });
+
+  assert.equal(databaseCalls.length, 1);
+  assert.deepEqual(lookupCalls, [[USER_ID, PROJECT_ID, STORAGE_KEY]]);
+});
+
+test("preserves uncertain registration when reconciliation fails", async () => {
+  resetMocks();
+
+  repositoryError = new Error("Database connection lost.");
+  lookupError = new Error("Database lookup unavailable.");
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    await assert.rejects(registerProjectMedia(registrationInput()), {
+      code: "PROJECT_MEDIA_REGISTRATION_UNCONFIRMED",
+      status: 503,
+    });
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(databaseCalls.length, 1);
+  assert.equal(lookupCalls.length, 1);
+});
+
+/*
+ * =========================================
+ * Project Media Deletion Tests
+ * =========================================
+ */
+
+function deletionInput() {
+  return {
+    userId: USER_ID,
+    projectId: PROJECT_ID,
+    mediaId: "44444444-4444-4444-8444-444444444444",
+  };
+}
+
+test("deletes the physical file before the database record", async () => {
+  resetMocks();
+
+  const input = deletionInput();
+
+  const result = await deleteAuthenticatedProjectMedia(input);
+
+  assert.equal(result.id, input.mediaId);
+
+  assert.deepEqual(findMediaCalls, [
+    [input.userId, input.projectId, input.mediaId],
+  ]);
+
+  assert.deepEqual(deleteFileCalls, [
+    [input.userId, input.projectId, STORAGE_KEY],
+  ]);
+
+  assert.deepEqual(deleteDatabaseCalls, [
+    [input.userId, input.projectId, input.mediaId],
+  ]);
+
+  assert.deepEqual(deletionOrder, ["file", "database"]);
+});
+
+test("rejects deletion when media metadata does not exist", async () => {
+  resetMocks();
+
+  mediaToFind = null;
+
+  await assert.rejects(
+    deleteAuthenticatedProjectMedia(deletionInput()),
+    (error) => {
+      assert.equal(error.code, "PROJECT_MEDIA_NOT_FOUND");
+      assert.equal(error.status, 404);
+      return true;
+    },
+  );
+
+  assert.equal(deleteFileCalls.length, 0);
+  assert.equal(deleteDatabaseCalls.length, 0);
+});
+
+test("preserves the database record when physical file deletion fails", async () => {
+  resetMocks();
+
+  deleteFileError = new Error("Simulated filesystem failure");
+
+  await assert.rejects(
+    deleteAuthenticatedProjectMedia(deletionInput()),
+    /Simulated filesystem failure/,
+  );
+
+  assert.deepEqual(deletionOrder, ["file"]);
+
+  assert.equal(deleteDatabaseCalls.length, 0);
+});
+
+test("reports a database failure after physical file deletion", async () => {
+  resetMocks();
+
+  deleteDatabaseError = new Error("Simulated database failure");
+
+  await assert.rejects(
+    deleteAuthenticatedProjectMedia(deletionInput()),
+    /Simulated database failure/,
+  );
+
+  assert.deepEqual(deletionOrder, ["file", "database"]);
+
+  assert.equal(deleteFileCalls.length, 1);
+  assert.equal(deleteDatabaseCalls.length, 1);
+});

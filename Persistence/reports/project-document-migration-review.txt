@@ -1,0 +1,2743 @@
+﻿==================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\008_project_documents.sql
+==================================================
+
+/*
+ * Portfolio Platform
+ * Project Document Metadata
+ * Migration 008
+ *
+ * Stores metadata only.
+ * Document bytes remain in private filesystem storage.
+ *
+ * Do not add GO statements.
+ */
+
+CREATE TABLE dbo.project_documents
+(
+    id UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT DF_project_documents_id
+        DEFAULT NEWID(),
+
+    project_id NVARCHAR(200) NOT NULL,
+
+    user_id UNIQUEIDENTIFIER NOT NULL,
+
+    storage_key NVARCHAR(500) NOT NULL,
+
+    original_file_name NVARCHAR(255) NOT NULL,
+
+    mime_type NVARCHAR(150) NOT NULL,
+
+    file_size BIGINT NOT NULL,
+
+    created_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_project_documents_created_at
+        DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT PK_project_documents
+        PRIMARY KEY CLUSTERED (id),
+
+    CONSTRAINT FK_project_documents_project_owner
+        FOREIGN KEY (project_id, user_id)
+        REFERENCES dbo.projects(id, user_id),
+
+    CONSTRAINT UQ_project_documents_storage_key
+        UNIQUE (storage_key),
+
+    CONSTRAINT CK_project_documents_storage_key
+        CHECK (LEN(LTRIM(RTRIM(storage_key))) > 0),
+
+    CONSTRAINT CK_project_documents_original_file_name
+        CHECK (LEN(LTRIM(RTRIM(original_file_name))) > 0),
+
+    CONSTRAINT CK_project_documents_file_size
+        CHECK (file_size BETWEEN 1 AND 20971520),
+
+    CONSTRAINT CK_project_documents_mime_type
+        CHECK (
+            mime_type IN (
+                N'application/pdf',
+                N'application/msword',
+                N'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                N'application/vnd.ms-powerpoint',
+                N'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                N'application/vnd.ms-excel',
+                N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                N'text/plain',
+                N'text/markdown',
+                N'text/csv',
+                N'application/json',
+                N'application/zip',
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp'
+            )
+        )
+);
+
+CREATE INDEX IX_project_documents_project_created
+    ON dbo.project_documents (project_id, created_at DESC);
+
+CREATE INDEX IX_project_documents_user_project
+    ON dbo.project_documents (user_id, project_id);
+
+==================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.css
+==================================================
+/*
+ * =========================================
+ * Document Upload
+ * =========================================
+ */
+
+.project-document-upload {
+  position: relative;
+  min-height: 104px;
+  display: grid;
+  place-items: center;
+  padding: 17px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.025);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    opacity var(--transition);
+}
+
+.project-document-upload:hover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.055);
+}
+
+.project-document-upload:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.project-document-upload--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-document-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.project-document-upload > span {
+  display: grid;
+  gap: 5px;
+}
+
+.project-document-upload strong {
+  color: var(--accent-hover);
+  font-size: 0.7rem;
+}
+
+.project-document-upload small {
+  color: var(--text-muted);
+  font-size: 0.59rem;
+  line-height: 1.45;
+}
+
+.project-document-upload em {
+  color: var(--text-secondary);
+  font-size: 0.55rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+/*
+ * =========================================
+ * Messages
+ * =========================================
+ */
+
+.project-document-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.06);
+  color: #f87171;
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+.project-document-empty {
+  padding: 18px;
+  border: 1px dashed var(--border-color);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+/*
+ * =========================================
+ * Document List
+ * =========================================
+ */
+
+.project-document-list {
+  display: grid;
+  gap: 9px;
+}
+
+.project-document-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    160px;
+  align-items: start;
+  gap: 11px;
+  padding: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.project-document-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.51rem;
+  font-weight: 800;
+}
+
+.project-document-content {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.project-document-file {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.project-document-file strong {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 0.63rem;
+}
+
+.project-document-file small {
+  color: var(--text-muted);
+  font-size: 0.55rem;
+}
+
+/*
+ * =========================================
+ * Document Fields
+ * =========================================
+ */
+
+.project-document-fields,
+.project-document-controls {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.project-document-fields > label,
+.project-document-controls > label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.project-document-fields label > span,
+.project-document-controls label > span {
+  color: var(--text-muted);
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.project-document-fields textarea {
+  min-height: 64px;
+}
+
+/*
+ * =========================================
+ * Document Controls
+ * =========================================
+ */
+
+.project-document-controls button {
+  min-height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    color var(--transition);
+}
+
+.project-document-controls button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.project-document-controls .project-document-remove {
+  border-color: rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+}
+
+.project-document-controls .project-document-remove:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.42);
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.project-document-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * =========================================
+ * Document Preview
+ * =========================================
+ */
+
+.project-document-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(3, 6, 15, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.project-document-preview {
+  width: min(100%, 1050px);
+  height: min(88vh, 820px);
+  min-height: 420px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--border-hover);
+  border-radius: 14px;
+  background: var(--surface-color);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+}
+
+.project-document-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.project-document-preview > header > div {
+  min-width: 0;
+}
+
+.project-document-preview > header small {
+  color: var(--accent-hover);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.project-document-preview > header h4 {
+  overflow-wrap: anywhere;
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.project-document-preview > header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.project-document-preview-content {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.project-document-preview-content iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+}
+
+.project-document-preview-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.project-document-preview > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 11px 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+.project-document-preview > footer a {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 0.59rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.project-document-preview > footer a:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 700px) {
+  .project-document-row {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr);
+  }
+
+  .project-document-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-document-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-document-controls {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .project-document-preview-backdrop {
+    padding: 8px;
+  }
+
+  .project-document-preview {
+    height: 94vh;
+    min-height: 0;
+  }
+
+  .project-document-preview > footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .project-document-preview > footer a {
+    justify-content: center;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .project-document-upload,
+  .project-document-controls button {
+    transition: none;
+  }
+}
+
+==================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.jsx
+==================================================
+import { useEffect, useRef, useState } from "react";
+
+import {
+  PROJECT_DOCUMENT_ACCEPT,
+  PROJECT_DOCUMENT_TYPE_OPTIONS,
+  PROJECT_FIELD_LIMITS,
+  isProjectDocumentWithinSizeLimit,
+  isSupportedProjectDocument,
+} from "../../../../config/projectConfig.js";
+
+import { createProjectId } from "../../../../models/projectModel.js";
+
+import {
+  createProjectAssetUrl,
+  revokeProjectAssetUrl,
+} from "../../../../services/Project/projectAssetStorage.js";
+
+import "./ProjectDocumentEditor.css";
+
+/*
+ * =========================================
+ * Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isActiveDocument(document) {
+  return document?.status !== "archived";
+}
+
+function formatFileSize(value) {
+  const size = Number(value);
+
+  if (!Number.isFinite(size) || size <= 0) {
+    return "";
+  }
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function getDocumentLabel(document) {
+  return (
+    getText(document?.name) ||
+    getText(document?.fileName) ||
+    getText(document?.file?.name) ||
+    "Project document"
+  );
+}
+
+/*
+ * =========================================
+ * Document Editor
+ * =========================================
+ */
+
+function ProjectDocumentEditor({
+  documents = [],
+  uploads = [],
+  disabled = false,
+  error = "",
+  onChange,
+  onUploadsChange,
+  onRemoveStoredAsset,
+}) {
+  const [localError, setLocalError] = useState("");
+
+  const [preview, setPreview] = useState(null);
+
+  const previewRef = useRef(null);
+  const previewRequestRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const activeDocuments = documents.filter(isActiveDocument);
+
+  /*
+   * =========================================
+   * Safe Preview Cleanup
+   * =========================================
+   */
+
+  const revokePreviewUrl = (previewValue) => {
+    if (previewValue?.ownsObjectUrl) {
+      revokeProjectAssetUrl(previewValue.url);
+    }
+  };
+
+  const closePreview = () => {
+    previewRequestRef.current += 1;
+
+    revokePreviewUrl(previewRef.current);
+
+    previewRef.current = null;
+    setPreview(null);
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      previewRequestRef.current += 1;
+
+      revokePreviewUrl(previewRef.current);
+
+      previewRef.current = null;
+    };
+  }, []);
+
+  /*
+   * =========================================
+   * File Selection
+   * =========================================
+   */
+
+  const handleFileSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    const availableSlots =
+      PROJECT_FIELD_LIMITS.maximumDocuments -
+      activeDocuments.length -
+      uploads.length;
+
+    if (availableSlots <= 0) {
+      setLocalError(
+        `This Project can contain no more than ${PROJECT_FIELD_LIMITS.maximumDocuments} documents.`,
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    const acceptedUploads = [];
+
+    let nextError = "";
+
+    files.slice(0, availableSlots).forEach((file) => {
+      if (!isSupportedProjectDocument(file)) {
+        nextError =
+          "Upload a supported PDF, Word, PowerPoint, JPG, PNG, or WebP document.";
+
+        return;
+      }
+
+      if (!isProjectDocumentWithinSizeLimit(file)) {
+        nextError =
+          "Each supporting document must be non-empty and 20 MB or smaller.";
+
+        return;
+      }
+
+      const normalizedFileName = getText(file.name).toLocaleLowerCase();
+
+      const duplicate = [
+        ...activeDocuments,
+        ...uploads,
+        ...acceptedUploads,
+      ].some((item) => {
+        const existingFileName = getText(
+          item.file?.name || item.fileName || item.name,
+        ).toLocaleLowerCase();
+
+        return existingFileName && existingFileName === normalizedFileName;
+      });
+
+      if (duplicate) {
+        nextError = `"${file.name}" has already been added.`;
+
+        return;
+      }
+
+      acceptedUploads.push({
+        assetId: createProjectId("project-document"),
+
+        file,
+
+        name: file.name,
+
+        description: "",
+
+        documentType: "supporting-evidence",
+
+        visibility: "private",
+
+        status: "active",
+      });
+    });
+
+    if (files.length > availableSlots) {
+      nextError = `Only ${availableSlots} additional ${
+        availableSlots === 1 ? "document" : "documents"
+      } can be added.`;
+    }
+
+    if (acceptedUploads.length > 0) {
+      onUploadsChange?.([...uploads, ...acceptedUploads]);
+    }
+
+    setLocalError(nextError);
+
+    event.target.value = "";
+  };
+
+  /*
+   * =========================================
+   * Document Updates
+   * =========================================
+   */
+
+  const updateExistingDocument = (documentId, field, value) => {
+    onChange?.(
+      documents.map((document) =>
+        document.id === documentId
+          ? {
+              ...document,
+              [field]: value,
+            }
+          : document,
+      ),
+    );
+
+    setLocalError("");
+  };
+
+  const updateStagedDocument = (assetId, field, value) => {
+    onUploadsChange?.(
+      uploads.map((upload) =>
+        upload.assetId === assetId
+          ? {
+              ...upload,
+              [field]: value,
+            }
+          : upload,
+      ),
+    );
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Removal
+   * =========================================
+   */
+
+  const removeExistingDocument = (document) => {
+    onChange?.(documents.filter((candidate) => candidate.id !== document.id));
+
+    if (document.storageKey) {
+      onRemoveStoredAsset?.(document.storageKey);
+    }
+
+    if (previewRef.current?.documentId === document.id) {
+      closePreview();
+    }
+
+    setLocalError("");
+  };
+
+  const removeStagedDocument = (upload) => {
+    onUploadsChange?.(
+      uploads.filter((item) => item.assetId !== upload.assetId),
+    );
+
+    if (previewRef.current?.documentId === upload.assetId) {
+      closePreview();
+    }
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Preview
+   * =========================================
+   */
+
+  const showPreview = (previewValue) => {
+    revokePreviewUrl(previewRef.current);
+
+    previewRef.current = previewValue;
+
+    setPreview(previewValue);
+  };
+
+  const handleViewStoredDocument = async (document) => {
+    const requestId = previewRequestRef.current + 1;
+
+    previewRequestRef.current = requestId;
+
+    setLocalError("");
+
+    try {
+      let url = "";
+      let ownsObjectUrl = false;
+
+      if (document.storageKey) {
+        url = await createProjectAssetUrl(document.storageKey);
+
+        ownsObjectUrl = true;
+      } else {
+        url = getText(document.externalUrl);
+      }
+
+      if (requestId !== previewRequestRef.current || !mountedRef.current) {
+        if (ownsObjectUrl) {
+          revokeProjectAssetUrl(url);
+        }
+
+        return;
+      }
+
+      if (!url) {
+        throw new Error("The document does not have a preview address.");
+      }
+
+      showPreview({
+        documentId: document.id,
+        title: getDocumentLabel(document),
+        url,
+        mimeType: document.mimeType || "",
+        ownsObjectUrl,
+      });
+    } catch (caughtError) {
+      if (requestId !== previewRequestRef.current || !mountedRef.current) {
+        return;
+      }
+
+      setLocalError(
+        caughtError?.publicMessage ||
+          caughtError?.message ||
+          "The selected Project document could not be opened.",
+      );
+    }
+  };
+
+  const handleViewStagedDocument = (upload) => {
+    if (
+      !upload?.file ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      setLocalError("The selected Project document cannot be previewed.");
+
+      return;
+    }
+
+    previewRequestRef.current += 1;
+
+    const objectUrl = URL.createObjectURL(upload.file);
+
+    showPreview({
+      documentId: upload.assetId,
+      title: getDocumentLabel(upload),
+      url: objectUrl,
+      mimeType: upload.file.type || "",
+      ownsObjectUrl: true,
+    });
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Render
+   * =========================================
+   */
+
+  return (
+    <section
+      className="project-form-section project-document-editor"
+      data-field="supportingDocuments"
+    >
+      <header className="project-form-section-header">
+        <span aria-hidden="true" />
+
+        <div>
+          <small>Supporting Evidence</small>
+
+          <h3>Project Documents</h3>
+
+          <p>
+            Attach reports, presentations, diagrams, award evidence, source
+            material, and technical documentation.
+          </p>
+        </div>
+      </header>
+
+      <label
+        className={[
+          "project-document-upload",
+          disabled ? "project-document-upload--disabled" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <input
+          type="file"
+          multiple
+          accept={PROJECT_DOCUMENT_ACCEPT}
+          onChange={handleFileSelection}
+          disabled={
+            disabled ||
+            activeDocuments.length + uploads.length >=
+              PROJECT_FIELD_LIMITS.maximumDocuments
+          }
+        />
+
+        <span>
+          <strong>Select supporting documents</strong>
+
+          <small>
+            PDF, Word, PowerPoint, JPG, PNG, or WebP Â· 20 MB maximum per
+            document
+          </small>
+
+          <em>
+            {activeDocuments.length + uploads.length}/
+            {PROJECT_FIELD_LIMITS.maximumDocuments} documents
+          </em>
+        </span>
+      </label>
+
+      {(localError || error) && (
+        <p className="project-document-error" role="alert">
+          {localError || error}
+        </p>
+      )}
+
+      {activeDocuments.length === 0 && uploads.length === 0 ? (
+        <div className="project-document-empty">
+          No supporting documents added.
+        </div>
+      ) : (
+        <div className="project-document-list">
+          {activeDocuments.map((document) => (
+            <DocumentRow
+              key={document.id}
+              document={document}
+              disabled={disabled}
+              onChange={(field, value) =>
+                updateExistingDocument(document.id, field, value)
+              }
+              onView={() => handleViewStoredDocument(document)}
+              onRemove={() => removeExistingDocument(document)}
+            />
+          ))}
+
+          {uploads.map((upload) => (
+            <DocumentRow
+              key={upload.assetId}
+              document={upload}
+              staged
+              disabled={disabled}
+              onChange={(field, value) =>
+                updateStagedDocument(upload.assetId, field, value)
+              }
+              onView={() => handleViewStagedDocument(upload)}
+              onRemove={() => removeStagedDocument(upload)}
+            />
+          ))}
+        </div>
+      )}
+
+      {preview && <DocumentPreview preview={preview} onClose={closePreview} />}
+    </section>
+  );
+}
+
+/*
+ * =========================================
+ * Document Row
+ * =========================================
+ */
+
+function DocumentRow({
+  document,
+  staged = false,
+  disabled,
+  onChange,
+  onView,
+  onRemove,
+}) {
+  const label = getDocumentLabel(document);
+
+  const fileName = getText(document.fileName) || getText(document.file?.name);
+
+  const fileSize = document.fileSize ?? document.file?.size;
+
+  return (
+    <article className="project-document-row">
+      <div className="project-document-icon" aria-hidden="true">
+        {staged ? "NEW" : "DOC"}
+      </div>
+
+      <div className="project-document-content">
+        <div className="project-document-file">
+          <strong>{fileName || label}</strong>
+
+          <small>
+            {[
+              staged ? "Ready to upload" : "Saved document",
+              formatFileSize(fileSize),
+            ]
+              .filter(Boolean)
+              .join(" Â· ")}
+          </small>
+        </div>
+
+        <div className="project-document-fields">
+          <label>
+            <span>Document Name</span>
+
+            <input
+              type="text"
+              value={document.name || ""}
+              onChange={(event) => onChange("name", event.target.value)}
+              maxLength={PROJECT_FIELD_LIMITS.documentName}
+              placeholder="Document name"
+              disabled={disabled}
+            />
+          </label>
+
+          <label>
+            <span>Description</span>
+
+            <textarea
+              rows={2}
+              value={document.description || ""}
+              onChange={(event) => onChange("description", event.target.value)}
+              maxLength={PROJECT_FIELD_LIMITS.documentDescription}
+              placeholder="Explain what this document demonstrates."
+              disabled={disabled}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="project-document-controls">
+        <label>
+          <span>Document Type</span>
+
+          <select
+            value={document.documentType || "supporting-evidence"}
+            onChange={(event) => onChange("documentType", event.target.value)}
+            disabled={disabled}
+            aria-label={`Document type for ${label}`}
+          >
+            {PROJECT_DOCUMENT_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Visibility</span>
+
+          <select
+            value={document.visibility || "private"}
+            onChange={(event) => onChange("visibility", event.target.value)}
+            disabled={disabled}
+            aria-label={`Visibility for ${label}`}
+          >
+            <option value="private">Private</option>
+
+            <option value="public">Public</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={onView}
+          disabled={disabled}
+          aria-label={`View ${label}`}
+        >
+          View
+        </button>
+
+        <button
+          type="button"
+          className="project-document-remove"
+          onClick={onRemove}
+          disabled={disabled}
+          aria-label={`Remove ${label}`}
+        >
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/*
+ * =========================================
+ * Document Preview
+ * =========================================
+ */
+
+function MarkdownTextPreview({ url }) {
+  const [content, setContent] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setContent("");
+    setError("");
+
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load Markdown document.");
+        }
+
+        return response.text();
+      })
+      .then(setContent)
+      .catch((loadError) => {
+        if (loadError.name !== "AbortError") {
+          setError("Markdown preview unavailable.");
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  if (error) {
+    return <p role="alert">{error}</p>;
+  }
+
+  return (
+    <pre style={{
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      padding: "1rem",
+      overflow: "auto",
+      width: "100%",
+      maxHeight: "70vh",
+    }}>
+      {content}
+    </pre>
+  );
+}
+function DocumentPreview({ preview, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  const isImage = preview.mimeType.startsWith("image/");
+  const isMarkdown = preview.mimeType === "text/markdown" || /\.md$/i.test(preview.title);
+
+  return (
+    <div
+      className="project-document-preview-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className="project-document-preview"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Preview ${preview.title}`}
+      >
+        <header>
+          <div>
+            <small>Project Document</small>
+
+            <h4>{preview.title}</h4>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close document preview"
+          >
+            Ã—
+          </button>
+        </header>
+
+        <div className="project-document-preview-content">
+          {isImage ? (
+            <img src={preview.url} alt={preview.title} />
+          ) : isMarkdown ? (
+            <MarkdownTextPreview url={preview.url} />
+          ) : (
+            <iframe src={preview.url} title={preview.title} />
+          )}
+        </div>
+
+        <footer>
+          <a href={preview.url} target="_blank" rel="noopener noreferrer">
+            Open in New Tab
+          </a>
+
+          <a href={preview.url} download={preview.title}>
+            Download
+          </a>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+export default ProjectDocumentEditor;
+
+==================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.jsx.20261020-223930.bak
+==================================================
+import { useEffect, useRef, useState } from "react";
+
+import {
+  PROJECT_DOCUMENT_ACCEPT,
+  PROJECT_DOCUMENT_TYPE_OPTIONS,
+  PROJECT_FIELD_LIMITS,
+  isProjectDocumentWithinSizeLimit,
+  isSupportedProjectDocument,
+} from "../../../../config/projectConfig.js";
+
+import { createProjectId } from "../../../../models/projectModel.js";
+
+import {
+  createProjectAssetUrl,
+  revokeProjectAssetUrl,
+} from "../../../../services/Project/projectAssetStorage.js";
+
+import "./ProjectDocumentEditor.css";
+
+/*
+ * =========================================
+ * Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isActiveDocument(document) {
+  return document?.status !== "archived";
+}
+
+function formatFileSize(value) {
+  const size = Number(value);
+
+  if (!Number.isFinite(size) || size <= 0) {
+    return "";
+  }
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function getDocumentLabel(document) {
+  return (
+    getText(document?.name) ||
+    getText(document?.fileName) ||
+    getText(document?.file?.name) ||
+    "Project document"
+  );
+}
+
+/*
+ * =========================================
+ * Document Editor
+ * =========================================
+ */
+
+function ProjectDocumentEditor({
+  documents = [],
+  uploads = [],
+  disabled = false,
+  error = "",
+  onChange,
+  onUploadsChange,
+  onRemoveStoredAsset,
+}) {
+  const [localError, setLocalError] = useState("");
+
+  const [preview, setPreview] = useState(null);
+
+  const previewRef = useRef(null);
+  const previewRequestRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const activeDocuments = documents.filter(isActiveDocument);
+
+  /*
+   * =========================================
+   * Safe Preview Cleanup
+   * =========================================
+   */
+
+  const revokePreviewUrl = (previewValue) => {
+    if (previewValue?.ownsObjectUrl) {
+      revokeProjectAssetUrl(previewValue.url);
+    }
+  };
+
+  const closePreview = () => {
+    previewRequestRef.current += 1;
+
+    revokePreviewUrl(previewRef.current);
+
+    previewRef.current = null;
+    setPreview(null);
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      previewRequestRef.current += 1;
+
+      revokePreviewUrl(previewRef.current);
+
+      previewRef.current = null;
+    };
+  }, []);
+
+  /*
+   * =========================================
+   * File Selection
+   * =========================================
+   */
+
+  const handleFileSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    const availableSlots =
+      PROJECT_FIELD_LIMITS.maximumDocuments -
+      activeDocuments.length -
+      uploads.length;
+
+    if (availableSlots <= 0) {
+      setLocalError(
+        `This Project can contain no more than ${PROJECT_FIELD_LIMITS.maximumDocuments} documents.`,
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    const acceptedUploads = [];
+
+    let nextError = "";
+
+    files.slice(0, availableSlots).forEach((file) => {
+      if (!isSupportedProjectDocument(file)) {
+        nextError =
+          "Upload a supported PDF, Word, PowerPoint, JPG, PNG, or WebP document.";
+
+        return;
+      }
+
+      if (!isProjectDocumentWithinSizeLimit(file)) {
+        nextError =
+          "Each supporting document must be non-empty and 20 MB or smaller.";
+
+        return;
+      }
+
+      const normalizedFileName = getText(file.name).toLocaleLowerCase();
+
+      const duplicate = [
+        ...activeDocuments,
+        ...uploads,
+        ...acceptedUploads,
+      ].some((item) => {
+        const existingFileName = getText(
+          item.file?.name || item.fileName || item.name,
+        ).toLocaleLowerCase();
+
+        return existingFileName && existingFileName === normalizedFileName;
+      });
+
+      if (duplicate) {
+        nextError = `"${file.name}" has already been added.`;
+
+        return;
+      }
+
+      acceptedUploads.push({
+        assetId: createProjectId("project-document"),
+
+        file,
+
+        name: file.name,
+
+        description: "",
+
+        documentType: "supporting-evidence",
+
+        visibility: "private",
+
+        status: "active",
+      });
+    });
+
+    if (files.length > availableSlots) {
+      nextError = `Only ${availableSlots} additional ${
+        availableSlots === 1 ? "document" : "documents"
+      } can be added.`;
+    }
+
+    if (acceptedUploads.length > 0) {
+      onUploadsChange?.([...uploads, ...acceptedUploads]);
+    }
+
+    setLocalError(nextError);
+
+    event.target.value = "";
+  };
+
+  /*
+   * =========================================
+   * Document Updates
+   * =========================================
+   */
+
+  const updateExistingDocument = (documentId, field, value) => {
+    onChange?.(
+      documents.map((document) =>
+        document.id === documentId
+          ? {
+              ...document,
+              [field]: value,
+            }
+          : document,
+      ),
+    );
+
+    setLocalError("");
+  };
+
+  const updateStagedDocument = (assetId, field, value) => {
+    onUploadsChange?.(
+      uploads.map((upload) =>
+        upload.assetId === assetId
+          ? {
+              ...upload,
+              [field]: value,
+            }
+          : upload,
+      ),
+    );
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Removal
+   * =========================================
+   */
+
+  const removeExistingDocument = (document) => {
+    onChange?.(documents.filter((candidate) => candidate.id !== document.id));
+
+    if (document.storageKey) {
+      onRemoveStoredAsset?.(document.storageKey);
+    }
+
+    if (previewRef.current?.documentId === document.id) {
+      closePreview();
+    }
+
+    setLocalError("");
+  };
+
+  const removeStagedDocument = (upload) => {
+    onUploadsChange?.(
+      uploads.filter((item) => item.assetId !== upload.assetId),
+    );
+
+    if (previewRef.current?.documentId === upload.assetId) {
+      closePreview();
+    }
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Preview
+   * =========================================
+   */
+
+  const showPreview = (previewValue) => {
+    revokePreviewUrl(previewRef.current);
+
+    previewRef.current = previewValue;
+
+    setPreview(previewValue);
+  };
+
+  const handleViewStoredDocument = async (document) => {
+    const requestId = previewRequestRef.current + 1;
+
+    previewRequestRef.current = requestId;
+
+    setLocalError("");
+
+    try {
+      let url = "";
+      let ownsObjectUrl = false;
+
+      if (document.storageKey) {
+        url = await createProjectAssetUrl(document.storageKey);
+
+        ownsObjectUrl = true;
+      } else {
+        url = getText(document.externalUrl);
+      }
+
+      if (requestId !== previewRequestRef.current || !mountedRef.current) {
+        if (ownsObjectUrl) {
+          revokeProjectAssetUrl(url);
+        }
+
+        return;
+      }
+
+      if (!url) {
+        throw new Error("The document does not have a preview address.");
+      }
+
+      showPreview({
+        documentId: document.id,
+        title: getDocumentLabel(document),
+        url,
+        mimeType: document.mimeType || "",
+        ownsObjectUrl,
+      });
+    } catch (caughtError) {
+      if (requestId !== previewRequestRef.current || !mountedRef.current) {
+        return;
+      }
+
+      setLocalError(
+        caughtError?.publicMessage ||
+          caughtError?.message ||
+          "The selected Project document could not be opened.",
+      );
+    }
+  };
+
+  const handleViewStagedDocument = (upload) => {
+    if (
+      !upload?.file ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      setLocalError("The selected Project document cannot be previewed.");
+
+      return;
+    }
+
+    previewRequestRef.current += 1;
+
+    const objectUrl = URL.createObjectURL(upload.file);
+
+    showPreview({
+      documentId: upload.assetId,
+      title: getDocumentLabel(upload),
+      url: objectUrl,
+      mimeType: upload.file.type || "",
+      ownsObjectUrl: true,
+    });
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Render
+   * =========================================
+   */
+
+  return (
+    <section
+      className="project-form-section project-document-editor"
+      data-field="supportingDocuments"
+    >
+      <header className="project-form-section-header">
+        <span aria-hidden="true" />
+
+        <div>
+          <small>Supporting Evidence</small>
+
+          <h3>Project Documents</h3>
+
+          <p>
+            Attach reports, presentations, diagrams, award evidence, source
+            material, and technical documentation.
+          </p>
+        </div>
+      </header>
+
+      <label
+        className={[
+          "project-document-upload",
+          disabled ? "project-document-upload--disabled" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <input
+          type="file"
+          multiple
+          accept={PROJECT_DOCUMENT_ACCEPT}
+          onChange={handleFileSelection}
+          disabled={
+            disabled ||
+            activeDocuments.length + uploads.length >=
+              PROJECT_FIELD_LIMITS.maximumDocuments
+          }
+        />
+
+        <span>
+          <strong>Select supporting documents</strong>
+
+          <small>
+            PDF, Word, PowerPoint, JPG, PNG, or WebP Â· 20 MB maximum per
+            document
+          </small>
+
+          <em>
+            {activeDocuments.length + uploads.length}/
+            {PROJECT_FIELD_LIMITS.maximumDocuments} documents
+          </em>
+        </span>
+      </label>
+
+      {(localError || error) && (
+        <p className="project-document-error" role="alert">
+          {localError || error}
+        </p>
+      )}
+
+      {activeDocuments.length === 0 && uploads.length === 0 ? (
+        <div className="project-document-empty">
+          No supporting documents added.
+        </div>
+      ) : (
+        <div className="project-document-list">
+          {activeDocuments.map((document) => (
+            <DocumentRow
+              key={document.id}
+              document={document}
+              disabled={disabled}
+              onChange={(field, value) =>
+                updateExistingDocument(document.id, field, value)
+              }
+              onView={() => handleViewStoredDocument(document)}
+              onRemove={() => removeExistingDocument(document)}
+            />
+          ))}
+
+          {uploads.map((upload) => (
+            <DocumentRow
+              key={upload.assetId}
+              document={upload}
+              staged
+              disabled={disabled}
+              onChange={(field, value) =>
+                updateStagedDocument(upload.assetId, field, value)
+              }
+              onView={() => handleViewStagedDocument(upload)}
+              onRemove={() => removeStagedDocument(upload)}
+            />
+          ))}
+        </div>
+      )}
+
+      {preview && <DocumentPreview preview={preview} onClose={closePreview} />}
+    </section>
+  );
+}
+
+/*
+ * =========================================
+ * Document Row
+ * =========================================
+ */
+
+function DocumentRow({
+  document,
+  staged = false,
+  disabled,
+  onChange,
+  onView,
+  onRemove,
+}) {
+  const label = getDocumentLabel(document);
+
+  const fileName = getText(document.fileName) || getText(document.file?.name);
+
+  const fileSize = document.fileSize ?? document.file?.size;
+
+  return (
+    <article className="project-document-row">
+      <div className="project-document-icon" aria-hidden="true">
+        {staged ? "NEW" : "DOC"}
+      </div>
+
+      <div className="project-document-content">
+        <div className="project-document-file">
+          <strong>{fileName || label}</strong>
+
+          <small>
+            {[
+              staged ? "Ready to upload" : "Saved document",
+              formatFileSize(fileSize),
+            ]
+              .filter(Boolean)
+              .join(" Â· ")}
+          </small>
+        </div>
+
+        <div className="project-document-fields">
+          <label>
+            <span>Document Name</span>
+
+            <input
+              type="text"
+              value={document.name || ""}
+              onChange={(event) => onChange("name", event.target.value)}
+              maxLength={PROJECT_FIELD_LIMITS.documentName}
+              placeholder="Document name"
+              disabled={disabled}
+            />
+          </label>
+
+          <label>
+            <span>Description</span>
+
+            <textarea
+              rows={2}
+              value={document.description || ""}
+              onChange={(event) => onChange("description", event.target.value)}
+              maxLength={PROJECT_FIELD_LIMITS.documentDescription}
+              placeholder="Explain what this document demonstrates."
+              disabled={disabled}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="project-document-controls">
+        <label>
+          <span>Document Type</span>
+
+          <select
+            value={document.documentType || "supporting-evidence"}
+            onChange={(event) => onChange("documentType", event.target.value)}
+            disabled={disabled}
+            aria-label={`Document type for ${label}`}
+          >
+            {PROJECT_DOCUMENT_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Visibility</span>
+
+          <select
+            value={document.visibility || "private"}
+            onChange={(event) => onChange("visibility", event.target.value)}
+            disabled={disabled}
+            aria-label={`Visibility for ${label}`}
+          >
+            <option value="private">Private</option>
+
+            <option value="public">Public</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={onView}
+          disabled={disabled}
+          aria-label={`View ${label}`}
+        >
+          View
+        </button>
+
+        <button
+          type="button"
+          className="project-document-remove"
+          onClick={onRemove}
+          disabled={disabled}
+          aria-label={`Remove ${label}`}
+        >
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/*
+ * =========================================
+ * Document Preview
+ * =========================================
+ */
+
+function DocumentPreview({ preview, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  const isImage = preview.mimeType.startsWith("image/");
+
+  return (
+    <div
+      className="project-document-preview-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className="project-document-preview"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Preview ${preview.title}`}
+      >
+        <header>
+          <div>
+            <small>Project Document</small>
+
+            <h4>{preview.title}</h4>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close document preview"
+          >
+            Ã—
+          </button>
+        </header>
+
+        <div className="project-document-preview-content">
+          {isImage ? (
+            <img src={preview.url} alt={preview.title} />
+          ) : (
+            <iframe src={preview.url} title={preview.title} />
+          )}
+        </div>
+
+        <footer>
+          <a href={preview.url} target="_blank" rel="noopener noreferrer">
+            Open in New Tab
+          </a>
+
+          <a href={preview.url} download={preview.title}>
+            Download
+          </a>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+export default ProjectDocumentEditor;
+
+==================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+==================================================
+import {
+  isProjectDocumentWithinSizeLimit,
+  isProjectMediaWithinSizeLimit,
+  isSupportedProjectDocument,
+  isSupportedProjectMedia,
+} from "../../config/projectConfig.js";
+
+import { createProjectId } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * IndexedDB Configuration
+ * =========================================
+ */
+
+export const PROJECT_ASSET_DATABASE_NAME = "portfolio-platform:project-assets";
+
+export const PROJECT_ASSET_DATABASE_VERSION = 1;
+
+export const PROJECT_ASSET_STORE_NAME = "assets";
+
+export const PROJECT_ID_INDEX_NAME = "projectId";
+
+export const ASSET_KIND_INDEX_NAME = "kind";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/*
+ * =========================================
+ * Storage Error
+ * =========================================
+ */
+
+function createProjectAssetStorageError({
+  code = "PROJECT_ASSET_STORAGE_ERROR",
+  message,
+  publicMessage,
+  cause = null,
+  details = {},
+}) {
+  const error = new Error(message);
+
+  error.name = "ProjectAssetStorageError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  Object.assign(error, details);
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Quota Error Detection
+ * =========================================
+ */
+
+function isStorageQuotaError(error) {
+  return (
+    error?.name === "QuotaExceededError" ||
+    error?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    error?.code === 22 ||
+    error?.code === 1014
+  );
+}
+
+/*
+ * =========================================
+ * IndexedDB Availability
+ * =========================================
+ */
+
+function getIndexedDb() {
+  if (typeof window === "undefined" || !window.indexedDB) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_STORAGE_UNAVAILABLE",
+
+      message: "IndexedDB is unavailable.",
+
+      publicMessage:
+        "Project media and document storage is not supported in this browser.",
+    });
+  }
+
+  return window.indexedDB;
+}
+
+/*
+ * =========================================
+ * Promise Helpers
+ * =========================================
+ */
+
+function requestToPromise(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+
+function transactionToPromise(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+
+    transaction.onabort = () => {
+      reject(
+        transaction.error ||
+          new Error("The IndexedDB transaction was aborted."),
+      );
+    };
+  });
+}
+
+/*
+ * =========================================
+ * Open Database
+ * =========================================
+ */
+
+function openProjectAssetDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = getIndexedDb().open(
+      PROJECT_ASSET_DATABASE_NAME,
+      PROJECT_ASSET_DATABASE_VERSION,
+    );
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+
+      let store;
+
+      if (!database.objectStoreNames.contains(PROJECT_ASSET_STORE_NAME)) {
+        store = database.createObjectStore(PROJECT_ASSET_STORE_NAME, {
+          keyPath: "storageKey",
+        });
+      } else {
+        store = request.transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+      }
+
+      if (!store.indexNames.contains(PROJECT_ID_INDEX_NAME)) {
+        store.createIndex(PROJECT_ID_INDEX_NAME, "projectId", {
+          unique: false,
+        });
+      }
+
+      if (!store.indexNames.contains(ASSET_KIND_INDEX_NAME)) {
+        store.createIndex(ASSET_KIND_INDEX_NAME, "kind", {
+          unique: false,
+        });
+      }
+    };
+
+    request.onsuccess = () => {
+      const database = request.result;
+
+      /*
+       * A tab holding an old database connection
+       * must close it when another tab upgrades
+       * the database.
+       */
+
+      database.onversionchange = () => {
+        database.close();
+      };
+
+      resolve(database);
+    };
+
+    request.onerror = () => {
+      reject(
+        createProjectAssetStorageError({
+          code: "PROJECT_ASSET_DATABASE_OPEN_FAILED",
+
+          message: "Unable to open Project asset storage.",
+
+          publicMessage: "Project file storage could not be opened.",
+
+          cause: request.error,
+        }),
+      );
+    };
+
+    request.onblocked = () => {
+      reject(
+        createProjectAssetStorageError({
+          code: "PROJECT_ASSET_DATABASE_BLOCKED",
+
+          message: "The Project asset database operation was blocked.",
+
+          publicMessage: "Close other tabs using this portfolio and try again.",
+        }),
+      );
+    };
+  });
+}
+
+/*
+ * =========================================
+ * Asset Kind
+ * =========================================
+ */
+
+function normalizeAssetKind(kind) {
+  return kind === "document" ? "document" : "media";
+}
+
+/*
+ * =========================================
+ * File Validation
+ * =========================================
+ */
+
+function validateProjectAssetFile(file, kind) {
+  if (!file || typeof file !== "object" || typeof file.slice !== "function") {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_REQUIRED",
+
+      message: "A valid File or Blob-like object is required.",
+
+      publicMessage: "Select a valid Project file before uploading.",
+    });
+  }
+
+  const isSupported =
+    kind === "media"
+      ? isSupportedProjectMedia(file)
+      : isSupportedProjectDocument(file);
+
+  if (!isSupported) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_TYPE_UNSUPPORTED",
+
+      message: "The selected Project asset type is unsupported.",
+
+      publicMessage:
+        kind === "media"
+          ? "Upload a supported JPG, PNG, WebP, GIF, MP4, or WebM file."
+          : "Upload a supported Project document type.",
+    });
+  }
+
+  const isWithinSizeLimit =
+    kind === "media"
+      ? isProjectMediaWithinSizeLimit(file)
+      : isProjectDocumentWithinSizeLimit(file);
+
+  if (!isWithinSizeLimit) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_SIZE_INVALID",
+
+      message: "The selected Project asset exceeds its size limit or is empty.",
+
+      publicMessage:
+        kind === "media"
+          ? "The selected image or video is empty or exceeds the permitted size."
+          : "The selected document is empty or exceeds the permitted size.",
+    });
+  }
+}
+
+/*
+ * =========================================
+ * Public Asset Metadata
+ * =========================================
+ */
+
+function createAssetMetadata(record) {
+  if (!record) {
+    return null;
+  }
+
+  return {
+    storageKey: record.storageKey,
+
+    projectId: record.projectId,
+
+    assetId: record.assetId,
+
+    kind: record.kind,
+
+    fileName: record.fileName,
+
+    mimeType: record.mimeType,
+
+    fileSize: record.fileSize,
+
+    createdAt: record.createdAt,
+
+    updatedAt: record.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Write Asset
+ * =========================================
+ */
+
+export async function writeProjectAsset({
+  file,
+  projectId,
+  assetId = "",
+  storageKey = "",
+  kind = "media",
+} = {}) {
+  const normalizedKind = normalizeAssetKind(kind);
+
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_PROJECT_ID_REQUIRED",
+
+      message: "A Project identifier is required before storing an asset.",
+
+      publicMessage:
+        "The Project file cannot be saved because the Project could not be identified.",
+    });
+  }
+
+  validateProjectAssetFile(file, normalizedKind);
+
+  const resolvedAssetId = getText(assetId) || createProjectId("project-asset");
+
+  const resolvedStorageKey =
+    getText(storageKey) ||
+    `project:${normalizedProjectId}:${normalizedKind}:${resolvedAssetId}`;
+
+  const database = await openProjectAssetDatabase();
+
+  const timestamp = new Date().toISOString();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    /*
+     * The read and write are handled within the
+     * same request callback so the transaction
+     * cannot become inactive between operations.
+     */
+
+    const existingRequest = store.get(resolvedStorageKey);
+
+    const preparedRecordPromise = new Promise((resolve, reject) => {
+      existingRequest.onerror = () => {
+        reject(existingRequest.error);
+      };
+
+      existingRequest.onsuccess = () => {
+        const existingRecord = existingRequest.result;
+
+        /*
+         * Never allow a storage key belonging
+         * to another Project to be overwritten.
+         */
+
+        if (
+          existingRecord &&
+          existingRecord.projectId !== normalizedProjectId
+        ) {
+          transaction.abort();
+
+          reject(
+            createProjectAssetStorageError({
+              code: "PROJECT_ASSET_STORAGE_KEY_CONFLICT",
+
+              message:
+                "The requested asset storage key belongs to another Project.",
+
+              publicMessage:
+                "The Project file could not be saved because its storage identifier conflicts with another file.",
+            }),
+          );
+
+          return;
+        }
+
+        const blob = file.slice(
+          0,
+          file.size,
+          file.type || "application/octet-stream",
+        );
+
+        const record = {
+          storageKey: resolvedStorageKey,
+
+          projectId: normalizedProjectId,
+
+          assetId: resolvedAssetId,
+
+          kind: normalizedKind,
+
+          fileName: getText(file.name),
+
+          mimeType: getText(file.type) || "application/octet-stream",
+
+          fileSize: Number(file.size) || 0,
+
+          blob,
+
+          createdAt: existingRecord?.createdAt || timestamp,
+
+          updatedAt: timestamp,
+        };
+
+        const putRequest = store.put(record);
+
+        putRequest.onerror = () => {
+          reject(putRequest.error);
+        };
+
+        putRequest.onsuccess = () => {
+          resolve(record);
+        };
+      };
+    });
+
+    const [record] = await Promise.all([
+      preparedRecordPromise,
+      transactionToPromise(transaction),
+    ]);
+
+    return createAssetMetadata(record);
+  } catch (error) {
+    if (error?.name === "ProjectAssetStorageError") {
+      throw error;
+    }
+
+    const quotaExceeded = isStorageQuotaError(error);
+
+    throw createProjectAssetStorageError({
+      code: quotaExceeded
+        ? "PROJECT_ASSET_QUOTA_EXCEEDED"
+        : "PROJECT_ASSET_WRITE_FAILED",
+
+      message: quotaExceeded
+        ? "IndexedDB storage quota was exceeded."
+        : "Unable to save a Project asset.",
+
+      publicMessage: quotaExceeded
+        ? "The browser does not have enough storage space for this Project file. Remove unused files or choose a smaller file."
+        : "The selected Project file could not be saved.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Read Asset
+ * =========================================
+ */
+
+export async function readProjectAsset(storageKey) {
+  const normalizedStorageKey = getText(storageKey);
+
+  if (!normalizedStorageKey) {
+    return null;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readonly",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const record = await requestToPromise(store.get(normalizedStorageKey));
+
+    await transactionToPromise(transaction);
+
+    return record || null;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_READ_FAILED",
+
+      message: "Unable to read a Project asset.",
+
+      publicMessage: "The Project file could not be loaded.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Asset Existence
+ * =========================================
+ */
+
+export async function hasProjectAsset(storageKey) {
+  const record = await readProjectAsset(storageKey);
+
+  return Boolean(record?.blob);
+}
+
+/*
+ * =========================================
+ * Create Object URL
+ * =========================================
+ */
+
+export async function createProjectAssetUrl(storageKey) {
+  const normalizedStorageKey = getText(storageKey);
+
+  if (!normalizedStorageKey) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_STORAGE_KEY_REQUIRED",
+
+      message: "An asset storage key is required.",
+
+      publicMessage: "The Project file could not be identified.",
+    });
+  }
+
+  const record = await readProjectAsset(normalizedStorageKey);
+
+  if (!record?.blob) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_NOT_FOUND",
+
+      message: `Project asset not found: ${normalizedStorageKey}`,
+
+      publicMessage:
+        "The Project file is no longer available in browser storage.",
+    });
+  }
+
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_URL_UNAVAILABLE",
+
+      message: "Object URLs are unavailable.",
+
+      publicMessage:
+        "The Project file cannot be previewed in this environment.",
+    });
+  }
+
+  return URL.createObjectURL(record.blob);
+}
+
+/*
+ * =========================================
+ * Revoke Object URL
+ * =========================================
+ */
+
+export function revokeProjectAssetUrl(objectUrl) {
+  if (
+    typeof objectUrl === "string" &&
+    objectUrl.startsWith("blob:") &&
+    typeof URL !== "undefined" &&
+    typeof URL.revokeObjectURL === "function"
+  ) {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/*
+ * =========================================
+ * List Project Asset Metadata
+ * =========================================
+ *
+ * Blob data is removed from the returned
+ * records to avoid unnecessarily retaining
+ * large file data in application state.
+ */
+
+export async function listProjectAssets(projectId, { kind = "all" } = {}) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    return [];
+  }
+
+  const normalizedKind = kind === "media" || kind === "document" ? kind : "all";
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readonly",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const index = store.index(PROJECT_ID_INDEX_NAME);
+
+    const records = await requestToPromise(index.getAll(normalizedProjectId));
+
+    await transactionToPromise(transaction);
+
+    return getArray(records)
+      .filter(
+        (record) => normalizedKind === "all" || record.kind === normalizedKind,
+      )
+      .map(createAssetMetadata);
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_LIST_FAILED",
+
+      message: "Unable to list Project assets.",
+
+      publicMessage: "The Project file list could not be loaded.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Delete Assets by Storage Key
+ * =========================================
+ */
+
+export async function deleteProjectAssets(storageKeys = []) {
+  const normalizedStorageKeys = [
+    ...new Set(getArray(storageKeys).map(getText).filter(Boolean)),
+  ];
+
+  if (normalizedStorageKeys.length === 0) {
+    return 0;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    normalizedStorageKeys.forEach((normalizedStorageKey) => {
+      store.delete(normalizedStorageKey);
+    });
+
+    await transactionToPromise(transaction);
+
+    return normalizedStorageKeys.length;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_DELETE_FAILED",
+
+      message: "Unable to delete Project assets.",
+
+      publicMessage: "One or more Project files could not be removed.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Delete All Assets for Project
+ * =========================================
+ *
+ * A cursor is used instead of getAll(). This
+ * prevents every large Blob from being loaded
+ * into application memory before deletion.
+ */
+
+export async function deleteProjectAssetsForProject(projectId) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    return 0;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const index = store.index(PROJECT_ID_INDEX_NAME);
+
+    if (typeof IDBKeyRange === "undefined") {
+      throw new Error("IDBKeyRange is unavailable.");
+    }
+
+    const keyRange = IDBKeyRange.only(normalizedProjectId);
+
+    /*
+     * This variable is updated while the cursor
+     * deletes each matching Project asset.
+     */
+
+    let cursorDeletedCount = 0;
+
+    const cursorPromise = new Promise((resolve, reject) => {
+      const cursorRequest = index.openCursor(keyRange);
+
+      cursorRequest.onerror = () => {
+        reject(
+          cursorRequest.error || new Error("The Project asset cursor failed."),
+        );
+      };
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+
+        /*
+         * No cursor means every matching asset
+         * has been processed.
+         */
+
+        if (!cursor) {
+          resolve(cursorDeletedCount);
+
+          return;
+        }
+
+        const deleteRequest = cursor.delete();
+
+        deleteRequest.onerror = () => {
+          reject(
+            deleteRequest.error ||
+              new Error("A Project asset could not be deleted."),
+          );
+        };
+
+        deleteRequest.onsuccess = () => {
+          cursorDeletedCount += 1;
+
+          cursor.continue();
+        };
+      };
+    });
+
+    /*
+     * Use a different variable name for the
+     * resolved count to avoid redeclaration.
+     */
+
+    const [completedDeletedCount] = await Promise.all([
+      cursorPromise,
+      transactionToPromise(transaction),
+    ]);
+
+    return completedDeletedCount;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_PROJECT_DELETE_FAILED",
+
+      message: "Unable to delete Project assets.",
+
+      publicMessage: "One or more Project files could not be removed.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+

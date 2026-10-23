@@ -1,0 +1,1574 @@
+﻿==================================================
+FILE: frontend\src\services\apiClient.js
+==================================================
+/*
+ * =========================================
+ * API Configuration
+ * =========================================
+ */
+
+const DEFAULT_API_ORIGIN = "http://localhost:5000";
+
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/*
+ * =========================================
+ * Authentication Session Event
+ * =========================================
+ */
+
+export const AUTH_SESSION_INVALID_EVENT =
+  "portfolio-platform:auth-session-invalid";
+
+const INVALID_SESSION_CODES = new Set([
+  "AUTHENTICATION_REQUIRED",
+  "SESSION_REFRESH_TOKEN_INVALID",
+  "SESSION_NOT_FOUND",
+  "SESSION_REFRESH_CONFLICT",
+]);
+
+/*
+ * =========================================
+ * Invalid Session Notification
+ * =========================================
+ */
+
+function notifyInvalidAuthenticationSession(error) {
+  if (
+    typeof window === "undefined" ||
+    (Number(error?.status) !== 401 &&
+      error?.code !== "SESSION_REFRESH_CONFLICT")
+  ) {
+    return;
+  }
+
+  if (!INVALID_SESSION_CODES.has(error?.code)) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+      detail: {
+        status: error.status,
+
+        code: error.code,
+
+        message: error.message,
+      },
+    }),
+  );
+}
+
+/*
+ * VITE_API_BASE_URL may be configured as:
+ *
+ * http://localhost:5000
+ *
+ * or:
+ *
+ * http://localhost:5000/api
+ *
+ * Both formats are supported.
+ */
+
+function normalizeApiBaseUrl(value) {
+  const configuredValue = typeof value === "string" ? value.trim() : "";
+
+  const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+
+  return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(
+  import.meta.env?.VITE_API_BASE_URL,
+);
+
+/*
+ * =========================================
+ * API Error
+ * =========================================
+ */
+
+export class ApiError extends Error {
+  constructor({
+    message,
+    status = 0,
+    code = "API_REQUEST_FAILED",
+    fieldErrors = {},
+    errors = [],
+    details = null,
+    method = "",
+    url = "",
+    cause,
+  }) {
+    super(message || "The request could not be completed.", {
+      cause,
+    });
+
+    this.name = "ApiError";
+
+    this.status = Number(status) || 0;
+
+    this.code = code || "API_REQUEST_FAILED";
+
+    this.fieldErrors =
+      fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+
+    this.errors = Array.isArray(errors) ? errors : [];
+
+    this.details = details || null;
+
+    this.method = method;
+
+    this.url = url;
+  }
+}
+
+/*
+ * =========================================
+ * Endpoint Normalization
+ * =========================================
+ */
+
+function normalizeEndpoint(endpoint) {
+  if (typeof endpoint !== "string" || !endpoint.trim()) {
+    throw new TypeError("A relative API endpoint is required.");
+  }
+
+  const normalizedEndpoint = endpoint.trim();
+
+  /*
+   * Prevent accidental cookie-bearing
+   * requests to arbitrary external origins.
+   */
+
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+    throw new TypeError("API endpoints must be relative paths.");
+  }
+
+  return normalizedEndpoint.startsWith("/")
+    ? normalizedEndpoint
+    : `/${normalizedEndpoint}`;
+}
+
+/*
+ * =========================================
+ * Query Parameters
+ * =========================================
+ */
+
+function appendQueryParameters(url, query) {
+  if (!query || typeof query !== "object") {
+    return url;
+  }
+
+  const requestUrl = new URL(url);
+
+  for (const [name, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        requestUrl.searchParams.append(name, String(item));
+      }
+
+      continue;
+    }
+
+    requestUrl.searchParams.set(name, String(value));
+  }
+
+  return requestUrl.toString();
+}
+
+/*
+ * =========================================
+ * Request Body Preparation
+ * =========================================
+ */
+
+function isFormData(value) {
+  return typeof FormData !== "undefined" && value instanceof FormData;
+}
+
+function isUrlSearchParams(value) {
+  return (
+    typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+  );
+}
+
+function isBlob(value) {
+  return typeof Blob !== "undefined" && value instanceof Blob;
+}
+
+function shouldSerializeAsJson(body) {
+  return (
+    body !== undefined &&
+    body !== null &&
+    typeof body === "object" &&
+    !isFormData(body) &&
+    !isUrlSearchParams(body) &&
+    !isBlob(body) &&
+    !(body instanceof ArrayBuffer)
+  );
+}
+
+function prepareRequestBody({ body, headers }) {
+  if (body === undefined || body === null) {
+    return undefined;
+  }
+
+  if (shouldSerializeAsJson(body)) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    return JSON.stringify(body);
+  }
+
+  /*
+   * Never set Content-Type manually for
+   * FormData. The browser must add its
+   * multipart boundary.
+   */
+
+  return body;
+}
+
+/*
+ * =========================================
+ * Response Parsing
+ * =========================================
+ */
+
+async function parseResponseBody(response) {
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        message: "The server returned an invalid JSON response.",
+      };
+    }
+  }
+
+  /*
+   * Some development proxies may omit the
+   * JSON content type. Attempt JSON parsing
+   * before treating the body as plain text.
+   */
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      message: text,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * API Error Creation
+ * =========================================
+ */
+
+function createResponseError({ response, data, method, url }) {
+  const error = new ApiError({
+    message: data?.message || `The server returned HTTP ${response.status}.`,
+
+    status: response.status,
+
+    code: data?.code || "API_REQUEST_FAILED",
+
+    fieldErrors: data?.fieldErrors,
+
+    errors: data?.errors,
+
+    details: data?.details,
+
+    method,
+
+    url,
+  });
+
+  notifyInvalidAuthenticationSession(error);
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Timeout and Abort Signal
+ * =========================================
+ */
+
+function createRequestAbortController({ signal, timeoutMs }) {
+  const controller = new AbortController();
+
+  let wasTimedOut = false;
+
+  const handleExternalAbort = () => {
+    controller.abort(signal?.reason);
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      handleExternalAbort();
+    } else {
+      signal.addEventListener("abort", handleExternalAbort, {
+        once: true,
+      });
+    }
+  }
+
+  const timeoutId = globalThis.setTimeout(() => {
+    wasTimedOut = true;
+
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+
+    wasTimedOut() {
+      return wasTimedOut;
+    },
+
+    cleanup() {
+      globalThis.clearTimeout(timeoutId);
+
+      signal?.removeEventListener?.("abort", handleExternalAbort);
+    },
+  };
+}
+
+/*
+ * =========================================
+ * API Request
+ * =========================================
+ */
+
+export async function apiRequest(
+  endpoint,
+  {
+    method = "GET",
+    body,
+    query,
+    headers: customHeaders,
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    cache = "no-store",
+  } = {},
+) {
+  const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+
+  const normalizedEndpoint = normalizeEndpoint(endpoint);
+
+  const requestUrl = appendQueryParameters(
+    `${API_BASE_URL}${normalizedEndpoint}`,
+    query,
+  );
+
+  const headers = new Headers(customHeaders || {});
+
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+
+  const requestBody = prepareRequestBody({
+    body,
+
+    headers,
+  });
+
+  const abortState = createRequestAbortController({
+    signal,
+
+    timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+  });
+
+  try {
+    const response = await fetch(requestUrl, {
+      method: normalizedMethod,
+
+      /*
+       * Required for HttpOnly session
+       * cookies on cross-origin requests.
+       */
+
+      credentials: "include",
+
+      headers,
+
+      body: ["GET", "HEAD"].includes(normalizedMethod)
+        ? undefined
+        : requestBody,
+
+      signal: abortState.signal,
+
+      cache,
+    });
+
+    const data = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw createResponseError({
+        response,
+
+        data,
+
+        method: normalizedMethod,
+
+        url: requestUrl,
+      });
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (error?.name === "AbortError") {
+      throw new ApiError({
+        message: abortState.wasTimedOut()
+          ? "The server took too long to respond."
+          : "The request was canceled.",
+
+        status: 0,
+
+        code: abortState.wasTimedOut()
+          ? "API_REQUEST_TIMEOUT"
+          : "API_REQUEST_ABORTED",
+
+        method: normalizedMethod,
+
+        url: requestUrl,
+
+        cause: error,
+      });
+    }
+
+    throw new ApiError({
+      message:
+        "Unable to connect to the server. Check your connection and try again.",
+
+      status: 0,
+
+      code: "API_NETWORK_ERROR",
+
+      method: normalizedMethod,
+
+      url: requestUrl,
+
+      cause: error,
+    });
+  } finally {
+    abortState.cleanup();
+  }
+}
+
+/*
+ * =========================================
+ * Convenience Methods
+ * =========================================
+ */
+
+export function apiGet(endpoint, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "GET",
+  });
+}
+
+export function apiPost(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "POST",
+
+    body,
+  });
+}
+
+export function apiPut(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "PUT",
+
+    body,
+  });
+}
+
+export function apiPatch(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "PATCH",
+
+    body,
+  });
+}
+
+export function apiDelete(endpoint, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "DELETE",
+  });
+}
+
+
+==================================================
+FILE: frontend\src\services\Project\projectService.js
+==================================================
+import {
+  createProject as createProjectModel,
+  createProjectDocument,
+  createProjectMedia,
+  createPublicProject,
+  normalizeProject,
+  updateProjectModel,
+} from "../../models/projectModel.js";
+
+import {
+  deleteProjectAssets,
+  deleteProjectAssetsForProject,
+  writeProjectAsset,
+} from "./projectAssetStorage.js";
+
+import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
+
+import { validateProject } from "./projectValidation.js";
+import { prepareFeaturedProjectMedia } from "./projectFeaturedMedia.js";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/*
+ * =========================================
+ * Service Error
+ * =========================================
+ */
+
+function createProjectServiceError(code, message, publicMessage, details = {}) {
+  const error = new Error(message);
+
+  error.name = "ProjectServiceError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  Object.assign(error, details);
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Validate Project for Storage
+ * =========================================
+ */
+
+function validateForSave(project, collections) {
+  const validation = validateProject(project, collections);
+
+  if (!validation.isValid) {
+    throw createProjectServiceError(
+      "PROJECT_VALIDATION_ERROR",
+      "Project validation failed.",
+      "Correct the highlighted Project fields before saving.",
+      {
+        validation,
+        errors: validation.errors,
+        warnings: validation.warnings,
+        fieldErrors: validation.fieldErrors,
+      },
+    );
+  }
+
+  return validation;
+}
+
+/*
+ * =========================================
+ * Project Identifier Validation
+ * =========================================
+ */
+
+function requireProjectId(projectId) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    throw createProjectServiceError(
+      "PROJECT_ID_REQUIRED",
+      "A Project identifier is required.",
+      "The selected Project could not be identified.",
+    );
+  }
+
+  return normalizedProjectId;
+}
+
+/*
+ * =========================================
+ * Find Project
+ * =========================================
+ */
+
+function findProjectIndex(records, projectId) {
+  return records.findIndex((project) => project.id === projectId);
+}
+
+/*
+ * =========================================
+ * Duplicate Identity
+ * =========================================
+ *
+ * Projects may share a title when they belong
+ * to different organizations or clients.
+ */
+
+function createProjectIdentity(project) {
+  const title = getText(project?.title).normalize("NFKC").toLocaleLowerCase();
+
+  const organization = getText(
+    project?.organization?.name || project?.organization?.clientName,
+  )
+    .normalize("NFKC")
+    .toLocaleLowerCase();
+
+  return {
+    title,
+    organization,
+  };
+}
+
+function ensureUniqueProject(records, candidate, excludedProjectId = "") {
+  const candidateIdentity = createProjectIdentity(candidate);
+
+  if (!candidateIdentity.title) {
+    return;
+  }
+
+  const duplicate = records.find((project) => {
+    if (project.id === excludedProjectId) {
+      return false;
+    }
+
+    const existingIdentity = createProjectIdentity(project);
+
+    /*
+     * When neither record identifies an
+     * organization, the normalized title alone
+     * is used to prevent accidental duplicates.
+     */
+
+    return (
+      existingIdentity.title === candidateIdentity.title &&
+      existingIdentity.organization === candidateIdentity.organization
+    );
+  });
+
+  if (!duplicate) {
+    return;
+  }
+
+  throw createProjectServiceError(
+    "PROJECT_DUPLICATE",
+    `A matching Project already exists: ${duplicate.id}`,
+    candidateIdentity.organization
+      ? "A Project with this title and organization already exists."
+      : "A Project with this title already exists.",
+    {
+      project: duplicate,
+
+      fieldErrors: {
+        title: "A matching Project record already exists.",
+      },
+    },
+  );
+}
+
+/*
+ * =========================================
+ * Store Upload Collection
+ * =========================================
+ */
+
+async function storeProjectUploads(projectId, uploads, kind) {
+  const uploadCollection = getArray(uploads);
+
+  const metadata = [];
+
+  const createdStorageKeys = [];
+
+  try {
+    for (let index = 0; index < uploadCollection.length; index += 1) {
+      const upload = uploadCollection[index];
+
+      if (!(upload?.file instanceof Blob)) {
+        throw createProjectServiceError(
+          "PROJECT_UPLOAD_FILE_INVALID",
+          `Project ${kind} upload does not contain a valid Blob.`,
+          `One of the selected Project ${
+            kind === "media" ? "media files" : "documents"
+          } is invalid.`,
+        );
+      }
+
+      const storedAsset = await writeProjectAsset({
+        file: upload.file,
+
+        projectId,
+
+        assetId: upload.assetId || upload.id,
+
+        storageKey: upload.storageKey,
+
+        kind,
+      });
+
+      createdStorageKeys.push(storedAsset.storageKey);
+
+      const metadataValues = {
+        ...upload,
+
+        /*
+         * File objects must never be included
+         * in localStorage metadata.
+         */
+
+        file: undefined,
+
+        id: storedAsset.assetId,
+
+        fileName: storedAsset.fileName,
+
+        mimeType: storedAsset.mimeType,
+
+        fileSize: storedAsset.fileSize,
+
+        storageProvider: "indexed-db",
+
+        storageKey: storedAsset.storageKey,
+
+        uploadedAt: storedAsset.updatedAt,
+      };
+
+      metadata.push(
+        kind === "media"
+          ? createProjectMedia(metadataValues, index)
+          : createProjectDocument(metadataValues, index),
+      );
+    }
+
+    return {
+      metadata,
+      createdStorageKeys,
+    };
+  } catch (error) {
+    /*
+     * If one upload fails, remove every asset
+     * already created during this collection.
+     */
+
+    await deleteProjectAssets(createdStorageKeys).catch(() => {});
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Prepare Project Assets
+ * =========================================
+ */
+
+async function prepareProjectAssets(
+  project,
+  { mediaUploads = [], documentUploads = [] } = {},
+) {
+  const storedMedia = await storeProjectUploads(
+    project.id,
+    mediaUploads,
+    "media",
+  );
+
+  try {
+    const storedDocuments = await storeProjectUploads(
+      project.id,
+      documentUploads,
+      "document",
+    );
+
+    /*
+     * A staged upload selected in the Media
+     * Editor must take priority. Before upload,
+     * its ID cannot be resolved by normalizeProject
+     * because it is not yet part of project.media.
+     */
+
+    const featuredMediaResult = prepareFeaturedProjectMedia(
+      getArray(project.media),
+      storedMedia.metadata,
+      getText(project.presentation?.featuredMediaId),
+    );
+    const preparedProject = normalizeProject({
+      ...project,
+
+      media: featuredMediaResult.media,
+
+      supportingDocuments: [
+        ...getArray(project.supportingDocuments),
+
+        ...storedDocuments.metadata,
+      ],
+
+      presentation: {
+        ...project.presentation,
+
+        featuredMediaId: featuredMediaResult.featuredMediaId,
+      },
+    });
+
+    return {
+      project: preparedProject,
+
+      createdStorageKeys: [
+        ...storedMedia.createdStorageKeys,
+        ...storedDocuments.createdStorageKeys,
+      ],
+    };
+  } catch (error) {
+    /*
+     * Document storage failed after media was
+     * saved, so the new media must be rolled
+     * back as well.
+     */
+
+    await deleteProjectAssets(storedMedia.createdStorageKeys).catch(() => {});
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Safe Removed-Asset Cleanup
+ * =========================================
+ */
+
+async function removeUnreferencedAssets(project, requestedStorageKeys) {
+  const referencedStorageKeys = new Set([
+    ...getArray(project.media)
+      .map((mediaItem) => getText(mediaItem.storageKey))
+      .filter(Boolean),
+
+    ...getArray(project.supportingDocuments)
+      .map((documentRecord) => getText(documentRecord.storageKey))
+      .filter(Boolean),
+  ]);
+
+  const removableStorageKeys = [
+    ...new Set(getArray(requestedStorageKeys).map(getText).filter(Boolean)),
+  ].filter((storageKey) => !referencedStorageKeys.has(storageKey));
+
+  if (removableStorageKeys.length === 0) {
+    return 0;
+  }
+
+  return deleteProjectAssets(removableStorageKeys);
+}
+
+/*
+ * =========================================
+ * Get Projects
+ * =========================================
+ */
+
+export function getProjects({ includeArchived = false } = {}) {
+  const projects = readStoredProjects();
+
+  return includeArchived
+    ? projects
+    : projects.filter((project) => project.recordStatus !== "archived");
+}
+
+/*
+ * =========================================
+ * Get Project by ID
+ * =========================================
+ */
+
+export function getProjectById(projectId, { includeArchived = true } = {}) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const project =
+    readStoredProjects().find((record) => record.id === normalizedProjectId) ||
+    null;
+
+  if (project?.recordStatus === "archived" && !includeArchived) {
+    return null;
+  }
+
+  return project;
+}
+
+/*
+ * =========================================
+ * Public Projects
+ * =========================================
+ */
+
+export function getPublicProjects() {
+  return getProjects({
+    includeArchived: false,
+  }).map(createPublicProject);
+}
+
+/*
+ * =========================================
+ * Public Project by ID
+ * =========================================
+ */
+
+export function getPublicProjectById(projectId) {
+  const project = getProjectById(projectId, {
+    includeArchived: false,
+  });
+
+  return project ? createPublicProject(project) : null;
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export async function createProject(
+  projectData,
+  {
+    collections = {},
+    mediaUploads = [],
+    documentUploads = [],
+    removedAssetStorageKeys = [],
+  } = {},
+) {
+  const records = readStoredProjects();
+
+  let project = createProjectModel(projectData);
+
+  ensureUniqueProject(records, project);
+
+  const preparedAssets = await prepareProjectAssets(project, {
+    mediaUploads,
+    documentUploads,
+  });
+
+  project = preparedAssets.project;
+
+  try {
+    const validation = validateForSave(project, collections);
+
+    /*
+     * Store metadata only after every staged
+     * asset was written successfully.
+     */
+
+    replaceStoredProjects([...records, project]);
+
+    /*
+     * This collection is normally empty while
+     * creating, but accepting it keeps the
+     * service contract consistent.
+     */
+
+    await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+      () => {},
+    );
+
+    return {
+      project,
+      warnings: validation.warnings,
+    };
+  } catch (error) {
+    /*
+     * Metadata was not saved, so every new
+     * IndexedDB asset must be removed.
+     */
+
+    await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+      () => {},
+    );
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export async function updateProject(
+  projectId,
+  updates,
+  {
+    collections = {},
+    mediaUploads = [],
+    documentUploads = [],
+    removedAssetStorageKeys = [],
+  } = {},
+) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  let project = updateProjectModel(records[projectIndex], updates);
+
+  ensureUniqueProject(records, project, project.id);
+
+  const preparedAssets = await prepareProjectAssets(project, {
+    mediaUploads,
+    documentUploads,
+  });
+
+  project = preparedAssets.project;
+
+  try {
+    const validation = validateForSave(project, collections);
+
+    const nextRecords = [...records];
+
+    nextRecords[projectIndex] = project;
+
+    /*
+     * Save updated metadata before deleting
+     * old assets. If this write fails, existing
+     * files remain recoverable.
+     */
+
+    replaceStoredProjects(nextRecords);
+
+    /*
+     * Asset deletion occurs only after the new
+     * Project record has been saved.
+     */
+
+    await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+      () => {},
+    );
+
+    return {
+      project,
+      warnings: validation.warnings,
+    };
+  } catch (error) {
+    /*
+     * Preserve all pre-existing files and remove
+     * only assets created during this attempt.
+     */
+
+    await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+      () => {},
+    );
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Archive Project
+ * =========================================
+ */
+
+export async function archiveProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const project = records[projectIndex];
+
+  if (project.recordStatus === "archived") {
+    return project;
+  }
+
+  const archivedProject = normalizeProject({
+    ...project,
+
+    recordStatus: "archived",
+
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextRecords = [...records];
+
+  nextRecords[projectIndex] = archivedProject;
+
+  replaceStoredProjects(nextRecords);
+
+  return archivedProject;
+}
+
+/*
+ * =========================================
+ * Restore Project
+ * =========================================
+ */
+
+export async function restoreProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const project = records[projectIndex];
+
+  if (project.recordStatus === "active") {
+    return project;
+  }
+
+  const restoredProject = normalizeProject({
+    ...project,
+
+    recordStatus: "active",
+
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextRecords = [...records];
+
+  nextRecords[projectIndex] = restoredProject;
+
+  replaceStoredProjects(nextRecords);
+
+  return restoredProject;
+}
+
+/*
+ * =========================================
+ * Delete Project Permanently
+ * =========================================
+ */
+
+export async function deleteProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const deletedProject = records[projectIndex];
+
+  const nextRecords = records.filter(
+    (project) => project.id !== normalizedProjectId,
+  );
+
+  /*
+   * Delete metadata first. If localStorage
+   * fails, the Project and all assets remain.
+   */
+
+  replaceStoredProjects(nextRecords);
+
+  /*
+   * Once metadata is removed, delete every
+   * IndexedDB asset owned by this Project.
+   *
+   * Cleanup is best effort because the Project
+   * metadata has already been deleted.
+   */
+
+  let assetCleanupError = null;
+
+  try {
+    await deleteProjectAssetsForProject(normalizedProjectId);
+  } catch (error) {
+    assetCleanupError = error;
+  }
+
+  return {
+    ...deletedProject,
+
+    assetCleanupWarning: assetCleanupError
+      ? "The Project was deleted, but one or more locally stored files could not be cleaned up."
+      : "",
+  };
+}
+
+
+
+
+==================================================
+FILE: backend\src\controllers\projectController.js
+==================================================
+import {
+  getAuthenticatedProjects,
+  getAuthenticatedProject,
+  createAuthenticatedProject,
+  updateAuthenticatedProject,
+  setAuthenticatedProjectArchiveStatus,
+  deleteAuthenticatedProject,
+} from "../services/Service/projectService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+function projectRequestError(message) {
+  const error = new Error(message);
+  error.name = "ProjectRequestError";
+  error.code = "PROJECT_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireObject(value, name) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw projectRequestError(`${name} must be a JSON object.`);
+  }
+
+  return value;
+}
+
+function requireFields(body, allowedFields) {
+  const input = requireObject(body, "Request body");
+
+  const unexpected = Object.keys(input).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw projectRequestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return input;
+}
+
+export async function listMyProjects(request, response, next) {
+  try {
+    const projects = await getAuthenticatedProjects({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Projects retrieved successfully.",
+      data: { projects },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyProject(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project retrieved successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMyProject(request, response, next) {
+  try {
+    const project = await createAuthenticatedProject({
+      userId: request.auth.userId,
+      project: request.body,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project created successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["project", "rowVersion"]);
+
+    const project = await updateAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      project: body.project,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project updated successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function setMyProjectArchiveStatus(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["archived", "rowVersion"]);
+
+    const project = await setAuthenticatedProjectArchiveStatus({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      archived: body.archived,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: body.archived
+        ? "Project archived successfully."
+        : "Project restored successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["rowVersion"]);
+
+    const result = await deleteAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project deleted successfully.",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+==================================================
+FILE: backend\src\routes\projectRoutes.js
+==================================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+export default router;
+

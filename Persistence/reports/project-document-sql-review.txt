@@ -1,0 +1,485 @@
+﻿==================================================
+FILE: backend\src\database\migrations\006_projects.sql
+==================================================
+/*
+ * Portfolio Platform
+ * Project Persistence Foundation
+ * Migration 006
+ *
+ * Do not add GO statements to migration files.
+ * Stores project metadata and versioned JSON, not uploaded file bytes.
+ */
+
+CREATE TABLE dbo.projects
+(
+  id NVARCHAR(200) NOT NULL,
+
+  user_id UNIQUEIDENTIFIER NOT NULL,
+
+  title NVARCHAR(500) NOT NULL,
+
+  category NVARCHAR(100) NOT NULL,
+
+  lifecycle_status NVARCHAR(50) NOT NULL,
+
+  record_status NVARCHAR(20) NOT NULL
+    CONSTRAINT DF_projects_record_status DEFAULT N'active',
+
+  is_featured BIT NOT NULL
+    CONSTRAINT DF_projects_is_featured DEFAULT 0,
+
+  project_data NVARCHAR(MAX) NOT NULL,
+
+  created_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_projects_created_at DEFAULT SYSUTCDATETIME(),
+
+  updated_at DATETIME2(3) NOT NULL
+    CONSTRAINT DF_projects_updated_at DEFAULT SYSUTCDATETIME(),
+
+  row_version ROWVERSION NOT NULL,
+
+  CONSTRAINT PK_projects
+    PRIMARY KEY CLUSTERED (id),
+
+  CONSTRAINT FK_projects_user
+    FOREIGN KEY (user_id) REFERENCES dbo.users(id),
+
+  CONSTRAINT CK_projects_id_not_blank
+    CHECK (LEN(LTRIM(RTRIM(id))) > 0),
+
+  CONSTRAINT CK_projects_title_not_blank
+    CHECK (LEN(LTRIM(RTRIM(title))) > 0),
+
+  CONSTRAINT CK_projects_record_status
+    CHECK (record_status IN (N'active', N'archived')),
+
+  CONSTRAINT CK_projects_project_data_json
+    CHECK (ISJSON(project_data) = 1),
+
+  CONSTRAINT CK_projects_dates
+    CHECK (updated_at >= created_at)
+);
+
+CREATE INDEX IX_projects_user_status_updated
+  ON dbo.projects (user_id, record_status, updated_at DESC)
+  INCLUDE (title, category, lifecycle_status, is_featured);
+
+CREATE INDEX IX_projects_user_featured
+  ON dbo.projects (user_id, is_featured, created_at DESC)
+  INCLUDE (title, record_status);
+
+==================================================
+FILE: backend\src\database\migrations\007_project_media.sql
+==================================================
+/*
+ * Portfolio Platform
+ * Project Media Metadata
+ * Migration 007
+ *
+ * Stores metadata only. Uploaded file bytes remain
+ * in private filesystem storage.
+ *
+ * Do not add GO statements to migration files.
+ */
+
+ALTER TABLE dbo.projects
+ADD CONSTRAINT UQ_projects_id_user
+UNIQUE (id, user_id);
+
+CREATE TABLE dbo.project_media
+(
+    id UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT DF_project_media_id DEFAULT NEWID(),
+
+    project_id NVARCHAR(200) NOT NULL,
+
+    user_id UNIQUEIDENTIFIER NOT NULL,
+
+    storage_key NVARCHAR(500) NOT NULL,
+
+    original_file_name NVARCHAR(255) NOT NULL,
+
+    mime_type NVARCHAR(100) NOT NULL,
+
+    file_size BIGINT NOT NULL,
+
+    created_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_project_media_created_at
+        DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT PK_project_media
+        PRIMARY KEY CLUSTERED (id),
+
+    CONSTRAINT FK_project_media_project_owner
+        FOREIGN KEY (project_id, user_id)
+        REFERENCES dbo.projects(id, user_id),
+
+    CONSTRAINT UQ_project_media_storage_key
+        UNIQUE (storage_key),
+
+    CONSTRAINT CK_project_media_file_size
+        CHECK (
+            (mime_type IN (
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp',
+                N'image/avif',
+                N'image/gif'
+            ) AND file_size BETWEEN 1 AND 20971520)
+            OR
+            (mime_type IN (
+                N'video/mp4',
+                N'video/webm'
+            ) AND file_size BETWEEN 1 AND 104857600)
+        ),
+
+    CONSTRAINT CK_project_media_mime_type
+        CHECK (
+            mime_type IN (
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp',
+                N'image/avif',
+                N'image/gif',
+                N'video/mp4',
+                N'video/webm'
+            )
+        ),
+
+    CONSTRAINT CK_project_media_storage_key
+        CHECK (
+            LEN(LTRIM(RTRIM(storage_key))) > 0
+        ),
+
+    CONSTRAINT CK_project_media_original_file_name
+        CHECK (
+            LEN(LTRIM(RTRIM(original_file_name))) > 0
+        )
+);
+
+CREATE INDEX IX_project_media_project_created
+    ON dbo.project_media (project_id, created_at DESC);
+
+CREATE INDEX IX_project_media_user_project
+    ON dbo.project_media (user_id, project_id);
+
+==================================================
+FILE: backend\src\database\runMigrations.js
+==================================================
+import "dotenv/config";
+
+import { createHash } from "node:crypto";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { closeDatabase, getDatabasePool, sql } from "../config/database.js";
+
+import { getEnvironment, isDatabaseConfigured } from "../config/environment.js";
+
+/*
+ * =========================================
+ * Migration Directory
+ * =========================================
+ */
+
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+
+const migrationsDirectory = path.join(currentDirectory, "migrations");
+
+/*
+ * =========================================
+ * Known Migration Checksum Exception
+ * =========================================
+ *
+ * Migration 005 was applied to Azure SQL before its
+ * current file version was committed.
+ *
+ * The expected schema has been inspected in Azure.
+ * This exception is restricted to the two known hashes.
+ *
+ * Remove only after the migration history has been
+ * properly reconciled.
+ */
+
+const knownChecksumExceptions = new Map([
+  [
+    "005_profile_details.sql",
+    {
+      recordedChecksum:
+        "f436e5fcefd0bcbd0203f816bbaa30595b1fa59811ab58d84cf781b2687ec049",
+
+      currentChecksum:
+        "3817285481562c3ecb195e3f31736429c82f0879c48dac38244b77416aee365b",
+    },
+  ],
+]);
+
+const migrationFilePattern = /^\d{3,}_[a-z0-9_]+\.sql$/;
+
+/*
+ * =========================================
+ * Migration Checksum
+ * =========================================
+ */
+
+function createChecksum(contents) {
+  return createHash("sha256").update(contents, "utf8").digest("hex");
+}
+
+/*
+ * =========================================
+ * Load Migration Files
+ * =========================================
+ */
+
+async function loadMigrationFiles() {
+  const entries = await readdir(migrationsDirectory, {
+    withFileTypes: true,
+  });
+
+  const fileNames = entries
+    .filter((entry) => entry.isFile() && migrationFilePattern.test(entry.name))
+    .map((entry) => entry.name)
+    .sort((first, second) => first.localeCompare(second, "en"));
+
+  return Promise.all(
+    fileNames.map(async (fileName) => {
+      const filePath = path.join(migrationsDirectory, fileName);
+
+      const contents = await readFile(filePath, "utf8");
+
+      if (!contents.trim()) {
+        throw new Error(`Migration file is empty: ${fileName}`);
+      }
+
+      /*
+       * GO is understood by SSMS, but it is not
+       * a SQL Server statement and cannot be sent
+       * through the Node MSSQL driver.
+       */
+
+      if (/^\s*GO\s*;?\s*$/im.test(contents)) {
+        throw new Error(
+          `Migration ${fileName} contains GO. Remove GO because it is a client-side batch separator.`,
+        );
+      }
+
+      return {
+        id: fileName,
+
+        contents,
+
+        checksum: createChecksum(contents),
+      };
+    }),
+  );
+}
+
+/*
+ * =========================================
+ * Migration Tracking Table
+ * =========================================
+ */
+
+async function ensureMigrationTable(pool) {
+  await pool.request().batch(`
+    IF OBJECT_ID(N'dbo.schema_migrations', N'U') IS NULL
+    BEGIN
+      CREATE TABLE dbo.schema_migrations
+      (
+        migration_id NVARCHAR(255) NOT NULL,
+
+        checksum CHAR(64) NOT NULL,
+
+        applied_at DATETIME2(3) NOT NULL
+          CONSTRAINT DF_schema_migrations_applied_at
+          DEFAULT SYSUTCDATETIME(),
+
+        CONSTRAINT PK_schema_migrations
+          PRIMARY KEY CLUSTERED (migration_id)
+      );
+    END;
+  `);
+}
+
+/*
+ * =========================================
+ * Migration Lock
+ * =========================================
+ */
+
+async function acquireMigrationLock(request) {
+  const result = await request.query(`
+    DECLARE @lock_result INT;
+
+    EXEC @lock_result = sys.sp_getapplock
+      @Resource = N'portfolio-platform-schema-migrations',
+      @LockMode = N'Exclusive',
+      @LockOwner = N'Transaction',
+      @LockTimeout = 60000;
+
+    SELECT @lock_result AS lock_result;
+  `);
+
+  const lockResult = Number(result.recordset[0]?.lock_result);
+
+  if (lockResult < 0) {
+    throw new Error(
+      `Unable to acquire the database migration lock. Result: ${lockResult}`,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Applied Migration Lookup
+ * =========================================
+ */
+
+async function getAppliedMigrations(request) {
+  const result = await request.query(`
+    SELECT
+      migration_id,
+      checksum,
+      applied_at
+    FROM dbo.schema_migrations
+    ORDER BY migration_id;
+  `);
+
+  return new Map(
+    result.recordset.map((migration) => [migration.migration_id, migration]),
+  );
+}
+
+/*
+ * =========================================
+ * Run Migrations
+ * =========================================
+ */
+
+async function runMigrations() {
+  const environment = getEnvironment();
+
+  if (!isDatabaseConfigured(environment)) {
+    throw new Error("Database configuration is required to run migrations.");
+  }
+
+  const migrations = await loadMigrationFiles();
+
+  if (migrations.length === 0) {
+    console.log("No database migration files were found.");
+
+    return;
+  }
+
+  const pool = await getDatabasePool();
+
+  await ensureMigrationTable(pool);
+
+  const transaction = new sql.Transaction(pool);
+
+  await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+  try {
+    const request = new sql.Request(transaction);
+
+    await acquireMigrationLock(request);
+
+    const appliedMigrations = await getAppliedMigrations(request);
+
+    let appliedCount = 0;
+
+    for (const migration of migrations) {
+      const existingMigration = appliedMigrations.get(migration.id);
+
+      if (existingMigration) {
+        if (existingMigration.checksum !== migration.checksum) {
+          const exception = knownChecksumExceptions.get(migration.id);
+
+          const isKnownMismatch =
+            exception !== undefined &&
+            existingMigration.checksum === exception.recordedChecksum &&
+            migration.checksum === exception.currentChecksum;
+
+          if (!isKnownMismatch) {
+            throw new Error(
+              `Migration ${migration.id} was modified after it was applied. Create a new migration instead.`,
+            );
+          }
+
+          console.warn(
+            `WARNING: Accepted documented checksum mismatch for ${migration.id}. ` +
+              "The migration was previously applied; its SQL will not be executed again.",
+          );
+        }
+
+        console.log(`Already applied: ${migration.id}`);
+
+        continue;
+      }
+
+      console.log(`Applying migration: ${migration.id}`);
+
+      await new sql.Request(transaction).batch(migration.contents);
+
+      await new sql.Request(transaction)
+        .input("migrationId", sql.NVarChar(255), migration.id)
+        .input("checksum", sql.Char(64), migration.checksum).query(`
+          INSERT INTO dbo.schema_migrations
+          (
+            migration_id,
+            checksum
+          )
+          VALUES
+          (
+            @migrationId,
+            @checksum
+          );
+        `);
+
+      appliedCount += 1;
+
+      console.log(`Applied migration: ${migration.id}`);
+    }
+
+    await transaction.commit();
+
+    console.log(
+      appliedCount === 0
+        ? "Database schema is already up to date."
+        : `Database migration completed. Applied ${appliedCount} migration(s).`,
+    );
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Database migration rollback failed:", rollbackError);
+    }
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Execute Migration Process
+ * =========================================
+ */
+
+runMigrations()
+  .catch((error) => {
+    console.error("Database migration failed:", error);
+
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    try {
+      await closeDatabase();
+    } catch (error) {
+      console.error("Unable to close the database connection:", error);
+
+      process.exitCode = 1;
+    }
+  });
+

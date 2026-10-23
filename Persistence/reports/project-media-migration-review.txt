@@ -1,0 +1,1376 @@
+﻿==================================================
+FILE: backend\src\controllers\projectMediaController.js
+==================================================
+import fs from "node:fs";
+import { promises as fsPromises } from "node:fs";
+
+import {
+  registerProjectMedia,
+  listAuthenticatedProjectMedia,
+  getAuthenticatedProjectMedia,
+  deleteAuthenticatedProjectMedia,
+} from "../services/Service/projectMediaService.js";
+
+import {
+  resolveOwnedProjectMediaPath,
+  assertSafeProjectMediaDirectory,
+} from "../services/Storage/projectMediaStorageService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Upload Project Media
+ * =========================================
+ *
+ * Authentication, ownership, upload, and
+ * file validation must run before this
+ * controller.
+ *
+ * File cleanup is handled by the validation
+ * middleware for rejected uploads.
+ *
+ * Do not delete an uploaded file after an
+ * uncertain database registration outcome.
+ */
+
+export async function uploadMyProjectMedia(request, response, next) {
+  try {
+    const media = await registerProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      uploadedFile: request.projectMediaFile,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project media uploaded successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * GET /api/projects/:projectId/media
+ */
+
+export async function listMyProjectMedia(request, response, next) {
+  try {
+    const media = await listAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project media retrieved successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Serve Project Media
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media/:mediaId
+ *
+ * Authentication and Project ownership
+ * must be verified by the route middleware.
+ */
+
+export async function getMyProjectMedia(request, response, next) {
+  let fileHandle;
+
+  try {
+    const userId = request.auth.userId;
+    const projectId = request.params.projectId;
+    const mediaId = request.params.mediaId;
+
+    /*
+     * Retrieve authorized media metadata.
+     */
+
+    const media = await getAuthenticatedProjectMedia({
+      userId,
+      projectId,
+      mediaId,
+    });
+
+    /*
+     * Resolve the file path using the
+     * existing ownership-aware storage service.
+     */
+
+    const filePath = resolveOwnedProjectMediaPath(
+      userId,
+      projectId,
+      media.storageKey,
+    );
+
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    /*
+     * Open the file without following a
+     * symbolic link on supported platforms.
+     */
+
+    /*
+     * Reject symbolic links and reparse-point-like
+     * targets before opening the file.
+     *
+     * On Windows, O_NOFOLLOW is unavailable.
+     */
+
+    const pathStats = await fsPromises.lstat(filePath);
+
+    if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+      const error = new Error("Project media not found.");
+
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = error.message;
+
+      throw error;
+    }
+
+    /*
+     * Open the file using O_NOFOLLOW where supported.
+     */
+
+    const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+
+    fileHandle = await fsPromises.open(filePath, flags);
+
+    const stats = await fileHandle.stat();
+
+    if (!stats.isFile()) {
+      const error = new Error("Project media is not a regular file.");
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = "Project media not found.";
+      throw error;
+    }
+
+    /*
+     * Set private response headers.
+     */
+
+    setPrivateHeaders(response);
+
+    response.set({
+      "Content-Type": media.mimeType,
+      "Content-Length": String(stats.size),
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
+      "Accept-Ranges": "none",
+    });
+
+    /*
+     * Stream from the already-open file
+     * descriptor rather than reopening
+     * the path.
+     */
+
+    const stream = fileHandle.createReadStream({
+      autoClose: true,
+    });
+
+    fileHandle = null;
+
+    stream.on("error", (error) => {
+      if (!response.headersSent) {
+        next(error);
+      } else {
+        response.destroy(error);
+      }
+    });
+
+    stream.pipe(response);
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close().catch(() => {});
+    }
+
+    if (error.code === "ENOENT") {
+      const notFound = new Error("Project media not found.");
+      notFound.status = 404;
+      notFound.code = "PROJECT_MEDIA_NOT_FOUND";
+      notFound.publicMessage = notFound.message;
+      return next(notFound);
+    }
+
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Delete My Project Media
+ * =========================================
+ */
+
+export async function deleteMyProjectMedia(request, response, next) {
+  try {
+    await deleteAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      mediaId: request.params.mediaId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(204).end();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+==================================================
+FILE: backend\src\services\Service\projectMediaService.js
+==================================================
+import path from "node:path";
+
+import {
+  createProjectMedia,
+  findProjectMediaByStorageKey,
+  findProjectMediaById,
+  listProjectMedia,
+  deleteProjectMedia,
+} from "../../repositories/projectMediaRepository.js";
+
+import {
+  assertSafeProjectMediaDirectory,
+  createProjectMediaStorageKey,
+  resolveOwnedProjectMediaPath,
+  deleteOwnedProjectMedia,
+} from "../Storage/projectMediaStorageService.js";
+
+/*
+ * =========================================
+ * Project Media Service Errors
+ * =========================================
+ */
+
+function createMediaServiceError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectMediaServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Register Uploaded Project Media
+ * =========================================
+ */
+
+export async function registerProjectMedia({
+  userId,
+  projectId,
+  uploadedFile,
+}) {
+  if (!userId || !projectId) {
+    throw createMediaServiceError(
+      "Project media registration is not authorized.",
+      "PROJECT_MEDIA_REGISTRATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  if (!uploadedFile) {
+    throw createMediaServiceError(
+      "Validated Project media is required.",
+      "PROJECT_MEDIA_FILE_REQUIRED",
+    );
+  }
+
+  const {
+    filename,
+    path: uploadedPath,
+    originalname,
+    verifiedMimeType,
+    verifiedSize,
+  } = uploadedFile;
+
+  if (
+    !filename ||
+    !uploadedPath ||
+    !originalname ||
+    !verifiedMimeType ||
+    !Number.isSafeInteger(verifiedSize) ||
+    verifiedSize <= 0
+  ) {
+    throw createMediaServiceError(
+      "Project media validation information is incomplete.",
+      "PROJECT_MEDIA_VALIDATION_INCOMPLETE",
+    );
+  }
+
+  const storageKey = createProjectMediaStorageKey(userId, projectId, filename);
+
+  const expectedPath = resolveOwnedProjectMediaPath(
+    userId,
+    projectId,
+    storageKey,
+  );
+
+  if (path.resolve(uploadedPath) !== expectedPath) {
+    throw createMediaServiceError(
+      "Project media file location is invalid.",
+      "PROJECT_MEDIA_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  await assertSafeProjectMediaDirectory(userId, projectId);
+
+  /*
+   * The file has already been stored and verified
+   * by the upload and validation middleware.
+   *
+   * Now register its metadata in Azure SQL.
+   */
+
+  try {
+    return await createProjectMedia(userId, projectId, {
+      storageKey,
+      originalFileName: originalname,
+      mimeType: verifiedMimeType,
+      fileSize: verifiedSize,
+    });
+  } catch (databaseError) {
+    /*
+     * The insert failed or its result is uncertain.
+     *
+     * Do not delete the uploaded file:
+     * SQL Server might have committed the insert
+     * before the connection failed.
+     */
+
+    try {
+      const existingMedia = await findProjectMediaByStorageKey(
+        userId,
+        projectId,
+        storageKey,
+      );
+
+      if (existingMedia) {
+        // The metadata exists, so preserve its file.
+        return existingMedia;
+      }
+    } catch (lookupError) {
+      console.error(
+        "Unable to reconcile Project media registration:",
+        lookupError,
+      );
+    }
+
+    /*
+     * A missing record at lookup time does not prove
+     * that the original insert cannot commit later.
+     *
+     * Preserve the file for later reconciliation.
+     */
+
+    const error = createMediaServiceError(
+      "Project media registration could not be confirmed.",
+      "PROJECT_MEDIA_REGISTRATION_UNCONFIRMED",
+      503,
+    );
+
+    error.cause = databaseError;
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * List Project Media
+ * =========================================
+ */
+
+export async function listAuthenticatedProjectMedia({ userId, projectId }) {
+  if (!userId || !projectId) {
+    throw createMediaServiceError(
+      "Project media access is not authorized.",
+      "PROJECT_MEDIA_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  return listProjectMedia(userId, projectId);
+}
+
+/*
+ * =========================================
+ * Get Authenticated Project Media
+ * =========================================
+ *
+ * Retrieve media metadata belonging to
+ * the authenticated user and Project.
+ */
+
+export async function getAuthenticatedProjectMedia({
+  userId,
+  projectId,
+  mediaId,
+}) {
+  if (!userId || !projectId || !mediaId) {
+    throw createMediaServiceError(
+      "Project media access is not authorized.",
+      "PROJECT_MEDIA_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const media = await findProjectMediaById(userId, projectId, mediaId);
+
+  if (!media) {
+    throw createMediaServiceError(
+      "Project media not found.",
+      "PROJECT_MEDIA_NOT_FOUND",
+      404,
+    );
+  }
+
+  return media;
+}
+
+/*
+ * =========================================
+ * Delete Authenticated Project Media
+ * =========================================
+ */
+
+export async function deleteAuthenticatedProjectMedia({
+  userId,
+  projectId,
+  mediaId,
+}) {
+  if (!userId || !projectId || !mediaId) {
+    throw createMediaServiceError(
+      "Project media deletion is not authorized.",
+      "PROJECT_MEDIA_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const media = await findProjectMediaById(userId, projectId, mediaId);
+
+  if (!media) {
+    throw createMediaServiceError(
+      "Project media not found.",
+      "PROJECT_MEDIA_NOT_FOUND",
+      404,
+    );
+  }
+
+  /*
+   * Delete the owned physical file first.
+   *
+   * The storage service handles an already-missing
+   * file without throwing an error.
+   */
+  await deleteOwnedProjectMedia(userId, projectId, media.storageKey);
+
+  /*
+   * Remove the database record only after
+   * filesystem deletion succeeds.
+   */
+  const deletedMedia = await deleteProjectMedia(userId, projectId, mediaId);
+
+  if (!deletedMedia) {
+    throw createMediaServiceError(
+      "Project media deletion could not be confirmed.",
+      "PROJECT_MEDIA_DELETION_UNCONFIRMED",
+      503,
+    );
+  }
+
+  return deletedMedia;
+}
+
+==================================================
+FILE: frontend\src\services\Project\projectAssetStorage.js
+==================================================
+import {
+  isProjectDocumentWithinSizeLimit,
+  isProjectMediaWithinSizeLimit,
+  isSupportedProjectDocument,
+  isSupportedProjectMedia,
+} from "../../config/projectConfig.js";
+
+import { createProjectId } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * IndexedDB Configuration
+ * =========================================
+ */
+
+export const PROJECT_ASSET_DATABASE_NAME = "portfolio-platform:project-assets";
+
+export const PROJECT_ASSET_DATABASE_VERSION = 1;
+
+export const PROJECT_ASSET_STORE_NAME = "assets";
+
+export const PROJECT_ID_INDEX_NAME = "projectId";
+
+export const ASSET_KIND_INDEX_NAME = "kind";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/*
+ * =========================================
+ * Storage Error
+ * =========================================
+ */
+
+function createProjectAssetStorageError({
+  code = "PROJECT_ASSET_STORAGE_ERROR",
+  message,
+  publicMessage,
+  cause = null,
+  details = {},
+}) {
+  const error = new Error(message);
+
+  error.name = "ProjectAssetStorageError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  Object.assign(error, details);
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Quota Error Detection
+ * =========================================
+ */
+
+function isStorageQuotaError(error) {
+  return (
+    error?.name === "QuotaExceededError" ||
+    error?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    error?.code === 22 ||
+    error?.code === 1014
+  );
+}
+
+/*
+ * =========================================
+ * IndexedDB Availability
+ * =========================================
+ */
+
+function getIndexedDb() {
+  if (typeof window === "undefined" || !window.indexedDB) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_STORAGE_UNAVAILABLE",
+
+      message: "IndexedDB is unavailable.",
+
+      publicMessage:
+        "Project media and document storage is not supported in this browser.",
+    });
+  }
+
+  return window.indexedDB;
+}
+
+/*
+ * =========================================
+ * Promise Helpers
+ * =========================================
+ */
+
+function requestToPromise(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+
+function transactionToPromise(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+
+    transaction.onabort = () => {
+      reject(
+        transaction.error ||
+          new Error("The IndexedDB transaction was aborted."),
+      );
+    };
+  });
+}
+
+/*
+ * =========================================
+ * Open Database
+ * =========================================
+ */
+
+function openProjectAssetDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = getIndexedDb().open(
+      PROJECT_ASSET_DATABASE_NAME,
+      PROJECT_ASSET_DATABASE_VERSION,
+    );
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+
+      let store;
+
+      if (!database.objectStoreNames.contains(PROJECT_ASSET_STORE_NAME)) {
+        store = database.createObjectStore(PROJECT_ASSET_STORE_NAME, {
+          keyPath: "storageKey",
+        });
+      } else {
+        store = request.transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+      }
+
+      if (!store.indexNames.contains(PROJECT_ID_INDEX_NAME)) {
+        store.createIndex(PROJECT_ID_INDEX_NAME, "projectId", {
+          unique: false,
+        });
+      }
+
+      if (!store.indexNames.contains(ASSET_KIND_INDEX_NAME)) {
+        store.createIndex(ASSET_KIND_INDEX_NAME, "kind", {
+          unique: false,
+        });
+      }
+    };
+
+    request.onsuccess = () => {
+      const database = request.result;
+
+      /*
+       * A tab holding an old database connection
+       * must close it when another tab upgrades
+       * the database.
+       */
+
+      database.onversionchange = () => {
+        database.close();
+      };
+
+      resolve(database);
+    };
+
+    request.onerror = () => {
+      reject(
+        createProjectAssetStorageError({
+          code: "PROJECT_ASSET_DATABASE_OPEN_FAILED",
+
+          message: "Unable to open Project asset storage.",
+
+          publicMessage: "Project file storage could not be opened.",
+
+          cause: request.error,
+        }),
+      );
+    };
+
+    request.onblocked = () => {
+      reject(
+        createProjectAssetStorageError({
+          code: "PROJECT_ASSET_DATABASE_BLOCKED",
+
+          message: "The Project asset database operation was blocked.",
+
+          publicMessage: "Close other tabs using this portfolio and try again.",
+        }),
+      );
+    };
+  });
+}
+
+/*
+ * =========================================
+ * Asset Kind
+ * =========================================
+ */
+
+function normalizeAssetKind(kind) {
+  return kind === "document" ? "document" : "media";
+}
+
+/*
+ * =========================================
+ * File Validation
+ * =========================================
+ */
+
+function validateProjectAssetFile(file, kind) {
+  if (!file || typeof file !== "object" || typeof file.slice !== "function") {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_REQUIRED",
+
+      message: "A valid File or Blob-like object is required.",
+
+      publicMessage: "Select a valid Project file before uploading.",
+    });
+  }
+
+  const isSupported =
+    kind === "media"
+      ? isSupportedProjectMedia(file)
+      : isSupportedProjectDocument(file);
+
+  if (!isSupported) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_TYPE_UNSUPPORTED",
+
+      message: "The selected Project asset type is unsupported.",
+
+      publicMessage:
+        kind === "media"
+          ? "Upload a supported JPG, PNG, WebP, GIF, MP4, or WebM file."
+          : "Upload a supported Project document type.",
+    });
+  }
+
+  const isWithinSizeLimit =
+    kind === "media"
+      ? isProjectMediaWithinSizeLimit(file)
+      : isProjectDocumentWithinSizeLimit(file);
+
+  if (!isWithinSizeLimit) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_SIZE_INVALID",
+
+      message: "The selected Project asset exceeds its size limit or is empty.",
+
+      publicMessage:
+        kind === "media"
+          ? "The selected image or video is empty or exceeds the permitted size."
+          : "The selected document is empty or exceeds the permitted size.",
+    });
+  }
+}
+
+/*
+ * =========================================
+ * Public Asset Metadata
+ * =========================================
+ */
+
+function createAssetMetadata(record) {
+  if (!record) {
+    return null;
+  }
+
+  return {
+    storageKey: record.storageKey,
+
+    projectId: record.projectId,
+
+    assetId: record.assetId,
+
+    kind: record.kind,
+
+    fileName: record.fileName,
+
+    mimeType: record.mimeType,
+
+    fileSize: record.fileSize,
+
+    createdAt: record.createdAt,
+
+    updatedAt: record.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Write Asset
+ * =========================================
+ */
+
+export async function writeProjectAsset({
+  file,
+  projectId,
+  assetId = "",
+  storageKey = "",
+  kind = "media",
+} = {}) {
+  const normalizedKind = normalizeAssetKind(kind);
+
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_PROJECT_ID_REQUIRED",
+
+      message: "A Project identifier is required before storing an asset.",
+
+      publicMessage:
+        "The Project file cannot be saved because the Project could not be identified.",
+    });
+  }
+
+  validateProjectAssetFile(file, normalizedKind);
+
+  const resolvedAssetId = getText(assetId) || createProjectId("project-asset");
+
+  const resolvedStorageKey =
+    getText(storageKey) ||
+    `project:${normalizedProjectId}:${normalizedKind}:${resolvedAssetId}`;
+
+  const database = await openProjectAssetDatabase();
+
+  const timestamp = new Date().toISOString();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    /*
+     * The read and write are handled within the
+     * same request callback so the transaction
+     * cannot become inactive between operations.
+     */
+
+    const existingRequest = store.get(resolvedStorageKey);
+
+    const preparedRecordPromise = new Promise((resolve, reject) => {
+      existingRequest.onerror = () => {
+        reject(existingRequest.error);
+      };
+
+      existingRequest.onsuccess = () => {
+        const existingRecord = existingRequest.result;
+
+        /*
+         * Never allow a storage key belonging
+         * to another Project to be overwritten.
+         */
+
+        if (
+          existingRecord &&
+          existingRecord.projectId !== normalizedProjectId
+        ) {
+          transaction.abort();
+
+          reject(
+            createProjectAssetStorageError({
+              code: "PROJECT_ASSET_STORAGE_KEY_CONFLICT",
+
+              message:
+                "The requested asset storage key belongs to another Project.",
+
+              publicMessage:
+                "The Project file could not be saved because its storage identifier conflicts with another file.",
+            }),
+          );
+
+          return;
+        }
+
+        const blob = file.slice(
+          0,
+          file.size,
+          file.type || "application/octet-stream",
+        );
+
+        const record = {
+          storageKey: resolvedStorageKey,
+
+          projectId: normalizedProjectId,
+
+          assetId: resolvedAssetId,
+
+          kind: normalizedKind,
+
+          fileName: getText(file.name),
+
+          mimeType: getText(file.type) || "application/octet-stream",
+
+          fileSize: Number(file.size) || 0,
+
+          blob,
+
+          createdAt: existingRecord?.createdAt || timestamp,
+
+          updatedAt: timestamp,
+        };
+
+        const putRequest = store.put(record);
+
+        putRequest.onerror = () => {
+          reject(putRequest.error);
+        };
+
+        putRequest.onsuccess = () => {
+          resolve(record);
+        };
+      };
+    });
+
+    const [record] = await Promise.all([
+      preparedRecordPromise,
+      transactionToPromise(transaction),
+    ]);
+
+    return createAssetMetadata(record);
+  } catch (error) {
+    if (error?.name === "ProjectAssetStorageError") {
+      throw error;
+    }
+
+    const quotaExceeded = isStorageQuotaError(error);
+
+    throw createProjectAssetStorageError({
+      code: quotaExceeded
+        ? "PROJECT_ASSET_QUOTA_EXCEEDED"
+        : "PROJECT_ASSET_WRITE_FAILED",
+
+      message: quotaExceeded
+        ? "IndexedDB storage quota was exceeded."
+        : "Unable to save a Project asset.",
+
+      publicMessage: quotaExceeded
+        ? "The browser does not have enough storage space for this Project file. Remove unused files or choose a smaller file."
+        : "The selected Project file could not be saved.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Read Asset
+ * =========================================
+ */
+
+export async function readProjectAsset(storageKey) {
+  const normalizedStorageKey = getText(storageKey);
+
+  if (!normalizedStorageKey) {
+    return null;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readonly",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const record = await requestToPromise(store.get(normalizedStorageKey));
+
+    await transactionToPromise(transaction);
+
+    return record || null;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_READ_FAILED",
+
+      message: "Unable to read a Project asset.",
+
+      publicMessage: "The Project file could not be loaded.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Asset Existence
+ * =========================================
+ */
+
+export async function hasProjectAsset(storageKey) {
+  const record = await readProjectAsset(storageKey);
+
+  return Boolean(record?.blob);
+}
+
+/*
+ * =========================================
+ * Create Object URL
+ * =========================================
+ */
+
+export async function createProjectAssetUrl(storageKey) {
+  const normalizedStorageKey = getText(storageKey);
+
+  if (!normalizedStorageKey) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_STORAGE_KEY_REQUIRED",
+
+      message: "An asset storage key is required.",
+
+      publicMessage: "The Project file could not be identified.",
+    });
+  }
+
+  const record = await readProjectAsset(normalizedStorageKey);
+
+  if (!record?.blob) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_NOT_FOUND",
+
+      message: `Project asset not found: ${normalizedStorageKey}`,
+
+      publicMessage:
+        "The Project file is no longer available in browser storage.",
+    });
+  }
+
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_URL_UNAVAILABLE",
+
+      message: "Object URLs are unavailable.",
+
+      publicMessage:
+        "The Project file cannot be previewed in this environment.",
+    });
+  }
+
+  return URL.createObjectURL(record.blob);
+}
+
+/*
+ * =========================================
+ * Revoke Object URL
+ * =========================================
+ */
+
+export function revokeProjectAssetUrl(objectUrl) {
+  if (
+    typeof objectUrl === "string" &&
+    objectUrl.startsWith("blob:") &&
+    typeof URL !== "undefined" &&
+    typeof URL.revokeObjectURL === "function"
+  ) {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/*
+ * =========================================
+ * List Project Asset Metadata
+ * =========================================
+ *
+ * Blob data is removed from the returned
+ * records to avoid unnecessarily retaining
+ * large file data in application state.
+ */
+
+export async function listProjectAssets(projectId, { kind = "all" } = {}) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    return [];
+  }
+
+  const normalizedKind = kind === "media" || kind === "document" ? kind : "all";
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readonly",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const index = store.index(PROJECT_ID_INDEX_NAME);
+
+    const records = await requestToPromise(index.getAll(normalizedProjectId));
+
+    await transactionToPromise(transaction);
+
+    return getArray(records)
+      .filter(
+        (record) => normalizedKind === "all" || record.kind === normalizedKind,
+      )
+      .map(createAssetMetadata);
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_LIST_FAILED",
+
+      message: "Unable to list Project assets.",
+
+      publicMessage: "The Project file list could not be loaded.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Delete Assets by Storage Key
+ * =========================================
+ */
+
+export async function deleteProjectAssets(storageKeys = []) {
+  const normalizedStorageKeys = [
+    ...new Set(getArray(storageKeys).map(getText).filter(Boolean)),
+  ];
+
+  if (normalizedStorageKeys.length === 0) {
+    return 0;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    normalizedStorageKeys.forEach((normalizedStorageKey) => {
+      store.delete(normalizedStorageKey);
+    });
+
+    await transactionToPromise(transaction);
+
+    return normalizedStorageKeys.length;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_DELETE_FAILED",
+
+      message: "Unable to delete Project assets.",
+
+      publicMessage: "One or more Project files could not be removed.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Delete All Assets for Project
+ * =========================================
+ *
+ * A cursor is used instead of getAll(). This
+ * prevents every large Blob from being loaded
+ * into application memory before deletion.
+ */
+
+export async function deleteProjectAssetsForProject(projectId) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    return 0;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const index = store.index(PROJECT_ID_INDEX_NAME);
+
+    if (typeof IDBKeyRange === "undefined") {
+      throw new Error("IDBKeyRange is unavailable.");
+    }
+
+    const keyRange = IDBKeyRange.only(normalizedProjectId);
+
+    /*
+     * This variable is updated while the cursor
+     * deletes each matching Project asset.
+     */
+
+    let cursorDeletedCount = 0;
+
+    const cursorPromise = new Promise((resolve, reject) => {
+      const cursorRequest = index.openCursor(keyRange);
+
+      cursorRequest.onerror = () => {
+        reject(
+          cursorRequest.error || new Error("The Project asset cursor failed."),
+        );
+      };
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+
+        /*
+         * No cursor means every matching asset
+         * has been processed.
+         */
+
+        if (!cursor) {
+          resolve(cursorDeletedCount);
+
+          return;
+        }
+
+        const deleteRequest = cursor.delete();
+
+        deleteRequest.onerror = () => {
+          reject(
+            deleteRequest.error ||
+              new Error("A Project asset could not be deleted."),
+          );
+        };
+
+        deleteRequest.onsuccess = () => {
+          cursorDeletedCount += 1;
+
+          cursor.continue();
+        };
+      };
+    });
+
+    /*
+     * Use a different variable name for the
+     * resolved count to avoid redeclaration.
+     */
+
+    const [completedDeletedCount] = await Promise.all([
+      cursorPromise,
+      transactionToPromise(transaction),
+    ]);
+
+    return completedDeletedCount;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_PROJECT_DELETE_FAILED",
+
+      message: "Unable to delete Project assets.",
+
+      publicMessage: "One or more Project files could not be removed.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+==================================================
+FILE: frontend\src\services\Project\projectFeaturedMedia.js
+==================================================
+function isEligibleFeaturedMedia(mediaItem) {
+  return Boolean(
+    mediaItem &&
+      mediaItem.status !== "archived" &&
+      mediaItem.visibility !== "private" &&
+      (mediaItem.storageKey || mediaItem.externalUrl),
+  );
+}
+
+export function prepareFeaturedProjectMedia(
+  existingMedia = [],
+  uploadedMedia = [],
+  requestedFeaturedMediaId = "",
+) {
+  const uploadedFeaturedMedia = uploadedMedia.find(
+    (item) => item.isFeatured && isEligibleFeaturedMedia(item),
+  );
+
+  const previousMedia = existingMedia.map((item) => ({
+    ...item,
+    isFeatured: uploadedFeaturedMedia ? false : item.isFeatured,
+  }));
+
+  const completeMedia = [...previousMedia, ...uploadedMedia];
+
+  const featuredMedia =
+    uploadedFeaturedMedia ||
+    completeMedia.find(
+      (item) =>
+        item.id === requestedFeaturedMediaId &&
+        isEligibleFeaturedMedia(item),
+    ) ||
+    completeMedia.find(
+      (item) => item.isFeatured && isEligibleFeaturedMedia(item),
+    ) ||
+    completeMedia.find(isEligibleFeaturedMedia) ||
+    null;
+
+  return {
+    media: completeMedia.map((item) => ({
+      ...item,
+      isFeatured: item.id === featuredMedia?.id,
+    })),
+    featuredMediaId: featuredMedia?.id || "",
+  };
+}
+

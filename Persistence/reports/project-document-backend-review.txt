@@ -1,0 +1,1482 @@
+﻿==========================================
+FILE: backend\src\database\migrations\007_project_media.sql
+==========================================
+/*
+ * Portfolio Platform
+ * Project Media Metadata
+ * Migration 007
+ *
+ * Stores metadata only. Uploaded file bytes remain
+ * in private filesystem storage.
+ *
+ * Do not add GO statements to migration files.
+ */
+
+ALTER TABLE dbo.projects
+ADD CONSTRAINT UQ_projects_id_user
+UNIQUE (id, user_id);
+
+CREATE TABLE dbo.project_media
+(
+    id UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT DF_project_media_id DEFAULT NEWID(),
+
+    project_id NVARCHAR(200) NOT NULL,
+
+    user_id UNIQUEIDENTIFIER NOT NULL,
+
+    storage_key NVARCHAR(500) NOT NULL,
+
+    original_file_name NVARCHAR(255) NOT NULL,
+
+    mime_type NVARCHAR(100) NOT NULL,
+
+    file_size BIGINT NOT NULL,
+
+    created_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_project_media_created_at
+        DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT PK_project_media
+        PRIMARY KEY CLUSTERED (id),
+
+    CONSTRAINT FK_project_media_project_owner
+        FOREIGN KEY (project_id, user_id)
+        REFERENCES dbo.projects(id, user_id),
+
+    CONSTRAINT UQ_project_media_storage_key
+        UNIQUE (storage_key),
+
+    CONSTRAINT CK_project_media_file_size
+        CHECK (
+            (mime_type IN (
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp',
+                N'image/avif',
+                N'image/gif'
+            ) AND file_size BETWEEN 1 AND 20971520)
+            OR
+            (mime_type IN (
+                N'video/mp4',
+                N'video/webm'
+            ) AND file_size BETWEEN 1 AND 104857600)
+        ),
+
+    CONSTRAINT CK_project_media_mime_type
+        CHECK (
+            mime_type IN (
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp',
+                N'image/avif',
+                N'image/gif',
+                N'video/mp4',
+                N'video/webm'
+            )
+        ),
+
+    CONSTRAINT CK_project_media_storage_key
+        CHECK (
+            LEN(LTRIM(RTRIM(storage_key))) > 0
+        ),
+
+    CONSTRAINT CK_project_media_original_file_name
+        CHECK (
+            LEN(LTRIM(RTRIM(original_file_name))) > 0
+        )
+);
+
+CREATE INDEX IX_project_media_project_created
+    ON dbo.project_media (project_id, created_at DESC);
+
+CREATE INDEX IX_project_media_user_project
+    ON dbo.project_media (user_id, project_id);
+
+==========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectMediaController.js
+==========================================
+import fs from "node:fs";
+import { promises as fsPromises } from "node:fs";
+
+import {
+  registerProjectMedia,
+  listAuthenticatedProjectMedia,
+  getAuthenticatedProjectMedia,
+  deleteAuthenticatedProjectMedia,
+} from "../services/Service/projectMediaService.js";
+
+import {
+  resolveOwnedProjectMediaPath,
+  assertSafeProjectMediaDirectory,
+} from "../services/Storage/projectMediaStorageService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Upload Project Media
+ * =========================================
+ *
+ * Authentication, ownership, upload, and
+ * file validation must run before this
+ * controller.
+ *
+ * File cleanup is handled by the validation
+ * middleware for rejected uploads.
+ *
+ * Do not delete an uploaded file after an
+ * uncertain database registration outcome.
+ */
+
+export async function uploadMyProjectMedia(request, response, next) {
+  try {
+    const media = await registerProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      uploadedFile: request.projectMediaFile,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project media uploaded successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * GET /api/projects/:projectId/media
+ */
+
+export async function listMyProjectMedia(request, response, next) {
+  try {
+    const media = await listAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project media retrieved successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Serve Project Media
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media/:mediaId
+ *
+ * Authentication and Project ownership
+ * must be verified by the route middleware.
+ */
+
+export async function getMyProjectMedia(request, response, next) {
+  let fileHandle;
+
+  try {
+    const userId = request.auth.userId;
+    const projectId = request.params.projectId;
+    const mediaId = request.params.mediaId;
+
+    /*
+     * Retrieve authorized media metadata.
+     */
+
+    const media = await getAuthenticatedProjectMedia({
+      userId,
+      projectId,
+      mediaId,
+    });
+
+    /*
+     * Resolve the file path using the
+     * existing ownership-aware storage service.
+     */
+
+    const filePath = resolveOwnedProjectMediaPath(
+      userId,
+      projectId,
+      media.storageKey,
+    );
+
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    /*
+     * Open the file without following a
+     * symbolic link on supported platforms.
+     */
+
+    /*
+     * Reject symbolic links and reparse-point-like
+     * targets before opening the file.
+     *
+     * On Windows, O_NOFOLLOW is unavailable.
+     */
+
+    const pathStats = await fsPromises.lstat(filePath);
+
+    if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+      const error = new Error("Project media not found.");
+
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = error.message;
+
+      throw error;
+    }
+
+    /*
+     * Open the file using O_NOFOLLOW where supported.
+     */
+
+    const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+
+    fileHandle = await fsPromises.open(filePath, flags);
+
+    const stats = await fileHandle.stat();
+
+    if (!stats.isFile()) {
+      const error = new Error("Project media is not a regular file.");
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = "Project media not found.";
+      throw error;
+    }
+
+    /*
+     * Set private response headers.
+     */
+
+    setPrivateHeaders(response);
+
+    response.set({
+      "Content-Type": media.mimeType,
+      "Content-Length": String(stats.size),
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
+      "Accept-Ranges": "none",
+    });
+
+    /*
+     * Stream from the already-open file
+     * descriptor rather than reopening
+     * the path.
+     */
+
+    const stream = fileHandle.createReadStream({
+      autoClose: true,
+    });
+
+    fileHandle = null;
+
+    stream.on("error", (error) => {
+      if (!response.headersSent) {
+        next(error);
+      } else {
+        response.destroy(error);
+      }
+    });
+
+    stream.pipe(response);
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close().catch(() => {});
+    }
+
+    if (error.code === "ENOENT") {
+      const notFound = new Error("Project media not found.");
+      notFound.status = 404;
+      notFound.code = "PROJECT_MEDIA_NOT_FOUND";
+      notFound.publicMessage = notFound.message;
+      return next(notFound);
+    }
+
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Delete My Project Media
+ * =========================================
+ */
+
+export async function deleteMyProjectMedia(request, response, next) {
+  try {
+    await deleteAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      mediaId: request.params.mediaId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(204).end();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+==========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectMediaUploadMiddleware.js
+==========================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import multer from "multer";
+
+import {
+  getProjectMediaDirectory,
+  getProjectMediaStorageRoot,
+} from "../../services/Storage/projectMediaStorageService.js";
+
+/*
+ * =========================================
+ * Project Media Upload Configuration
+ * =========================================
+ */
+
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+
+const ALLOWED_MEDIA_TYPES = new Map([
+  ["image/jpeg", { extension: ".jpg", maxSize: MAX_IMAGE_SIZE }],
+  ["image/png", { extension: ".png", maxSize: MAX_IMAGE_SIZE }],
+  ["image/webp", { extension: ".webp", maxSize: MAX_IMAGE_SIZE }],
+  ["image/avif", { extension: ".avif", maxSize: MAX_IMAGE_SIZE }],
+  ["image/gif", { extension: ".gif", maxSize: MAX_IMAGE_SIZE }],
+  ["video/mp4", { extension: ".mp4", maxSize: MAX_VIDEO_SIZE }],
+  ["video/webm", { extension: ".webm", maxSize: MAX_VIDEO_SIZE }],
+]);
+
+function createUploadError({
+  message,
+  code = "PROJECT_MEDIA_UPLOAD_FAILED",
+  status = 400,
+}) {
+  const error = new Error(message);
+
+  error.name = "ProjectMediaUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Authorized Project Context
+ * =========================================
+ */
+
+function getAuthorizedUploadContext(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const projectId = String(request.params?.projectId ?? "").trim();
+  const authorizedProject = request.authorizedProject;
+
+  if (!userId || !authorizedProject) {
+    throw createUploadError({
+      message: "Project media upload is not authorized.",
+      code: "PROJECT_MEDIA_UPLOAD_UNAUTHORIZED",
+      status: 403,
+    });
+  }
+
+  if (
+    !projectId ||
+    String(authorizedProject.id ?? "").trim() !== projectId
+  ) {
+    throw createUploadError({
+      message: "Authorized Project does not match the upload destination.",
+      code: "PROJECT_MEDIA_UPLOAD_PROJECT_MISMATCH",
+      status: 403,
+    });
+  }
+
+  return { userId, projectId };
+}
+
+/*
+ * =========================================
+ * Storage Directory Safety
+ * =========================================
+ */
+
+async function ensureSafeUploadDirectory(userId, projectId) {
+  const root = getProjectMediaStorageRoot();
+  const destination = getProjectMediaDirectory(userId, projectId);
+
+  await fs.mkdir(root, { recursive: true });
+
+  const relative = path.relative(root, destination);
+
+  if (
+    !relative ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project media upload destination is invalid.");
+  }
+
+  const directories = [
+    root,
+    path.dirname(destination),
+    destination,
+  ];
+
+  for (const directory of directories) {
+    try {
+      await fs.mkdir(directory);
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+    }
+
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project media upload directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalDestination = await fs.realpath(destination);
+  const canonicalRelative = path.relative(
+    canonicalRoot,
+    canonicalDestination,
+  );
+
+  if (
+    !canonicalRelative ||
+    canonicalRelative === ".." ||
+    canonicalRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(canonicalRelative)
+  ) {
+    throw new Error("Project media upload destination escapes storage root.");
+  }
+
+  return destination;
+}
+
+/*
+ * =========================================
+ * Multer Storage
+ * =========================================
+ */
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    let context;
+
+    try {
+      context = getAuthorizedUploadContext(request);
+    } catch (error) {
+      return callback(error);
+    }
+
+    ensureSafeUploadDirectory(context.userId, context.projectId)
+      .then((directory) => callback(null, directory))
+      .catch((error) => callback(error));
+  },
+
+  filename(request, file, callback) {
+    const configuration = ALLOWED_MEDIA_TYPES.get(file.mimetype);
+
+    if (!configuration) {
+      return callback(
+        createUploadError({
+          message: "Unsupported Project media type.",
+          code: "PROJECT_MEDIA_TYPE_NOT_ALLOWED",
+        }),
+      );
+    }
+
+    const filename = `${crypto.randomUUID()}${configuration.extension}`;
+
+    return callback(null, filename);
+  },
+});
+
+/*
+ * =========================================
+ * Media Type Filter
+ * =========================================
+ */
+
+function projectMediaFileFilter(request, file, callback) {
+  try {
+    getAuthorizedUploadContext(request);
+
+    if (!ALLOWED_MEDIA_TYPES.has(file.mimetype)) {
+      throw createUploadError({
+        message: "Unsupported Project media type.",
+        code: "PROJECT_MEDIA_TYPE_NOT_ALLOWED",
+      });
+    }
+
+    return callback(null, true);
+  } catch (error) {
+    return callback(error);
+  }
+}
+
+/*
+ * =========================================
+ * Multer Middleware
+ * =========================================
+ */
+
+const projectMediaUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_VIDEO_SIZE,
+    files: 1,
+  },
+  fileFilter: projectMediaFileFilter,
+}).single("media");
+
+export function uploadProjectMedia(request, response, next) {
+  projectMediaUpload(request, response, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return next(
+          createUploadError({
+            message: "Project media exceeds the 100 MiB upload limit.",
+            code: "PROJECT_MEDIA_TOO_LARGE",
+            status: 413,
+          }),
+        );
+      }
+
+      if (
+        error.code === "LIMIT_FILE_COUNT" ||
+        error.code === "LIMIT_UNEXPECTED_FILE"
+      ) {
+        return next(
+          createUploadError({
+            message: "Upload exactly one file using the media field.",
+            code: "PROJECT_MEDIA_INVALID_FILE_COUNT",
+          }),
+        );
+      }
+
+      return next(
+        createUploadError({
+          message: "Project media upload could not be processed.",
+          code: "PROJECT_MEDIA_UPLOAD_INVALID",
+        }),
+      );
+    }
+
+    return next(error);
+  });
+}
+
+export {
+  ALLOWED_MEDIA_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+};
+
+==========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectMediaValidationMiddleware.js
+==========================================
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { fileTypeFromFile } from "file-type";
+
+import {
+  ALLOWED_MEDIA_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+} from "./projectMediaUploadMiddleware.js";
+
+import {
+  assertSafeProjectMediaDirectory,
+  getProjectMediaDirectory,
+} from "../../services/Storage/projectMediaStorageService.js";
+
+function createValidationError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectMediaValidationError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+function getAuthorizedFilePath(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const projectId = String(request.params?.projectId ?? "").trim();
+  const authorizedProjectId = String(
+    request.authorizedProject?.id ?? "",
+  ).trim();
+
+  if (!userId || !projectId || authorizedProjectId !== projectId) {
+    throw createValidationError(
+      "Project media validation is not authorized.",
+      "PROJECT_MEDIA_VALIDATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const uploadedFile = request.file;
+
+  if (!uploadedFile?.path) {
+    throw createValidationError(
+      "Please select a Project media file to upload.",
+      "PROJECT_MEDIA_FILE_REQUIRED",
+    );
+  }
+
+  const expectedDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const uploadedPath = path.resolve(uploadedFile.path);
+
+  if (path.dirname(uploadedPath) !== expectedDirectory) {
+    throw createValidationError(
+      "Project media file location is invalid.",
+      "PROJECT_MEDIA_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  return uploadedPath;
+}
+
+async function removeRejectedFile(userId, projectId, filePath) {
+  const expectedDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const targetPath = path.resolve(filePath);
+
+  if (path.dirname(targetPath) !== expectedDirectory) {
+    throw new Error(
+      "Rejected Project media file is outside its authorized directory.",
+    );
+  }
+
+  try {
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    const stats = await fs.lstat(targetPath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error(
+        "Rejected Project media target is not a regular file.",
+      );
+    }
+
+    await fs.unlink(targetPath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+export async function validateProjectMedia(request, response, next) {
+  let uploadedPath;
+
+  try {
+    uploadedPath = getAuthorizedFilePath(request);
+
+    await assertSafeProjectMediaDirectory(
+      request.auth.userId,
+      request.params.projectId,
+    );
+
+    const uploadedFile = request.file;
+
+    // Reject symbolic links and non-regular files before reading content.
+    const stats = await fs.lstat(uploadedPath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw createValidationError(
+        "The uploaded media is not a regular file.",
+        "PROJECT_MEDIA_INVALID_FILE",
+      );
+    }
+
+    const detectedType = await fileTypeFromFile(uploadedPath);
+
+    if (
+      !detectedType ||
+      !ALLOWED_MEDIA_TYPES.has(detectedType.mime)
+    ) {
+      throw createValidationError(
+        "The uploaded file does not contain a supported media signature.",
+        "PROJECT_MEDIA_CONTENT_TYPE_NOT_ALLOWED",
+      );
+    }
+
+    if (detectedType.mime !== uploadedFile.mimetype) {
+      throw createValidationError(
+        "The uploaded media type does not match its contents.",
+        "PROJECT_MEDIA_TYPE_MISMATCH",
+      );
+    }
+
+    const maximumSize = detectedType.mime.startsWith("image/")
+      ? MAX_IMAGE_SIZE
+      : MAX_VIDEO_SIZE;
+
+
+    if (stats.size > maximumSize) {
+      throw createValidationError(
+        "The uploaded media exceeds its permitted size.",
+        "PROJECT_MEDIA_TOO_LARGE",
+        413,
+      );
+    }
+
+    request.projectMediaFile = {
+      ...uploadedFile,
+      verifiedMimeType: detectedType.mime,
+      verifiedExtension: detectedType.ext,
+      verifiedSize: stats.size,
+    };
+
+    return next();
+  } catch (error) {
+    if (uploadedPath) {
+      try {
+        await removeRejectedFile(
+          request.auth?.userId,
+          request.params?.projectId,
+          uploadedPath,
+        );
+      } catch (cleanupError) {
+        console.error(
+          "Failed to clean up rejected Project media:",
+          cleanupError,
+        );
+
+        return next(
+          createValidationError(
+            "Project media cleanup failed.",
+            "PROJECT_MEDIA_CLEANUP_FAILED",
+            500,
+          ),
+        );
+      }
+    }
+
+    return next(error);
+  }
+}
+
+
+
+
+==========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\projectMediaRepository.js
+==========================================
+
+import { getDatabasePool, sql } from "../config/database.js";
+
+/*
+ * =========================================
+ * Project Media Columns
+ * =========================================
+ */
+
+const PROJECT_MEDIA_COLUMNS = `
+  id,
+  project_id,
+  user_id,
+  storage_key,
+  original_file_name,
+  mime_type,
+  file_size,
+  created_at
+`;
+
+/*
+ * =========================================
+ * Map Database Row
+ * =========================================
+ */
+
+function mapProjectMediaRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    storageKey: row.storage_key,
+    originalFileName: row.original_file_name,
+    mimeType: row.mime_type,
+    fileSize: Number(row.file_size),
+    createdAt: row.created_at,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project Media Metadata
+ * =========================================
+ */
+
+export async function createProjectMedia(userId, projectId, media) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("storageKey", sql.NVarChar(500), media.storageKey)
+    .input(
+      "originalFileName",
+      sql.NVarChar(255),
+      media.originalFileName,
+    )
+    .input("mimeType", sql.NVarChar(100), media.mimeType)
+    .input("fileSize", sql.BigInt, media.fileSize)
+    .query(`
+      INSERT INTO dbo.project_media (
+        project_id,
+        user_id,
+        storage_key,
+        original_file_name,
+        mime_type,
+        file_size
+      )
+      OUTPUT
+        INSERTED.id,
+        INSERTED.project_id,
+        INSERTED.user_id,
+        INSERTED.storage_key,
+        INSERTED.original_file_name,
+        INSERTED.mime_type,
+        INSERTED.file_size,
+        INSERTED.created_at
+      VALUES (
+        @projectId,
+        @userId,
+        @storageKey,
+        @originalFileName,
+        @mimeType,
+        @fileSize
+      );
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+/*
+ * =========================================
+ * List Project Media
+ * =========================================
+ */
+
+export async function listProjectMedia(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .query(`
+      SELECT ${PROJECT_MEDIA_COLUMNS}
+      FROM dbo.project_media
+      WHERE user_id = @userId
+        AND project_id = @projectId
+      ORDER BY created_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapProjectMediaRow);
+}
+
+/*
+ * =========================================
+ * Find Project Media
+ * =========================================
+ */
+
+export async function findProjectMediaById(
+  userId,
+  projectId,
+  mediaId,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("mediaId", sql.UniqueIdentifier, mediaId)
+    .query(`
+      SELECT ${PROJECT_MEDIA_COLUMNS}
+      FROM dbo.project_media
+      WHERE id = @mediaId
+        AND project_id = @projectId
+        AND user_id = @userId;
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+/*
+ * =========================================
+ * Delete Project Media Metadata
+ * =========================================
+ */
+
+export async function deleteProjectMedia(
+  userId,
+  projectId,
+  mediaId,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("mediaId", sql.UniqueIdentifier, mediaId)
+    .query(`
+      DELETE FROM dbo.project_media
+      OUTPUT
+        DELETED.id,
+        DELETED.project_id,
+        DELETED.user_id,
+        DELETED.storage_key,
+        DELETED.original_file_name,
+        DELETED.mime_type,
+        DELETED.file_size,
+        DELETED.created_at
+      WHERE id = @mediaId
+        AND project_id = @projectId
+        AND user_id = @userId;
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+
+/*
+ * =========================================
+ * Find Project Media by Storage Key
+ * =========================================
+ *
+ * Used to check whether media metadata
+ * exists after a database registration error.
+ */
+
+export async function findProjectMediaByStorageKey(
+  userId,
+  projectId,
+  storageKey,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("storageKey", sql.NVarChar(500), storageKey)
+    .query(`
+      SELECT
+        ${PROJECT_MEDIA_COLUMNS}
+      FROM dbo.project_media
+      WHERE user_id = @userId
+        AND project_id = @projectId
+        AND storage_key = @storageKey;
+    `);
+
+  return mapProjectMediaRow(result.recordset[0]);
+}
+
+==========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\projectMediaService.js
+==========================================
+import path from "node:path";
+
+import {
+  createProjectMedia,
+  findProjectMediaByStorageKey,
+  findProjectMediaById,
+  listProjectMedia,
+  deleteProjectMedia,
+} from "../../repositories/projectMediaRepository.js";
+
+import {
+  assertSafeProjectMediaDirectory,
+  createProjectMediaStorageKey,
+  resolveOwnedProjectMediaPath,
+  deleteOwnedProjectMedia,
+} from "../Storage/projectMediaStorageService.js";
+
+/*
+ * =========================================
+ * Project Media Service Errors
+ * =========================================
+ */
+
+function createMediaServiceError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectMediaServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Register Uploaded Project Media
+ * =========================================
+ */
+
+export async function registerProjectMedia({
+  userId,
+  projectId,
+  uploadedFile,
+}) {
+  if (!userId || !projectId) {
+    throw createMediaServiceError(
+      "Project media registration is not authorized.",
+      "PROJECT_MEDIA_REGISTRATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  if (!uploadedFile) {
+    throw createMediaServiceError(
+      "Validated Project media is required.",
+      "PROJECT_MEDIA_FILE_REQUIRED",
+    );
+  }
+
+  const {
+    filename,
+    path: uploadedPath,
+    originalname,
+    verifiedMimeType,
+    verifiedSize,
+  } = uploadedFile;
+
+  if (
+    !filename ||
+    !uploadedPath ||
+    !originalname ||
+    !verifiedMimeType ||
+    !Number.isSafeInteger(verifiedSize) ||
+    verifiedSize <= 0
+  ) {
+    throw createMediaServiceError(
+      "Project media validation information is incomplete.",
+      "PROJECT_MEDIA_VALIDATION_INCOMPLETE",
+    );
+  }
+
+  const storageKey = createProjectMediaStorageKey(userId, projectId, filename);
+
+  const expectedPath = resolveOwnedProjectMediaPath(
+    userId,
+    projectId,
+    storageKey,
+  );
+
+  if (path.resolve(uploadedPath) !== expectedPath) {
+    throw createMediaServiceError(
+      "Project media file location is invalid.",
+      "PROJECT_MEDIA_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  await assertSafeProjectMediaDirectory(userId, projectId);
+
+  /*
+   * The file has already been stored and verified
+   * by the upload and validation middleware.
+   *
+   * Now register its metadata in Azure SQL.
+   */
+
+  try {
+    return await createProjectMedia(userId, projectId, {
+      storageKey,
+      originalFileName: originalname,
+      mimeType: verifiedMimeType,
+      fileSize: verifiedSize,
+    });
+  } catch (databaseError) {
+    /*
+     * The insert failed or its result is uncertain.
+     *
+     * Do not delete the uploaded file:
+     * SQL Server might have committed the insert
+     * before the connection failed.
+     */
+
+    try {
+      const existingMedia = await findProjectMediaByStorageKey(
+        userId,
+        projectId,
+        storageKey,
+      );
+
+      if (existingMedia) {
+        // The metadata exists, so preserve its file.
+        return existingMedia;
+      }
+    } catch (lookupError) {
+      console.error(
+        "Unable to reconcile Project media registration:",
+        lookupError,
+      );
+    }
+
+    /*
+     * A missing record at lookup time does not prove
+     * that the original insert cannot commit later.
+     *
+     * Preserve the file for later reconciliation.
+     */
+
+    const error = createMediaServiceError(
+      "Project media registration could not be confirmed.",
+      "PROJECT_MEDIA_REGISTRATION_UNCONFIRMED",
+      503,
+    );
+
+    error.cause = databaseError;
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * List Project Media
+ * =========================================
+ */
+
+export async function listAuthenticatedProjectMedia({ userId, projectId }) {
+  if (!userId || !projectId) {
+    throw createMediaServiceError(
+      "Project media access is not authorized.",
+      "PROJECT_MEDIA_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  return listProjectMedia(userId, projectId);
+}
+
+/*
+ * =========================================
+ * Get Authenticated Project Media
+ * =========================================
+ *
+ * Retrieve media metadata belonging to
+ * the authenticated user and Project.
+ */
+
+export async function getAuthenticatedProjectMedia({
+  userId,
+  projectId,
+  mediaId,
+}) {
+  if (!userId || !projectId || !mediaId) {
+    throw createMediaServiceError(
+      "Project media access is not authorized.",
+      "PROJECT_MEDIA_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const media = await findProjectMediaById(userId, projectId, mediaId);
+
+  if (!media) {
+    throw createMediaServiceError(
+      "Project media not found.",
+      "PROJECT_MEDIA_NOT_FOUND",
+      404,
+    );
+  }
+
+  return media;
+}
+
+/*
+ * =========================================
+ * Delete Authenticated Project Media
+ * =========================================
+ */
+
+export async function deleteAuthenticatedProjectMedia({
+  userId,
+  projectId,
+  mediaId,
+}) {
+  if (!userId || !projectId || !mediaId) {
+    throw createMediaServiceError(
+      "Project media deletion is not authorized.",
+      "PROJECT_MEDIA_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const media = await findProjectMediaById(userId, projectId, mediaId);
+
+  if (!media) {
+    throw createMediaServiceError(
+      "Project media not found.",
+      "PROJECT_MEDIA_NOT_FOUND",
+      404,
+    );
+  }
+
+  /*
+   * Delete the owned physical file first.
+   *
+   * The storage service handles an already-missing
+   * file without throwing an error.
+   */
+  await deleteOwnedProjectMedia(userId, projectId, media.storageKey);
+
+  /*
+   * Remove the database record only after
+   * filesystem deletion succeeds.
+   */
+  const deletedMedia = await deleteProjectMedia(userId, projectId, mediaId);
+
+  if (!deletedMedia) {
+    throw createMediaServiceError(
+      "Project media deletion could not be confirmed.",
+      "PROJECT_MEDIA_DELETION_UNCONFIRMED",
+      503,
+    );
+  }
+
+  return deletedMedia;
+}
+
+==========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\projectMediaStorageService.js
+==========================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+function requireIdentifier(value, label) {
+  const normalized = String(value ?? "").trim();
+
+  if (!normalized) {
+    throw new Error(`${label} is required for Project media storage.`);
+  }
+
+  return normalized;
+}
+
+function hashIdentifier(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function validateFileName(fileName) {
+  const normalized = String(fileName ?? "").trim();
+
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    path.basename(normalized) !== normalized ||
+    !/^[a-f0-9-]{36}\.(?:jpg|jpeg|png|webp|avif|gif|mp4|webm)$/i.test(
+      normalized,
+    )
+  ) {
+    throw new Error("Invalid Project media filename.");
+  }
+
+  return normalized;
+}
+
+export function getProjectMediaStorageRoot() {
+  const environment = getEnvironment();
+
+  const configuredPath = String(
+    environment.PROJECT_MEDIA_STORAGE_PATH || "",
+  ).trim();
+
+  if (!configuredPath) {
+    throw new Error("PROJECT_MEDIA_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(configuredPath);
+}
+
+export function getProjectMediaUserDirectory(userId) {
+  return hashIdentifier(requireIdentifier(userId, "User ID"));
+}
+
+export function getProjectMediaProjectDirectory(projectId) {
+  return hashIdentifier(requireIdentifier(projectId, "Project ID"));
+}
+
+export function getProjectMediaDirectory(userId, projectId) {
+  return path.join(
+    getProjectMediaStorageRoot(),
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+  );
+}
+
+export function createProjectMediaStorageKey(userId, projectId, fileName) {
+  const safeFileName = validateFileName(fileName);
+
+  return [
+    getProjectMediaUserDirectory(userId),
+    getProjectMediaProjectDirectory(projectId),
+    safeFileName,
+  ].join("/");
+}
+
+export function resolveOwnedProjectMediaPath(userId, projectId, storageKey) {
+  const normalizedKey = String(storageKey ?? "").trim();
+
+  const expectedUserDirectory = getProjectMediaUserDirectory(userId);
+  const expectedProjectDirectory = getProjectMediaProjectDirectory(projectId);
+
+  const parts = normalizedKey.split("/");
+
+  if (
+    parts.length !== 3 ||
+    parts[0] !== expectedUserDirectory ||
+    parts[1] !== expectedProjectDirectory
+  ) {
+    throw new Error(
+      "Project media storage key does not belong to this user and Project.",
+    );
+  }
+
+  const safeFileName = validateFileName(parts[2]);
+
+  const mediaDirectory = path.resolve(
+    getProjectMediaDirectory(userId, projectId),
+  );
+
+  const filePath = path.resolve(mediaDirectory, safeFileName);
+
+  if (path.dirname(filePath) !== mediaDirectory) {
+    throw new Error("Project media path is outside the expected directory.");
+  }
+
+  return filePath;
+}
+
+export async function assertSafeProjectMediaDirectory(userId, projectId) {
+  const root = getProjectMediaStorageRoot();
+  const userDirectory = path.join(root, getProjectMediaUserDirectory(userId));
+  const projectDirectory = path.join(
+    userDirectory,
+    getProjectMediaProjectDirectory(projectId),
+  );
+
+  const directories = [root, userDirectory, projectDirectory];
+
+  for (const directory of directories) {
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project media storage directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalProjectDirectory = await fs.realpath(projectDirectory);
+
+  const relative = path.relative(
+    canonicalRoot,
+    canonicalProjectDirectory,
+  );
+
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project media directory is outside the storage root.");
+  }
+}
+
+export async function deleteOwnedProjectMedia(userId, projectId, storageKey) {
+  const filePath = resolveOwnedProjectMediaPath(userId, projectId, storageKey);
+
+  try {
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    const stats = await fs.lstat(filePath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error("Project media target is not a regular file.");
+    }
+
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+

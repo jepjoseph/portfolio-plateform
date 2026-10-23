@@ -1,0 +1,5543 @@
+﻿PROJECT FRONTEND API DEPENDENCIES
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\projectConfig.js
+========================================
+/*
+ * =========================================
+ * Project Categories
+ * =========================================
+ */
+
+export const PROJECT_CATEGORY_OPTIONS = [
+  {
+    value: "software",
+    label: "Software Development",
+  },
+  {
+    value: "web-application",
+    label: "Web Application",
+  },
+  {
+    value: "mobile-application",
+    label: "Mobile Application",
+  },
+  {
+    value: "artificial-intelligence",
+    label: "Artificial Intelligence",
+  },
+  {
+    value: "data",
+    label: "Data and Analytics",
+  },
+  {
+    value: "cloud-infrastructure",
+    label: "Cloud and Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "cybersecurity",
+    label: "Cybersecurity",
+  },
+  {
+    value: "embedded-systems",
+    label: "Embedded Systems",
+  },
+  {
+    value: "electronics",
+    label: "Electronics",
+  },
+  {
+    value: "automation",
+    label: "Automation",
+  },
+  {
+    value: "internet-of-things",
+    label: "Internet of Things",
+  },
+  {
+    value: "research",
+    label: "Research",
+  },
+  {
+    value: "design",
+    label: "Design",
+  },
+  {
+    value: "business",
+    label: "Business or Startup",
+  },
+  {
+    value: "academic",
+    label: "Academic Project",
+  },
+  {
+    value: "community",
+    label: "Community Project",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Project Lifecycle
+ * =========================================
+ *
+ * This represents the actual lifecycle of the
+ * project. It is separate from recordStatus,
+ * which controls library archiving.
+ */
+
+export const PROJECT_LIFECYCLE_STATUS_OPTIONS = [
+  {
+    value: "planned",
+    label: "Planned",
+  },
+  {
+    value: "in-progress",
+    label: "In Progress",
+  },
+  {
+    value: "completed",
+    label: "Completed",
+  },
+  {
+    value: "maintained",
+    label: "Maintained",
+  },
+  {
+    value: "paused",
+    label: "Paused",
+  },
+  {
+    value: "cancelled",
+    label: "Cancelled",
+  },
+];
+
+/*
+ * =========================================
+ * Project Ownership
+ * =========================================
+ */
+
+export const PROJECT_OWNERSHIP_OPTIONS = [
+  {
+    value: "individual",
+    label: "Individual Project",
+  },
+  {
+    value: "team",
+    label: "Team Project",
+  },
+  {
+    value: "client",
+    label: "Client Project",
+  },
+  {
+    value: "organization",
+    label: "Organization Project",
+  },
+];
+
+/*
+ * =========================================
+ * Record Sources
+ * =========================================
+ */
+
+export const PROJECT_SOURCE_OPTIONS = [
+  {
+    value: "manual",
+    label: "Manually Added",
+  },
+  {
+    value: "import",
+    label: "Imported",
+  },
+  {
+    value: "integration",
+    label: "Integration",
+  },
+  {
+    value: "ai-assisted",
+    label: "AI Assisted",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const PROJECT_RECORD_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+  },
+];
+
+/*
+ * =========================================
+ * Demonstrated Skill Proficiency
+ * =========================================
+ *
+ * This describes the proficiency demonstrated
+ * specifically within a Project. It can differ
+ * from the general Skill Library proficiency.
+ */
+
+export const PROJECT_SKILL_PROFICIENCY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "foundational",
+    label: "Foundational",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+  },
+  {
+    value: "expert",
+    label: "Expert",
+  },
+];
+
+/*
+ * =========================================
+ * Technology Categories
+ * =========================================
+ */
+
+export const PROJECT_TECHNOLOGY_CATEGORY_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "programming-language",
+    label: "Programming Language",
+  },
+  {
+    value: "framework-library",
+    label: "Framework or Library",
+  },
+  {
+    value: "database",
+    label: "Database",
+  },
+  {
+    value: "cloud-platform",
+    label: "Cloud Platform",
+  },
+  {
+    value: "infrastructure",
+    label: "Infrastructure",
+  },
+  {
+    value: "networking",
+    label: "Networking",
+  },
+  {
+    value: "hardware",
+    label: "Hardware",
+  },
+  {
+    value: "embedded-platform",
+    label: "Embedded Platform",
+  },
+  {
+    value: "development-tool",
+    label: "Development Tool",
+  },
+  {
+    value: "design-tool",
+    label: "Design Tool",
+  },
+  {
+    value: "testing-tool",
+    label: "Testing Tool",
+  },
+  {
+    value: "methodology",
+    label: "Methodology",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Recognition Types
+ * =========================================
+ */
+
+export const PROJECT_RECOGNITION_TYPE_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "award",
+    label: "Award",
+  },
+  {
+    value: "competition",
+    label: "Competition",
+  },
+  {
+    value: "grant",
+    label: "Grant",
+  },
+  {
+    value: "fellowship",
+    label: "Fellowship",
+  },
+  {
+    value: "showcase",
+    label: "Showcase Selection",
+  },
+  {
+    value: "publication",
+    label: "Publication",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "patent",
+    label: "Patent or Invention",
+  },
+  {
+    value: "media",
+    label: "Media Recognition",
+  },
+  {
+    value: "client-recognition",
+    label: "Client Recognition",
+  },
+  {
+    value: "academic-recognition",
+    label: "Academic Recognition",
+  },
+  {
+    value: "other",
+    label: "Other Recognition",
+  },
+];
+
+/*
+ * =========================================
+ * Award Placements
+ * =========================================
+ */
+
+export const PROJECT_AWARD_PLACEMENT_OPTIONS = [
+  {
+    value: "",
+    label: "Not Specified",
+  },
+  {
+    value: "winner",
+    label: "Winner",
+  },
+  {
+    value: "first-place",
+    label: "First Place",
+  },
+  {
+    value: "second-place",
+    label: "Second Place",
+  },
+  {
+    value: "third-place",
+    label: "Third Place",
+  },
+  {
+    value: "finalist",
+    label: "Finalist",
+  },
+  {
+    value: "semifinalist",
+    label: "Semifinalist",
+  },
+  {
+    value: "honorable-mention",
+    label: "Honorable Mention",
+  },
+  {
+    value: "selected",
+    label: "Selected",
+  },
+  {
+    value: "recipient",
+    label: "Recipient",
+  },
+  {
+    value: "participant",
+    label: "Participant",
+  },
+  {
+    value: "other",
+    label: "Other Placement",
+  },
+];
+
+/*
+ * =========================================
+ * Media Types
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_TYPE_OPTIONS = [
+  {
+    value: "image",
+    label: "Image",
+  },
+  {
+    value: "video",
+    label: "Video",
+  },
+  {
+    value: "diagram",
+    label: "Architecture Diagram",
+  },
+];
+
+/*
+ * =========================================
+ * Document Types
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_TYPE_OPTIONS = [
+  {
+    value: "report",
+    label: "Report",
+  },
+  {
+    value: "presentation",
+    label: "Presentation",
+  },
+  {
+    value: "documentation",
+    label: "Documentation",
+  },
+  {
+    value: "source-file",
+    label: "Source File or Archive",
+  },
+  {
+    value: "dataset",
+    label: "Dataset",
+  },
+  {
+    value: "design",
+    label: "Design Document",
+  },
+  {
+    value: "award",
+    label: "Award Evidence",
+  },
+  {
+    value: "supporting-evidence",
+    label: "Supporting Evidence",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Asset Visibility
+ * =========================================
+ */
+
+export const PROJECT_ASSET_VISIBILITY_OPTIONS = [
+  {
+    value: "public",
+    label: "Public",
+  },
+  {
+    value: "private",
+    label: "Private",
+  },
+];
+
+/*
+ * =========================================
+ * Accepted Media Files
+ * =========================================
+ */
+
+export const PROJECT_MEDIA_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+].join(",");
+
+/*
+ * =========================================
+ * Accepted Document Files
+ * =========================================
+ */
+
+export const PROJECT_DOCUMENT_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+].join(",");
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ *
+ * These limits should later be mirrored in
+ * backend validation and database columns.
+ */
+
+export const PROJECT_FIELD_LIMITS = Object.freeze({
+  title: 200,
+  role: 160,
+
+  organizationName: 200,
+  clientName: 200,
+  website: 1000,
+
+  locationDisplayValue: 300,
+
+  url: 2000,
+
+  problemStatement: 4000,
+  targetAudience: 1000,
+  context: 3000,
+  importance: 3000,
+
+  overview: 4000,
+  approach: 4000,
+  architecture: 4000,
+
+  outcome: 4000,
+  problemsSolved: 3000,
+  impact: 3000,
+  beneficiariesAffected: 2000,
+  lessonsLearned: 3000,
+  futureImprovements: 3000,
+
+  shortSummary: 500,
+  caseStudy: 12000,
+
+  orderedItemText: 1500,
+
+  metricLabel: 200,
+  metricValue: 200,
+  metricDescription: 500,
+
+  relationshipName: 200,
+  relationshipDescription: 1000,
+
+  skillProficiency: 50,
+
+  technologyName: 150,
+  technologyCategory: 100,
+
+  awardName: 250,
+  awardOrganization: 250,
+  awardRecognitionType: 100,
+  awardPlacement: 100,
+  awardDescription: 1500,
+
+  mediaName: 255,
+  mediaCaption: 1000,
+  mediaAltText: 500,
+
+  documentName: 255,
+  documentDescription: 1000,
+
+  sourceContext: 500,
+  privateNotes: 5000,
+
+  maximumObjectives: 25,
+  maximumConstraints: 25,
+  maximumFeatures: 40,
+  maximumContributions: 40,
+  maximumMetrics: 25,
+
+  maximumSkills: 60,
+  maximumTechnologies: 60,
+  maximumRelationshipsPerType: 50,
+
+  maximumAwards: 20,
+  maximumAwardDocuments: 10,
+
+  maximumMedia: 30,
+  maximumDocuments: 30,
+
+  maximumImageBytes: 12 * 1024 * 1024,
+  maximumVideoBytes: 150 * 1024 * 1024,
+  maximumDocumentBytes: 20 * 1024 * 1024,
+});
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+function getOptionLabel(options, value, fallback = "") {
+  return findOption(options, value)?.label || fallback;
+}
+
+/*
+ * =========================================
+ * Project Option Validation
+ * =========================================
+ */
+
+export function isValidProjectCategory(value) {
+  return Boolean(findOption(PROJECT_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectLifecycleStatus(value) {
+  return Boolean(findOption(PROJECT_LIFECYCLE_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectOwnership(value) {
+  return Boolean(findOption(PROJECT_OWNERSHIP_OPTIONS, value));
+}
+
+export function isValidProjectSource(value) {
+  return Boolean(findOption(PROJECT_SOURCE_OPTIONS, value));
+}
+
+export function isValidProjectRecordStatus(value) {
+  return Boolean(findOption(PROJECT_RECORD_STATUS_OPTIONS, value));
+}
+
+export function isValidProjectSkillProficiency(value) {
+  return Boolean(findOption(PROJECT_SKILL_PROFICIENCY_OPTIONS, value));
+}
+
+export function isValidProjectTechnologyCategory(value) {
+  return Boolean(findOption(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value));
+}
+
+export function isValidProjectRecognitionType(value) {
+  return Boolean(findOption(PROJECT_RECOGNITION_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectAwardPlacement(value) {
+  return Boolean(findOption(PROJECT_AWARD_PLACEMENT_OPTIONS, value));
+}
+
+export function isValidProjectMediaType(value) {
+  return Boolean(findOption(PROJECT_MEDIA_TYPE_OPTIONS, value));
+}
+
+export function isValidProjectDocumentType(value) {
+  return Boolean(findOption(PROJECT_DOCUMENT_TYPE_OPTIONS, value));
+}
+
+/*
+ * =========================================
+ * Display Labels
+ * =========================================
+ */
+
+export function getProjectCategoryLabel(value) {
+  return getOptionLabel(PROJECT_CATEGORY_OPTIONS, value, "Other");
+}
+
+export function getProjectLifecycleStatusLabel(value) {
+  return getOptionLabel(PROJECT_LIFECYCLE_STATUS_OPTIONS, value, "Planned");
+}
+
+export function getProjectOwnershipLabel(value) {
+  return getOptionLabel(PROJECT_OWNERSHIP_OPTIONS, value, "Individual Project");
+}
+
+export function getProjectSourceLabel(value) {
+  return getOptionLabel(PROJECT_SOURCE_OPTIONS, value, "Manually Added");
+}
+
+export function getProjectRecordStatusLabel(value) {
+  return getOptionLabel(PROJECT_RECORD_STATUS_OPTIONS, value, "Active");
+}
+
+export function getProjectSkillProficiencyLabel(value) {
+  return getOptionLabel(PROJECT_SKILL_PROFICIENCY_OPTIONS, value);
+}
+
+export function getProjectTechnologyCategoryLabel(value) {
+  return getOptionLabel(PROJECT_TECHNOLOGY_CATEGORY_OPTIONS, value);
+}
+
+export function getProjectRecognitionTypeLabel(value) {
+  return getOptionLabel(PROJECT_RECOGNITION_TYPE_OPTIONS, value);
+}
+
+export function getProjectAwardPlacementLabel(value) {
+  return getOptionLabel(PROJECT_AWARD_PLACEMENT_OPTIONS, value);
+}
+
+export function getProjectMediaTypeLabel(value) {
+  return getOptionLabel(PROJECT_MEDIA_TYPE_OPTIONS, value, "Image");
+}
+
+export function getProjectDocumentTypeLabel(value) {
+  return getOptionLabel(
+    PROJECT_DOCUMENT_TYPE_OPTIONS,
+    value,
+    "Supporting Evidence",
+  );
+}
+
+/*
+ * =========================================
+ * File Helpers
+ * =========================================
+ */
+
+function getFileType(file) {
+  return typeof file?.type === "string"
+    ? file.type.trim().toLocaleLowerCase()
+    : "";
+}
+
+function getFileName(file) {
+  return typeof file?.name === "string"
+    ? file.name.trim().toLocaleLowerCase()
+    : "";
+}
+
+function hasFileExtension(fileName, extensions) {
+  return extensions.some((extension) => fileName.endsWith(extension));
+}
+
+/*
+ * =========================================
+ * Media Validation
+ * =========================================
+ */
+
+export function isSupportedProjectMedia(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+  ];
+
+  const supportedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".mp4",
+    ".webm",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectMediaWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const isVideo =
+    mimeType.startsWith("video/") ||
+    hasFileExtension(fileName, [".mp4", ".webm"]);
+
+  const maximumSize = isVideo
+    ? PROJECT_FIELD_LIMITS.maximumVideoBytes
+    : PROJECT_FIELD_LIMITS.maximumImageBytes;
+
+  return fileSize <= maximumSize;
+}
+
+/*
+ * =========================================
+ * Document Validation
+ * =========================================
+ */
+
+export function isSupportedProjectDocument(file) {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const mimeType = getFileType(file);
+  const fileName = getFileName(file);
+
+  const supportedMimeTypes = [
+    "application/pdf",
+
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/markdown",
+    "application/json",
+    "application/zip",
+    "application/x-zip-compressed",
+
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  const supportedExtensions = [
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".md",
+    ".csv",
+    ".json",
+    ".zip",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+  ];
+
+  return (
+    supportedMimeTypes.includes(mimeType) ||
+    hasFileExtension(fileName, supportedExtensions)
+  );
+}
+
+export function isProjectDocumentWithinSizeLimit(file) {
+  const fileSize = Number(file?.size);
+
+  return (
+    Number.isFinite(fileSize) &&
+    fileSize > 0 &&
+    fileSize <= PROJECT_FIELD_LIMITS.maximumDocumentBytes
+  );
+}
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\models\projectModel.js
+========================================
+import {
+  PROJECT_FIELD_LIMITS,
+  isValidProjectAwardPlacement,
+  isValidProjectCategory,
+  isValidProjectDocumentType,
+  isValidProjectLifecycleStatus,
+  isValidProjectMediaType,
+  isValidProjectOwnership,
+  isValidProjectRecognitionType,
+  isValidProjectRecordStatus,
+  isValidProjectSkillProficiency,
+  isValidProjectSource,
+} from "../config/projectConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const PROJECT_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createProjectId(prefix = "project") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeNullableFileSize(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.max(0, numberValue);
+}
+
+/*
+ * =========================================
+ * Date Normalization
+ * =========================================
+ */
+
+function normalizeDate(value) {
+  const normalizedValue = normalizeText(value, 10);
+
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(normalizedValue)
+  ) {
+    return "";
+  }
+
+  return normalizedValue;
+}
+
+/*
+ * =========================================
+ * Identifier Collection
+ * =========================================
+ */
+
+function normalizeIdentifierList(values, maximumItems = Infinity) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedIdentifiers = values
+    .map((value) => {
+      if (typeof value === "string") {
+        return normalizeText(value, 200);
+      }
+
+      return normalizeText(value?.id, 200);
+    })
+    .filter(Boolean);
+
+  return [...new Set(normalizedIdentifiers)].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Ordered Text Items
+ * =========================================
+ */
+
+function normalizeOrderedTextItems(values, prefix, maximumItems) {
+  return normalizeArray(values)
+    .map((value) => {
+      const source =
+        typeof value === "string"
+          ? {
+              text: value,
+            }
+          : value && typeof value === "object"
+            ? value
+            : {};
+
+      return {
+        id: normalizeText(source.id, 200) || createProjectId(prefix),
+
+        text: normalizeText(
+          source.text || source.name || source.value,
+          PROJECT_FIELD_LIMITS.orderedItemText,
+        ),
+
+        order: 0,
+      };
+    })
+    .filter((item) => item.text)
+    .slice(0, maximumItems)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+}
+
+/*
+ * =========================================
+ * Related Record Relationships
+ * =========================================
+ */
+
+function normalizeRecordRelationships(values, type) {
+  const idField = `${type}Id`;
+
+  const seenIdentifiers = new Set();
+
+  return normalizeArray(values).reduce((relationships, value) => {
+    const source =
+      typeof value === "string"
+        ? {
+            [idField]: value,
+          }
+        : value && typeof value === "object"
+          ? value
+          : {};
+
+    const recordId = normalizeText(
+      source[idField] || source.recordId || source.id,
+      200,
+    );
+
+    const identity = recordId.toLocaleLowerCase();
+
+    if (
+      !recordId ||
+      seenIdentifiers.has(identity) ||
+      relationships.length >= PROJECT_FIELD_LIMITS.maximumRelationshipsPerType
+    ) {
+      return relationships;
+    }
+
+    seenIdentifiers.add(identity);
+
+    const snapshot =
+      source.snapshot &&
+      typeof source.snapshot === "object" &&
+      !Array.isArray(source.snapshot)
+        ? source.snapshot
+        : {};
+
+    relationships.push({
+      id:
+        normalizeText(
+          source.relationshipId || (source[idField] ? source.id : ""),
+          200,
+        ) || createProjectId(`project-${type}`),
+
+      [idField]: recordId,
+
+      description: normalizeText(
+        source.description,
+        PROJECT_FIELD_LIMITS.relationshipDescription,
+      ),
+
+      order: relationships.length,
+
+      snapshot: {
+        name: normalizeText(
+          snapshot.name || snapshot.title || source.name || source.title,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        secondaryLabel: normalizeText(
+          snapshot.secondaryLabel ||
+            source.secondaryLabel ||
+            source.organization?.name ||
+            source.provider?.name ||
+            source.institution?.name ||
+            source.issuingOrganization?.name,
+          PROJECT_FIELD_LIMITS.relationshipName,
+        ),
+
+        status: normalizeText(
+          snapshot.status || source.lifecycleStatus || source.status,
+          100,
+        ),
+      },
+    });
+
+    return relationships;
+  }, []);
+}
+
+/*
+ * =========================================
+ * Skill Relationship
+ * =========================================
+ */
+
+export function createProjectSkillRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const proficiency =
+    source.demonstratedProficiency || source.proficiency || source.level || "";
+
+  return {
+    id:
+      normalizeText(
+        source.relationshipId || (source.skillId ? source.id : ""),
+        200,
+      ) || createProjectId("project-skill"),
+
+    skillId: normalizeText(
+      source.skillId ||
+        source.profileSkillId ||
+        (!source.skillId ? source.id : ""),
+      200,
+    ),
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label || source.value,
+      PROJECT_FIELD_LIMITS.relationshipName,
+    ),
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      100,
+    ),
+
+    demonstratedProficiency: isValidProjectSkillProficiency(proficiency)
+      ? proficiency
+      : "",
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      PROJECT_FIELD_LIMITS.relationshipDescription,
+    ),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Media
+ * =========================================
+ */
+
+export function createProjectMedia(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const type = isValidProjectMediaType(source.type)
+    ? source.type
+    : source.mimeType?.startsWith("video/")
+      ? "video"
+      : "image";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-media"),
+
+    type,
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.mediaName,
+    ),
+
+    caption: normalizeText(source.caption, PROJECT_FIELD_LIMITS.mediaCaption),
+
+    altText: normalizeText(
+      source.altText || source.alternativeText || source.imageDescription,
+      PROJECT_FIELD_LIMITS.mediaAltText,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    previewMode: type === "video" ? "video" : "image",
+
+    isFeatured: normalizeBoolean(source.isFeatured, false),
+
+    visibility: source.visibility === "private" ? "private" : "public",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Document
+ * =========================================
+ */
+
+export function createProjectDocument(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-document"),
+
+    documentType: isValidProjectDocumentType(source.documentType)
+      ? source.documentType
+      : "supporting-evidence",
+
+    name: normalizeText(
+      source.name || source.fileName,
+      PROJECT_FIELD_LIMITS.documentName,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.documentDescription,
+    ),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableFileSize(source.fileSize ?? source.size),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    externalUrl: normalizeText(
+      source.externalUrl || source.url,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    visibility: source.visibility === "public" ? "public" : "private",
+
+    status: source.status === "archived" ? "archived" : "active",
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    order:
+      Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  };
+}
+
+/*
+ * =========================================
+ * Project Metric
+ * =========================================
+ */
+
+function createProjectMetric(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-metric"),
+
+    label: normalizeText(
+      source.label || source.name,
+      PROJECT_FIELD_LIMITS.metricLabel,
+    ),
+
+    value: normalizeText(
+      source.value || source.result,
+      PROJECT_FIELD_LIMITS.metricValue,
+    ),
+
+    description: normalizeText(
+      source.description || source.context,
+      PROJECT_FIELD_LIMITS.metricDescription,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Technology
+ * =========================================
+ */
+
+function createProjectTechnology(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-technology"),
+
+    name: normalizeText(
+      source.name || source.nameSnapshot || source.label || source.value,
+      PROJECT_FIELD_LIMITS.technologyName,
+    ),
+
+    /*
+     * Category remains a normalized snapshot.
+     * This preserves older free-text categories
+     * while the form transitions to configured
+     * technology-category options.
+     */
+
+    category: normalizeText(
+      source.category || source.categorySnapshot,
+      PROJECT_FIELD_LIMITS.technologyCategory,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Project Award
+ * =========================================
+ */
+
+function createProjectAward(value = {}, order = 0) {
+  const source = value && typeof value === "object" ? value : {};
+
+  const recognitionType = source.recognitionType || source.type || "";
+
+  const placement = source.placement || source.result || "";
+
+  return {
+    id: normalizeText(source.id, 200) || createProjectId("project-award"),
+
+    name: normalizeText(
+      source.name || source.title,
+      PROJECT_FIELD_LIMITS.awardName,
+    ),
+
+    organization: normalizeText(
+      source.organization || source.awardingOrganization || source.issuer,
+      PROJECT_FIELD_LIMITS.awardOrganization,
+    ),
+
+    recognitionType: isValidProjectRecognitionType(recognitionType)
+      ? recognitionType
+      : "",
+
+    placement: isValidProjectAwardPlacement(placement) ? placement : "",
+
+    date: normalizeDate(source.date || source.awardDate),
+
+    url: normalizeText(
+      source.url || source.verificationUrl,
+      PROJECT_FIELD_LIMITS.url,
+    ),
+
+    description: normalizeText(
+      source.description,
+      PROJECT_FIELD_LIMITS.awardDescription,
+    ),
+
+    supportingDocumentIds: normalizeIdentifierList(
+      source.supportingDocumentIds || source.documentIds,
+      PROJECT_FIELD_LIMITS.maximumAwardDocuments,
+    ),
+
+    order,
+  };
+}
+
+/*
+ * =========================================
+ * Empty Project
+ * =========================================
+ */
+
+export function createEmptyProject() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    id: createProjectId(),
+
+    title: "",
+
+    category: "software",
+
+    lifecycleStatus: "planned",
+
+    role: "",
+
+    ownership: "individual",
+
+    organization: {
+      name: "",
+      clientName: "",
+      website: "",
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    location: {
+      displayValue: "",
+    },
+
+    links: {
+      liveUrl: "",
+      repositoryUrl: "",
+      documentationUrl: "",
+      caseStudyUrl: "",
+      videoUrl: "",
+    },
+
+    problem: {
+      statement: "",
+      targetAudience: "",
+      context: "",
+      importance: "",
+      constraints: [],
+      objectives: [],
+    },
+
+    solution: {
+      overview: "",
+      approach: "",
+      architecture: "",
+      features: [],
+      contributions: [],
+    },
+
+    results: {
+      outcome: "",
+      problemsSolved: "",
+      impact: "",
+      beneficiariesAffected: "",
+      metrics: [],
+      lessonsLearned: "",
+      futureImprovements: "",
+    },
+
+    skillRelationships: [],
+
+    technologies: [],
+
+    relatedRecords: {
+      experienceRelationships: [],
+      educationRelationships: [],
+      trainingRelationships: [],
+      certificationRelationships: [],
+    },
+
+    awards: [],
+
+    media: [],
+
+    supportingDocuments: [],
+
+    presentation: {
+      shortSummary: "",
+      caseStudy: "",
+      featuredMediaId: "",
+      isFeatured: false,
+    },
+
+    visibility: {
+      showOrganization: true,
+      showLocation: true,
+      showDates: true,
+      showLinks: true,
+      showProblem: true,
+      showSolution: true,
+      showResults: true,
+      showSkills: true,
+      showTechnologies: true,
+      showRelatedRecords: true,
+      showAwards: true,
+      showMedia: true,
+      showSupportingDocuments: false,
+    },
+
+    privateInformation: {
+      notes: "",
+    },
+
+    source: "manual",
+
+    sourceContext: "",
+
+    recordStatus: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Featured Media Eligibility
+ * =========================================
+ */
+
+function isEligibleFeaturedMedia(mediaItem) {
+  return Boolean(
+    mediaItem &&
+    mediaItem.status !== "archived" &&
+    mediaItem.visibility !== "private" &&
+    (normalizeText(mediaItem.storageKey, 500) ||
+      normalizeText(mediaItem.externalUrl, PROJECT_FIELD_LIMITS.url)),
+  );
+}
+
+/*
+ * =========================================
+ * Project Normalization
+ * =========================================
+ */
+
+export function normalizeProject(value = {}) {
+  const defaults = createEmptyProject();
+
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  const getObject = (fieldName) =>
+    source[fieldName] &&
+    typeof source[fieldName] === "object" &&
+    !Array.isArray(source[fieldName])
+      ? source[fieldName]
+      : {};
+
+  const organization = getObject("organization");
+  const dates = getObject("dates");
+  const location = getObject("location");
+  const links = getObject("links");
+  const problem = getObject("problem");
+  const solution = getObject("solution");
+  const results = getObject("results");
+  const relatedRecords = getObject("relatedRecords");
+  const presentation = getObject("presentation");
+  const visibility = getObject("visibility");
+  const privateInformation = getObject("privateInformation");
+
+  const lifecycleStatus = isValidProjectLifecycleStatus(
+    source.lifecycleStatus || source.projectStatus,
+  )
+    ? source.lifecycleStatus || source.projectStatus
+    : defaults.lifecycleStatus;
+
+  const isCurrent = normalizeBoolean(
+    dates.isCurrent,
+    ["in-progress", "maintained"].includes(lifecycleStatus),
+  );
+
+  /*
+   * =========================================
+   * Media Normalization
+   * =========================================
+   */
+
+  const media = normalizeArray(source.media)
+    .map((item, order) => createProjectMedia(item, order))
+    .filter((item) => item.name || item.storageKey || item.externalUrl)
+    .slice(0, PROJECT_FIELD_LIMITS.maximumMedia)
+    .map((item, order) => ({
+      ...item,
+      order,
+    }));
+
+  const requestedFeaturedMediaId = normalizeText(
+    presentation.featuredMediaId,
+    200,
+  );
+
+  const featuredMedia =
+    media.find(
+      (item) =>
+        item.id === requestedFeaturedMediaId && isEligibleFeaturedMedia(item),
+    ) ||
+    media.find((item) => item.isFeatured && isEligibleFeaturedMedia(item)) ||
+    media.find(isEligibleFeaturedMedia) ||
+    null;
+
+  /*
+   * =========================================
+   * Skill Relationship Normalization
+   * =========================================
+   */
+
+  const seenSkills = new Set();
+
+  const skillRelationships = normalizeArray(source.skillRelationships)
+    .map((relationship, order) =>
+      createProjectSkillRelationship(relationship, order),
+    )
+    .filter((relationship) => {
+      const identity = (relationship.skillId || relationship.nameSnapshot)
+        .normalize("NFKC")
+        .toLocaleLowerCase();
+
+      if (!identity || seenSkills.has(identity)) {
+        return false;
+      }
+
+      seenSkills.add(identity);
+
+      return true;
+    })
+    .slice(0, PROJECT_FIELD_LIMITS.maximumSkills)
+    .map((relationship, order) => ({
+      ...relationship,
+      order,
+    }));
+
+  /*
+   * =========================================
+   * Supporting Documents
+   * =========================================
+   */
+
+  const supportingDocuments = normalizeArray(source.supportingDocuments)
+    .map((documentRecord, order) =>
+      createProjectDocument(documentRecord, order),
+    )
+    .filter(
+      (documentRecord) =>
+        documentRecord.name ||
+        documentRecord.storageKey ||
+        documentRecord.externalUrl,
+    )
+    .slice(0, PROJECT_FIELD_LIMITS.maximumDocuments)
+    .map((documentRecord, order) => ({
+      ...documentRecord,
+      order,
+    }));
+
+  const validDocumentIds = new Set(
+    supportingDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  /*
+   * =========================================
+   * Normalized Project
+   * =========================================
+   */
+
+  return {
+    modelVersion: PROJECT_MODEL_VERSION,
+
+    ...(typeof source.rowVersion === "string" &&
+    /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+      ? { rowVersion: source.rowVersion }
+      : {}),
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    title: normalizeText(
+      source.title || source.name,
+      PROJECT_FIELD_LIMITS.title,
+    ),
+
+    category: isValidProjectCategory(source.category)
+      ? source.category
+      : defaults.category,
+
+    lifecycleStatus,
+
+    role: normalizeText(source.role, PROJECT_FIELD_LIMITS.role),
+
+    ownership: isValidProjectOwnership(source.ownership)
+      ? source.ownership
+      : defaults.ownership,
+
+    organization: {
+      name: normalizeText(
+        organization.name,
+        PROJECT_FIELD_LIMITS.organizationName,
+      ),
+
+      clientName: normalizeText(
+        organization.clientName,
+        PROJECT_FIELD_LIMITS.clientName,
+      ),
+
+      website: normalizeText(
+        organization.website,
+        PROJECT_FIELD_LIMITS.website,
+      ),
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    location: {
+      displayValue: normalizeText(
+        location.displayValue ||
+          source.locationValue ||
+          (typeof source.location === "string" ? source.location : ""),
+        PROJECT_FIELD_LIMITS.locationDisplayValue,
+      ),
+    },
+
+    links: {
+      liveUrl: normalizeText(links.liveUrl, PROJECT_FIELD_LIMITS.url),
+
+      repositoryUrl: normalizeText(
+        links.repositoryUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      documentationUrl: normalizeText(
+        links.documentationUrl,
+        PROJECT_FIELD_LIMITS.url,
+      ),
+
+      caseStudyUrl: normalizeText(links.caseStudyUrl, PROJECT_FIELD_LIMITS.url),
+
+      videoUrl: normalizeText(links.videoUrl, PROJECT_FIELD_LIMITS.url),
+    },
+
+    problem: {
+      statement: normalizeText(
+        problem.statement,
+        PROJECT_FIELD_LIMITS.problemStatement,
+      ),
+
+      targetAudience: normalizeText(
+        problem.targetAudience,
+        PROJECT_FIELD_LIMITS.targetAudience,
+      ),
+
+      context: normalizeText(problem.context, PROJECT_FIELD_LIMITS.context),
+
+      importance: normalizeText(
+        problem.importance || problem.whyImportant,
+        PROJECT_FIELD_LIMITS.importance,
+      ),
+
+      constraints: normalizeOrderedTextItems(
+        problem.constraints,
+        "project-constraint",
+        PROJECT_FIELD_LIMITS.maximumConstraints,
+      ),
+
+      objectives: normalizeOrderedTextItems(
+        problem.objectives,
+        "project-objective",
+        PROJECT_FIELD_LIMITS.maximumObjectives,
+      ),
+    },
+
+    solution: {
+      overview: normalizeText(
+        solution.overview || source.description,
+        PROJECT_FIELD_LIMITS.overview,
+      ),
+
+      approach: normalizeText(
+        solution.approach || solution.proposedSolution,
+        PROJECT_FIELD_LIMITS.approach,
+      ),
+
+      architecture: normalizeText(
+        solution.architecture || solution.implementationSummary,
+        PROJECT_FIELD_LIMITS.architecture,
+      ),
+
+      features: normalizeOrderedTextItems(
+        solution.features,
+        "project-feature",
+        PROJECT_FIELD_LIMITS.maximumFeatures,
+      ),
+
+      contributions: normalizeOrderedTextItems(
+        solution.contributions,
+        "project-contribution",
+        PROJECT_FIELD_LIMITS.maximumContributions,
+      ),
+    },
+
+    results: {
+      outcome: normalizeText(results.outcome, PROJECT_FIELD_LIMITS.outcome),
+
+      problemsSolved: normalizeText(
+        results.problemsSolved || results.solutionImpact,
+        PROJECT_FIELD_LIMITS.problemsSolved,
+      ),
+
+      impact: normalizeText(results.impact, PROJECT_FIELD_LIMITS.impact),
+
+      beneficiariesAffected: normalizeText(
+        results.beneficiariesAffected ||
+          results.peopleAffected ||
+          results.organizationsAffected,
+        PROJECT_FIELD_LIMITS.beneficiariesAffected,
+      ),
+
+      metrics: normalizeArray(results.metrics)
+        .map((metric, order) => createProjectMetric(metric, order))
+        .filter((metric) => metric.label || metric.value)
+        .slice(0, PROJECT_FIELD_LIMITS.maximumMetrics)
+        .map((metric, order) => ({
+          ...metric,
+          order,
+        })),
+
+      lessonsLearned: normalizeText(
+        results.lessonsLearned,
+        PROJECT_FIELD_LIMITS.lessonsLearned,
+      ),
+
+      futureImprovements: normalizeText(
+        results.futureImprovements,
+        PROJECT_FIELD_LIMITS.futureImprovements,
+      ),
+    },
+
+    skillRelationships,
+
+    technologies: normalizeArray(source.technologies)
+      .map((technology, order) => createProjectTechnology(technology, order))
+      .filter((technology) => technology.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumTechnologies)
+      .map((technology, order) => ({
+        ...technology,
+        order,
+      })),
+
+    relatedRecords: {
+      experienceRelationships: normalizeRecordRelationships(
+        relatedRecords.experienceRelationships || source.relatedExperienceIds,
+        "experience",
+      ),
+
+      educationRelationships: normalizeRecordRelationships(
+        relatedRecords.educationRelationships || source.relatedEducationIds,
+        "education",
+      ),
+
+      trainingRelationships: normalizeRecordRelationships(
+        relatedRecords.trainingRelationships || source.relatedTrainingIds,
+        "training",
+      ),
+
+      certificationRelationships: normalizeRecordRelationships(
+        relatedRecords.certificationRelationships ||
+          source.relatedCertificationIds,
+        "certification",
+      ),
+    },
+
+    awards: normalizeArray(source.awards)
+      .map((award, order) => createProjectAward(award, order))
+      .filter((award) => award.name)
+      .slice(0, PROJECT_FIELD_LIMITS.maximumAwards)
+      .map((award, order) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => validDocumentIds.has(documentId),
+        ),
+
+        order,
+      })),
+
+    media: media.map((item) => ({
+      ...item,
+
+      isFeatured: item.id === featuredMedia?.id,
+    })),
+
+    supportingDocuments,
+
+    presentation: {
+      shortSummary: normalizeText(
+        presentation.shortSummary,
+        PROJECT_FIELD_LIMITS.shortSummary,
+      ),
+
+      caseStudy: normalizeText(
+        presentation.caseStudy,
+        PROJECT_FIELD_LIMITS.caseStudy,
+      ),
+
+      featuredMediaId: featuredMedia?.id || "",
+
+      isFeatured: normalizeBoolean(presentation.isFeatured, false),
+    },
+
+    visibility: Object.fromEntries(
+      Object.entries(defaults.visibility).map(([fieldName, fallback]) => [
+        fieldName,
+
+        normalizeBoolean(visibility[fieldName], fallback),
+      ]),
+    ),
+
+    privateInformation: {
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        PROJECT_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    source: isValidProjectSource(source.source)
+      ? source.source
+      : defaults.source,
+
+    sourceContext: normalizeText(
+      source.sourceContext,
+      PROJECT_FIELD_LIMITS.sourceContext,
+    ),
+
+    recordStatus: isValidProjectRecordStatus(source.recordStatus)
+      ? source.recordStatus
+      : defaults.recordStatus,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export function createProject(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeProject({
+    ...values,
+
+    id: normalizeText(values.id, 200) || createProjectId(),
+
+    createdAt: normalizeText(values.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export function updateProjectModel(currentProject, updates = {}) {
+  const mergeNested = (fieldName) => ({
+    ...currentProject?.[fieldName],
+    ...updates?.[fieldName],
+  });
+
+  return normalizeProject({
+    ...currentProject,
+    ...updates,
+
+    organization: mergeNested("organization"),
+    dates: mergeNested("dates"),
+    location: mergeNested("location"),
+    links: mergeNested("links"),
+    problem: mergeNested("problem"),
+    solution: mergeNested("solution"),
+    results: mergeNested("results"),
+    relatedRecords: mergeNested("relatedRecords"),
+    presentation: mergeNested("presentation"),
+    visibility: mergeNested("visibility"),
+    privateInformation: mergeNested("privateInformation"),
+
+    id: currentProject?.id,
+
+    createdAt: currentProject?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Project Collection
+ * =========================================
+ */
+
+export function normalizeProjectCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const seenIdentifiers = new Set();
+
+  return values.map(normalizeProject).filter((project) => {
+    if (seenIdentifiers.has(project.id)) {
+      return false;
+    }
+
+    seenIdentifiers.add(project.id);
+
+    return true;
+  });
+}
+
+/*
+ * =========================================
+ * Public Project Transformation
+ * =========================================
+ *
+ * This function removes private and internal
+ * career-management information before the
+ * Project is displayed publicly.
+ */
+
+export function createPublicProject(value) {
+  const project = normalizeProject(value);
+
+  /*
+   * Only active, public media can appear in a
+   * public portfolio.
+   */
+
+  const publicMedia = project.visibility.showMedia
+    ? project.media
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicMediaItem }, order) => ({
+          ...publicMediaItem,
+          order,
+        }))
+    : [];
+
+  /*
+   * A private or archived featured item must
+   * not remain referenced publicly.
+   */
+
+  const publicFeaturedMedia =
+    publicMedia.find(
+      (item) => item.id === project.presentation.featuredMediaId,
+    ) ||
+    publicMedia.find((item) => item.isFeatured) ||
+    publicMedia[0] ||
+    null;
+
+  const normalizedPublicMedia = publicMedia.map((item) => ({
+    ...item,
+
+    isFeatured: item.id === publicFeaturedMedia?.id,
+  }));
+
+  /*
+   * Only active, explicitly public documents
+   * can appear in public output.
+   */
+
+  const publicDocuments = project.visibility.showSupportingDocuments
+    ? project.supportingDocuments
+        .filter(
+          (item) => item.visibility === "public" && item.status !== "archived",
+        )
+        .map(({ visibility, status, ...publicDocument }, order) => ({
+          ...publicDocument,
+          order,
+        }))
+    : [];
+
+  const publicDocumentIds = new Set(
+    publicDocuments.map((documentRecord) => documentRecord.id),
+  );
+
+  const publicAwards = project.visibility.showAwards
+    ? project.awards.map((award) => ({
+        ...award,
+
+        supportingDocumentIds: award.supportingDocumentIds.filter(
+          (documentId) => publicDocumentIds.has(documentId),
+        ),
+      }))
+    : [];
+
+  return {
+    modelVersion: project.modelVersion,
+
+    id: project.id,
+
+    title: project.title,
+
+    category: project.category,
+
+    lifecycleStatus: project.lifecycleStatus,
+
+    role: project.role,
+
+    ownership: project.ownership,
+
+    organization: project.visibility.showOrganization
+      ? project.organization
+      : null,
+
+    location: project.visibility.showLocation ? project.location : null,
+
+    dates: project.visibility.showDates ? project.dates : null,
+
+    links: project.visibility.showLinks ? project.links : null,
+
+    problem: project.visibility.showProblem ? project.problem : null,
+
+    solution: project.visibility.showSolution ? project.solution : null,
+
+    results: project.visibility.showResults ? project.results : null,
+
+    skillRelationships: project.visibility.showSkills
+      ? project.skillRelationships
+      : [],
+
+    technologies: project.visibility.showTechnologies
+      ? project.technologies
+      : [],
+
+    relatedRecords: project.visibility.showRelatedRecords
+      ? project.relatedRecords
+      : {
+          experienceRelationships: [],
+          educationRelationships: [],
+          trainingRelationships: [],
+          certificationRelationships: [],
+        },
+
+    awards: publicAwards,
+
+    media: normalizedPublicMedia,
+
+    supportingDocuments: publicDocuments,
+
+    presentation: {
+      shortSummary: project.presentation.shortSummary,
+
+      caseStudy: project.presentation.caseStudy,
+
+      featuredMediaId: publicFeaturedMedia?.id || "",
+
+      isFeatured: project.presentation.isFeatured,
+    },
+
+    updatedAt: project.updatedAt,
+  };
+}
+
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\apiClient.js
+========================================
+/*
+ * =========================================
+ * API Configuration
+ * =========================================
+ */
+
+const DEFAULT_API_ORIGIN = "http://localhost:5000";
+
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/*
+ * =========================================
+ * Authentication Session Event
+ * =========================================
+ */
+
+export const AUTH_SESSION_INVALID_EVENT =
+  "portfolio-platform:auth-session-invalid";
+
+const INVALID_SESSION_CODES = new Set([
+  "AUTHENTICATION_REQUIRED",
+  "SESSION_REFRESH_TOKEN_INVALID",
+  "SESSION_NOT_FOUND",
+  "SESSION_REFRESH_CONFLICT",
+]);
+
+/*
+ * =========================================
+ * Invalid Session Notification
+ * =========================================
+ */
+
+function notifyInvalidAuthenticationSession(error) {
+  if (
+    typeof window === "undefined" ||
+    (Number(error?.status) !== 401 &&
+      error?.code !== "SESSION_REFRESH_CONFLICT")
+  ) {
+    return;
+  }
+
+  if (!INVALID_SESSION_CODES.has(error?.code)) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+      detail: {
+        status: error.status,
+
+        code: error.code,
+
+        message: error.message,
+      },
+    }),
+  );
+}
+
+/*
+ * VITE_API_BASE_URL may be configured as:
+ *
+ * http://localhost:5000
+ *
+ * or:
+ *
+ * http://localhost:5000/api
+ *
+ * Both formats are supported.
+ */
+
+function normalizeApiBaseUrl(value) {
+  const configuredValue = typeof value === "string" ? value.trim() : "";
+
+  const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+
+  return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(
+  import.meta.env?.VITE_API_BASE_URL,
+);
+
+/*
+ * =========================================
+ * API Error
+ * =========================================
+ */
+
+export class ApiError extends Error {
+  constructor({
+    message,
+    status = 0,
+    code = "API_REQUEST_FAILED",
+    fieldErrors = {},
+    errors = [],
+    details = null,
+    method = "",
+    url = "",
+    cause,
+  }) {
+    super(message || "The request could not be completed.", {
+      cause,
+    });
+
+    this.name = "ApiError";
+
+    this.status = Number(status) || 0;
+
+    this.code = code || "API_REQUEST_FAILED";
+
+    this.fieldErrors =
+      fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+
+    this.errors = Array.isArray(errors) ? errors : [];
+
+    this.details = details || null;
+
+    this.method = method;
+
+    this.url = url;
+  }
+}
+
+/*
+ * =========================================
+ * Endpoint Normalization
+ * =========================================
+ */
+
+function normalizeEndpoint(endpoint) {
+  if (typeof endpoint !== "string" || !endpoint.trim()) {
+    throw new TypeError("A relative API endpoint is required.");
+  }
+
+  const normalizedEndpoint = endpoint.trim();
+
+  /*
+   * Prevent accidental cookie-bearing
+   * requests to arbitrary external origins.
+   */
+
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+    throw new TypeError("API endpoints must be relative paths.");
+  }
+
+  return normalizedEndpoint.startsWith("/")
+    ? normalizedEndpoint
+    : `/${normalizedEndpoint}`;
+}
+
+/*
+ * =========================================
+ * Query Parameters
+ * =========================================
+ */
+
+function appendQueryParameters(url, query) {
+  if (!query || typeof query !== "object") {
+    return url;
+  }
+
+  const requestUrl = new URL(url);
+
+  for (const [name, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        requestUrl.searchParams.append(name, String(item));
+      }
+
+      continue;
+    }
+
+    requestUrl.searchParams.set(name, String(value));
+  }
+
+  return requestUrl.toString();
+}
+
+/*
+ * =========================================
+ * Request Body Preparation
+ * =========================================
+ */
+
+function isFormData(value) {
+  return typeof FormData !== "undefined" && value instanceof FormData;
+}
+
+function isUrlSearchParams(value) {
+  return (
+    typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+  );
+}
+
+function isBlob(value) {
+  return typeof Blob !== "undefined" && value instanceof Blob;
+}
+
+function shouldSerializeAsJson(body) {
+  return (
+    body !== undefined &&
+    body !== null &&
+    typeof body === "object" &&
+    !isFormData(body) &&
+    !isUrlSearchParams(body) &&
+    !isBlob(body) &&
+    !(body instanceof ArrayBuffer)
+  );
+}
+
+function prepareRequestBody({ body, headers }) {
+  if (body === undefined || body === null) {
+    return undefined;
+  }
+
+  if (shouldSerializeAsJson(body)) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    return JSON.stringify(body);
+  }
+
+  /*
+   * Never set Content-Type manually for
+   * FormData. The browser must add its
+   * multipart boundary.
+   */
+
+  return body;
+}
+
+/*
+ * =========================================
+ * Response Parsing
+ * =========================================
+ */
+
+async function parseResponseBody(response) {
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        message: "The server returned an invalid JSON response.",
+      };
+    }
+  }
+
+  /*
+   * Some development proxies may omit the
+   * JSON content type. Attempt JSON parsing
+   * before treating the body as plain text.
+   */
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      message: text,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * API Error Creation
+ * =========================================
+ */
+
+function createResponseError({ response, data, method, url }) {
+  const error = new ApiError({
+    message: data?.message || `The server returned HTTP ${response.status}.`,
+
+    status: response.status,
+
+    code: data?.code || "API_REQUEST_FAILED",
+
+    fieldErrors: data?.fieldErrors,
+
+    errors: data?.errors,
+
+    details: data?.details,
+
+    method,
+
+    url,
+  });
+
+  notifyInvalidAuthenticationSession(error);
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Timeout and Abort Signal
+ * =========================================
+ */
+
+function createRequestAbortController({ signal, timeoutMs }) {
+  const controller = new AbortController();
+
+  let wasTimedOut = false;
+
+  const handleExternalAbort = () => {
+    controller.abort(signal?.reason);
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      handleExternalAbort();
+    } else {
+      signal.addEventListener("abort", handleExternalAbort, {
+        once: true,
+      });
+    }
+  }
+
+  const timeoutId = globalThis.setTimeout(() => {
+    wasTimedOut = true;
+
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+
+    wasTimedOut() {
+      return wasTimedOut;
+    },
+
+    cleanup() {
+      globalThis.clearTimeout(timeoutId);
+
+      signal?.removeEventListener?.("abort", handleExternalAbort);
+    },
+  };
+}
+
+/*
+ * =========================================
+ * API Request
+ * =========================================
+ */
+
+export async function apiRequest(
+  endpoint,
+  {
+    method = "GET",
+    body,
+    query,
+    headers: customHeaders,
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    cache = "no-store",
+  } = {},
+) {
+  const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+
+  const normalizedEndpoint = normalizeEndpoint(endpoint);
+
+  const requestUrl = appendQueryParameters(
+    `${API_BASE_URL}${normalizedEndpoint}`,
+    query,
+  );
+
+  const headers = new Headers(customHeaders || {});
+
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+
+  const requestBody = prepareRequestBody({
+    body,
+
+    headers,
+  });
+
+  const abortState = createRequestAbortController({
+    signal,
+
+    timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+  });
+
+  try {
+    const response = await fetch(requestUrl, {
+      method: normalizedMethod,
+
+      /*
+       * Required for HttpOnly session
+       * cookies on cross-origin requests.
+       */
+
+      credentials: "include",
+
+      headers,
+
+      body: ["GET", "HEAD"].includes(normalizedMethod)
+        ? undefined
+        : requestBody,
+
+      signal: abortState.signal,
+
+      cache,
+    });
+
+    const data = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw createResponseError({
+        response,
+
+        data,
+
+        method: normalizedMethod,
+
+        url: requestUrl,
+      });
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (error?.name === "AbortError") {
+      throw new ApiError({
+        message: abortState.wasTimedOut()
+          ? "The server took too long to respond."
+          : "The request was canceled.",
+
+        status: 0,
+
+        code: abortState.wasTimedOut()
+          ? "API_REQUEST_TIMEOUT"
+          : "API_REQUEST_ABORTED",
+
+        method: normalizedMethod,
+
+        url: requestUrl,
+
+        cause: error,
+      });
+    }
+
+    throw new ApiError({
+      message:
+        "Unable to connect to the server. Check your connection and try again.",
+
+      status: 0,
+
+      code: "API_NETWORK_ERROR",
+
+      method: normalizedMethod,
+
+      url: requestUrl,
+
+      cause: error,
+    });
+  } finally {
+    abortState.cleanup();
+  }
+}
+
+/*
+ * =========================================
+ * Convenience Methods
+ * =========================================
+ */
+
+export function apiGet(endpoint, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "GET",
+  });
+}
+
+export function apiPost(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "POST",
+
+    body,
+  });
+}
+
+export function apiPut(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "PUT",
+
+    body,
+  });
+}
+
+export function apiPatch(endpoint, body, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "PATCH",
+
+    body,
+  });
+}
+
+export function apiDelete(endpoint, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+
+    method: "DELETE",
+  });
+}
+
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Auth\authService.js
+========================================
+import { apiGet, apiPost } from "../apiClient.js";
+
+/*
+ * =========================================
+ * Response Normalization
+ * =========================================
+ *
+ * Backend responses use:
+ *
+ * {
+ *   status,
+ *   message,
+ *   data
+ * }
+ *
+ * Frontend callers receive a convenient flat
+ * result while preserving status and message.
+ */
+
+function normalizeAuthResponse(response) {
+  return {
+    status: response?.status || "success",
+
+    message: response?.message || "",
+
+    ...(response?.data && typeof response.data === "object"
+      ? response.data
+      : {}),
+  };
+}
+
+/*
+ * =========================================
+ * Input Normalization
+ * =========================================
+ */
+
+function normalizeEmail(email) {
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+}
+
+function normalizeChallengeId(challengeId) {
+  return typeof challengeId === "string" ? challengeId.trim() : "";
+}
+
+function normalizeOtp(otp) {
+  return typeof otp === "string" ? otp.trim() : "";
+}
+
+function normalizeContinuationToken(continuationToken) {
+  return typeof continuationToken === "string" ? continuationToken.trim() : "";
+}
+
+/*
+ * =========================================
+ * Registration
+ * =========================================
+ */
+
+/*
+ * POST /api/auth/register/request
+ */
+
+export async function requestRegistrationOtp({ email }, options = {}) {
+  const response = await apiPost(
+    "/auth/register/request",
+
+    {
+      email: normalizeEmail(email),
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * POST /api/auth/register/verify
+ */
+
+export async function verifyRegistrationOtp(
+  { challengeId, otp },
+  options = {},
+) {
+  const response = await apiPost(
+    "/auth/register/verify",
+
+    {
+      challengeId: normalizeChallengeId(challengeId),
+
+      otp: normalizeOtp(otp),
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * POST /api/auth/register/complete
+ */
+
+export async function completeRegistration(
+  { challengeId, continuationToken, password },
+  options = {},
+) {
+  const response = await apiPost(
+    "/auth/register/complete",
+
+    {
+      challengeId: normalizeChallengeId(challengeId),
+
+      continuationToken: normalizeContinuationToken(continuationToken),
+
+      /*
+       * Passwords must not be trimmed or
+       * otherwise modified automatically.
+       */
+
+      password: typeof password === "string" ? password : "",
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * =========================================
+ * Password Login
+ * =========================================
+ */
+
+/*
+ * POST /api/auth/login/password
+ */
+
+export async function requestPasswordLogin({ email, password }, options = {}) {
+  const response = await apiPost(
+    "/auth/login/password",
+
+    {
+      email: normalizeEmail(email),
+
+      /*
+       * Preserve the password exactly as the
+       * user entered it.
+       */
+
+      password: typeof password === "string" ? password : "",
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * POST /api/auth/login/resend
+ */
+
+export async function resendLoginOtp(
+  { challengeId },
+
+  options = {},
+) {
+  const response = await apiPost(
+    "/auth/login/resend",
+
+    {
+      challengeId: normalizeChallengeId(challengeId),
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * POST /api/auth/login/verify
+ *
+ * A successful response causes the browser
+ * to store the HttpOnly refresh-token cookie.
+ */
+
+export async function verifyLoginOtp({ challengeId, otp }, options = {}) {
+  const response = await apiPost(
+    "/auth/login/verify",
+
+    {
+      challengeId: normalizeChallengeId(challengeId),
+
+      otp: normalizeOtp(otp),
+    },
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * =========================================
+ * Session Restoration
+ * =========================================
+ */
+
+/*
+ * GET /api/auth/session
+ *
+ * Reads the existing HttpOnly cookie without
+ * rotating its refresh token.
+ */
+
+export async function getCurrentSession(options = {}) {
+  const response = await apiGet(
+    "/auth/session",
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * POST /api/auth/session/refresh
+ *
+ * Rotates the refresh token. The new token is
+ * delivered through a replacement HttpOnly
+ * cookie and never appears in JavaScript.
+ */
+
+export async function refreshSession(options = {}) {
+  const response = await apiPost(
+    "/auth/session/refresh",
+
+    {},
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * =========================================
+ * Current User
+ * =========================================
+ */
+
+/*
+ * GET /api/users/me
+ *
+ * This route verifies the protected-route
+ * authentication middleware.
+ */
+
+export async function getCurrentUser(options = {}) {
+  const response = await apiGet(
+    "/users/me",
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * =========================================
+ * Logout
+ * =========================================
+ */
+
+/*
+ * POST /api/auth/logout
+ *
+ * Revokes the database session and clears
+ * the HttpOnly refresh-token cookie.
+ */
+
+export async function logout(options = {}) {
+  const response = await apiPost(
+    "/auth/logout",
+
+    {},
+
+    options,
+  );
+
+  return normalizeAuthResponse(response);
+}
+
+/*
+ * =========================================
+ * Auth Service Object
+ * =========================================
+ *
+ * Named exports remain available for direct
+ * imports. This object is useful when the
+ * complete service is preferred.
+ */
+
+const authService = Object.freeze({
+  requestRegistrationOtp,
+
+  verifyRegistrationOtp,
+
+  completeRegistration,
+
+  requestPasswordLogin,
+
+  resendLoginOtp,
+
+  verifyLoginOtp,
+
+  getCurrentSession,
+
+  refreshSession,
+
+  getCurrentUser,
+
+  logout,
+});
+
+export default authService;
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js
+========================================
+
+import {
+  apiGet,
+  apiPost,
+  apiPut,
+  apiPatch,
+  apiDelete,
+} from "../apiClient.js";
+
+import { prepareProjectApiPayload } from "./projectApiAdapter.js";
+
+const PROJECT_ENDPOINT = "/projects";
+
+function projectPath(projectId) {
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    throw new TypeError("A Project ID is required.");
+  }
+
+  return `${PROJECT_ENDPOINT}/${encodeURIComponent(projectId.trim())}`;
+}
+
+function requireRowVersion(rowVersion) {
+  if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+    throw new TypeError("A Project rowVersion is required.");
+  }
+
+  return rowVersion.trim();
+}
+
+export async function fetchProjects(options = {}) {
+  const response = await apiGet(PROJECT_ENDPOINT, options);
+  return response.data.projects;
+}
+
+export async function fetchProjectById(projectId, options = {}) {
+  const response = await apiGet(projectPath(projectId), options);
+  return response.data.project;
+}
+
+export async function createProjectApi(project, options = {}) {
+  const response = await apiPost(PROJECT_ENDPOINT, prepareProjectApiPayload(project), options);
+  return response.data.project;
+}
+
+export async function updateProjectApi(
+  projectId,
+  project,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiPut(
+    projectPath(projectId),
+    {
+      project: prepareProjectApiPayload(project),
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.project;
+}
+
+export async function setProjectArchivedApi(
+  projectId,
+  archived,
+  rowVersion,
+  options = {},
+) {
+  if (typeof archived !== "boolean") {
+    throw new TypeError("archived must be a boolean.");
+  }
+
+  const response = await apiPatch(
+    `${projectPath(projectId)}/archive`,
+    {
+      archived,
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.project;
+}
+
+export async function deleteProjectApi(
+  projectId,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiDelete(projectPath(projectId), {
+    ...options,
+    body: {
+      rowVersion: requireRowVersion(rowVersion),
+    },
+  });
+
+  return response.data;
+}
+
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+========================================
+import {
+  isProjectDocumentWithinSizeLimit,
+  isProjectMediaWithinSizeLimit,
+  isSupportedProjectDocument,
+  isSupportedProjectMedia,
+} from "../../config/projectConfig.js";
+
+import { createProjectId } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * IndexedDB Configuration
+ * =========================================
+ */
+
+export const PROJECT_ASSET_DATABASE_NAME = "portfolio-platform:project-assets";
+
+export const PROJECT_ASSET_DATABASE_VERSION = 1;
+
+export const PROJECT_ASSET_STORE_NAME = "assets";
+
+export const PROJECT_ID_INDEX_NAME = "projectId";
+
+export const ASSET_KIND_INDEX_NAME = "kind";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/*
+ * =========================================
+ * Storage Error
+ * =========================================
+ */
+
+function createProjectAssetStorageError({
+  code = "PROJECT_ASSET_STORAGE_ERROR",
+  message,
+  publicMessage,
+  cause = null,
+  details = {},
+}) {
+  const error = new Error(message);
+
+  error.name = "ProjectAssetStorageError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  Object.assign(error, details);
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Quota Error Detection
+ * =========================================
+ */
+
+function isStorageQuotaError(error) {
+  return (
+    error?.name === "QuotaExceededError" ||
+    error?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    error?.code === 22 ||
+    error?.code === 1014
+  );
+}
+
+/*
+ * =========================================
+ * IndexedDB Availability
+ * =========================================
+ */
+
+function getIndexedDb() {
+  if (typeof window === "undefined" || !window.indexedDB) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_STORAGE_UNAVAILABLE",
+
+      message: "IndexedDB is unavailable.",
+
+      publicMessage:
+        "Project media and document storage is not supported in this browser.",
+    });
+  }
+
+  return window.indexedDB;
+}
+
+/*
+ * =========================================
+ * Promise Helpers
+ * =========================================
+ */
+
+function requestToPromise(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+
+function transactionToPromise(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+
+    transaction.onabort = () => {
+      reject(
+        transaction.error ||
+          new Error("The IndexedDB transaction was aborted."),
+      );
+    };
+  });
+}
+
+/*
+ * =========================================
+ * Open Database
+ * =========================================
+ */
+
+function openProjectAssetDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = getIndexedDb().open(
+      PROJECT_ASSET_DATABASE_NAME,
+      PROJECT_ASSET_DATABASE_VERSION,
+    );
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+
+      let store;
+
+      if (!database.objectStoreNames.contains(PROJECT_ASSET_STORE_NAME)) {
+        store = database.createObjectStore(PROJECT_ASSET_STORE_NAME, {
+          keyPath: "storageKey",
+        });
+      } else {
+        store = request.transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+      }
+
+      if (!store.indexNames.contains(PROJECT_ID_INDEX_NAME)) {
+        store.createIndex(PROJECT_ID_INDEX_NAME, "projectId", {
+          unique: false,
+        });
+      }
+
+      if (!store.indexNames.contains(ASSET_KIND_INDEX_NAME)) {
+        store.createIndex(ASSET_KIND_INDEX_NAME, "kind", {
+          unique: false,
+        });
+      }
+    };
+
+    request.onsuccess = () => {
+      const database = request.result;
+
+      /*
+       * A tab holding an old database connection
+       * must close it when another tab upgrades
+       * the database.
+       */
+
+      database.onversionchange = () => {
+        database.close();
+      };
+
+      resolve(database);
+    };
+
+    request.onerror = () => {
+      reject(
+        createProjectAssetStorageError({
+          code: "PROJECT_ASSET_DATABASE_OPEN_FAILED",
+
+          message: "Unable to open Project asset storage.",
+
+          publicMessage: "Project file storage could not be opened.",
+
+          cause: request.error,
+        }),
+      );
+    };
+
+    request.onblocked = () => {
+      reject(
+        createProjectAssetStorageError({
+          code: "PROJECT_ASSET_DATABASE_BLOCKED",
+
+          message: "The Project asset database operation was blocked.",
+
+          publicMessage: "Close other tabs using this portfolio and try again.",
+        }),
+      );
+    };
+  });
+}
+
+/*
+ * =========================================
+ * Asset Kind
+ * =========================================
+ */
+
+function normalizeAssetKind(kind) {
+  return kind === "document" ? "document" : "media";
+}
+
+/*
+ * =========================================
+ * File Validation
+ * =========================================
+ */
+
+function validateProjectAssetFile(file, kind) {
+  if (!file || typeof file !== "object" || typeof file.slice !== "function") {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_REQUIRED",
+
+      message: "A valid File or Blob-like object is required.",
+
+      publicMessage: "Select a valid Project file before uploading.",
+    });
+  }
+
+  const isSupported =
+    kind === "media"
+      ? isSupportedProjectMedia(file)
+      : isSupportedProjectDocument(file);
+
+  if (!isSupported) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_TYPE_UNSUPPORTED",
+
+      message: "The selected Project asset type is unsupported.",
+
+      publicMessage:
+        kind === "media"
+          ? "Upload a supported JPG, PNG, WebP, GIF, MP4, or WebM file."
+          : "Upload a supported Project document type.",
+    });
+  }
+
+  const isWithinSizeLimit =
+    kind === "media"
+      ? isProjectMediaWithinSizeLimit(file)
+      : isProjectDocumentWithinSizeLimit(file);
+
+  if (!isWithinSizeLimit) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_FILE_SIZE_INVALID",
+
+      message: "The selected Project asset exceeds its size limit or is empty.",
+
+      publicMessage:
+        kind === "media"
+          ? "The selected image or video is empty or exceeds the permitted size."
+          : "The selected document is empty or exceeds the permitted size.",
+    });
+  }
+}
+
+/*
+ * =========================================
+ * Public Asset Metadata
+ * =========================================
+ */
+
+function createAssetMetadata(record) {
+  if (!record) {
+    return null;
+  }
+
+  return {
+    storageKey: record.storageKey,
+
+    projectId: record.projectId,
+
+    assetId: record.assetId,
+
+    kind: record.kind,
+
+    fileName: record.fileName,
+
+    mimeType: record.mimeType,
+
+    fileSize: record.fileSize,
+
+    createdAt: record.createdAt,
+
+    updatedAt: record.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Write Asset
+ * =========================================
+ */
+
+export async function writeProjectAsset({
+  file,
+  projectId,
+  assetId = "",
+  storageKey = "",
+  kind = "media",
+} = {}) {
+  const normalizedKind = normalizeAssetKind(kind);
+
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_PROJECT_ID_REQUIRED",
+
+      message: "A Project identifier is required before storing an asset.",
+
+      publicMessage:
+        "The Project file cannot be saved because the Project could not be identified.",
+    });
+  }
+
+  validateProjectAssetFile(file, normalizedKind);
+
+  const resolvedAssetId = getText(assetId) || createProjectId("project-asset");
+
+  const resolvedStorageKey =
+    getText(storageKey) ||
+    `project:${normalizedProjectId}:${normalizedKind}:${resolvedAssetId}`;
+
+  const database = await openProjectAssetDatabase();
+
+  const timestamp = new Date().toISOString();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    /*
+     * The read and write are handled within the
+     * same request callback so the transaction
+     * cannot become inactive between operations.
+     */
+
+    const existingRequest = store.get(resolvedStorageKey);
+
+    const preparedRecordPromise = new Promise((resolve, reject) => {
+      existingRequest.onerror = () => {
+        reject(existingRequest.error);
+      };
+
+      existingRequest.onsuccess = () => {
+        const existingRecord = existingRequest.result;
+
+        /*
+         * Never allow a storage key belonging
+         * to another Project to be overwritten.
+         */
+
+        if (
+          existingRecord &&
+          existingRecord.projectId !== normalizedProjectId
+        ) {
+          transaction.abort();
+
+          reject(
+            createProjectAssetStorageError({
+              code: "PROJECT_ASSET_STORAGE_KEY_CONFLICT",
+
+              message:
+                "The requested asset storage key belongs to another Project.",
+
+              publicMessage:
+                "The Project file could not be saved because its storage identifier conflicts with another file.",
+            }),
+          );
+
+          return;
+        }
+
+        const blob = file.slice(
+          0,
+          file.size,
+          file.type || "application/octet-stream",
+        );
+
+        const record = {
+          storageKey: resolvedStorageKey,
+
+          projectId: normalizedProjectId,
+
+          assetId: resolvedAssetId,
+
+          kind: normalizedKind,
+
+          fileName: getText(file.name),
+
+          mimeType: getText(file.type) || "application/octet-stream",
+
+          fileSize: Number(file.size) || 0,
+
+          blob,
+
+          createdAt: existingRecord?.createdAt || timestamp,
+
+          updatedAt: timestamp,
+        };
+
+        const putRequest = store.put(record);
+
+        putRequest.onerror = () => {
+          reject(putRequest.error);
+        };
+
+        putRequest.onsuccess = () => {
+          resolve(record);
+        };
+      };
+    });
+
+    const [record] = await Promise.all([
+      preparedRecordPromise,
+      transactionToPromise(transaction),
+    ]);
+
+    return createAssetMetadata(record);
+  } catch (error) {
+    if (error?.name === "ProjectAssetStorageError") {
+      throw error;
+    }
+
+    const quotaExceeded = isStorageQuotaError(error);
+
+    throw createProjectAssetStorageError({
+      code: quotaExceeded
+        ? "PROJECT_ASSET_QUOTA_EXCEEDED"
+        : "PROJECT_ASSET_WRITE_FAILED",
+
+      message: quotaExceeded
+        ? "IndexedDB storage quota was exceeded."
+        : "Unable to save a Project asset.",
+
+      publicMessage: quotaExceeded
+        ? "The browser does not have enough storage space for this Project file. Remove unused files or choose a smaller file."
+        : "The selected Project file could not be saved.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Read Asset
+ * =========================================
+ */
+
+export async function readProjectAsset(storageKey) {
+  const normalizedStorageKey = getText(storageKey);
+
+  if (!normalizedStorageKey) {
+    return null;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readonly",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const record = await requestToPromise(store.get(normalizedStorageKey));
+
+    await transactionToPromise(transaction);
+
+    return record || null;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_READ_FAILED",
+
+      message: "Unable to read a Project asset.",
+
+      publicMessage: "The Project file could not be loaded.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Asset Existence
+ * =========================================
+ */
+
+export async function hasProjectAsset(storageKey) {
+  const record = await readProjectAsset(storageKey);
+
+  return Boolean(record?.blob);
+}
+
+/*
+ * =========================================
+ * Create Object URL
+ * =========================================
+ */
+
+export async function createProjectAssetUrl(storageKey) {
+  const normalizedStorageKey = getText(storageKey);
+
+  if (!normalizedStorageKey) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_STORAGE_KEY_REQUIRED",
+
+      message: "An asset storage key is required.",
+
+      publicMessage: "The Project file could not be identified.",
+    });
+  }
+
+  const record = await readProjectAsset(normalizedStorageKey);
+
+  if (!record?.blob) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_NOT_FOUND",
+
+      message: `Project asset not found: ${normalizedStorageKey}`,
+
+      publicMessage:
+        "The Project file is no longer available in browser storage.",
+    });
+  }
+
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_URL_UNAVAILABLE",
+
+      message: "Object URLs are unavailable.",
+
+      publicMessage:
+        "The Project file cannot be previewed in this environment.",
+    });
+  }
+
+  return URL.createObjectURL(record.blob);
+}
+
+/*
+ * =========================================
+ * Revoke Object URL
+ * =========================================
+ */
+
+export function revokeProjectAssetUrl(objectUrl) {
+  if (
+    typeof objectUrl === "string" &&
+    objectUrl.startsWith("blob:") &&
+    typeof URL !== "undefined" &&
+    typeof URL.revokeObjectURL === "function"
+  ) {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/*
+ * =========================================
+ * List Project Asset Metadata
+ * =========================================
+ *
+ * Blob data is removed from the returned
+ * records to avoid unnecessarily retaining
+ * large file data in application state.
+ */
+
+export async function listProjectAssets(projectId, { kind = "all" } = {}) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    return [];
+  }
+
+  const normalizedKind = kind === "media" || kind === "document" ? kind : "all";
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readonly",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const index = store.index(PROJECT_ID_INDEX_NAME);
+
+    const records = await requestToPromise(index.getAll(normalizedProjectId));
+
+    await transactionToPromise(transaction);
+
+    return getArray(records)
+      .filter(
+        (record) => normalizedKind === "all" || record.kind === normalizedKind,
+      )
+      .map(createAssetMetadata);
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_LIST_FAILED",
+
+      message: "Unable to list Project assets.",
+
+      publicMessage: "The Project file list could not be loaded.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Delete Assets by Storage Key
+ * =========================================
+ */
+
+export async function deleteProjectAssets(storageKeys = []) {
+  const normalizedStorageKeys = [
+    ...new Set(getArray(storageKeys).map(getText).filter(Boolean)),
+  ];
+
+  if (normalizedStorageKeys.length === 0) {
+    return 0;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    normalizedStorageKeys.forEach((normalizedStorageKey) => {
+      store.delete(normalizedStorageKey);
+    });
+
+    await transactionToPromise(transaction);
+
+    return normalizedStorageKeys.length;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_DELETE_FAILED",
+
+      message: "Unable to delete Project assets.",
+
+      publicMessage: "One or more Project files could not be removed.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/*
+ * =========================================
+ * Delete All Assets for Project
+ * =========================================
+ *
+ * A cursor is used instead of getAll(). This
+ * prevents every large Blob from being loaded
+ * into application memory before deletion.
+ */
+
+export async function deleteProjectAssetsForProject(projectId) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    return 0;
+  }
+
+  const database = await openProjectAssetDatabase();
+
+  try {
+    const transaction = database.transaction(
+      PROJECT_ASSET_STORE_NAME,
+      "readwrite",
+    );
+
+    const store = transaction.objectStore(PROJECT_ASSET_STORE_NAME);
+
+    const index = store.index(PROJECT_ID_INDEX_NAME);
+
+    if (typeof IDBKeyRange === "undefined") {
+      throw new Error("IDBKeyRange is unavailable.");
+    }
+
+    const keyRange = IDBKeyRange.only(normalizedProjectId);
+
+    /*
+     * This variable is updated while the cursor
+     * deletes each matching Project asset.
+     */
+
+    let cursorDeletedCount = 0;
+
+    const cursorPromise = new Promise((resolve, reject) => {
+      const cursorRequest = index.openCursor(keyRange);
+
+      cursorRequest.onerror = () => {
+        reject(
+          cursorRequest.error || new Error("The Project asset cursor failed."),
+        );
+      };
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+
+        /*
+         * No cursor means every matching asset
+         * has been processed.
+         */
+
+        if (!cursor) {
+          resolve(cursorDeletedCount);
+
+          return;
+        }
+
+        const deleteRequest = cursor.delete();
+
+        deleteRequest.onerror = () => {
+          reject(
+            deleteRequest.error ||
+              new Error("A Project asset could not be deleted."),
+          );
+        };
+
+        deleteRequest.onsuccess = () => {
+          cursorDeletedCount += 1;
+
+          cursor.continue();
+        };
+      };
+    });
+
+    /*
+     * Use a different variable name for the
+     * resolved count to avoid redeclaration.
+     */
+
+    const [completedDeletedCount] = await Promise.all([
+      cursorPromise,
+      transactionToPromise(transaction),
+    ]);
+
+    return completedDeletedCount;
+  } catch (error) {
+    throw createProjectAssetStorageError({
+      code: "PROJECT_ASSET_PROJECT_DELETE_FAILED",
+
+      message: "Unable to delete Project assets.",
+
+      publicMessage: "One or more Project files could not be removed.",
+
+      cause: error,
+    });
+  } finally {
+    database.close();
+  }
+}
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectStorage.js
+========================================
+import {
+  PROJECT_MODEL_VERSION,
+  normalizeProjectCollection,
+} from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * Storage Configuration
+ * =========================================
+ */
+
+export const PROJECT_STORAGE_KEY =
+  "portfolio-platform:projects";
+
+export const PROJECT_STORAGE_RECOVERY_KEY =
+  "portfolio-platform:projects:recovery";
+
+export const PROJECT_STORAGE_VERSION = 2;
+
+/*
+ * =========================================
+ * Storage Error
+ * =========================================
+ */
+
+function createProjectStorageError(
+  code,
+  message,
+  publicMessage,
+  cause = null,
+) {
+  const error = new Error(message);
+
+  error.name = "ProjectStorageError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Browser Storage
+ * =========================================
+ */
+
+function getBrowserStorage() {
+  if (typeof window === "undefined") {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_ENVIRONMENT_UNAVAILABLE",
+      "Window is unavailable.",
+      "Project storage is not supported in this environment.",
+    );
+  }
+
+  try {
+    if (!window.localStorage) {
+      throw new Error("localStorage is unavailable.");
+    }
+
+    return window.localStorage;
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_ACCESS_DENIED",
+      "Browser localStorage could not be accessed.",
+      "Project storage is unavailable. Check your browser privacy and storage settings.",
+      cause,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Empty Storage Document
+ * =========================================
+ */
+
+function createEmptyProjectStorageDocument() {
+  return {
+    storageVersion: PROJECT_STORAGE_VERSION,
+
+    projectModelVersion: PROJECT_MODEL_VERSION,
+
+    projectRecords: [],
+
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/*
+ * =========================================
+ * Recovery Copy
+ * =========================================
+ *
+ * If stored JSON is corrupted, retain its raw
+ * value under a recovery key before reporting
+ * the error. This avoids silently discarding
+ * potentially recoverable Project metadata.
+ */
+
+function preserveRecoveryCopy(
+  storage,
+  rawValue,
+  reason,
+) {
+  if (!rawValue) {
+    return;
+  }
+
+  try {
+    storage.setItem(
+      PROJECT_STORAGE_RECOVERY_KEY,
+      JSON.stringify({
+        originalStorageKey: PROJECT_STORAGE_KEY,
+        reason,
+        recoveredAt: new Date().toISOString(),
+        rawValue,
+      }),
+    );
+  } catch {
+    /*
+     * Recovery storage is best effort. Do not
+     * replace the original error if the browser
+     * cannot save the recovery copy.
+     */
+  }
+}
+
+/*
+ * =========================================
+ * Record Collection Resolution
+ * =========================================
+ */
+
+function getStoredRecordCollection(document) {
+  if (Array.isArray(document.projectRecords)) {
+    return document.projectRecords;
+  }
+
+  if (Array.isArray(document.projects)) {
+    return document.projects;
+  }
+
+  if (Array.isArray(document.records)) {
+    return document.records;
+  }
+
+  /*
+   * A completely absent collection represents
+   * an empty library. A present collection with
+   * the wrong type represents corruption.
+   */
+
+  const hasCollectionProperty =
+    Object.prototype.hasOwnProperty.call(
+      document,
+      "projectRecords",
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      document,
+      "projects",
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      document,
+      "records",
+    );
+
+  if (!hasCollectionProperty) {
+    return [];
+  }
+
+  throw createProjectStorageError(
+    "PROJECT_STORAGE_RECORDS_INVALID",
+    "The stored Project collection is not an array.",
+    "The saved Project Library contains an invalid record collection.",
+  );
+}
+
+/*
+ * =========================================
+ * Storage Migration
+ * =========================================
+ */
+
+function migrateProjectStorageDocument(
+  storedDocument,
+) {
+  /*
+   * Original storage sometimes contained only
+   * the Project array.
+   */
+
+  if (Array.isArray(storedDocument)) {
+    return {
+      document: {
+        ...createEmptyProjectStorageDocument(),
+
+        projectRecords:
+          normalizeProjectCollection(
+            storedDocument,
+          ),
+      },
+
+      wasMigrated: true,
+    };
+  }
+
+  if (
+    !storedDocument ||
+    typeof storedDocument !== "object"
+  ) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_DOCUMENT_INVALID",
+      "Stored Project data has an invalid structure.",
+      "The saved Project Library has an invalid format.",
+    );
+  }
+
+  const storedVersion =
+    Number(storedDocument.storageVersion) || 1;
+
+  if (storedVersion > PROJECT_STORAGE_VERSION) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_VERSION_UNSUPPORTED",
+      `Stored Project version ${storedVersion} is newer than supported version ${PROJECT_STORAGE_VERSION}.`,
+      "This Project Library was created by a newer version of the application and cannot be opened safely.",
+    );
+  }
+
+  const storedRecords =
+    getStoredRecordCollection(storedDocument);
+
+  /*
+   * normalizeProjectCollection performs the
+   * model migration. It upgrades version-1
+   * Projects to the current model structure.
+   */
+
+  const normalizedRecords =
+    normalizeProjectCollection(storedRecords);
+
+  const wasMigrated =
+    storedVersion !== PROJECT_STORAGE_VERSION ||
+    Number(storedDocument.projectModelVersion) !==
+      PROJECT_MODEL_VERSION ||
+    !Array.isArray(storedDocument.projectRecords);
+
+  return {
+    document: {
+      storageVersion: PROJECT_STORAGE_VERSION,
+
+      projectModelVersion: PROJECT_MODEL_VERSION,
+
+      projectRecords: normalizedRecords,
+
+      updatedAt:
+        typeof storedDocument.updatedAt ===
+        "string"
+          ? storedDocument.updatedAt
+          : new Date().toISOString(),
+    },
+
+    wasMigrated,
+  };
+}
+
+/*
+ * =========================================
+ * Parse Storage Document
+ * =========================================
+ */
+
+function parseProjectStorageDocument(rawValue) {
+  if (!rawValue) {
+    return {
+      document:
+        createEmptyProjectStorageDocument(),
+
+      wasMigrated: false,
+    };
+  }
+
+  let parsedValue;
+
+  try {
+    parsedValue = JSON.parse(rawValue);
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_JSON_INVALID",
+      "Unable to parse stored Project data.",
+      "The saved Project Library could not be read because its data is damaged.",
+      cause,
+    );
+  }
+
+  return migrateProjectStorageDocument(
+    parsedValue,
+  );
+}
+
+/*
+ * =========================================
+ * Internal Document Write
+ * =========================================
+ */
+
+function writeStorageDocument(
+  storage,
+  document,
+) {
+  let serializedDocument;
+
+  try {
+    serializedDocument = JSON.stringify(document);
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_SERIALIZATION_FAILED",
+      "Project storage could not be serialized.",
+      "Your Project records could not be prepared for storage.",
+      cause,
+    );
+  }
+
+  try {
+    storage.setItem(
+      PROJECT_STORAGE_KEY,
+      serializedDocument,
+    );
+  } catch (cause) {
+    const isQuotaError =
+      cause?.name === "QuotaExceededError" ||
+      cause?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+      cause?.code === 22 ||
+      cause?.code === 1014;
+
+    throw createProjectStorageError(
+      isQuotaError
+        ? "PROJECT_STORAGE_QUOTA_EXCEEDED"
+        : "PROJECT_STORAGE_WRITE_FAILED",
+
+      isQuotaError
+        ? "Project localStorage quota was exceeded."
+        : "Unable to write Project Library storage.",
+
+      isQuotaError
+        ? "The browser does not have enough storage space for the Project Library metadata."
+        : "Your Project records could not be saved.",
+
+      cause,
+    );
+  }
+
+  return document;
+}
+
+/*
+ * =========================================
+ * Read Project Storage
+ * =========================================
+ */
+
+export function readProjectStorage({
+  persistMigration = true,
+} = {}) {
+  const storage = getBrowserStorage();
+
+  let rawValue;
+
+  try {
+    rawValue = storage.getItem(
+      PROJECT_STORAGE_KEY,
+    );
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_READ_FAILED",
+      "Unable to read Project Library storage.",
+      "Your saved Project records could not be loaded.",
+      cause,
+    );
+  }
+
+  try {
+    const {
+      document,
+      wasMigrated,
+    } = parseProjectStorageDocument(rawValue);
+
+    /*
+     * Persist successful migrations so every
+     * future read uses the current schema.
+     */
+
+    if (
+      rawValue &&
+      wasMigrated &&
+      persistMigration
+    ) {
+      return writeStorageDocument(
+        storage,
+        {
+          ...document,
+          updatedAt: new Date().toISOString(),
+        },
+      );
+    }
+
+    return document;
+  } catch (error) {
+    preserveRecoveryCopy(
+      storage,
+      rawValue,
+      error?.code || "PROJECT_STORAGE_READ_FAILED",
+    );
+
+    if (error?.name === "ProjectStorageError") {
+      throw error;
+    }
+
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_READ_FAILED",
+      "Unable to read Project Library storage.",
+      "Your saved Project records could not be loaded.",
+      error,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Write Project Storage
+ * =========================================
+ */
+
+export function writeProjectStorage(
+  projectRecords,
+) {
+  if (!Array.isArray(projectRecords)) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_WRITE_INPUT_INVALID",
+      "Project records must be supplied as an array.",
+      "The Project Library could not be saved because the record collection is invalid.",
+    );
+  }
+
+  const storage = getBrowserStorage();
+
+  const document = {
+    storageVersion: PROJECT_STORAGE_VERSION,
+
+    projectModelVersion: PROJECT_MODEL_VERSION,
+
+    projectRecords:
+      normalizeProjectCollection(
+        projectRecords,
+      ),
+
+    updatedAt: new Date().toISOString(),
+  };
+
+  return writeStorageDocument(
+    storage,
+    document,
+  );
+}
+
+/*
+ * =========================================
+ * Read Stored Projects
+ * =========================================
+ */
+
+export function readStoredProjects() {
+  return readProjectStorage().projectRecords;
+}
+
+/*
+ * =========================================
+ * Replace Stored Projects
+ * =========================================
+ */
+
+export function replaceStoredProjects(
+  projectRecords,
+) {
+  return writeProjectStorage(
+    projectRecords,
+  ).projectRecords;
+}
+
+/*
+ * =========================================
+ * Update Stored Projects
+ * =========================================
+ */
+
+export function updateStoredProjects(updater) {
+  if (typeof updater !== "function") {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_UPDATER_INVALID",
+      "The Project updater must be a function.",
+      "The Project Library could not be updated.",
+    );
+  }
+
+  const currentRecords = readStoredProjects();
+
+  /*
+   * Supply a new array so the updater cannot
+   * mutate the collection currently returned
+   * by the storage reader.
+   */
+
+  const nextRecords = updater([
+    ...currentRecords,
+  ]);
+
+  if (!Array.isArray(nextRecords)) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_UPDATE_RESULT_INVALID",
+      "The Project updater did not return an array.",
+      "The Project Library could not be updated.",
+    );
+  }
+
+  return replaceStoredProjects(nextRecords);
+}
+
+/*
+ * =========================================
+ * Recovery Information
+ * =========================================
+ */
+
+export function readProjectStorageRecovery() {
+  const storage = getBrowserStorage();
+
+  let rawRecoveryValue;
+
+  try {
+    rawRecoveryValue = storage.getItem(
+      PROJECT_STORAGE_RECOVERY_KEY,
+    );
+  } catch {
+    return null;
+  }
+
+  if (!rawRecoveryValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawRecoveryValue);
+  } catch {
+    return {
+      reason:
+        "PROJECT_STORAGE_RECOVERY_JSON_INVALID",
+
+      rawValue: rawRecoveryValue,
+    };
+  }
+}
+
+/*
+ * =========================================
+ * Clear Recovery Information
+ * =========================================
+ */
+
+export function clearProjectStorageRecovery() {
+  const storage = getBrowserStorage();
+
+  try {
+    storage.removeItem(
+      PROJECT_STORAGE_RECOVERY_KEY,
+    );
+  } catch (cause) {
+    throw createProjectStorageError(
+      "PROJECT_STORAGE_RECOVERY_CLEAR_FAILED",
+      "Unable to clear Project recovery information.",
+      "The Project recovery information could not be removed.",
+      cause,
+    );
+  }
+}
+
+========================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+========================================
+import {
+  getProjectAwardPlacementLabel,
+  getProjectCategoryLabel,
+  getProjectLifecycleStatusLabel,
+  getProjectOwnershipLabel,
+  getProjectRecognitionTypeLabel,
+  getProjectSkillProficiencyLabel,
+} from "../../config/projectConfig.js";
+
+import { createPublicProject } from "../../models/projectModel.js";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function getSearchableText(value) {
+  return getText(value).normalize("NFKC").toLocaleLowerCase();
+}
+
+/*
+ * =========================================
+ * Date Parsing
+ * =========================================
+ */
+
+export function parseProjectDate(value) {
+  const normalizedValue = getText(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const match = normalizedValue.match(
+    /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : 1;
+
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    match[3] &&
+    (parsedDate.getUTCFullYear() !== year ||
+      parsedDate.getUTCMonth() !== month - 1 ||
+      parsedDate.getUTCDate() !== day)
+  ) {
+    return null;
+  }
+
+  return {
+    value: normalizedValue,
+    date: parsedDate,
+    timestamp: parsedDate.getTime(),
+    year,
+    month,
+    day,
+    hasDay: Boolean(match[3]),
+  };
+}
+
+/*
+ * =========================================
+ * Date Sort Helpers
+ * =========================================
+ */
+
+function getDateSortValue(value) {
+  return parseProjectDate(value)?.timestamp || 0;
+}
+
+function getUpdatedSortValue(value) {
+  const timestamp = new Date(value || 0).getTime();
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+/*
+ * =========================================
+ * Media Helpers
+ * =========================================
+ */
+
+function isUsableMedia(item) {
+  return Boolean(
+    item &&
+    item.status !== "archived" &&
+    (getText(item.storageKey) || getText(item.externalUrl)),
+  );
+}
+
+function isPublicUsableMedia(item) {
+  return Boolean(isUsableMedia(item) && item.visibility !== "private");
+}
+
+/*
+ * =========================================
+ * Featured Media
+ * =========================================
+ */
+
+export function getProjectFeaturedMedia(project) {
+  const activeMedia = getArray(project?.media).filter(isUsableMedia);
+
+  return (
+    activeMedia.find(
+      (item) => item.id === project?.presentation?.featuredMediaId,
+    ) ||
+    activeMedia.find((item) => item.isFeatured) ||
+    activeMedia[0] ||
+    null
+  );
+}
+
+/*
+ * =========================================
+ * Public Featured Media
+ * =========================================
+ */
+
+export function getProjectPublicFeaturedMedia(project) {
+  const activePublicMedia = getArray(project?.media).filter(
+    isPublicUsableMedia,
+  );
+
+  return (
+    activePublicMedia.find(
+      (item) => item.id === project?.presentation?.featuredMediaId,
+    ) ||
+    activePublicMedia.find((item) => item.isFeatured) ||
+    activePublicMedia[0] ||
+    null
+  );
+}
+
+/*
+ * =========================================
+ * Date Formatting
+ * =========================================
+ */
+
+export function formatProjectDate(
+  value,
+  { locale = "en-US", includeDay = false, fallback = "" } = {},
+) {
+  const parsedDate = parseProjectDate(value);
+
+  if (!parsedDate) {
+    return fallback;
+  }
+
+  const formatOptions =
+    includeDay && parsedDate.hasDay
+      ? {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC",
+        }
+      : {
+          month: "short",
+          year: "numeric",
+          timeZone: "UTC",
+        };
+
+  try {
+    return new Intl.DateTimeFormat(locale, formatOptions).format(
+      parsedDate.date,
+    );
+  } catch {
+    return new Intl.DateTimeFormat("en-US", formatOptions).format(
+      parsedDate.date,
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Date Range
+ * =========================================
+ */
+
+export function getProjectDateRange(project, options = {}) {
+  const dates = getObject(project?.dates);
+
+  const startDate = formatProjectDate(dates.startDate, options);
+
+  const endDate = dates.isCurrent
+    ? "Present"
+    : formatProjectDate(dates.endDate, options);
+
+  if (startDate && endDate) {
+    return `${startDate} â€“ ${endDate}`;
+  }
+
+  if (startDate) {
+    return startDate;
+  }
+
+  if (endDate) {
+    return endDate;
+  }
+
+  return "Dates not provided";
+}
+
+/*
+ * =========================================
+ * Project State Helpers
+ * =========================================
+ */
+
+export function isProjectCurrent(project) {
+  return Boolean(
+    project?.dates?.isCurrent ||
+    ["in-progress", "maintained"].includes(project?.lifecycleStatus),
+  );
+}
+
+export function isProjectCompleted(project) {
+  return project?.lifecycleStatus === "completed";
+}
+
+export function hasProjectMedia(project) {
+  return getArray(project?.media).some(isUsableMedia);
+}
+
+export function hasPublicProjectMedia(project) {
+  return getArray(project?.media).some(isPublicUsableMedia);
+}
+
+export function hasProjectAwards(project) {
+  return getArray(project?.awards).length > 0;
+}
+
+export function hasProjectDocuments(project) {
+  return getArray(project?.supportingDocuments).some(
+    (document) =>
+      document?.status !== "archived" &&
+      Boolean(getText(document?.storageKey) || getText(document?.externalUrl)),
+  );
+}
+
+/*
+ * =========================================
+ * Relationship Count
+ * =========================================
+ */
+
+export function getProjectRelationshipCount(project) {
+  const relatedRecords = getObject(project?.relatedRecords);
+
+  const relatedRecordCount = [
+    relatedRecords.experienceRelationships,
+    relatedRecords.educationRelationships,
+    relatedRecords.trainingRelationships,
+    relatedRecords.certificationRelationships,
+  ].reduce((total, relationships) => total + getArray(relationships).length, 0);
+
+  return relatedRecordCount + getArray(project?.skillRelationships).length;
+}
+
+/*
+ * =========================================
+ * Impact Score
+ * =========================================
+ *
+ * This is a deterministic portfolio-evidence
+ * score used for sorting. It is not a claim
+ * about the project's real-world value.
+ */
+
+export function getProjectImpactScore(project) {
+  const results = getObject(project?.results);
+
+  const metrics = getArray(results.metrics);
+
+  const awards = getArray(project?.awards);
+
+  const documents = getArray(project?.supportingDocuments).filter(
+    (document) => document?.status !== "archived",
+  );
+
+  let score = 0;
+
+  if (getText(results.outcome)) {
+    score += 4;
+  }
+
+  if (getText(results.problemsSolved)) {
+    score += 3;
+  }
+
+  if (getText(results.impact)) {
+    score += 4;
+  }
+
+  if (getText(results.beneficiariesAffected)) {
+    score += 2;
+  }
+
+  score += Math.min(metrics.length, 5) * 3;
+
+  score += Math.min(awards.length, 3) * 4;
+
+  score += Math.min(documents.length, 3);
+
+  if (project?.presentation?.isFeatured) {
+    score += 2;
+  }
+
+  return score;
+}
+
+/*
+ * =========================================
+ * Searchable Text
+ * =========================================
+ */
+
+export function createProjectSearchText(project) {
+  const organization = getObject(project?.organization);
+
+  const location = getObject(project?.location);
+
+  const problem = getObject(project?.problem);
+
+  const solution = getObject(project?.solution);
+
+  const results = getObject(project?.results);
+
+  const presentation = getObject(project?.presentation);
+
+  const relatedRecords = getObject(project?.relatedRecords);
+
+  const objectives = getArray(problem.objectives).map(
+    (item) => item?.text || item,
+  );
+
+  const constraints = getArray(problem.constraints).map(
+    (item) => item?.text || item,
+  );
+
+  const features = getArray(solution.features).map(
+    (item) => item?.text || item,
+  );
+
+  const contributions = getArray(solution.contributions).map(
+    (item) => item?.text || item,
+  );
+
+  const metrics = getArray(results.metrics).flatMap((metric) => [
+    metric?.label,
+    metric?.value,
+    metric?.description,
+  ]);
+
+  const skills = getArray(project?.skillRelationships).flatMap(
+    (relationship) => [
+      relationship?.nameSnapshot,
+      relationship?.categorySnapshot,
+      relationship?.usageDescription,
+
+      getProjectSkillProficiencyLabel(relationship?.demonstratedProficiency),
+    ],
+  );
+
+  const technologies = getArray(project?.technologies).flatMap((technology) => [
+    technology?.name,
+    technology?.category,
+  ]);
+
+  const relationships = [
+    ...getArray(relatedRecords.experienceRelationships),
+
+    ...getArray(relatedRecords.educationRelationships),
+
+    ...getArray(relatedRecords.trainingRelationships),
+
+    ...getArray(relatedRecords.certificationRelationships),
+  ].flatMap((relationship) => [
+    relationship?.snapshot?.name,
+    relationship?.snapshot?.secondaryLabel,
+    relationship?.snapshot?.status,
+    relationship?.description,
+  ]);
+
+  const awards = getArray(project?.awards).flatMap((award) => [
+    award?.name,
+    award?.organization,
+
+    getProjectRecognitionTypeLabel(award?.recognitionType),
+
+    getProjectAwardPlacementLabel(award?.placement),
+
+    award?.description,
+  ]);
+
+  const media = getArray(project?.media).flatMap((mediaItem) => [
+    mediaItem?.name,
+    mediaItem?.caption,
+    mediaItem?.altText,
+    mediaItem?.fileName,
+  ]);
+
+  const documents = getArray(project?.supportingDocuments).flatMap(
+    (document) => [
+      document?.name,
+      document?.description,
+      document?.fileName,
+      document?.documentType,
+    ],
+  );
+
+  return [
+    project?.title,
+    project?.role,
+
+    organization.name,
+    organization.clientName,
+
+    location.displayValue,
+
+    getProjectCategoryLabel(project?.category),
+
+    getProjectLifecycleStatusLabel(project?.lifecycleStatus),
+
+    getProjectOwnershipLabel(project?.ownership),
+
+    problem.statement,
+    problem.targetAudience,
+    problem.context,
+    problem.importance,
+
+    solution.overview,
+    solution.approach,
+    solution.architecture,
+
+    results.outcome,
+    results.problemsSolved,
+    results.impact,
+    results.beneficiariesAffected,
+    results.lessonsLearned,
+    results.futureImprovements,
+
+    presentation.shortSummary,
+    presentation.caseStudy,
+
+    ...objectives,
+    ...constraints,
+    ...features,
+    ...contributions,
+    ...metrics,
+    ...skills,
+    ...technologies,
+    ...relationships,
+    ...awards,
+    ...media,
+    ...documents,
+  ]
+    .map(getText)
+    .filter(Boolean)
+    .join(" ")
+    .normalize("NFKC")
+    .toLocaleLowerCase();
+}
+
+/*
+ * =========================================
+ * Search Projects
+ * =========================================
+ */
+
+export function searchProjects(projects, query) {
+  const normalizedQuery = getSearchableText(query);
+
+  if (!normalizedQuery) {
+    return [...getArray(projects)];
+  }
+
+  const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  return getArray(projects).filter((project) => {
+    const searchableText = createProjectSearchText(project);
+
+    return queryTerms.every((term) => searchableText.includes(term));
+  });
+}
+
+/*
+ * =========================================
+ * Relationship Filter
+ * =========================================
+ */
+
+function hasRelationshipType(project, relationshipType) {
+  switch (relationshipType) {
+    case "skill":
+      return getArray(project?.skillRelationships).length > 0;
+
+    case "experience":
+      return (
+        getArray(project?.relatedRecords?.experienceRelationships).length > 0
+      );
+
+    case "education":
+      return (
+        getArray(project?.relatedRecords?.educationRelationships).length > 0
+      );
+
+    case "training":
+      return (
+        getArray(project?.relatedRecords?.trainingRelationships).length > 0
+      );
+
+    case "certification":
+      return (
+        getArray(project?.relatedRecords?.certificationRelationships).length > 0
+      );
+
+    default:
+      return true;
+  }
+}
+
+/*
+ * =========================================
+ * Filter Projects
+ * =========================================
+ */
+
+export function filterProjects(projects, filters = {}) {
+  const {
+    category = "all",
+    lifecycleStatus = "all",
+    ownership = "all",
+    featured = "all",
+    media = "all",
+    awarded = "all",
+    relationship = "all",
+  } = filters;
+
+  return getArray(projects).filter((project) => {
+    if (category !== "all" && project.category !== category) {
+      return false;
+    }
+
+    if (
+      lifecycleStatus !== "all" &&
+      project.lifecycleStatus !== lifecycleStatus
+    ) {
+      return false;
+    }
+
+    if (ownership !== "all" && project.ownership !== ownership) {
+      return false;
+    }
+
+    if (featured === "featured" && !project.presentation?.isFeatured) {
+      return false;
+    }
+
+    if (featured === "not-featured" && project.presentation?.isFeatured) {
+      return false;
+    }
+
+    const projectHasMedia = hasProjectMedia(project);
+
+    if (media === "with-media" && !projectHasMedia) {
+      return false;
+    }
+
+    if (media === "without-media" && projectHasMedia) {
+      return false;
+    }
+
+    const projectHasAwards = hasProjectAwards(project);
+
+    if (awarded === "awarded" && !projectHasAwards) {
+      return false;
+    }
+
+    if (awarded === "not-awarded" && projectHasAwards) {
+      return false;
+    }
+
+    if (relationship !== "all" && !hasRelationshipType(project, relationship)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/*
+ * =========================================
+ * Title Comparison
+ * =========================================
+ */
+
+function compareProjectTitles(firstProject, secondProject) {
+  return getText(firstProject?.title).localeCompare(
+    getText(secondProject?.title),
+    undefined,
+    {
+      sensitivity: "base",
+    },
+  );
+}
+
+/*
+ * =========================================
+ * Updated-Date Comparison
+ * =========================================
+ */
+
+function compareRecentlyUpdated(firstProject, secondProject) {
+  const difference =
+    getUpdatedSortValue(secondProject?.updatedAt) -
+    getUpdatedSortValue(firstProject?.updatedAt);
+
+  if (difference !== 0) {
+    return difference;
+  }
+
+  return compareProjectTitles(firstProject, secondProject);
+}
+
+/*
+ * =========================================
+ * Newest Start-Date Comparison
+ * =========================================
+ *
+ * Projects without a start date are placed
+ * at the bottom of the collection.
+ */
+
+function compareNewestStarted(firstProject, secondProject) {
+  const firstStartDate = getDateSortValue(firstProject?.dates?.startDate);
+
+  const secondStartDate = getDateSortValue(secondProject?.dates?.startDate);
+
+  if (firstStartDate && !secondStartDate) {
+    return -1;
+  }
+
+  if (!firstStartDate && secondStartDate) {
+    return 1;
+  }
+
+  if (firstStartDate !== secondStartDate) {
+    return secondStartDate - firstStartDate;
+  }
+
+  return compareRecentlyUpdated(firstProject, secondProject);
+}
+
+/*
+ * =========================================
+ * Oldest Start-Date Comparison
+ * =========================================
+ *
+ * Projects without a start date remain at
+ * the bottom even when sorting oldest-first.
+ */
+
+function compareOldestStarted(firstProject, secondProject) {
+  const firstStartDate = getDateSortValue(firstProject?.dates?.startDate);
+
+  const secondStartDate = getDateSortValue(secondProject?.dates?.startDate);
+
+  if (firstStartDate && !secondStartDate) {
+    return -1;
+  }
+
+  if (!firstStartDate && secondStartDate) {
+    return 1;
+  }
+
+  if (firstStartDate !== secondStartDate) {
+    return firstStartDate - secondStartDate;
+  }
+
+  return compareProjectTitles(firstProject, secondProject);
+}
+
+/*
+ * =========================================
+ * Portfolio Priority
+ * =========================================
+ */
+
+function getPortfolioPriority(project) {
+  if (project?.presentation?.isFeatured) {
+    return 1;
+  }
+
+  if (isProjectCurrent(project)) {
+    return 2;
+  }
+
+  if (
+    isProjectCompleted(project) &&
+    (project?.dates?.endDate || project?.dates?.startDate)
+  ) {
+    return 3;
+  }
+
+  if (project?.dates?.endDate || project?.dates?.startDate) {
+    return 4;
+  }
+
+  return 5;
+}
+
+/*
+ * =========================================
+ * Portfolio Priority Comparison
+ * =========================================
+ */
+
+function comparePortfolioPriority(firstProject, secondProject) {
+  const firstPriority = getPortfolioPriority(firstProject);
+
+  const secondPriority = getPortfolioPriority(secondProject);
+
+  if (firstPriority !== secondPriority) {
+    return firstPriority - secondPriority;
+  }
+
+  const currentDifference =
+    Number(isProjectCurrent(secondProject)) -
+    Number(isProjectCurrent(firstProject));
+
+  if (currentDifference !== 0) {
+    return currentDifference;
+  }
+
+  const firstRelevantDate = getDateSortValue(
+    firstProject?.dates?.isCurrent
+      ? firstProject?.dates?.startDate
+      : firstProject?.dates?.endDate || firstProject?.dates?.startDate,
+  );
+
+  const secondRelevantDate = getDateSortValue(
+    secondProject?.dates?.isCurrent
+      ? secondProject?.dates?.startDate
+      : secondProject?.dates?.endDate || secondProject?.dates?.startDate,
+  );
+
+  if (firstRelevantDate !== secondRelevantDate) {
+    return secondRelevantDate - firstRelevantDate;
+  }
+
+  return compareRecentlyUpdated(firstProject, secondProject);
+}
+
+/*
+ * =========================================
+ * Newest Completed Comparison
+ * =========================================
+ */
+
+function compareNewestCompleted(firstProject, secondProject) {
+  const firstCompleted = isProjectCompleted(firstProject);
+
+  const secondCompleted = isProjectCompleted(secondProject);
+
+  if (firstCompleted !== secondCompleted) {
+    return Number(secondCompleted) - Number(firstCompleted);
+  }
+
+  const firstDate = getDateSortValue(
+    firstProject?.dates?.endDate || firstProject?.dates?.startDate,
+  );
+
+  const secondDate = getDateSortValue(
+    secondProject?.dates?.endDate || secondProject?.dates?.startDate,
+  );
+
+  if (firstDate && !secondDate) {
+    return -1;
+  }
+
+  if (!firstDate && secondDate) {
+    return 1;
+  }
+
+  if (firstDate !== secondDate) {
+    return secondDate - firstDate;
+  }
+
+  return compareProjectTitles(firstProject, secondProject);
+}
+
+/*
+ * =========================================
+ * Sort Projects
+ * =========================================
+ */
+
+export function sortProjects(projects, sortOption = "newest-started") {
+  const sortedProjects = [...getArray(projects)];
+
+  sortedProjects.sort((firstProject, secondProject) => {
+    switch (sortOption) {
+      case "newest-started":
+        return compareNewestStarted(firstProject, secondProject);
+
+      case "oldest":
+        return compareOldestStarted(firstProject, secondProject);
+
+      case "title-ascending":
+        return compareProjectTitles(firstProject, secondProject);
+
+      case "title-descending":
+        return compareProjectTitles(secondProject, firstProject);
+
+      case "recently-updated":
+        return compareRecentlyUpdated(firstProject, secondProject);
+
+      case "newest-completed":
+        return compareNewestCompleted(firstProject, secondProject);
+
+      case "impact":
+        return (
+          getProjectImpactScore(secondProject) -
+            getProjectImpactScore(firstProject) ||
+          compareNewestStarted(firstProject, secondProject)
+        );
+
+      case "portfolio-default":
+        return comparePortfolioPriority(firstProject, secondProject);
+
+      default:
+        return compareNewestStarted(firstProject, secondProject);
+    }
+  });
+
+  return sortedProjects;
+}
+
+/*
+ * =========================================
+ * Search, Filter, and Sort
+ * =========================================
+ */
+
+export function prepareProjectCollection({
+  projects = [],
+  query = "",
+  filters = {},
+  sortOption = "newest-started",
+} = {}) {
+  const searchedProjects = searchProjects(projects, query);
+
+  const filteredProjects = filterProjects(searchedProjects, filters);
+
+  return sortProjects(filteredProjects, sortOption);
+}
+
+/*
+ * =========================================
+ * Project Statistics
+ * =========================================
+ */
+
+export function getProjectStatistics(projects) {
+  const collection = getArray(projects);
+
+  const active = collection.filter(
+    (project) => project.recordStatus !== "archived",
+  );
+
+  const archived = collection.filter(
+    (project) => project.recordStatus === "archived",
+  );
+
+  return {
+    total: collection.length,
+
+    active: active.length,
+
+    archived: archived.length,
+
+    featured: active.filter((project) => project.presentation?.isFeatured)
+      .length,
+
+    current: active.filter(isProjectCurrent).length,
+
+    completed: active.filter(isProjectCompleted).length,
+
+    awarded: active.filter(hasProjectAwards).length,
+
+    withMedia: active.filter(hasProjectMedia).length,
+
+    withPublicMedia: active.filter(hasPublicProjectMedia).length,
+
+    withDocuments: active.filter(hasProjectDocuments).length,
+
+    withRelationships: active.filter(
+      (project) => getProjectRelationshipCount(project) > 0,
+    ).length,
+  };
+}
+
+/*
+ * =========================================
+ * Public Transformation Export
+ * =========================================
+ */
+
+export { createPublicProject };

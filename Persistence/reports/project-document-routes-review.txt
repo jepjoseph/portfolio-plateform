@@ -1,0 +1,846 @@
+﻿==========================================
+FILE: backend\src\routes\projectRoutes.js
+==========================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+export default router;
+
+==========================================
+FILE: backend\src\middleware\project\projectOwnershipMiddleware.js
+==========================================
+import { getAuthenticatedProject } from "../../services/Service/projectService.js";
+
+/*
+ * =========================================
+ * Project Ownership Middleware
+ * =========================================
+ *
+ * Verifies that the requested Project belongs
+ * to the authenticated user.
+ *
+ * This middleware must run after authentication
+ * and before Project media upload processing.
+ */
+
+export async function requireProjectOwnership(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth?.userId,
+      projectId: request.params.projectId,
+    });
+
+    request.authorizedProject = project;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+==========================================
+FILE: backend\src\app.js
+==========================================
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+
+import userRoutes from "./routes/userRoutes.js";
+
+import { checkDatabaseHealth } from "./config/database.js";
+
+import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+
+import aiRoutes from "./routes/aiRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
+
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middleware/errorMiddleware.js";
+
+import supportRoutes from "./routes/supportRoutes.js";
+
+/*
+ * =========================================
+ * Environment and Application
+ * =========================================
+ */
+
+const environment = getEnvironment();
+
+const app = express();
+
+/*
+ * =========================================
+ * Express Information Header
+ * =========================================
+ */
+
+app.disable("x-powered-by");
+
+/*
+ * =========================================
+ * Security Headers
+ * =========================================
+ */
+
+app.use(helmet());
+
+/*
+ * =========================================
+ * Allowed Frontend Origins
+ * =========================================
+ */
+
+const allowedOrigins = environment.FRONTEND_URL.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/*
+ * =========================================
+ * CORS
+ * =========================================
+ */
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      /*
+       * Postman, curl and server-to-server
+       * requests may not include Origin.
+       */
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      const error = new Error(`Origin not allowed by CORS: ${origin}`);
+
+      error.name = "CorsOriginError";
+
+      error.code = "CORS_ORIGIN_DENIED";
+
+      error.status = 403;
+
+      error.publicMessage = "This website is not allowed to access the API.";
+
+      return callback(error);
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+/*
+ * =========================================
+ * Public Profile Pictures
+ * =========================================
+ */
+
+if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+  app.use(
+    "/uploads/profile-pictures",
+    (request, response, next) => {
+      /*
+       * Profile pictures are intentionally public assets.
+       * Allow the portfolio frontend to display them even
+       * though the frontend and API use different origins.
+       */
+
+      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      next();
+    },
+    express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+      fallthrough: true,
+      index: false,
+      dotfiles: "deny",
+    }),
+  );
+}
+
+/*
+ * =========================================
+ * Request Body
+ * =========================================
+ */
+
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
+/*
+ * =========================================
+ * API Health Check
+ * =========================================
+ */
+
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+
+    service: "portfolio-platform-api",
+
+    environment: environment.NODE_ENV,
+
+    databaseConfigured: isDatabaseConfigured(environment),
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+app.get("/api/health/database", async (req, res) => {
+  const health = await checkDatabaseHealth();
+
+  const isHealthy = health.status === "ok";
+
+  let message = "Database connection is unavailable.";
+
+  if (isHealthy) {
+    message = "Database connection is healthy.";
+  } else if (health.status === "not-configured") {
+    message = "Database service is not configured.";
+  }
+
+  return res.status(isHealthy ? 200 : 503).json({
+    status: health.status,
+
+    service: "portfolio-platform-database",
+
+    configured: health.configured,
+
+    responseTimeMs: health.responseTimeMs,
+
+    message,
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Application Routes
+ * =========================================
+ */
+app.use("/api/auth", authRoutes);
+
+app.use("/api/ai", aiRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/support", supportRoutes);
+
+app.use("/api/profile", profileRoutes);
+app.use("/api/projects", projectRoutes);
+/*
+ * The Profile and Skill routes remain disabled
+ * until their repositories and authentication
+ * middleware are implemented.
+ *
+ * Later:
+ *
+ * app.use("/api/profile", profileRoutes);
+ * app.use("/api/skills", skillRoutes);
+ */
+
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+app.use(notFoundHandler);
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+app.use(globalErrorHandler);
+
+export default app;
+
+==========================================
+FILE: backend\src\config\environment.js
+==========================================
+import { z } from "zod";
+
+/*
+ * =========================================
+ * Boolean Environment Values
+ * =========================================
+ */
+
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
+const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+
+/*
+ * =========================================
+ * Optional Text Normalization
+ * =========================================
+ */
+
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue || undefined;
+}
+
+/*
+ * =========================================
+ * Boolean Normalization
+ * =========================================
+ */
+
+function normalizeBooleanValue(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (TRUE_VALUES.has(normalizedValue)) {
+    return true;
+  }
+
+  if (FALSE_VALUES.has(normalizedValue)) {
+    return false;
+  }
+
+  return value;
+}
+
+/*
+ * =========================================
+ * Environment Schema
+ * =========================================
+ */
+
+const environmentSchema = z
+  .object({
+    /*
+     * =========================================
+     * Application
+     * =========================================
+     */
+
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+
+    PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+
+    FRONTEND_URL: z.string().trim().min(1).default("http://localhost:5173"),
+
+    PROFILE_PICTURE_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROFILE_PICTURE_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    PROJECT_MEDIA_STORAGE_PATH: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    PROJECT_MEDIA_PUBLIC_BASE_URL: z.preprocess(
+      normalizeOptionalText,
+      z.string().url().optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Connection
+     * =========================================
+     */
+
+    DB_HOST: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
+
+    DB_NAME: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_USER: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+
+    DB_PASSWORD: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Database Security
+     * =========================================
+     */
+
+    DB_ENCRYPT: z.preprocess(normalizeBooleanValue, z.boolean()).default(true),
+
+    DB_TRUST_SERVER_CERTIFICATE: z
+      .preprocess(normalizeBooleanValue, z.boolean())
+      .default(false),
+
+    /*
+     * =========================================
+     * Database Timeouts
+     * =========================================
+     */
+
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+
+    DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Database Pool
+     * =========================================
+     */
+
+    DB_POOL_MIN: z.coerce.number().int().min(0).default(0),
+
+    DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+
+    DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+
+    /*
+     * =========================================
+     * Authentication Security Secrets
+     * =========================================
+     *
+     * These secrets are optional while the
+     * authentication routes are not active.
+     *
+     * Authentication utilities will reject
+     * operations if the secrets are missing.
+     */
+
+    AUTH_OTP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_TOKEN_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    AUTH_IP_HMAC_SECRET: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(32).optional(),
+    ),
+
+    /*
+     * =========================================
+     * Email Delivery
+     * =========================================
+     */
+
+    EMAIL_PROVIDER: z.enum(["development", "resend"]).default("development"),
+
+    EMAIL_FROM_NAME: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .default("PortAncest Portfolio Platform"),
+
+    EMAIL_FROM_ADDRESS: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().email().optional(),
+    ),
+
+    RESEND_API_KEY: z.preprocess(
+      normalizeOptionalText,
+
+      z.string().min(20).optional(),
+    ),
+
+    /*
+     * Authentication Sessions
+     */
+
+    SESSION_REFRESH_TOKEN_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .default(30),
+
+    SESSION_COOKIE_NAME: z
+      .string()
+      .trim()
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        "SESSION_COOKIE_NAME contains unsupported characters.",
+      )
+      .default("portfolio_refresh_token"),
+
+    SESSION_COOKIE_PATH: z.string().trim().startsWith("/").default("/api"),
+
+    SESSION_COOKIE_DOMAIN: z.preprocess(
+      normalizeOptionalText,
+      z.string().min(1).optional(),
+    ),
+
+    SESSION_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  })
+
+  /*
+   * =========================================
+   * Cross-Field Validation
+   * =========================================
+   */
+
+  .superRefine((values, context) => {
+    /*
+     * =========================================
+     * Database Configuration Validation
+     * =========================================
+     */
+
+    const databaseFields = [
+      ["DB_HOST", values.DB_HOST],
+
+      ["DB_NAME", values.DB_NAME],
+
+      ["DB_USER", values.DB_USER],
+
+      ["DB_PASSWORD", values.DB_PASSWORD],
+    ];
+
+    /*
+     * The API can temporarily run without a
+     * database.
+     *
+     * However, when any required database value
+     * is supplied, all required database values
+     * must be supplied.
+     */
+
+    const hasAnyDatabaseValue = databaseFields.some(([, value]) =>
+      Boolean(value),
+    );
+
+    if (hasAnyDatabaseValue) {
+      for (const [fieldName, value] of databaseFields) {
+        if (!value) {
+          context.addIssue({
+            code: "custom",
+
+            path: [fieldName],
+
+            message: `${fieldName} is required when database access is configured.`,
+          });
+        }
+      }
+    }
+
+    /*
+     * =========================================
+     * Database Pool Validation
+     * =========================================
+     */
+
+    if (values.DB_POOL_MIN > values.DB_POOL_MAX) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["DB_POOL_MIN"],
+
+        message: "DB_POOL_MIN cannot be greater than DB_POOL_MAX.",
+      });
+    }
+
+    /*
+     * =========================================
+     * Prevents OTPs from accidentally being printed in Azure production logs
+     * =========================================
+     */
+
+    if (
+      values.NODE_ENV === "production" &&
+      values.EMAIL_PROVIDER === "development"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["EMAIL_PROVIDER"],
+
+        message: "The development email provider cannot be used in production.",
+      });
+    }
+
+    if (
+      values.SESSION_COOKIE_SAME_SITE === "none" &&
+      values.NODE_ENV !== "production"
+    ) {
+      context.addIssue({
+        code: "custom",
+
+        path: ["SESSION_COOKIE_SAME_SITE"],
+
+        message:
+          'SameSite "none" requires a secure production HTTPS environment.',
+      });
+    }
+
+    /*
+     * =========================================
+     * Resend Configuration
+     * =========================================
+     */
+
+    if (values.EMAIL_PROVIDER === "resend") {
+      if (!values.RESEND_API_KEY) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["RESEND_API_KEY"],
+
+          message: "RESEND_API_KEY is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+
+      if (!values.EMAIL_FROM_ADDRESS) {
+        context.addIssue({
+          code: "custom",
+
+          path: ["EMAIL_FROM_ADDRESS"],
+
+          message:
+            "EMAIL_FROM_ADDRESS is required when EMAIL_PROVIDER is resend.",
+        });
+      }
+    }
+  });
+
+/*
+ * =========================================
+ * Cached Environment
+ * =========================================
+ */
+
+let cachedEnvironment;
+
+/*
+ * =========================================
+ * Read and Validate Environment
+ * =========================================
+ */
+
+export function getEnvironment() {
+  if (cachedEnvironment) {
+    return cachedEnvironment;
+  }
+
+  const result = environmentSchema.safeParse(process.env);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map(
+        (issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`,
+      )
+      .join("\n");
+
+    throw new Error(`Invalid environment configuration:\n${details}`);
+  }
+
+  cachedEnvironment = Object.freeze(result.data);
+
+  return cachedEnvironment;
+}
+
+/*
+ * =========================================
+ * Database Configuration Status
+ * =========================================
+ */
+
+export function isDatabaseConfigured(environment = getEnvironment()) {
+  return Boolean(
+    environment.DB_HOST &&
+    environment.DB_NAME &&
+    environment.DB_USER &&
+    environment.DB_PASSWORD,
+  );
+}
+
+/*
+ * =========================================
+ * Authentication Secret Access
+ * =========================================
+ *
+ * This function prevents authentication
+ * operations from running without all three
+ * security secrets.
+ */
+
+export function getAuthenticationSecrets(environment = getEnvironment()) {
+  const secrets = {
+    otp: environment.AUTH_OTP_HMAC_SECRET,
+
+    token: environment.AUTH_TOKEN_HMAC_SECRET,
+
+    ip: environment.AUTH_IP_HMAC_SECRET,
+  };
+
+  const missingSecrets = Object.entries(secrets)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missingSecrets.length > 0) {
+    const error = new Error(
+      `Authentication security secrets are missing: ${missingSecrets.join(", ")}.`,
+    );
+
+    error.name = "AuthenticationConfigurationError";
+
+    error.code = "AUTHENTICATION_NOT_CONFIGURED";
+
+    error.status = 503;
+
+    error.publicMessage = "Authentication service is temporarily unavailable.";
+
+    throw error;
+  }
+
+  return Object.freeze(secrets);
+}
+

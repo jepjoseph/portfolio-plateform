@@ -1,0 +1,1808 @@
+PROJECT DOCUMENT API REVIEW
+
+========================================
+FILE: src\controllers\projectMediaController.js
+========================================
+import fs from "node:fs";
+import { promises as fsPromises } from "node:fs";
+
+import {
+  registerProjectMedia,
+  listAuthenticatedProjectMedia,
+  getAuthenticatedProjectMedia,
+  deleteAuthenticatedProjectMedia,
+} from "../services/Service/projectMediaService.js";
+
+import {
+  resolveOwnedProjectMediaPath,
+  assertSafeProjectMediaDirectory,
+} from "../services/Storage/projectMediaStorageService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+/*
+ * =========================================
+ * Upload Project Media
+ * =========================================
+ *
+ * Authentication, ownership, upload, and
+ * file validation must run before this
+ * controller.
+ *
+ * File cleanup is handled by the validation
+ * middleware for rejected uploads.
+ *
+ * Do not delete an uploaded file after an
+ * uncertain database registration outcome.
+ */
+
+export async function uploadMyProjectMedia(request, response, next) {
+  try {
+    const media = await registerProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      uploadedFile: request.projectMediaFile,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project media uploaded successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * GET /api/projects/:projectId/media
+ */
+
+export async function listMyProjectMedia(request, response, next) {
+  try {
+    const media = await listAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project media retrieved successfully.",
+      data: { media },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Serve Project Media
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media/:mediaId
+ *
+ * Authentication and Project ownership
+ * must be verified by the route middleware.
+ */
+
+export async function getMyProjectMedia(request, response, next) {
+  let fileHandle;
+
+  try {
+    const userId = request.auth.userId;
+    const projectId = request.params.projectId;
+    const mediaId = request.params.mediaId;
+
+    /*
+     * Retrieve authorized media metadata.
+     */
+
+    const media = await getAuthenticatedProjectMedia({
+      userId,
+      projectId,
+      mediaId,
+    });
+
+    /*
+     * Resolve the file path using the
+     * existing ownership-aware storage service.
+     */
+
+    const filePath = resolveOwnedProjectMediaPath(
+      userId,
+      projectId,
+      media.storageKey,
+    );
+
+    await assertSafeProjectMediaDirectory(userId, projectId);
+
+    /*
+     * Open the file without following a
+     * symbolic link on supported platforms.
+     */
+
+    /*
+     * Reject symbolic links and reparse-point-like
+     * targets before opening the file.
+     *
+     * On Windows, O_NOFOLLOW is unavailable.
+     */
+
+    const pathStats = await fsPromises.lstat(filePath);
+
+    if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+      const error = new Error("Project media not found.");
+
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = error.message;
+
+      throw error;
+    }
+
+    /*
+     * Open the file using O_NOFOLLOW where supported.
+     */
+
+    const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+
+    fileHandle = await fsPromises.open(filePath, flags);
+
+    const stats = await fileHandle.stat();
+
+    if (!stats.isFile()) {
+      const error = new Error("Project media is not a regular file.");
+      error.status = 404;
+      error.code = "PROJECT_MEDIA_NOT_FOUND";
+      error.publicMessage = "Project media not found.";
+      throw error;
+    }
+
+    /*
+     * Set private response headers.
+     */
+
+    setPrivateHeaders(response);
+
+    response.set({
+      "Content-Type": media.mimeType,
+      "Content-Length": String(stats.size),
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
+      "Accept-Ranges": "none",
+    });
+
+    /*
+     * Stream from the already-open file
+     * descriptor rather than reopening
+     * the path.
+     */
+
+    const stream = fileHandle.createReadStream({
+      autoClose: true,
+    });
+
+    fileHandle = null;
+
+    stream.on("error", (error) => {
+      if (!response.headersSent) {
+        next(error);
+      } else {
+        response.destroy(error);
+      }
+    });
+
+    stream.pipe(response);
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close().catch(() => {});
+    }
+
+    if (error.code === "ENOENT") {
+      const notFound = new Error("Project media not found.");
+      notFound.status = 404;
+      notFound.code = "PROJECT_MEDIA_NOT_FOUND";
+      notFound.publicMessage = notFound.message;
+      return next(notFound);
+    }
+
+    return next(error);
+  }
+}
+
+/*
+ * =========================================
+ * Delete My Project Media
+ * =========================================
+ */
+
+export async function deleteMyProjectMedia(request, response, next) {
+  try {
+    await deleteAuthenticatedProjectMedia({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      mediaId: request.params.mediaId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(204).end();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+FILE: src\routes\projectRoutes.js
+========================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+export default router;
+
+========================================
+FILE: src\services\Service\projectDocumentService.js
+========================================
+import path from "node:path";
+
+import {
+  createProjectDocument,
+  findProjectDocumentByStorageKey,
+  findProjectDocumentById,
+  listProjectDocuments,
+  deleteProjectDocument,
+} from "../../repositories/projectDocumentRepository.js";
+
+import {
+  assertSafeProjectDocumentDirectory,
+  createProjectDocumentStorageKey,
+  resolveOwnedProjectDocumentPath,
+  deleteOwnedProjectDocument,
+} from "../Storage/projectDocumentStorageService.js";
+
+/*
+ * =========================================
+ * Project Document Service Errors
+ * =========================================
+ */
+
+function createDocumentServiceError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectDocumentServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Register Uploaded Project Document
+ * =========================================
+ */
+
+export async function registerProjectDocument({
+  userId,
+  projectId,
+  uploadedFile,
+}) {
+  if (!userId || !projectId) {
+    throw createDocumentServiceError(
+      "Project document registration is not authorized.",
+      "PROJECT_DOCUMENT_REGISTRATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  if (!uploadedFile) {
+    throw createDocumentServiceError(
+      "Validated Project document is required.",
+      "PROJECT_DOCUMENT_FILE_REQUIRED",
+    );
+  }
+
+  const {
+    filename,
+    path: uploadedPath,
+    originalname,
+    verifiedMimeType,
+    verifiedSize,
+  } = uploadedFile;
+
+  if (
+    !filename ||
+    !uploadedPath ||
+    !originalname ||
+    !verifiedMimeType ||
+    !Number.isSafeInteger(verifiedSize) ||
+    verifiedSize <= 0
+  ) {
+    throw createDocumentServiceError(
+      "Project document validation information is incomplete.",
+      "PROJECT_DOCUMENT_VALIDATION_INCOMPLETE",
+    );
+  }
+
+  const storageKey = createProjectDocumentStorageKey(userId, projectId, filename);
+
+  const expectedPath = resolveOwnedProjectDocumentPath(
+    userId,
+    projectId,
+    storageKey,
+  );
+
+  if (path.resolve(uploadedPath) !== expectedPath) {
+    throw createDocumentServiceError(
+      "Project document file location is invalid.",
+      "PROJECT_DOCUMENT_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  await assertSafeProjectDocumentDirectory(userId, projectId);
+
+  /*
+   * The file has already been stored and verified
+   * by the upload and validation middleware.
+   *
+   * Now register its metadata in Azure SQL.
+   */
+
+  try {
+    return await createProjectDocument(userId, projectId, {
+      storageKey,
+      originalFileName: originalname,
+      mimeType: verifiedMimeType,
+      fileSize: verifiedSize,
+    });
+  } catch (databaseError) {
+    /*
+     * The insert failed or its result is uncertain.
+     *
+     * Do not delete the uploaded file:
+     * SQL Server might have committed the insert
+     * before the connection failed.
+     */
+
+    try {
+      const existingDocument = await findProjectDocumentByStorageKey(
+        userId,
+        projectId,
+        storageKey,
+      );
+
+      if (existingDocument) {
+        // The metadata exists, so preserve its file.
+        return existingDocument;
+      }
+    } catch (lookupError) {
+      console.error(
+        "Unable to reconcile Project document registration:",
+        lookupError,
+      );
+    }
+
+    /*
+     * A missing record at lookup time does not prove
+     * that the original insert cannot commit later.
+     *
+     * Preserve the file for later reconciliation.
+     */
+
+    const error = createDocumentServiceError(
+      "Project document registration could not be confirmed.",
+      "PROJECT_DOCUMENT_REGISTRATION_UNCONFIRMED",
+      503,
+    );
+
+    error.cause = databaseError;
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * List Project Document
+ * =========================================
+ */
+
+export async function listAuthenticatedProjectDocuments({ userId, projectId }) {
+  if (!userId || !projectId) {
+    throw createDocumentServiceError(
+      "Project document access is not authorized.",
+      "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  return listProjectDocuments(userId, projectId);
+}
+
+/*
+ * =========================================
+ * Get Authenticated Project Document
+ * =========================================
+ *
+ * Retrieve document metadata belonging to
+ * the authenticated user and Project.
+ */
+
+export async function getAuthenticatedProjectDocument({
+  userId,
+  projectId,
+  documentId,
+}) {
+  if (!userId || !projectId || !documentId) {
+    throw createDocumentServiceError(
+      "Project document access is not authorized.",
+      "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const document = await findProjectDocumentById(userId, projectId, documentId);
+
+  if (!document) {
+    throw createDocumentServiceError(
+      "Project document not found.",
+      "PROJECT_DOCUMENT_NOT_FOUND",
+      404,
+    );
+  }
+
+  return document;
+}
+
+/*
+ * =========================================
+ * Delete Authenticated Project Document
+ * =========================================
+ */
+
+export async function deleteAuthenticatedProjectDocument({
+  userId,
+  projectId,
+  documentId,
+}) {
+  if (!userId || !projectId || !documentId) {
+    throw createDocumentServiceError(
+      "Project document deletion is not authorized.",
+      "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const document = await findProjectDocumentById(userId, projectId, documentId);
+
+  if (!document) {
+    throw createDocumentServiceError(
+      "Project document not found.",
+      "PROJECT_DOCUMENT_NOT_FOUND",
+      404,
+    );
+  }
+
+  /*
+   * Delete the owned physical file first.
+   *
+   * The storage service handles an already-missing
+   * file without throwing an error.
+   */
+  await deleteOwnedProjectDocument(userId, projectId, document.storageKey);
+
+  /*
+   * Remove the database record only after
+   * filesystem deletion succeeds.
+   */
+  const deletedDocument = await deleteProjectDocument(userId, projectId, documentId);
+
+  if (!deletedDocument) {
+    throw createDocumentServiceError(
+      "Project document deletion could not be confirmed.",
+      "PROJECT_DOCUMENT_DELETION_UNCONFIRMED",
+      503,
+    );
+  }
+
+  return deletedDocument;
+}
+
+
+
+========================================
+FILE: src\repositories\projectDocumentRepository.js
+========================================
+
+import { getDatabasePool, sql } from "../config/database.js";
+
+/*
+ * =========================================
+ * Project Document Columns
+ * =========================================
+ */
+
+const PROJECT_DOCUMENT_COLUMNS = `
+  id,
+  project_id,
+  user_id,
+  storage_key,
+  original_file_name,
+  mime_type,
+  file_size,
+  created_at
+`;
+
+/*
+ * =========================================
+ * Map Database Row
+ * =========================================
+ */
+
+function mapProjectDocumentRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    storageKey: row.storage_key,
+    originalFileName: row.original_file_name,
+    mimeType: row.mime_type,
+    fileSize: Number(row.file_size),
+    createdAt: row.created_at,
+  };
+}
+
+/*
+ * =========================================
+ * Create Project Document Metadata
+ * =========================================
+ */
+
+export async function createProjectDocument(userId, projectId, document) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("storageKey", sql.NVarChar(500), document.storageKey)
+    .input(
+      "originalFileName",
+      sql.NVarChar(255),
+      document.originalFileName,
+    )
+    .input("mimeType", sql.NVarChar(150), document.mimeType)
+    .input("fileSize", sql.BigInt, document.fileSize)
+    .query(`
+      INSERT INTO dbo.project_documents (
+        project_id,
+        user_id,
+        storage_key,
+        original_file_name,
+        mime_type,
+        file_size
+      )
+      OUTPUT
+        INSERTED.id,
+        INSERTED.project_id,
+        INSERTED.user_id,
+        INSERTED.storage_key,
+        INSERTED.original_file_name,
+        INSERTED.mime_type,
+        INSERTED.file_size,
+        INSERTED.created_at
+      VALUES (
+        @projectId,
+        @userId,
+        @storageKey,
+        @originalFileName,
+        @mimeType,
+        @fileSize
+      );
+    `);
+
+  return mapProjectDocumentRow(result.recordset[0]);
+}
+
+/*
+ * =========================================
+ * List Project Document
+ * =========================================
+ */
+
+export async function listProjectDocuments(userId, projectId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .query(`
+      SELECT ${PROJECT_DOCUMENT_COLUMNS}
+      FROM dbo.project_documents
+      WHERE user_id = @userId
+        AND project_id = @projectId
+      ORDER BY created_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapProjectDocumentRow);
+}
+
+/*
+ * =========================================
+ * Find Project Document
+ * =========================================
+ */
+
+export async function findProjectDocumentById(
+  userId,
+  projectId,
+  documentId,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("documentId", sql.UniqueIdentifier, documentId)
+    .query(`
+      SELECT ${PROJECT_DOCUMENT_COLUMNS}
+      FROM dbo.project_documents
+      WHERE id = @documentId
+        AND project_id = @projectId
+        AND user_id = @userId;
+    `);
+
+  return mapProjectDocumentRow(result.recordset[0]);
+}
+
+/*
+ * =========================================
+ * Delete Project Document Metadata
+ * =========================================
+ */
+
+export async function deleteProjectDocument(
+  userId,
+  projectId,
+  documentId,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("documentId", sql.UniqueIdentifier, documentId)
+    .query(`
+      DELETE FROM dbo.project_documents
+      OUTPUT
+        DELETED.id,
+        DELETED.project_id,
+        DELETED.user_id,
+        DELETED.storage_key,
+        DELETED.original_file_name,
+        DELETED.mime_type,
+        DELETED.file_size,
+        DELETED.created_at
+      WHERE id = @documentId
+        AND project_id = @projectId
+        AND user_id = @userId;
+    `);
+
+  return mapProjectDocumentRow(result.recordset[0]);
+}
+
+
+/*
+ * =========================================
+ * Find Project Document by Storage Key
+ * =========================================
+ *
+ * Used to check whether document metadata
+ * exists after a database registration error.
+ */
+
+export async function findProjectDocumentByStorageKey(
+  userId,
+  projectId,
+  storageKey,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool
+    .request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("projectId", sql.NVarChar(200), projectId)
+    .input("storageKey", sql.NVarChar(500), storageKey)
+    .query(`
+      SELECT
+        ${PROJECT_DOCUMENT_COLUMNS}
+      FROM dbo.project_documents
+      WHERE user_id = @userId
+        AND project_id = @projectId
+        AND storage_key = @storageKey;
+    `);
+
+  return mapProjectDocumentRow(result.recordset[0]);
+}
+
+
+
+
+========================================
+FILE: src\middleware\project\projectDocumentUploadMiddleware.js
+========================================
+
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import multer from "multer";
+
+import {
+  getProjectDocumentDirectory,
+  getProjectDocumentStorageRoot,
+} from "../../services/Storage/projectDocumentStorageService.js";
+
+/*
+ * =========================================
+ * Project Document Upload Configuration
+ * =========================================
+ */
+
+const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
+
+const ALLOWED_DOCUMENT_TYPES = new Map([
+  ["application/pdf", { extension: ".pdf" }],
+  ["application/msword", { extension: ".doc" }],
+  [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    { extension: ".docx" },
+  ],
+  ["application/vnd.ms-powerpoint", { extension: ".ppt" }],
+  [
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    { extension: ".pptx" },
+  ],
+  ["application/vnd.ms-excel", { extension: ".xls" }],
+  [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    { extension: ".xlsx" },
+  ],
+  ["text/plain", { extension: ".txt" }],
+  ["text/markdown", { extension: ".md" }],
+  ["text/csv", { extension: ".csv" }],
+  ["application/json", { extension: ".json" }],
+  ["application/zip", { extension: ".zip" }],
+  ["image/jpeg", { extension: ".jpg" }],
+  ["image/png", { extension: ".png" }],
+  ["image/webp", { extension: ".webp" }],
+]);
+
+function createUploadError({
+  message,
+  code = "PROJECT_DOCUMENT_UPLOAD_FAILED",
+  status = 400,
+}) {
+  const error = new Error(message);
+
+  error.name = "ProjectDocumentUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Authorized Project Context
+ * =========================================
+ */
+
+function getAuthorizedUploadContext(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const projectId = String(request.params?.projectId ?? "").trim();
+  const authorizedProject = request.authorizedProject;
+
+  if (!userId || !authorizedProject) {
+    throw createUploadError({
+      message: "Project document upload is not authorized.",
+      code: "PROJECT_DOCUMENT_UPLOAD_UNAUTHORIZED",
+      status: 403,
+    });
+  }
+
+  if (
+    !projectId ||
+    String(authorizedProject.id ?? "").trim() !== projectId
+  ) {
+    throw createUploadError({
+      message: "Authorized Project does not match the upload destination.",
+      code: "PROJECT_DOCUMENT_UPLOAD_PROJECT_MISMATCH",
+      status: 403,
+    });
+  }
+
+  return { userId, projectId };
+}
+
+/*
+ * =========================================
+ * Storage Directory Safety
+ * =========================================
+ */
+
+async function ensureSafeUploadDirectory(userId, projectId) {
+  const root = getProjectDocumentStorageRoot();
+  const destination = getProjectDocumentDirectory(userId, projectId);
+
+  await fs.mkdir(root, { recursive: true });
+
+  const relative = path.relative(root, destination);
+
+  if (
+    !relative ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project document upload destination is invalid.");
+  }
+
+  const directories = [
+    root,
+    path.dirname(destination),
+    destination,
+  ];
+
+  for (const directory of directories) {
+    try {
+      await fs.mkdir(directory);
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+    }
+
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project document upload directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalDestination = await fs.realpath(destination);
+  const canonicalRelative = path.relative(
+    canonicalRoot,
+    canonicalDestination,
+  );
+
+  if (
+    !canonicalRelative ||
+    canonicalRelative === ".." ||
+    canonicalRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(canonicalRelative)
+  ) {
+    throw new Error(
+      "Project document upload destination escapes storage root.",
+    );
+  }
+
+  return destination;
+}
+
+/*
+ * =========================================
+ * Multer Storage
+ * =========================================
+ */
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    let context;
+
+    try {
+      context = getAuthorizedUploadContext(request);
+    } catch (error) {
+      return callback(error);
+    }
+
+    ensureSafeUploadDirectory(context.userId, context.projectId)
+      .then((directory) => callback(null, directory))
+      .catch((error) => callback(error));
+  },
+
+  filename(request, file, callback) {
+    const configuration = ALLOWED_DOCUMENT_TYPES.get(file.mimetype);
+
+    if (!configuration) {
+      return callback(
+        createUploadError({
+          message: "Unsupported Project document type.",
+          code: "PROJECT_DOCUMENT_TYPE_NOT_ALLOWED",
+        }),
+      );
+    }
+
+    const filename = `${crypto.randomUUID()}${configuration.extension}`;
+
+    return callback(null, filename);
+  },
+});
+
+/*
+ * =========================================
+ * Document Type Filter
+ * =========================================
+ */
+
+function projectDocumentFileFilter(request, file, callback) {
+  try {
+    getAuthorizedUploadContext(request);
+
+    if (!ALLOWED_DOCUMENT_TYPES.has(file.mimetype)) {
+      throw createUploadError({
+        message: "Unsupported Project document type.",
+        code: "PROJECT_DOCUMENT_TYPE_NOT_ALLOWED",
+      });
+    }
+
+    return callback(null, true);
+  } catch (error) {
+    return callback(error);
+  }
+}
+
+/*
+ * =========================================
+ * Multer Middleware
+ * =========================================
+ */
+
+const projectDocumentUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_DOCUMENT_SIZE,
+    files: 1,
+  },
+  fileFilter: projectDocumentFileFilter,
+}).single("document");
+
+export function uploadProjectDocument(request, response, next) {
+  projectDocumentUpload(request, response, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return next(
+          createUploadError({
+            message: "Project document exceeds the 20 MiB upload limit.",
+            code: "PROJECT_DOCUMENT_TOO_LARGE",
+            status: 413,
+          }),
+        );
+      }
+
+      if (
+        error.code === "LIMIT_FILE_COUNT" ||
+        error.code === "LIMIT_UNEXPECTED_FILE"
+      ) {
+        return next(
+          createUploadError({
+            message: "Upload exactly one file using the document field.",
+            code: "PROJECT_DOCUMENT_INVALID_FILE_COUNT",
+          }),
+        );
+      }
+
+      return next(
+        createUploadError({
+          message: "Project document upload could not be processed.",
+          code: "PROJECT_DOCUMENT_UPLOAD_INVALID",
+        }),
+      );
+    }
+
+    return next(error);
+  });
+}
+
+export {
+  ALLOWED_DOCUMENT_TYPES,
+  MAX_DOCUMENT_SIZE,
+};
+
+========================================
+FILE: src\middleware\project\projectDocumentValidationMiddleware.js
+========================================
+import yauzl from "yauzl";
+
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { fileTypeFromFile } from "file-type";
+
+import {
+  ALLOWED_DOCUMENT_TYPES,
+  MAX_DOCUMENT_SIZE,
+} from "./projectDocumentUploadMiddleware.js";
+
+import {
+  assertSafeProjectDocumentDirectory,
+  getProjectDocumentDirectory,
+} from "../../services/Storage/projectDocumentStorageService.js";
+
+function createValidationError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectDocumentValidationError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+function getAuthorizedFilePath(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const projectId = String(request.params?.projectId ?? "").trim();
+  const authorizedProjectId = String(
+    request.authorizedProject?.id ?? "",
+  ).trim();
+
+  if (!userId || !projectId || authorizedProjectId !== projectId) {
+    throw createValidationError(
+      "Project document validation is not authorized.",
+      "PROJECT_DOCUMENT_VALIDATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  if (!request.file?.path) {
+    throw createValidationError(
+      "Please select a Project document to upload.",
+      "PROJECT_DOCUMENT_FILE_REQUIRED",
+    );
+  }
+
+  const expectedDirectory = path.resolve(
+    getProjectDocumentDirectory(userId, projectId),
+  );
+
+  const uploadedPath = path.resolve(request.file.path);
+
+  if (path.dirname(uploadedPath) !== expectedDirectory) {
+    throw createValidationError(
+      "Project document file location is invalid.",
+      "PROJECT_DOCUMENT_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  return uploadedPath;
+}
+
+async function removeRejectedFile(userId, projectId, filePath) {
+  const expectedDirectory = path.resolve(
+    getProjectDocumentDirectory(userId, projectId),
+  );
+
+  const targetPath = path.resolve(filePath);
+
+  if (path.dirname(targetPath) !== expectedDirectory) {
+    throw new Error(
+      "Rejected Project document is outside its authorized directory.",
+    );
+  }
+
+  try {
+    await assertSafeProjectDocumentDirectory(userId, projectId);
+
+    const stats = await fs.lstat(targetPath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error("Rejected document is not a regular file.");
+    }
+
+    await fs.unlink(targetPath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+const TEXT_MIME_TYPES = new Set([
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+]);
+
+const BINARY_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const ZIP_MIME_TYPES = new Set([
+  "application/zip",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+async function validateTextContent(filePath, mimeType) {
+  const buffer = await fs.readFile(filePath);
+
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+
+  let content;
+
+  try {
+    content = decoder.decode(buffer);
+  } catch {
+    return false;
+  }
+
+  if (content.includes("\0")) {
+    return false;
+  }
+
+  if (mimeType === "application/json") {
+    try {
+      JSON.parse(content);
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+const OFFICE_PACKAGE_FILES = new Map([
+  [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "word/document.xml",
+  ],
+  [
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "ppt/presentation.xml",
+  ],
+  [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "xl/workbook.xml",
+  ],
+]);
+
+function validateOfficePackage(filePath, mimeType) {
+  return new Promise((resolve) => {
+    const requiredDocumentFile = OFFICE_PACKAGE_FILES.get(mimeType);
+
+    if (!requiredDocumentFile) {
+      resolve(false);
+      return;
+    }
+
+    yauzl.open(
+      filePath,
+      {
+        lazyEntries: true,
+        autoClose: true,
+        validateEntrySizes: true,
+        strictFileNames: true,
+      },
+      (error, zipFile) => {
+        if (error) {
+          resolve(false);
+          return;
+        }
+
+        const requiredFiles = new Set([
+          "[Content_Types].xml",
+          "_rels/.rels",
+          requiredDocumentFile,
+        ]);
+
+        let completed = false;
+        let entriesChecked = 0;
+
+        const finish = (result) => {
+          if (completed) return;
+          completed = true;
+          zipFile.close();
+          resolve(result);
+        };
+
+        zipFile.on("error", () => finish(false));
+
+        zipFile.on("entry", (entry) => {
+          entriesChecked += 1;
+
+          if (entriesChecked > 10000) {
+            finish(false);
+            return;
+          }
+
+          requiredFiles.delete(entry.fileName);
+          zipFile.readEntry();
+        });
+
+        zipFile.on("end", () => {
+          finish(requiredFiles.size === 0);
+        });
+
+        zipFile.readEntry();
+      },
+    );
+  });
+}
+async function validateDocumentContent(filePath, mimeType) {
+  if (TEXT_MIME_TYPES.has(mimeType)) {
+    const detected = await fileTypeFromFile(filePath);
+
+    if (detected) {
+      return false;
+    }
+
+    return validateTextContent(filePath, mimeType);
+  }
+
+  if (!BINARY_MIME_TYPES.has(mimeType)) {
+    return false;
+  }
+
+  const detected = await fileTypeFromFile(filePath);
+
+  if (!detected) {
+    return false;
+  }
+
+if (ZIP_MIME_TYPES.has(mimeType)) {
+    if (detected.mime !== "application/zip") {
+      return false;
+    }
+
+    if (mimeType === "application/zip") {
+      return true;
+    }
+
+    return validateOfficePackage(filePath, mimeType);
+  }
+
+  return detected.mime === mimeType;
+}
+
+export async function validateProjectDocument(request, response, next) {
+  let uploadedPath;
+
+  try {
+    uploadedPath = getAuthorizedFilePath(request);
+
+    const userId = request.auth.userId;
+    const projectId = request.params.projectId;
+
+    await assertSafeProjectDocumentDirectory(userId, projectId);
+
+    const stats = await fs.lstat(uploadedPath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw createValidationError(
+        "The uploaded document is not a regular file.",
+        "PROJECT_DOCUMENT_INVALID_FILE",
+      );
+    }
+
+    if (stats.size === 0) {
+      throw createValidationError(
+        "The uploaded document is empty.",
+        "PROJECT_DOCUMENT_EMPTY_FILE",
+      );
+    }
+
+    if (stats.size > MAX_DOCUMENT_SIZE) {
+      throw createValidationError(
+        "The uploaded document exceeds the 20 MiB limit.",
+        "PROJECT_DOCUMENT_TOO_LARGE",
+        413,
+      );
+    }
+
+    const uploadedFile = request.file;
+    const mimeType = uploadedFile.mimetype;
+
+    if (!ALLOWED_DOCUMENT_TYPES.has(mimeType)) {
+      throw createValidationError(
+        "Unsupported Project document type.",
+        "PROJECT_DOCUMENT_TYPE_NOT_ALLOWED",
+      );
+    }
+
+    const validContent = await validateDocumentContent(
+      uploadedPath,
+      mimeType,
+    );
+
+    if (!validContent) {
+      throw createValidationError(
+        "The uploaded document contents do not match its declared type.",
+        "PROJECT_DOCUMENT_CONTENT_TYPE_MISMATCH",
+      );
+    }
+
+    request.projectDocumentFile = {
+      ...uploadedFile,
+      verifiedMimeType: mimeType,
+      verifiedExtension: ALLOWED_DOCUMENT_TYPES.get(mimeType).extension,
+      verifiedSize: stats.size,
+    };
+
+    return next();
+  } catch (error) {
+    if (uploadedPath) {
+      try {
+        await removeRejectedFile(
+          request.auth?.userId,
+          request.params?.projectId,
+          uploadedPath,
+        );
+      } catch (cleanupError) {
+        console.error(
+          "Failed to clean up rejected Project document:",
+          cleanupError,
+        );
+
+        return next(
+          createValidationError(
+            "Project document cleanup failed.",
+            "PROJECT_DOCUMENT_CLEANUP_FAILED",
+            500,
+          ),
+        );
+      }
+    }
+
+    return next(error);
+  }
+}
+
+
+========================================
+FILE: src\services\Storage\projectDocumentStorageService.js
+========================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { getEnvironment } from "../../config/environment.js";
+
+function requireIdentifier(value, label) {
+  const normalized = String(value ?? "").trim();
+
+  if (!normalized) {
+    throw new Error(`${label} is required for Project document storage.`);
+  }
+
+  return normalized;
+}
+
+function hashIdentifier(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function validateFileName(fileName) {
+  const normalized = String(fileName ?? "").trim();
+
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    path.basename(normalized) !== normalized ||
+    !/^[a-f0-9-]{36}\.(?:pdf|doc|docx|ppt|pptx|xls|xlsx|txt|md|csv|json|zip|jpg|jpeg|png|webp)$/i.test(
+      normalized,
+    )
+  ) {
+    throw new Error("Invalid Project document filename.");
+  }
+
+  return normalized;
+}
+
+export function getProjectDocumentStorageRoot() {
+  const environment = getEnvironment();
+
+  const configuredPath = String(
+    environment.PROJECT_DOCUMENT_STORAGE_PATH || "",
+  ).trim();
+
+  if (!configuredPath) {
+    throw new Error("PROJECT_DOCUMENT_STORAGE_PATH is not configured.");
+  }
+
+  return path.resolve(configuredPath);
+}
+
+export function getProjectDocumentUserDirectory(userId) {
+  return hashIdentifier(requireIdentifier(userId, "User ID"));
+}
+
+export function getProjectDocumentProjectDirectory(projectId) {
+  return hashIdentifier(requireIdentifier(projectId, "Project ID"));
+}
+
+export function getProjectDocumentDirectory(userId, projectId) {
+  return path.join(
+    getProjectDocumentStorageRoot(),
+    getProjectDocumentUserDirectory(userId),
+    getProjectDocumentProjectDirectory(projectId),
+  );
+}
+
+export function createProjectDocumentStorageKey(userId, projectId, fileName) {
+  const safeFileName = validateFileName(fileName);
+
+  return [
+    getProjectDocumentUserDirectory(userId),
+    getProjectDocumentProjectDirectory(projectId),
+    safeFileName,
+  ].join("/");
+}
+
+export function resolveOwnedProjectDocumentPath(userId, projectId, storageKey) {
+  const normalizedKey = String(storageKey ?? "").trim();
+
+  const expectedUserDirectory = getProjectDocumentUserDirectory(userId);
+  const expectedProjectDirectory = getProjectDocumentProjectDirectory(projectId);
+
+  const parts = normalizedKey.split("/");
+
+  if (
+    parts.length !== 3 ||
+    parts[0] !== expectedUserDirectory ||
+    parts[1] !== expectedProjectDirectory
+  ) {
+    throw new Error(
+      "Project document storage key does not belong to this user and Project.",
+    );
+  }
+
+  const safeFileName = validateFileName(parts[2]);
+
+  const mediaDirectory = path.resolve(
+    getProjectDocumentDirectory(userId, projectId),
+  );
+
+  const filePath = path.resolve(mediaDirectory, safeFileName);
+
+  if (path.dirname(filePath) !== mediaDirectory) {
+    throw new Error("Project document path is outside the expected directory.");
+  }
+
+  return filePath;
+}
+
+export async function assertSafeProjectDocumentDirectory(userId, projectId) {
+  const root = getProjectDocumentStorageRoot();
+  const userDirectory = path.join(root, getProjectDocumentUserDirectory(userId));
+  const projectDirectory = path.join(
+    userDirectory,
+    getProjectDocumentProjectDirectory(projectId),
+  );
+
+  const directories = [root, userDirectory, projectDirectory];
+
+  for (const directory of directories) {
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Project document storage directory is not a regular directory.",
+      );
+    }
+  }
+
+  const canonicalRoot = await fs.realpath(root);
+  const canonicalProjectDirectory = await fs.realpath(projectDirectory);
+
+  const relative = path.relative(
+    canonicalRoot,
+    canonicalProjectDirectory,
+  );
+
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Project document directory is outside the storage root.");
+  }
+}
+
+export async function deleteOwnedProjectDocument(userId, projectId, storageKey) {
+  const filePath = resolveOwnedProjectDocumentPath(userId, projectId, storageKey);
+
+  try {
+    await assertSafeProjectDocumentDirectory(userId, projectId);
+
+    const stats = await fs.lstat(filePath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error("Project document target is not a regular file.");
+    }
+
+    await fs.unlink(filePath);
+
+    return {
+      deleted: true,
+      storageKey,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        deleted: false,
+        storageKey,
+      };
+    }
+
+    throw error;
+  }
+}
+
+
+
+========================================
+FILE: src\middleware\project\projectOwnershipMiddleware.js
+========================================
+import { getAuthenticatedProject } from "../../services/Service/projectService.js";
+
+/*
+ * =========================================
+ * Project Ownership Middleware
+ * =========================================
+ *
+ * Verifies that the requested Project belongs
+ * to the authenticated user.
+ *
+ * This middleware must run after authentication
+ * and before Project media upload processing.
+ */
+
+export async function requireProjectOwnership(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth?.userId,
+      projectId: request.params.projectId,
+    });
+
+    request.authorizedProject = project;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+========================================
+FILE: src\database\migrations\008_project_documents.sql
+========================================
+
+/*
+ * Portfolio Platform
+ * Project Document Metadata
+ * Migration 008
+ *
+ * Stores metadata only.
+ * Document bytes remain in private filesystem storage.
+ *
+ * Do not add GO statements.
+ */
+
+CREATE TABLE dbo.project_documents
+(
+    id UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT DF_project_documents_id
+        DEFAULT NEWID(),
+
+    project_id NVARCHAR(200) NOT NULL,
+
+    user_id UNIQUEIDENTIFIER NOT NULL,
+
+    storage_key NVARCHAR(500) NOT NULL,
+
+    original_file_name NVARCHAR(255) NOT NULL,
+
+    mime_type NVARCHAR(150) NOT NULL,
+
+    file_size BIGINT NOT NULL,
+
+    created_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_project_documents_created_at
+        DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT PK_project_documents
+        PRIMARY KEY CLUSTERED (id),
+
+    CONSTRAINT FK_project_documents_project_owner
+        FOREIGN KEY (project_id, user_id)
+        REFERENCES dbo.projects(id, user_id),
+
+    CONSTRAINT UQ_project_documents_storage_key
+        UNIQUE (storage_key),
+
+    CONSTRAINT CK_project_documents_storage_key
+        CHECK (LEN(LTRIM(RTRIM(storage_key))) > 0),
+
+    CONSTRAINT CK_project_documents_original_file_name
+        CHECK (LEN(LTRIM(RTRIM(original_file_name))) > 0),
+
+    CONSTRAINT CK_project_documents_file_size
+        CHECK (file_size BETWEEN 1 AND 20971520),
+
+    CONSTRAINT CK_project_documents_mime_type
+        CHECK (
+            mime_type IN (
+                N'application/pdf',
+                N'application/msword',
+                N'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                N'application/vnd.ms-powerpoint',
+                N'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                N'application/vnd.ms-excel',
+                N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                N'text/plain',
+                N'text/markdown',
+                N'text/csv',
+                N'application/json',
+                N'application/zip',
+                N'image/jpeg',
+                N'image/png',
+                N'image/webp'
+            )
+        )
+);
+
+CREATE INDEX IX_project_documents_project_created
+    ON dbo.project_documents (project_id, created_at DESC);
+
+CREATE INDEX IX_project_documents_user_project
+    ON dbo.project_documents (user_id, project_id);
