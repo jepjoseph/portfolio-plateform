@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -16,7 +17,7 @@ import {
   restoreExperience as restoreExperienceService,
   updateExperience as updateExperienceService,
   validateExperienceDraft as validateExperienceDraftService,
-} from "../services/Experience/experienceService.js";
+} from "../services/Experience/experienceContextCompatibility.js";
 
 /*
  * =========================================
@@ -76,6 +77,9 @@ function normalizeContextError(error) {
 
 export function ExperienceDataProvider({ children }) {
   const [experiences, setExperiences] = useState([]);
+
+  const experiencesRef = useRef(experiences);
+  experiencesRef.current = experiences;
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -306,6 +310,7 @@ export function ExperienceDataProvider({ children }) {
       });
 
       const updatedExperience = await updateExperienceService(
+        experiencesRef.current,
         experienceId,
         updates,
       );
@@ -359,7 +364,7 @@ export function ExperienceDataProvider({ children }) {
         status: "loading",
       });
 
-      const archivedExperience = await archiveExperienceService(experienceId);
+      const archivedExperience = await archiveExperienceService(experiencesRef.current, experienceId);
 
       setExperiences((currentExperiences) =>
         currentExperiences.map((experience) =>
@@ -410,7 +415,7 @@ export function ExperienceDataProvider({ children }) {
         status: "loading",
       });
 
-      const restoredExperience = await restoreExperienceService(experienceId);
+      const restoredExperience = await restoreExperienceService(experiencesRef.current, experienceId);
 
       setExperiences((currentExperiences) =>
         currentExperiences.map((experience) =>
@@ -461,7 +466,7 @@ export function ExperienceDataProvider({ children }) {
         status: "loading",
       });
 
-      const deletionResult = await deleteExperienceService(experienceId);
+      const deletionResult = await deleteExperienceService(experiencesRef.current, experienceId);
 
       setExperiences((currentExperiences) =>
         currentExperiences.filter(

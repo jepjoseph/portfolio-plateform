@@ -1,0 +1,434 @@
+﻿const CATEGORIES = new Set([
+  "employment", "internship", "freelance", "self-employment",
+  "volunteer", "leadership", "research", "teaching",
+  "military", "other",
+]);
+
+const EMPLOYMENT_TYPES = new Set([
+  "full-time", "part-time", "contract", "temporary",
+  "internship", "apprenticeship", "freelance",
+  "self-employed", "volunteer", "seasonal", "other",
+]);
+
+const WORK_ARRANGEMENTS = new Set([
+  "on-site", "remote", "hybrid", "field-based",
+  "travel-based", "other",
+]);
+
+const STATUSES = new Set(["active", "archived"]);
+const PROFICIENCIES = new Set([
+  "", "foundational", "intermediate", "advanced", "expert",
+]);
+
+const LIMITS = {
+  "position.title": 200,
+  "organization.name": 200,
+  "organization.website": 500,
+  "organization.industry": 150,
+  "location.city": 120,
+  "location.stateRegion": 120,
+  "location.country": 120,
+  "location.displayValue": 300,
+  "overview": 3000,
+  "leadership.description": 1500,
+  "privateInformation.reasonForLeaving": 1000,
+  "privateInformation.notes": 3000,
+};
+
+const COLLECTION_LIMITS = {
+  responsibilities: 30,
+  achievements: 30,
+  skills: 50,
+  technologies: 50,
+  relatedProjectIds: 30,
+};
+
+const SERVER_FIELDS = [
+  "userId", "user_id", "createdAt", "updatedAt",
+  "rowVersion", "recordStatus", "record_status",
+];
+
+const ID_PATTERN =
+  /^experience-(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d{13}-[a-z0-9]{8})$/i;
+
+const DATE_PATTERN =
+  /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
+
+function isObject(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function createValidationError(errors) {
+  const error = new Error("Experience validation failed.");
+  error.name = "ExperienceValidationError";
+  error.code = "EXPERIENCE_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Please correct the Experience information.";
+  error.errors = errors;
+  error.fieldErrors = {};
+
+  for (const item of errors) {
+    if (!error.fieldErrors[item.field]) {
+      error.fieldErrors[item.field] = item.message;
+    }
+  }
+
+  return error;
+}
+
+function addError(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function checkText(errors, field, value, max, required = false) {
+  if (value !== undefined && typeof value !== "string") {
+    addError(errors, field, "invalid_type", "Must be text.");
+    return;
+  }
+
+  if (required && !text(value)) {
+    addError(errors, field, "required", "This field is required.");
+  }
+
+  if (typeof value === "string" && value.trim().length > max) {
+    addError(errors, field, "too_long", `Maximum ${max} characters.`);
+  }
+}
+
+function checkObject(errors, source, key) {
+  if (!isObject(source[key])) {
+    addError(errors, key, "invalid_type", "Must be an object.");
+    return {};
+  }
+
+  return source[key];
+}
+
+function checkBoolean(errors, field, value) {
+  if (value !== undefined && typeof value !== "boolean") {
+    addError(errors, field, "invalid_type", "Must be a boolean.");
+  }
+}
+
+function checkOption(errors, field, value, allowed) {
+  if (!allowed.has(value)) {
+    addError(errors, field, "invalid_option", "Invalid selection.");
+  }
+}
+
+function validDate(value) {
+  const match = typeof value === "string"
+    ? value.match(DATE_PATTERN)
+    : null;
+
+  if (!match) return false;
+  if (!match[3]) return true;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
+}
+
+function comparableDate(value, endOfMonth = false) {
+  const [year, month, suppliedDay] = value.split("-").map(Number);
+  const day = suppliedDay ||
+    (endOfMonth ? new Date(Date.UTC(year, month, 0)).getUTCDate() : 1);
+
+  return Date.UTC(year, month - 1, day);
+}
+
+function checkDates(errors, dates) {
+  const start = dates.startDate;
+  const end = dates.endDate;
+  const current = dates.isCurrent;
+
+  checkBoolean(errors, "dates.isCurrent", current);
+
+  if (!validDate(start)) {
+    addError(errors, "dates.startDate", "invalid_date",
+      "A valid start date is required.");
+  }
+
+  if (current === true && text(end)) {
+    addError(errors, "dates.endDate", "current_position_has_end_date",
+      "A current position cannot have an end date.");
+  }
+
+  if (current !== true && !text(end)) {
+    addError(errors, "dates.endDate", "required",
+      "An end date is required for a previous position.");
+  } else if (text(end) && !validDate(end)) {
+    addError(errors, "dates.endDate", "invalid_date",
+      "Invalid end date.");
+  }
+
+  if (validDate(start) && validDate(end) &&
+      comparableDate(end, true) < comparableDate(start)) {
+    addError(errors, "dates.endDate", "invalid_date_order",
+      "End date cannot precede start date.");
+  }
+}
+
+function checkCollection(errors, experience, name) {
+  const values = experience[name];
+
+  if (values === undefined) return;
+
+  if (!Array.isArray(values)) {
+    addError(errors, name, "invalid_type", "Must be an array.");
+    return;
+  }
+
+  if (values.length > COLLECTION_LIMITS[name]) {
+    addError(errors, name, "too_many_items",
+      `Maximum ${COLLECTION_LIMITS[name]} items.`);
+  }
+}
+
+function checkUnique(errors, values, field, identity) {
+  const seen = new Set();
+
+  values.forEach((item, index) => {
+    const key = identity(item).trim().toLowerCase();
+    if (!key) return;
+
+    if (seen.has(key)) {
+      addError(errors, `${field}.${index}`, "duplicate",
+        "Duplicate entry.");
+    }
+    seen.add(key);
+  });
+}
+
+function checkRelationships(errors, values, kind) {
+  if (!Array.isArray(values)) return;
+
+  values.forEach((value, index) => {
+    const prefix = `${kind}.${index}`;
+
+    if (!isObject(value)) {
+      addError(errors, prefix, "invalid_type", "Must be an object.");
+      return;
+    }
+
+    const skillId = text(value.skillId || value.profileSkillId);
+    const snapshot = text(
+      value.nameSnapshot || value.name || value.label || value.value
+    );
+
+    if (!skillId && !snapshot) {
+      addError(errors, `${prefix}.skillId`, "required",
+        "Select a saved skill or provide its name.");
+    }
+
+    if (skillId && !snapshot) {
+      addError(errors, `${prefix}.nameSnapshot`, "required_snapshot",
+        "A name snapshot is required.");
+    }
+
+    for (const field of ["id", "skillId"]) {
+      if (value[field] !== undefined) {
+        checkText(errors, `${prefix}.${field}`, value[field], 200);
+      }
+    }
+
+    const levelField = kind === "skills" ? "level" : "proficiency";
+    const level = value[levelField] ?? "";
+
+    checkOption(errors, `${prefix}.${levelField}`, level, PROFICIENCIES);
+
+    if (value.order !== undefined &&
+        (!Number.isInteger(value.order) || value.order < 0)) {
+      addError(errors, `${prefix}.order`, "invalid_order",
+        "Order must be a nonnegative integer.");
+    }
+
+    const limits = kind === "skills"
+      ? { nameSnapshot: 150, categorySnapshot: 100,
+          typeSnapshot: 100, usageDescription: 500 }
+      : { nameSnapshot: 150, name: 150,
+          category: 100, usageDescription: 500 };
+
+    for (const [field, max] of Object.entries(limits)) {
+      checkText(errors, `${prefix}.${field}`, value[field], max);
+    }
+  });
+
+  checkUnique(errors, values, kind, (value) => {
+    if (!isObject(value)) return "";
+    const id = text(value.skillId || value.profileSkillId);
+    const name = text(value.nameSnapshot || value.name);
+    return id ? `id:${id}` : `name:${name}`;
+  });
+}
+
+export function parseExperienceInput(value) {
+  const errors = [];
+
+  if (!isObject(value)) {
+    throw createValidationError([{
+      field: "experience",
+      code: "invalid_type",
+      message: "Experience must be an object.",
+    }]);
+  }
+
+  for (const field of SERVER_FIELDS) {
+    if (Object.hasOwn(value, field)) {
+      addError(errors, field, "server_owned",
+        "This field is managed by the server.");
+    }
+  }
+
+  if (typeof value.id !== "string" ||
+      value.id.length > 200 || !ID_PATTERN.test(value.id)) {
+    addError(errors, "id", "invalid_identifier",
+      "A valid Experience ID is required.");
+  }
+
+  checkOption(errors, "category", value.category, CATEGORIES);
+  checkOption(errors, "status", value.status, STATUSES);
+
+  const position = checkObject(errors, value, "position");
+  const organization = checkObject(errors, value, "organization");
+  const dates = checkObject(errors, value, "dates");
+
+  checkOption(errors, "position.employmentType",
+    position.employmentType, EMPLOYMENT_TYPES);
+  checkOption(errors, "position.workArrangement",
+    position.workArrangement, WORK_ARRANGEMENTS);
+
+  for (const [field, max] of Object.entries(LIMITS)) {
+    const [section, property] = field.split(".");
+    const fieldValue = property ? value[section]?.[property] : value[field];
+
+    checkText(errors, field, fieldValue, max,
+      field === "position.title" || field === "organization.name");
+  }
+
+  if (value.organization?.website) {
+    const website = text(value.organization.website);
+
+    try {
+      const normalized = /^https?:\/\//i.test(website)
+        ? website : `https://${website}`;
+      const url = new URL(normalized);
+
+      if (!["http:", "https:"].includes(url.protocol) || !url.hostname) {
+        throw new Error("Invalid URL");
+      }
+    } catch {
+      addError(errors, "organization.website", "invalid_url",
+        "A valid website is required.");
+    }
+  }
+
+  checkDates(errors, dates);
+
+  for (const name of Object.keys(COLLECTION_LIMITS)) {
+    checkCollection(errors, value, name);
+  }
+
+  for (const kind of ["responsibilities", "achievements"]) {
+    const values = value[kind];
+    if (!Array.isArray(values)) continue;
+
+    values.forEach((item, index) => {
+      const itemText = typeof item === "string"
+        ? item : isObject(item) ? item.text : "";
+
+      checkText(errors, `${kind}.${index}.text`, itemText,
+        kind === "responsibilities" ? 1500 : 1500, true);
+
+      if (kind === "achievements" && isObject(item)) {
+        checkText(errors, `${kind}.${index}.metric`, item.metric, 300);
+      }
+    });
+
+    checkUnique(errors, values, kind, (item) =>
+      typeof item === "string" ? item : text(item?.text));
+  }
+
+  checkRelationships(errors, value.skills, "skills");
+  checkRelationships(errors, value.technologies, "technologies");
+
+  if (Array.isArray(value.relatedProjectIds)) {
+    value.relatedProjectIds.forEach((id, index) => {
+      checkText(errors, `relatedProjectIds.${index}`, id, 200, true);
+    });
+
+    checkUnique(errors, value.relatedProjectIds,
+      "relatedProjectIds", (id) => text(id));
+  }
+
+  for (const name of ["location", "leadership",
+    "privateInformation", "visibility", "overviewMeta"]) {
+    if (value[name] !== undefined && !isObject(value[name])) {
+      addError(errors, name, "invalid_type", "Must be an object.");
+    }
+  }
+
+  const leadership = isObject(value.leadership) ? value.leadership : {};
+  checkBoolean(errors, "leadership.hasLeadershipResponsibilities",
+    leadership.hasLeadershipResponsibilities);
+
+  const people = leadership.peopleManaged;
+  if (people !== undefined && people !== null && people !== "") {
+    const number = Number(people);
+
+    if (!Number.isInteger(number) || number < 0 || number > 100000) {
+      addError(errors, "leadership.peopleManaged", "invalid_number",
+        "People managed must be between 0 and 100000.");
+    }
+  }
+
+  if (isObject(value.visibility)) {
+    for (const [key, enabled] of Object.entries(value.visibility)) {
+      checkBoolean(errors, `visibility.${key}`, enabled);
+    }
+  }
+
+  const hasOverview = Boolean(text(value.overview));
+  const hasResponsibility = Array.isArray(value.responsibilities) &&
+    value.responsibilities.some((item) =>
+      Boolean(text(typeof item === "string" ? item : item?.text)));
+  const hasAchievement = Array.isArray(value.achievements) &&
+    value.achievements.some((item) =>
+      Boolean(text(typeof item === "string" ? item : item?.text)));
+
+  if (!hasOverview && !hasResponsibility && !hasAchievement) {
+    addError(errors, "overview", "insufficient_content",
+      "Provide an overview, responsibility, or achievement.");
+  }
+
+  if (errors.length) {
+    throw createValidationError(errors);
+  }
+
+  return structuredClone(value);
+}
+
+export function parseExperienceRowVersion(value) {
+  if (typeof value !== "string" ||
+      !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(value) ||
+      Buffer.from(value, "base64").length !== 8) {
+    throw createValidationError([{
+      field: "rowVersion",
+      code: "EXPERIENCE_VERSION_INVALID",
+      message: "A valid Experience version is required.",
+    }]);
+  }
+
+  return value;
+}

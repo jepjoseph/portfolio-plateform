@@ -1,0 +1,29 @@
+﻿EXPERIENCE API TEST RESULTS
+Generated: 2026-10-26 17:39:07
+Exit code: 0
+
+Γ£ö removes server-owned fields (1.1634ms)
+Γ£ö does not mutate the original experience (0.9886ms)
+Γ£ö rejects invalid experience objects (0.5708ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.2077ms)
+Γ£ö rejects invalid rowVersion values (0.3787ms)
+Γ£ö GET retrieves the Experience collection (31.1946ms)
+Γ£ö GET retrieves one Experience by ID (0.6605ms)
+Γ£ö POST creates an Experience without server-owned fields (0.8539ms)
+Γ£ö PUT updates an Experience with rowVersion (0.9051ms)
+Γ£ö PATCH archives an Experience with rowVersion (0.8296ms)
+Γ£ö PATCH restores an archived Experience (0.6536ms)
+Γ£ö DELETE sends rowVersion in the request body (0.6715ms)
+Γ£ö rejects invalid rowVersion before sending a request (1.7052ms)
+Γ£ö rejects invalid Experience IDs (0.3111ms)
+Γ£ö preserves backend validation errors (1.1564ms)
+Γ£ö preserves concurrency conflict errors (0.7518ms)
+Γ£ö preserves authentication errors (0.681ms)
+Γä╣ tests 17
+Γä╣ suites 0
+Γä╣ pass 17
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 171.6427

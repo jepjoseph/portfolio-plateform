@@ -1,0 +1,442 @@
+﻿EXPERIENCE SCHEMA PATCH INSPECTION
+File: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\experienceSchemas.js
+Total lines: 434
+SHA256: 264A7D2D7D10C664FFCAA44B7C37C8A05DA0F2A32CB4228E3FF79F52B2CB384A
+
+========================================
+COMPLETE SCHEMA WITH LINE NUMBERS
+========================================
+   1: const CATEGORIES = new Set([
+   2:   "employment", "internship", "freelance", "self-employment",
+   3:   "volunteer", "leadership", "research", "teaching",
+   4:   "military", "other",
+   5: ]);
+   6: 
+   7: const EMPLOYMENT_TYPES = new Set([
+   8:   "full-time", "part-time", "contract", "temporary",
+   9:   "internship", "apprenticeship", "freelance",
+  10:   "self-employed", "volunteer", "seasonal", "other",
+  11: ]);
+  12: 
+  13: const WORK_ARRANGEMENTS = new Set([
+  14:   "on-site", "remote", "hybrid", "field-based",
+  15:   "travel-based", "other",
+  16: ]);
+  17: 
+  18: const STATUSES = new Set(["active", "archived"]);
+  19: const PROFICIENCIES = new Set([
+  20:   "", "foundational", "intermediate", "advanced", "expert",
+  21: ]);
+  22: 
+  23: const LIMITS = {
+  24:   "position.title": 200,
+  25:   "organization.name": 200,
+  26:   "organization.website": 500,
+  27:   "organization.industry": 150,
+  28:   "location.city": 120,
+  29:   "location.stateRegion": 120,
+  30:   "location.country": 120,
+  31:   "location.displayValue": 300,
+  32:   "overview": 3000,
+  33:   "leadership.description": 1500,
+  34:   "privateInformation.reasonForLeaving": 1000,
+  35:   "privateInformation.notes": 3000,
+  36: };
+  37: 
+  38: const COLLECTION_LIMITS = {
+  39:   responsibilities: 30,
+  40:   achievements: 30,
+  41:   skills: 50,
+  42:   technologies: 50,
+  43:   relatedProjectIds: 30,
+  44: };
+  45: 
+  46: const SERVER_FIELDS = [
+  47:   "userId", "user_id", "createdAt", "updatedAt",
+  48:   "rowVersion", "recordStatus", "record_status",
+  49: ];
+  50: 
+  51: const ID_PATTERN =
+  52:   /^experience-(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d{13}-[a-z0-9]{8})$/i;
+  53: 
+  54: const DATE_PATTERN =
+  55:   /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
+  56: 
+  57: function isObject(value) {
+  58:   return value !== null &&
+  59:     typeof value === "object" &&
+  60:     !Array.isArray(value);
+  61: }
+  62: 
+  63: function createValidationError(errors) {
+  64:   const error = new Error("Experience validation failed.");
+  65:   error.name = "ExperienceValidationError";
+  66:   error.code = "EXPERIENCE_VALIDATION_FAILED";
+  67:   error.status = 400;
+  68:   error.publicMessage = "Please correct the Experience information.";
+  69:   error.errors = errors;
+  70:   error.fieldErrors = {};
+  71: 
+  72:   for (const item of errors) {
+  73:     if (!error.fieldErrors[item.field]) {
+  74:       error.fieldErrors[item.field] = item.message;
+  75:     }
+  76:   }
+  77: 
+  78:   return error;
+  79: }
+  80: 
+  81: function addError(errors, field, code, message) {
+  82:   errors.push({ field, code, message });
+  83: }
+  84: 
+  85: function text(value) {
+  86:   return typeof value === "string" ? value.trim() : "";
+  87: }
+  88: 
+  89: function checkText(errors, field, value, max, required = false) {
+  90:   if (value !== undefined && typeof value !== "string") {
+  91:     addError(errors, field, "invalid_type", "Must be text.");
+  92:     return;
+  93:   }
+  94: 
+  95:   if (required && !text(value)) {
+  96:     addError(errors, field, "required", "This field is required.");
+  97:   }
+  98: 
+  99:   if (typeof value === "string" && value.trim().length > max) {
+ 100:     addError(errors, field, "too_long", `Maximum ${max} characters.`);
+ 101:   }
+ 102: }
+ 103: 
+ 104: function checkObject(errors, source, key) {
+ 105:   if (!isObject(source[key])) {
+ 106:     addError(errors, key, "invalid_type", "Must be an object.");
+ 107:     return {};
+ 108:   }
+ 109: 
+ 110:   return source[key];
+ 111: }
+ 112: 
+ 113: function checkBoolean(errors, field, value) {
+ 114:   if (value !== undefined && typeof value !== "boolean") {
+ 115:     addError(errors, field, "invalid_type", "Must be a boolean.");
+ 116:   }
+ 117: }
+ 118: 
+ 119: function checkOption(errors, field, value, allowed) {
+ 120:   if (!allowed.has(value)) {
+ 121:     addError(errors, field, "invalid_option", "Invalid selection.");
+ 122:   }
+ 123: }
+ 124: 
+ 125: function validDate(value) {
+ 126:   const match = typeof value === "string"
+ 127:     ? value.match(DATE_PATTERN)
+ 128:     : null;
+ 129: 
+ 130:   if (!match) return false;
+ 131:   if (!match[3]) return true;
+ 132: 
+ 133:   const year = Number(match[1]);
+ 134:   const month = Number(match[2]);
+ 135:   const day = Number(match[3]);
+ 136:   const date = new Date(Date.UTC(year, month - 1, day));
+ 137: 
+ 138:   return date.getUTCFullYear() === year &&
+ 139:     date.getUTCMonth() === month - 1 &&
+ 140:     date.getUTCDate() === day;
+ 141: }
+ 142: 
+ 143: function comparableDate(value, endOfMonth = false) {
+ 144:   const [year, month, suppliedDay] = value.split("-").map(Number);
+ 145:   const day = suppliedDay ||
+ 146:     (endOfMonth ? new Date(Date.UTC(year, month, 0)).getUTCDate() : 1);
+ 147: 
+ 148:   return Date.UTC(year, month - 1, day);
+ 149: }
+ 150: 
+ 151: function checkDates(errors, dates) {
+ 152:   const start = dates.startDate;
+ 153:   const end = dates.endDate;
+ 154:   const current = dates.isCurrent;
+ 155: 
+ 156:   checkBoolean(errors, "dates.isCurrent", current);
+ 157: 
+ 158:   if (!validDate(start)) {
+ 159:     addError(errors, "dates.startDate", "invalid_date",
+ 160:       "A valid start date is required.");
+ 161:   }
+ 162: 
+ 163:   if (current === true && text(end)) {
+ 164:     addError(errors, "dates.endDate", "current_position_has_end_date",
+ 165:       "A current position cannot have an end date.");
+ 166:   }
+ 167: 
+ 168:   if (current !== true && !text(end)) {
+ 169:     addError(errors, "dates.endDate", "required",
+ 170:       "An end date is required for a previous position.");
+ 171:   } else if (text(end) && !validDate(end)) {
+ 172:     addError(errors, "dates.endDate", "invalid_date",
+ 173:       "Invalid end date.");
+ 174:   }
+ 175: 
+ 176:   if (validDate(start) && validDate(end) &&
+ 177:       comparableDate(end, true) < comparableDate(start)) {
+ 178:     addError(errors, "dates.endDate", "invalid_date_order",
+ 179:       "End date cannot precede start date.");
+ 180:   }
+ 181: }
+ 182: 
+ 183: function checkCollection(errors, experience, name) {
+ 184:   const values = experience[name];
+ 185: 
+ 186:   if (values === undefined) return;
+ 187: 
+ 188:   if (!Array.isArray(values)) {
+ 189:     addError(errors, name, "invalid_type", "Must be an array.");
+ 190:     return;
+ 191:   }
+ 192: 
+ 193:   if (values.length > COLLECTION_LIMITS[name]) {
+ 194:     addError(errors, name, "too_many_items",
+ 195:       `Maximum ${COLLECTION_LIMITS[name]} items.`);
+ 196:   }
+ 197: }
+ 198: 
+ 199: function checkUnique(errors, values, field, identity) {
+ 200:   const seen = new Set();
+ 201: 
+ 202:   values.forEach((item, index) => {
+ 203:     const key = identity(item).trim().toLowerCase();
+ 204:     if (!key) return;
+ 205: 
+ 206:     if (seen.has(key)) {
+ 207:       addError(errors, `${field}.${index}`, "duplicate",
+ 208:         "Duplicate entry.");
+ 209:     }
+ 210:     seen.add(key);
+ 211:   });
+ 212: }
+ 213: 
+ 214: function checkRelationships(errors, values, kind) {
+ 215:   if (!Array.isArray(values)) return;
+ 216: 
+ 217:   values.forEach((value, index) => {
+ 218:     const prefix = `${kind}.${index}`;
+ 219: 
+ 220:     if (!isObject(value)) {
+ 221:       addError(errors, prefix, "invalid_type", "Must be an object.");
+ 222:       return;
+ 223:     }
+ 224: 
+ 225:     const skillId = text(value.skillId || value.profileSkillId);
+ 226:     const snapshot = text(
+ 227:       value.nameSnapshot || value.name || value.label || value.value
+ 228:     );
+ 229: 
+ 230:     if (!skillId && !snapshot) {
+ 231:       addError(errors, `${prefix}.skillId`, "required",
+ 232:         "Select a saved skill or provide its name.");
+ 233:     }
+ 234: 
+ 235:     if (skillId && !snapshot) {
+ 236:       addError(errors, `${prefix}.nameSnapshot`, "required_snapshot",
+ 237:         "A name snapshot is required.");
+ 238:     }
+ 239: 
+ 240:     for (const field of ["id", "skillId"]) {
+ 241:       if (value[field] !== undefined) {
+ 242:         checkText(errors, `${prefix}.${field}`, value[field], 200);
+ 243:       }
+ 244:     }
+ 245: 
+ 246:     const levelField = kind === "skills" ? "level" : "proficiency";
+ 247:     const level = value[levelField] ?? "";
+ 248: 
+ 249:     checkOption(errors, `${prefix}.${levelField}`, level, PROFICIENCIES);
+ 250: 
+ 251:     if (value.order !== undefined &&
+ 252:         (!Number.isInteger(value.order) || value.order < 0)) {
+ 253:       addError(errors, `${prefix}.order`, "invalid_order",
+ 254:         "Order must be a nonnegative integer.");
+ 255:     }
+ 256: 
+ 257:     const limits = kind === "skills"
+ 258:       ? { nameSnapshot: 150, categorySnapshot: 100,
+ 259:           typeSnapshot: 100, usageDescription: 500 }
+ 260:       : { nameSnapshot: 150, name: 150,
+ 261:           category: 100, usageDescription: 500 };
+ 262: 
+ 263:     for (const [field, max] of Object.entries(limits)) {
+ 264:       checkText(errors, `${prefix}.${field}`, value[field], max);
+ 265:     }
+ 266:   });
+ 267: 
+ 268:   checkUnique(errors, values, kind, (value) => {
+ 269:     if (!isObject(value)) return "";
+ 270:     const id = text(value.skillId || value.profileSkillId);
+ 271:     const name = text(value.nameSnapshot || value.name);
+ 272:     return id ? `id:${id}` : `name:${name}`;
+ 273:   });
+ 274: }
+ 275: 
+ 276: export function parseExperienceInput(value) {
+ 277:   const errors = [];
+ 278: 
+ 279:   if (!isObject(value)) {
+ 280:     throw createValidationError([{
+ 281:       field: "experience",
+ 282:       code: "invalid_type",
+ 283:       message: "Experience must be an object.",
+ 284:     }]);
+ 285:   }
+ 286: 
+ 287:   for (const field of SERVER_FIELDS) {
+ 288:     if (Object.hasOwn(value, field)) {
+ 289:       addError(errors, field, "server_owned",
+ 290:         "This field is managed by the server.");
+ 291:     }
+ 292:   }
+ 293: 
+ 294:   if (typeof value.id !== "string" ||
+ 295:       value.id.length > 200 || !ID_PATTERN.test(value.id)) {
+ 296:     addError(errors, "id", "invalid_identifier",
+ 297:       "A valid Experience ID is required.");
+ 298:   }
+ 299: 
+ 300:   checkOption(errors, "category", value.category, CATEGORIES);
+ 301:   checkOption(errors, "status", value.status, STATUSES);
+ 302: 
+ 303:   const position = checkObject(errors, value, "position");
+ 304:   const organization = checkObject(errors, value, "organization");
+ 305:   const dates = checkObject(errors, value, "dates");
+ 306: 
+ 307:   checkOption(errors, "position.employmentType",
+ 308:     position.employmentType, EMPLOYMENT_TYPES);
+ 309:   checkOption(errors, "position.workArrangement",
+ 310:     position.workArrangement, WORK_ARRANGEMENTS);
+ 311: 
+ 312:   for (const [field, max] of Object.entries(LIMITS)) {
+ 313:     const [section, property] = field.split(".");
+ 314:     const fieldValue = property ? value[section]?.[property] : value[field];
+ 315: 
+ 316:     checkText(errors, field, fieldValue, max,
+ 317:       field === "position.title" || field === "organization.name");
+ 318:   }
+ 319: 
+ 320:   if (value.organization?.website) {
+ 321:     const website = text(value.organization.website);
+ 322: 
+ 323:     try {
+ 324:       const normalized = /^https?:\/\//i.test(website)
+ 325:         ? website : `https://${website}`;
+ 326:       const url = new URL(normalized);
+ 327: 
+ 328:       if (!["http:", "https:"].includes(url.protocol) || !url.hostname) {
+ 329:         throw new Error("Invalid URL");
+ 330:       }
+ 331:     } catch {
+ 332:       addError(errors, "organization.website", "invalid_url",
+ 333:         "A valid website is required.");
+ 334:     }
+ 335:   }
+ 336: 
+ 337:   checkDates(errors, dates);
+ 338: 
+ 339:   for (const name of Object.keys(COLLECTION_LIMITS)) {
+ 340:     checkCollection(errors, value, name);
+ 341:   }
+ 342: 
+ 343:   for (const kind of ["responsibilities", "achievements"]) {
+ 344:     const values = value[kind];
+ 345:     if (!Array.isArray(values)) continue;
+ 346: 
+ 347:     values.forEach((item, index) => {
+ 348:       const itemText = typeof item === "string"
+ 349:         ? item : isObject(item) ? item.text : "";
+ 350: 
+ 351:       checkText(errors, `${kind}.${index}.text`, itemText,
+ 352:         kind === "responsibilities" ? 1500 : 1500, true);
+ 353: 
+ 354:       if (kind === "achievements" && isObject(item)) {
+ 355:         checkText(errors, `${kind}.${index}.metric`, item.metric, 300);
+ 356:       }
+ 357:     });
+ 358: 
+ 359:     checkUnique(errors, values, kind, (item) =>
+ 360:       typeof item === "string" ? item : text(item?.text));
+ 361:   }
+ 362: 
+ 363:   checkRelationships(errors, value.skills, "skills");
+ 364:   checkRelationships(errors, value.technologies, "technologies");
+ 365: 
+ 366:   if (Array.isArray(value.relatedProjectIds)) {
+ 367:     value.relatedProjectIds.forEach((id, index) => {
+ 368:       checkText(errors, `relatedProjectIds.${index}`, id, 200, true);
+ 369:     });
+ 370: 
+ 371:     checkUnique(errors, value.relatedProjectIds,
+ 372:       "relatedProjectIds", (id) => text(id));
+ 373:   }
+ 374: 
+ 375:   for (const name of ["location", "leadership",
+ 376:     "privateInformation", "visibility", "overviewMeta"]) {
+ 377:     if (value[name] !== undefined && !isObject(value[name])) {
+ 378:       addError(errors, name, "invalid_type", "Must be an object.");
+ 379:     }
+ 380:   }
+ 381: 
+ 382:   const leadership = isObject(value.leadership) ? value.leadership : {};
+ 383:   checkBoolean(errors, "leadership.hasLeadershipResponsibilities",
+ 384:     leadership.hasLeadershipResponsibilities);
+ 385: 
+ 386:   const people = leadership.peopleManaged;
+ 387:   if (people !== undefined && people !== null && people !== "") {
+ 388:     const number = Number(people);
+ 389: 
+ 390:     if (!Number.isInteger(number) || number < 0 || number > 100000) {
+ 391:       addError(errors, "leadership.peopleManaged", "invalid_number",
+ 392:         "People managed must be between 0 and 100000.");
+ 393:     }
+ 394:   }
+ 395: 
+ 396:   if (isObject(value.visibility)) {
+ 397:     for (const [key, enabled] of Object.entries(value.visibility)) {
+ 398:       checkBoolean(errors, `visibility.${key}`, enabled);
+ 399:     }
+ 400:   }
+ 401: 
+ 402:   const hasOverview = Boolean(text(value.overview));
+ 403:   const hasResponsibility = Array.isArray(value.responsibilities) &&
+ 404:     value.responsibilities.some((item) =>
+ 405:       Boolean(text(typeof item === "string" ? item : item?.text)));
+ 406:   const hasAchievement = Array.isArray(value.achievements) &&
+ 407:     value.achievements.some((item) =>
+ 408:       Boolean(text(typeof item === "string" ? item : item?.text)));
+ 409: 
+ 410:   if (!hasOverview && !hasResponsibility && !hasAchievement) {
+ 411:     addError(errors, "overview", "insufficient_content",
+ 412:       "Provide an overview, responsibility, or achievement.");
+ 413:   }
+ 414: 
+ 415:   if (errors.length) {
+ 416:     throw createValidationError(errors);
+ 417:   }
+ 418: 
+ 419:   return structuredClone(value);
+ 420: }
+ 421: 
+ 422: export function parseExperienceRowVersion(value) {
+ 423:   if (typeof value !== "string" ||
+ 424:       !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(value) ||
+ 425:       Buffer.from(value, "base64").length !== 8) {
+ 426:     throw createValidationError([{
+ 427:       field: "rowVersion",
+ 428:       code: "EXPERIENCE_VERSION_INVALID",
+ 429:       message: "A valid Experience version is required.",
+ 430:     }]);
+ 431:   }
+ 432: 
+ 433:   return value;
+ 434: }

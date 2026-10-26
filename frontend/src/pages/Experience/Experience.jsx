@@ -106,7 +106,15 @@ function Experience() {
 
   const handleSaveExperience = async (experienceData) => {
     if (editingExperienceId) {
-      await updateExperience(editingExperienceId, experienceData);
+      const {
+        id: _id,
+        rowVersion: _rowVersion,
+        createdAt: _createdAt,
+        updatedAt: _updatedAt,
+        ...editableExperienceData
+      } = experienceData;
+
+      await updateExperience(editingExperienceId, editableExperienceData);
     } else {
       await createExperience(experienceData);
     }

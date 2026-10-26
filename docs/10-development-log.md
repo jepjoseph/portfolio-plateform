@@ -159,3 +159,20 @@ No database or API calls have been introduced yet.
 
 Build the Professional Summary component as a separate reusable
 portfolio component.
+
+
+## Experience Page Migration Process
+Our next implementation sequence
+Step	Component	Action
+8A	Experience model	Finalize SQL field mapping
+8B	Migration 009	Create Experience table
+8C	Experience repository	Implement SQL operations
+8D	Experience service	Implement business logic
+8E	Experience controller	Implement request handling
+8F	Experience routes	Register authenticated endpoints
+8G	Backend tests	Verify CRUD, ownership, and concurrency
+8H	Frontend integration	Replace localStorage persistence with API
+8I	Existing record	Import safely into Azure SQL
+8J	Migration 010	Create document metadata table
+8K	Document API	Implement secure upload and retrieval
+8L	Experience UI	Add document management

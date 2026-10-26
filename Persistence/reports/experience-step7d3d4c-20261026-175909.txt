@@ -1,0 +1,1576 @@
+﻿STEP 7D.3D.4C - INTEGRATION DEPENDENCIES
+Timestamp: 20261026-175909
+Mode: READ ONLY
+
+================================================================================
+FILE: src\models\experienceModel.js
+SHA256: 92C26FCAE6C2CB1508556DFD646AADAC2094E6606C54E5840D665CDCA2EF0910
+   1: import {
+   2:   EXPERIENCE_FIELD_LIMITS,
+   3:   isValidEmploymentType,
+   4:   isValidExperienceCategory,
+   5:   isValidExperienceStatus,
+   6:   isValidWorkArrangement,
+   7: } from "../config/experienceConfig.js";
+   8: 
+   9: /*
+  10:  * =========================================
+  11:  * Model Version
+  12:  * =========================================
+  13:  *
+  14:  * This allows saved browser data and future
+  15:  * database records to be migrated safely.
+  16:  */
+  17: 
+  18: export const EXPERIENCE_MODEL_VERSION = 2;
+  19: 
+  20: /*
+  21:  * =========================================
+  22:  * ID Creation
+  23:  * =========================================
+  24:  */
+  25: 
+  26: export function createExperienceId(prefix = "experience") {
+  27:   if (
+  28:     typeof crypto !== "undefined" &&
+  29:     typeof crypto.randomUUID === "function"
+  30:   ) {
+  31:     return `${prefix}-${crypto.randomUUID()}`;
+  32:   }
+  33: 
+  34:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  35: }
+  36: 
+  37: /*
+  38:  * =========================================
+  39:  * Primitive Normalization
+  40:  * =========================================
+  41:  */
+  42: 
+  43: function normalizeText(value, maximumLength = Infinity) {
+  44:   if (typeof value !== "string") {
+  45:     return "";
+  46:   }
+  47: 
+  48:   return value.trim().slice(0, maximumLength);
+  49: }
+  50: 
+  51: function normalizeBoolean(value, defaultValue = false) {
+  52:   return typeof value === "boolean" ? value : defaultValue;
+  53: }
+  54: 
+  55: function normalizeNullableNumber(value) {
+  56:   if (value === "" || value === null || value === undefined) {
+  57:     return null;
+  58:   }
+  59: 
+  60:   const numberValue = Number(value);
+  61: 
+  62:   if (!Number.isFinite(numberValue)) {
+  63:     return null;
+  64:   }
+  65: 
+  66:   return Math.max(0, Math.trunc(numberValue));
+  67: }
+  68: 
+  69: function normalizeDate(value) {
+  70:   if (typeof value !== "string") {
+  71:     return "";
+  72:   }
+  73: 
+  74:   const trimmedValue = value.trim();
+  75: 
+  76:   if (!trimmedValue) {
+  77:     return "";
+  78:   }
+  79: 
+  80:   /*
+  81:    * The form uses YYYY-MM values, but this also
+  82:    * permits YYYY-MM-DD records imported later.
+  83:    */
+  84: 
+  85:   if (
+  86:     !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(trimmedValue)
+  87:   ) {
+  88:     return "";
+  89:   }
+  90: 
+  91:   return trimmedValue;
+  92: }
+  93: 
+  94: function normalizeIdentifierList(values, maximumItems) {
+  95:   if (!Array.isArray(values)) {
+  96:     return [];
+  97:   }
+  98: 
+  99:   return [
+ 100:     ...new Set(
+ 101:       values
+ 102:         .map((value) => {
+ 103:           if (typeof value === "string") {
+ 104:             return value.trim();
+ 105:           }
+ 106: 
+ 107:           return String(value?.id || "").trim();
+ 108:         })
+ 109:         .filter(Boolean),
+ 110:     ),
+ 111:   ].slice(0, maximumItems);
+ 112: }
+ 113: 
+ 114: /*
+ 115:  * =========================================
+ 116:  * Responsibility Model
+ 117:  * =========================================
+ 118:  */
+ 119: 
+ 120: export function createResponsibility(value = {}) {
+ 121:   const source =
+ 122:     typeof value === "string"
+ 123:       ? {
+ 124:           text: value,
+ 125:         }
+ 126:       : value || {};
+ 127: 
+ 128:   return {
+ 129:     id: normalizeText(source.id, 200) || createExperienceId("responsibility"),
+ 130: 
+ 131:     text: normalizeText(
+ 132:       source.text || source.description,
+ 133:       EXPERIENCE_FIELD_LIMITS.responsibilityText,
+ 134:     ),
+ 135: 
+ 136:     order:
+ 137:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+ 138:   };
+ 139: }
+ 140: 
+ 141: function normalizeResponsibilities(values) {
+ 142:   if (!Array.isArray(values)) {
+ 143:     return [];
+ 144:   }
+ 145: 
+ 146:   return values
+ 147:     .map(createResponsibility)
+ 148:     .filter((responsibility) => responsibility.text)
+ 149:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumResponsibilities)
+ 150:     .map((responsibility, index) => ({
+ 151:       ...responsibility,
+ 152:       order: index,
+ 153:     }));
+ 154: }
+ 155: 
+ 156: /*
+ 157:  * =========================================
+ 158:  * Achievement Model
+ 159:  * =========================================
+ 160:  */
+ 161: 
+ 162: export function createAchievement(value = {}) {
+ 163:   const source =
+ 164:     typeof value === "string"
+ 165:       ? {
+ 166:           text: value,
+ 167:         }
+ 168:       : value || {};
+ 169: 
+ 170:   return {
+ 171:     id: normalizeText(source.id, 200) || createExperienceId("achievement"),
+ 172: 
+ 173:     text: normalizeText(
+ 174:       source.text || source.description || source.value,
+ 175:       EXPERIENCE_FIELD_LIMITS.achievementText,
+ 176:     ),
+ 177: 
+ 178:     metric: normalizeText(
+ 179:       source.metric,
+ 180:       EXPERIENCE_FIELD_LIMITS.achievementMetric,
+ 181:     ),
+ 182: 
+ 183:     order:
+ 184:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+ 185:   };
+ 186: }
+ 187: 
+ 188: function normalizeAchievements(values) {
+ 189:   if (!Array.isArray(values)) {
+ 190:     return [];
+ 191:   }
+ 192: 
+ 193:   return values
+ 194:     .map(createAchievement)
+ 195:     .filter((achievement) => achievement.text)
+ 196:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumAchievements)
+ 197:     .map((achievement, index) => ({
+ 198:       ...achievement,
+ 199:       order: index,
+ 200:     }));
+ 201: }
+ 202: /*
+ 203:  * =========================================
+ 204:  * Experience Skill Model
+ 205:  * =========================================
+ 206:  */
+ 207: 
+ 208: export function createExperienceSkill(value = {}) {
+ 209:   const source =
+ 210:     typeof value === "string"
+ 211:       ? {
+ 212:           nameSnapshot: value,
+ 213:         }
+ 214:       : value && typeof value === "object"
+ 215:         ? value
+ 216:         : {};
+ 217: 
+ 218:   const sourceProficiency =
+ 219:     source.proficiency && typeof source.proficiency === "object"
+ 220:       ? source.proficiency.level
+ 221:       : source.proficiency;
+ 222: 
+ 223:   return {
+ 224:     id: normalizeText(source.id, 200) || createExperienceId("experience-skill"),
+ 225: 
+ 226:     /*
+ 227:      * Permanent relationship to the central
+ 228:      * Skill Library.
+ 229:      */
+ 230: 
+ 231:     skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+ 232: 
+ 233:     /*
+ 234:      * The snapshot keeps the Experience readable
+ 235:      * if the central Skill record is renamed,
+ 236:      * archived, deleted, or temporarily unavailable.
+ 237:      */
+ 238: 
+ 239:     nameSnapshot: normalizeText(
+ 240:       source.nameSnapshot || source.name || source.label || source.value,
+ 241:       EXPERIENCE_FIELD_LIMITS.skillName,
+ 242:     ),
+ 243: 
+ 244:     /*
+ 245:      * Classification snapshots are optional.
+ 246:      * The current central Skill record remains the
+ 247:      * preferred source when it is available.
+ 248:      */
+ 249: 
+ 250:     categorySnapshot: normalizeText(
+ 251:       source.categorySnapshot || source.category,
+ 252:       EXPERIENCE_FIELD_LIMITS.skillCategory,
+ 253:     ),
+ 254: 
+ 255:     typeSnapshot: normalizeText(
+ 256:       source.typeSnapshot || source.type,
+ 257:       EXPERIENCE_FIELD_LIMITS.skillType,
+ 258:     ),
+ 259: 
+ 260:     /*
+ 261:      * Experience-specific proficiency can differ
+ 262:      * from the general Skill Library proficiency.
+ 263:      */
+ 264: 
+ 265:     level: normalizeText(
+ 266:       source.level || sourceProficiency,
+ 267:       EXPERIENCE_FIELD_LIMITS.skillLevel,
+ 268:     ),
+ 269: 
+ 270:     /*
+ 271:      * Optional explanation of how the skill was
+ 272:      * applied specifically in this Experience.
+ 273:      */
+ 274: 
+ 275:     usageDescription: normalizeText(
+ 276:       source.usageDescription || source.description,
+ 277:       EXPERIENCE_FIELD_LIMITS.skillUsageDescription,
+ 278:     ),
+ 279: 
+ 280:     order:
+ 281:       Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+ 282:         ? Number(source.order)
+ 283:         : 0,
+ 284:   };
+ 285: }
+ 286: 
+ 287: function normalizeExperienceSkills(values) {
+ 288:   if (!Array.isArray(values)) {
+ 289:     return [];
+ 290:   }
+ 291: 
+ 292:   const normalizedSkills = values
+ 293:     .map(createExperienceSkill)
+ 294:     .filter((skill) => skill.skillId || skill.nameSnapshot);
+ 295: 
+ 296:   const seenIdentities = new Set();
+ 297: 
+ 298:   return normalizedSkills
+ 299:     .filter((skill) => {
+ 300:       const identity = skill.skillId
+ 301:         ? `id:${skill.skillId}`
+ 302:         : `name:${skill.nameSnapshot
+ 303:             .normalize("NFKC")
+ 304:             .toLocaleLowerCase()
+ 305:             .replace(/\s+/g, " ")
+ 306:             .trim()}`;
+ 307: 
+ 308:       if (seenIdentities.has(identity)) {
+ 309:         return false;
+ 310:       }
+ 311: 
+ 312:       seenIdentities.add(identity);
+ 313: 
+ 314:       return true;
+ 315:     })
+ 316:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumSkills)
+ 317:     .map((skill, index) => ({
+ 318:       ...skill,
+ 319:       order: index,
+ 320:     }));
+ 321: }
+ 322: 
+ 323: /*
+ 324:  * =========================================
+ 325:  * Experience Technology Model
+ 326:  * =========================================
+ 327:  */
+ 328: 
+ 329: export function createExperienceTechnology(value = {}) {
+ 330:   const source =
+ 331:     typeof value === "string"
+ 332:       ? {
+ 333:           nameSnapshot: value,
+ 334:         }
+ 335:       : value && typeof value === "object"
+ 336:         ? value
+ 337:         : {};
+ 338: 
+ 339:   const sourceProficiency =
+ 340:     source.proficiency && typeof source.proficiency === "object"
+ 341:       ? source.proficiency.level
+ 342:       : source.proficiency;
+ 343: 
+ 344:   const nameSnapshot = normalizeText(
+ 345:     source.nameSnapshot || source.name || source.label || source.value,
+ 346:     EXPERIENCE_FIELD_LIMITS.technologyName,
+ 347:   );
+ 348: 
+ 349:   return {
+ 350:     id:
+ 351:       normalizeText(source.id, 200) ||
+ 352:       createExperienceId("experience-technology"),
+ 353: 
+ 354:     /*
+ 355:      * Permanent relationship to the central
+ 356:      * Skill Library.
+ 357:      */
+ 358: 
+ 359:     skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+ 360: 
+ 361:     /*
+ 362:      * Snapshot retained for historical display.
+ 363:      */
+ 364: 
+ 365:     nameSnapshot,
+ 366: 
+ 367:     /*
+ 368:      * Retained as a compatibility alias for older
+ 369:      * Experience display and validation code.
+ 370:      */
+ 371: 
+ 372:     name: nameSnapshot,
+ 373: 
+ 374:     /*
+ 375:      * Technology-specific relationship metadata.
+ 376:      */
+ 377: 
+ 378:     category: normalizeText(
+ 379:       source.categorySnapshot || source.category,
+ 380:       EXPERIENCE_FIELD_LIMITS.technologyCategory,
+ 381:     ),
+ 382: 
+ 383:     proficiency: normalizeText(
+ 384:       source.level || sourceProficiency,
+ 385:       EXPERIENCE_FIELD_LIMITS.technologyProficiency,
+ 386:     ),
+ 387: 
+ 388:     usageDescription: normalizeText(
+ 389:       source.usageDescription || source.description,
+ 390:       EXPERIENCE_FIELD_LIMITS.technologyUsageDescription,
+ 391:     ),
+ 392: 
+ 393:     order:
+ 394:       Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+ 395:         ? Number(source.order)
+ 396:         : 0,
+ 397:   };
+ 398: }
+ 399: 
+ 400: function normalizeTechnologies(values) {
+ 401:   if (!Array.isArray(values)) {
+ 402:     return [];
+ 403:   }
+ 404: 
+ 405:   const normalizedTechnologies = values
+ 406:     .map(createExperienceTechnology)
+ 407:     .filter((technology) => technology.skillId || technology.nameSnapshot);
+ 408: 
+ 409:   const seenIdentities = new Set();
+ 410: 
+ 411:   return normalizedTechnologies
+ 412:     .filter((technology) => {
+ 413:       const normalizedName = technology.nameSnapshot
+ 414:         .normalize("NFKC")
+ 415:         .toLocaleLowerCase()
+ 416:         .replace(/\s+/g, " ")
+ 417:         .trim();
+ 418: 
+ 419:       const identity = technology.skillId
+ 420:         ? `id:${technology.skillId}`
+ 421:         : `name:${normalizedName}`;
+ 422: 
+ 423:       if (seenIdentities.has(identity)) {
+ 424:         return false;
+ 425:       }
+ 426: 
+ 427:       seenIdentities.add(identity);
+ 428: 
+ 429:       return true;
+ 430:     })
+ 431:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumTechnologies)
+ 432:     .map((technology, index) => ({
+ 433:       ...technology,
+ 434:       order: index,
+ 435:     }));
+ 436: }
+ 437: 
+ 438: /*
+ 439:  * =========================================
+ 440:  * Empty Experience
+ 441:  * =========================================
+ 442:  */
+ 443: 
+ 444: export function createEmptyExperience() {
+ 445:   const timestamp = new Date().toISOString();
+ 446: 
+ 447:   return {
+ 448:     modelVersion: EXPERIENCE_MODEL_VERSION,
+ 449: 
+ 450:     id: createExperienceId(),
+ 451: 
+ 452:     category: "employment",
+ 453: 
+ 454:     position: {
+ 455:       title: "",
+ 456:       employmentType: "full-time",
+ 457:       workArrangement: "on-site",
+ 458:     },
+ 459: 
+ 460:     organization: {
+ 461:       name: "",
+ 462:       website: "",
+ 463:       industry: "",
+ 464:     },
+ 465: 
+ 466:     location: {
+ 467:       city: "",
+ 468:       stateRegion: "",
+ 469:       country: "",
+ 470:       displayValue: "",
+ 471:     },
+ 472: 
+ 473:     dates: {
+ 474:       startDate: "",
+ 475:       endDate: "",
+ 476:       isCurrent: false,
+ 477:     },
+ 478: 
+ 479:     overview: "",
+ 480: 
+ 481:     overviewMeta: {
+ 482:       source: "manual",
+ 483:       status: "empty",
+ 484:       generatedAt: null,
+ 485:       contextFingerprint: "",
+ 486:       isStale: false,
+ 487:     },
+ 488: 
+ 489:     responsibilities: [],
+ 490: 
+ 491:     achievements: [],
+ 492: 
+ 493:     skills: [],
+ 494: 
+ 495:     technologies: [],
+ 496: 
+ 497:     /*
+ 498:      * These values reference records from the
+ 499:      * central Projects collection.
+ 500:      */
+ 501: 
+ 502:     relatedProjectIds: [],
+ 503: 
+ 504:     leadership: {
+ 505:       hasLeadershipResponsibilities: false,
+ 506:       peopleManaged: null,
+ 507:       description: "",
+ 508:     },
+ 509: 
+ 510:     /*
+ 511:      * Career-management information is private
+ 512:      * and should never be displayed automatically
+ 513:      * on a public résumé or portfolio.
+ 514:      */
+ 515: 
+ 516:     privateInformation: {
+ 517:       reasonForLeaving: "",
+ 518:       notes: "",
+ 519:     },
+ 520: 
+ 521:     visibility: {
+ 522:       showOrganizationWebsite: true,
+ 523:       showLocation: true,
+ 524:       showEmploymentType: true,
+ 525:       showWorkArrangement: true,
+ 526:       showResponsibilities: true,
+ 527:       showAchievements: true,
+ 528:       showSkills: true,
+ 529:       showTechnologies: true,
+ 530:     },
+ 531: 
+ 532:     status: "active",
+ 533: 
+ 534:     createdAt: timestamp,
+ 535:     updatedAt: timestamp,
+ 536:   };
+ 537: }
+ 538: 
+ 539: /*
+ 540:  * =========================================
+ 541:  * Experience Normalization
+ 542:  * =========================================
+ 543:  */
+ 544: 
+ 545: export function normalizeExperience(value = {}) {
+ 546:   const defaults = createEmptyExperience();
+ 547:   const source = value && typeof value === "object" ? value : {};
+ 548: 
+ 549:   const position =
+ 550:     source.position && typeof source.position === "object"
+ 551:       ? source.position
+ 552:       : {};
+ 553: 
+ 554:   const organization =
+ 555:     source.organization && typeof source.organization === "object"
+ 556:       ? source.organization
+ 557:       : {};
+ 558: 
+ 559:   const location =
+ 560:     source.location && typeof source.location === "object"
+ 561:       ? source.location
+ 562:       : {};
+ 563: 
+ 564:   const dates =
+ 565:     source.dates && typeof source.dates === "object" ? source.dates : {};
+ 566: 
+ 567:   const leadership =
+ 568:     source.leadership && typeof source.leadership === "object"
+ 569:       ? source.leadership
+ 570:       : {};
+ 571: 
+ 572:   const privateInformation =
+ 573:     source.privateInformation && typeof source.privateInformation === "object"
+ 574:       ? source.privateInformation
+ 575:       : {};
+ 576: 
+ 577:   const visibility =
+ 578:     source.visibility && typeof source.visibility === "object"
+ 579:       ? source.visibility
+ 580:       : {};
+ 581: 
+ 582:   const category = isValidExperienceCategory(source.category)
+ 583:     ? source.category
+ 584:     : defaults.category;
+ 585: 
+ 586:   const employmentType = isValidEmploymentType(position.employmentType)
+ 587:     ? position.employmentType
+ 588:     : defaults.position.employmentType;
+ 589: 
+ 590:   const workArrangement = isValidWorkArrangement(position.workArrangement)
+ 591:     ? position.workArrangement
+ 592:     : defaults.position.workArrangement;
+ 593: 
+ 594:   const status = isValidExperienceStatus(source.status)
+ 595:     ? source.status
+ 596:     : defaults.status;
+ 597: 
+ 598:   const isCurrent = normalizeBoolean(dates.isCurrent, false);
+ 599: 
+ 600:   const overviewMeta =
+ 601:     source.overviewMeta && typeof source.overviewMeta === "object"
+ 602:       ? source.overviewMeta
+ 603:       : {};
+ 604: 
+ 605:   return {
+ 606:     modelVersion: EXPERIENCE_MODEL_VERSION,
+ 607: 
+ 608:     id: normalizeText(source.id, 200) || defaults.id,
+ 609: 
+ 610:     category,
+ 611: 
+ 612:     position: {
+ 613:       title: normalizeText(
+ 614:         position.title || source.positionTitle || source.title || source.role,
+ 615:         EXPERIENCE_FIELD_LIMITS.positionTitle,
+ 616:       ),
+ 617: 
+ 618:       employmentType,
+ 619: 
+ 620:       workArrangement,
+ 621:     },
+ 622: 
+ 623:     organization: {
+ 624:       name: normalizeText(
+ 625:         organization.name ||
+ 626:           source.organizationName ||
+ 627:           source.company ||
+ 628:           source.employer,
+ 629:         EXPERIENCE_FIELD_LIMITS.organizationName,
+ 630:       ),
+ 631: 
+ 632:       website: normalizeText(
+ 633:         organization.website || source.organizationWebsite,
+ 634:         EXPERIENCE_FIELD_LIMITS.organizationWebsite,
+ 635:       ),
+ 636: 
+ 637:       industry: normalizeText(
+ 638:         organization.industry || source.industry,
+ 639:         EXPERIENCE_FIELD_LIMITS.industry,
+ 640:       ),
+ 641:     },
+ 642: 
+ 643:     location: {
+ 644:       city: normalizeText(location.city, EXPERIENCE_FIELD_LIMITS.city),
+ 645: 
+ 646:       stateRegion: normalizeText(
+ 647:         location.stateRegion || location.state,
+ 648:         EXPERIENCE_FIELD_LIMITS.stateRegion,
+ 649:       ),
+ 650: 
+ 651:       country: normalizeText(location.country, EXPERIENCE_FIELD_LIMITS.country),
+ 652: 
+ 653:       displayValue: normalizeText(
+ 654:         location.displayValue ||
+ 655:           source.locationValue ||
+ 656:           (typeof source.location === "string" ? source.location : ""),
+ 657:         EXPERIENCE_FIELD_LIMITS.locationDisplayValue,
+ 658:       ),
+ 659:     },
+ 660: 
+ 661:     dates: {
+ 662:       startDate: normalizeDate(dates.startDate || source.startDate),
+ 663: 
+ 664:       endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+ 665: 
+ 666:       isCurrent,
+ 667:     },
+ 668: 
+ 669:     overview: normalizeText(
+ 670:       source.overview || source.description,
+ 671:       EXPERIENCE_FIELD_LIMITS.overview,
+ 672:     ),
+ 673: 
+ 674:     overviewMeta: {
+ 675:       source: overviewMeta.source === "ai" ? "ai" : "manual",
+ 676: 
+ 677:       status:
+ 678:         normalizeText(overviewMeta.status, 50) ||
+ 679:         (source.overview ? "draft" : "empty"),
+ 680: 
+ 681:       generatedAt: normalizeText(overviewMeta.generatedAt, 100),
+ 682: 
+ 683:       contextFingerprint: normalizeText(overviewMeta.contextFingerprint, 300),
+ 684: 
+ 685:       isStale: overviewMeta.isStale === true,
+ 686:     },
+ 687: 
+ 688:     responsibilities: normalizeResponsibilities(source.responsibilities),
+ 689: 
+ 690:     achievements: normalizeAchievements(
+ 691:       source.achievements || source.highlights,
+ 692:     ),
+ 693: 
+ 694:     skills: normalizeExperienceSkills(source.skills),
+ 695: 
+ 696:     technologies: normalizeTechnologies(source.technologies || source.tools),
+ 697: 
+ 698:     relatedProjectIds: normalizeIdentifierList(
+ 699:       source.relatedProjectIds || source.projectIds,
+ 700:       EXPERIENCE_FIELD_LIMITS.maximumRelatedProjects,
+ 701:     ),
+ 702: 
+ 703:     leadership: {
+ 704:       hasLeadershipResponsibilities: normalizeBoolean(
+ 705:         leadership.hasLeadershipResponsibilities,
+ 706:         false,
+ 707:       ),
+ 708: 
+ 709:       peopleManaged: normalizeNullableNumber(leadership.peopleManaged),
+ 710: 
+ 711:       description: normalizeText(
+ 712:         leadership.description,
+ 713:         EXPERIENCE_FIELD_LIMITS.leadershipDescription,
+ 714:       ),
+ 715:     },
+ 716: 
+ 717:     privateInformation: {
+ 718:       reasonForLeaving: normalizeText(
+ 719:         privateInformation.reasonForLeaving || source.reasonForLeaving,
+ 720:         EXPERIENCE_FIELD_LIMITS.reasonForLeaving,
+ 721:       ),
+ 722: 
+ 723:       notes: normalizeText(
+ 724:         privateInformation.notes || source.privateNotes,
+ 725:         EXPERIENCE_FIELD_LIMITS.privateNotes,
+ 726:       ),
+ 727:     },
+ 728: 
+ 729:     visibility: {
+ 730:       showOrganizationWebsite: normalizeBoolean(
+ 731:         visibility.showOrganizationWebsite,
+ 732:         defaults.visibility.showOrganizationWebsite,
+ 733:       ),
+ 734: 
+ 735:       showLocation: normalizeBoolean(
+ 736:         visibility.showLocation,
+ 737:         defaults.visibility.showLocation,
+ 738:       ),
+ 739: 
+ 740:       showEmploymentType: normalizeBoolean(
+ 741:         visibility.showEmploymentType,
+ 742:         defaults.visibility.showEmploymentType,
+ 743:       ),
+ 744: 
+ 745:       showWorkArrangement: normalizeBoolean(
+ 746:         visibility.showWorkArrangement,
+ 747:         defaults.visibility.showWorkArrangement,
+ 748:       ),
+ 749: 
+ 750:       showResponsibilities: normalizeBoolean(
+ 751:         visibility.showResponsibilities,
+ 752:         defaults.visibility.showResponsibilities,
+ 753:       ),
+ 754: 
+ 755:       showAchievements: normalizeBoolean(
+ 756:         visibility.showAchievements,
+ 757:         defaults.visibility.showAchievements,
+ 758:       ),
+ 759: 
+ 760:       showSkills: normalizeBoolean(
+ 761:         visibility.showSkills,
+ 762:         defaults.visibility.showSkills,
+ 763:       ),
+ 764: 
+ 765:       showTechnologies: normalizeBoolean(
+ 766:         visibility.showTechnologies,
+ 767:         defaults.visibility.showTechnologies,
+ 768:       ),
+ 769:     },
+ 770: 
+ 771:     status,
+ 772: 
+ 773:     ...(typeof source.rowVersion === "string" &&
+ 774:     /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+ 775:       ? { rowVersion: source.rowVersion }
+ 776:       : {}),
+ 777: 
+ 778:     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+ 779: 
+ 780:     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+ 781:   };
+ 782: }
+ 783: 
+ 784: /*
+ 785:  * =========================================
+ 786:  * New Experience
+ 787:  * =========================================
+ 788:  */
+ 789: 
+ 790: export function createExperience(values = {}) {
+ 791:   const timestamp = new Date().toISOString();
+ 792: 
+ 793:   return normalizeExperience({
+ 794:     ...values,
+ 795: 
+ 796:     id: normalizeText(values.id, 200) || createExperienceId(),
+ 797: 
+ 798:     createdAt: normalizeText(values.createdAt, 100) || timestamp,
+ 799: 
+ 800:     updatedAt: timestamp,
+ 801:   });
+ 802: }
+ 803: 
+ 804: /*
+ 805:  * =========================================
+ 806:  * Updated Experience
+ 807:  * =========================================
+ 808:  */
+ 809: 
+ 810: export function updateExperienceModel(currentExperience, updates = {}) {
+ 811:   return normalizeExperience({
+ 812:     ...currentExperience,
+ 813:     ...updates,
+ 814: 
+ 815:     position: {
+ 816:       ...currentExperience?.position,
+ 817:       ...updates.position,
+ 818:     },
+ 819: 
+ 820:     organization: {
+ 821:       ...currentExperience?.organization,
+ 822:       ...updates.organization,
+ 823:     },
+ 824: 
+ 825:     location: {
+ 826:       ...currentExperience?.location,
+ 827:       ...updates.location,
+ 828:     },
+ 829: 
+ 830:     dates: {
+ 831:       ...currentExperience?.dates,
+ 832:       ...updates.dates,
+ 833:     },
+ 834: 
+ 835:     overviewMeta: {
+ 836:       ...currentExperience?.overviewMeta,
+ 837:       ...updates?.overviewMeta,
+ 838:     },
+ 839: 
+ 840:     leadership: {
+ 841:       ...currentExperience?.leadership,
+ 842:       ...updates.leadership,
+ 843:     },
+ 844: 
+ 845:     privateInformation: {
+ 846:       ...currentExperience?.privateInformation,
+ 847:       ...updates.privateInformation,
+ 848:     },
+ 849: 
+ 850:     visibility: {
+ 851:       ...currentExperience?.visibility,
+ 852:       ...updates.visibility,
+ 853:     },
+ 854: 
+ 855:     id: currentExperience?.id,
+ 856: 
+ 857:     createdAt: currentExperience?.createdAt,
+ 858: 
+ 859:     updatedAt: new Date().toISOString(),
+ 860:   });
+ 861: }
+ 862: 
+ 863: /*
+ 864:  * =========================================
+ 865:  * Collection Normalization
+ 866:  * =========================================
+ 867:  */
+ 868: 
+ 869: export function normalizeExperienceCollection(values) {
+ 870:   if (!Array.isArray(values)) {
+ 871:     return [];
+ 872:   }
+ 873: 
+ 874:   const normalizedExperiences = values.map(normalizeExperience);
+ 875: 
+ 876:   return normalizedExperiences.filter(
+ 877:     (experience, index, collection) =>
+ 878:       collection.findIndex((candidate) => candidate.id === experience.id) ===
+ 879:       index,
+ 880:   );
+ 881: }
+ 882: 
+ 883: /*
+ 884:  * =========================================
+ 885:  * Public Experience
+ 886:  * =========================================
+ 887:  *
+ 888:  * Removes private career-management information
+ 889:  * before an experience is used publicly.
+ 890:  */
+ 891: 
+ 892: export function createPublicExperience(value) {
+ 893:   const experience = normalizeExperience(value);
+ 894: 
+ 895:   const { privateInformation, ...publicExperience } = experience;
+ 896: 
+ 897:   return publicExperience;
+ 898: }
+
+================================================================================
+FILE: src\services\Experience\experienceService.js
+SHA256: 8106A05C0DBA9998D581FC8DEEAC03263EB7ED55D891D069661C13E90675D1AD
+   1: import {
+   2:   createExperience as createExperienceModel,
+   3:   normalizeExperience,
+   4:   updateExperienceModel,
+   5: } from "../../models/experienceModel.js";
+   6: 
+   7: import {
+   8:   assertValidExperience,
+   9:   validateExperience,
+  10: } from "./experienceValidation.js";
+  11: 
+  12: import {
+  13:   readStoredExperiences,
+  14:   replaceStoredExperiences,
+  15: } from "./experienceStorage.js";
+  16: 
+  17: /*
+  18:  * =========================================
+  19:  * Service Errors
+  20:  * =========================================
+  21:  */
+  22: 
+  23: function createServiceError({ message, publicMessage, code, status = 500 }) {
+  24:   const error = new Error(message);
+  25: 
+  26:   error.name = "ExperienceServiceError";
+  27:   error.code = code;
+  28:   error.status = status;
+  29:   error.publicMessage = publicMessage;
+  30: 
+  31:   return error;
+  32: }
+  33: 
+  34: function createNotFoundError(experienceId) {
+  35:   return createServiceError({
+  36:     message: `Experience "${experienceId}" was not found.`,
+  37:     publicMessage: "The requested experience could not be found.",
+  38:     code: "EXPERIENCE_NOT_FOUND",
+  39:     status: 404,
+  40:   });
+  41: }
+  42: 
+  43: /*
+  44:  * =========================================
+  45:  * Simulated Async Operation
+  46:  * =========================================
+  47:  *
+  48:  * The service methods are asynchronous now so
+  49:  * components will not need to change when these
+  50:  * operations become real API requests.
+  51:  */
+  52: 
+  53: function resolveAsync(value) {
+  54:   return Promise.resolve(value);
+  55: }
+  56: 
+  57: /*
+  58:  * =========================================
+  59:  * Get All Experiences
+  60:  * =========================================
+  61:  */
+  62: 
+  63: export async function getExperiences({ includeArchived = false } = {}) {
+  64:   const experiences = readStoredExperiences();
+  65: 
+  66:   const filteredExperiences = includeArchived
+  67:     ? experiences
+  68:     : experiences.filter((experience) => experience.status !== "archived");
+  69: 
+  70:   return resolveAsync(filteredExperiences);
+  71: }
+  72: 
+  73: /*
+  74:  * =========================================
+  75:  * Get Experience By ID
+  76:  * =========================================
+  77:  */
+  78: 
+  79: export async function getExperienceById(experienceId) {
+  80:   if (!experienceId) {
+  81:     throw createServiceError({
+  82:       message: "An experience ID is required to retrieve an experience.",
+  83:       publicMessage: "The requested experience could not be identified.",
+  84:       code: "EXPERIENCE_ID_REQUIRED",
+  85:       status: 400,
+  86:     });
+  87:   }
+  88: 
+  89:   const experiences = readStoredExperiences();
+  90: 
+  91:   const experience = experiences.find((item) => item.id === experienceId);
+  92: 
+  93:   if (!experience) {
+  94:     throw createNotFoundError(experienceId);
+  95:   }
+  96: 
+  97:   return resolveAsync(experience);
+  98: }
+  99: 
+ 100: /*
+ 101:  * =========================================
+ 102:  * Create Experience
+ 103:  * =========================================
+ 104:  */
+ 105: 
+ 106: export async function createExperience(experienceData) {
+ 107:   /*
+ 108:    * Validate before normalization so invalid or
+ 109:    * oversized input is not silently truncated.
+ 110:    */
+ 111: 
+ 112:   assertValidExperience(experienceData);
+ 113: 
+ 114:   const experiences = readStoredExperiences();
+ 115: 
+ 116:   const experience = createExperienceModel(experienceData);
+ 117: 
+ 118:   const duplicateId = experiences.some((item) => item.id === experience.id);
+ 119: 
+ 120:   if (duplicateId) {
+ 121:     throw createServiceError({
+ 122:       message: `Experience ID "${experience.id}" already exists.`,
+ 123:       publicMessage:
+ 124:         "This experience could not be created because its identifier already exists.",
+ 125:       code: "EXPERIENCE_ID_CONFLICT",
+ 126:       status: 409,
+ 127:     });
+ 128:   }
+ 129: 
+ 130:   replaceStoredExperiences([experience, ...experiences]);
+ 131: 
+ 132:   return resolveAsync(experience);
+ 133: }
+ 134: 
+ 135: /*
+ 136:  * =========================================
+ 137:  * Update Experience
+ 138:  * =========================================
+ 139:  */
+ 140: 
+ 141: export async function updateExperience(experienceId, updates) {
+ 142:   if (!experienceId) {
+ 143:     throw createServiceError({
+ 144:       message: "An experience ID is required to update an experience.",
+ 145:       publicMessage: "The experience could not be identified.",
+ 146:       code: "EXPERIENCE_ID_REQUIRED",
+ 147:       status: 400,
+ 148:     });
+ 149:   }
+ 150: 
+ 151:   const experiences = readStoredExperiences();
+ 152: 
+ 153:   const experienceIndex = experiences.findIndex(
+ 154:     (experience) => experience.id === experienceId,
+ 155:   );
+ 156: 
+ 157:   if (experienceIndex === -1) {
+ 158:     throw createNotFoundError(experienceId);
+ 159:   }
+ 160: 
+ 161:   const currentExperience = experiences[experienceIndex];
+ 162: 
+ 163:   /*
+ 164:    * Merge the record before validating it because
+ 165:    * updates may include only part of the model.
+ 166:    */
+ 167: 
+ 168:   const mergedExperience = {
+ 169:     ...currentExperience,
+ 170:     ...updates,
+ 171: 
+ 172:     position: {
+ 173:       ...currentExperience.position,
+ 174:       ...updates?.position,
+ 175:     },
+ 176: 
+ 177:     organization: {
+ 178:       ...currentExperience.organization,
+ 179:       ...updates?.organization,
+ 180:     },
+ 181: 
+ 182:     location: {
+ 183:       ...currentExperience.location,
+ 184:       ...updates?.location,
+ 185:     },
+ 186: 
+ 187:     dates: {
+ 188:       ...currentExperience.dates,
+ 189:       ...updates?.dates,
+ 190:     },
+ 191: 
+ 192:     leadership: {
+ 193:       ...currentExperience.leadership,
+ 194:       ...updates?.leadership,
+ 195:     },
+ 196: 
+ 197:     privateInformation: {
+ 198:       ...currentExperience.privateInformation,
+ 199:       ...updates?.privateInformation,
+ 200:     },
+ 201: 
+ 202:     visibility: {
+ 203:       ...currentExperience.visibility,
+ 204:       ...updates?.visibility,
+ 205:     },
+ 206:   };
+ 207: 
+ 208:   assertValidExperience(mergedExperience);
+ 209: 
+ 210:   const updatedExperience = updateExperienceModel(currentExperience, updates);
+ 211: 
+ 212:   const nextExperiences = [...experiences];
+ 213: 
+ 214:   nextExperiences[experienceIndex] = updatedExperience;
+ 215: 
+ 216:   replaceStoredExperiences(nextExperiences);
+ 217: 
+ 218:   return resolveAsync(updatedExperience);
+ 219: }
+ 220: 
+ 221: /*
+ 222:  * =========================================
+ 223:  * Archive Experience
+ 224:  * =========================================
+ 225:  */
+ 226: 
+ 227: export async function archiveExperience(experienceId) {
+ 228:   return updateExperience(experienceId, {
+ 229:     status: "archived",
+ 230:   });
+ 231: }
+ 232: 
+ 233: /*
+ 234:  * =========================================
+ 235:  * Restore Experience
+ 236:  * =========================================
+ 237:  */
+ 238: 
+ 239: export async function restoreExperience(experienceId) {
+ 240:   return updateExperience(experienceId, {
+ 241:     status: "active",
+ 242:   });
+ 243: }
+ 244: 
+ 245: /*
+ 246:  * =========================================
+ 247:  * Delete Experience
+ 248:  * =========================================
+ 249:  */
+ 250: 
+ 251: export async function deleteExperience(experienceId) {
+ 252:   if (!experienceId) {
+ 253:     throw createServiceError({
+ 254:       message: "An experience ID is required to delete an experience.",
+ 255:       publicMessage: "The experience could not be identified.",
+ 256:       code: "EXPERIENCE_ID_REQUIRED",
+ 257:       status: 400,
+ 258:     });
+ 259:   }
+ 260: 
+ 261:   const experiences = readStoredExperiences();
+ 262: 
+ 263:   const experienceToDelete = experiences.find(
+ 264:     (experience) => experience.id === experienceId,
+ 265:   );
+ 266: 
+ 267:   if (!experienceToDelete) {
+ 268:     throw createNotFoundError(experienceId);
+ 269:   }
+ 270: 
+ 271:   const remainingExperiences = experiences.filter(
+ 272:     (experience) => experience.id !== experienceId,
+ 273:   );
+ 274: 
+ 275:   replaceStoredExperiences(remainingExperiences);
+ 276: 
+ 277:   return resolveAsync({
+ 278:     id: experienceId,
+ 279:     deleted: true,
+ 280:   });
+ 281: }
+ 282: 
+ 283: /*
+ 284:  * =========================================
+ 285:  * Validate Without Saving
+ 286:  * =========================================
+ 287:  */
+ 288: 
+ 289: export async function validateExperienceDraft(experienceData) {
+ 290:   return resolveAsync(validateExperience(experienceData));
+ 291: }
+ 292: 
+ 293: /*
+ 294:  * =========================================
+ 295:  * Replace Collection
+ 296:  * =========================================
+ 297:  *
+ 298:  * This is useful for future imports and migration.
+ 299:  * It should not normally be called from the form.
+ 300:  */
+ 301: 
+ 302: export async function replaceExperiences(experienceValues) {
+ 303:   if (!Array.isArray(experienceValues)) {
+ 304:     throw createServiceError({
+ 305:       message: "The replacement experience collection must be an array.",
+ 306:       publicMessage: "The experience collection has an invalid format.",
+ 307:       code: "INVALID_EXPERIENCE_COLLECTION",
+ 308:       status: 400,
+ 309:     });
+ 310:   }
+ 311: 
+ 312:   const normalizedExperiences = experienceValues.map((experience) => {
+ 313:     assertValidExperience(experience);
+ 314: 
+ 315:     return normalizeExperience(experience);
+ 316:   });
+ 317: 
+ 318:   const savedExperiences = replaceStoredExperiences(normalizedExperiences);
+ 319: 
+ 320:   return resolveAsync(savedExperiences);
+ 321: }
+
+================================================================================
+FILE: src\services\Experience\experienceApiAdapter.js
+SHA256: ED597B68D83B6573067CD93A0AF1B40B09793AEB5E7F07E93189BD0C78622A4E
+   1: const SERVER_OWNED_EXPERIENCE_FIELDS = [
+   2:   "userId",
+   3:   "user_id",
+   4:   "createdAt",
+   5:   "updatedAt",
+   6:   "rowVersion",
+   7:   "recordStatus",
+   8:   "record_status",
+   9: ];
+  10: 
+  11: export function prepareExperienceApiPayload(experience) {
+  12:   if (
+  13:     !experience ||
+  14:     typeof experience !== "object" ||
+  15:     Array.isArray(experience)
+  16:   ) {
+  17:     throw new TypeError("A valid Experience object is required.");
+  18:   }
+  19: 
+  20:   const payload = structuredClone(experience);
+  21: 
+  22:   for (const field of SERVER_OWNED_EXPERIENCE_FIELDS) {
+  23:     delete payload[field];
+  24:   }
+  25: 
+  26:   return payload;
+  27: }
+  28: 
+  29: export function getExperienceRowVersion(experience) {
+  30:   const rowVersion = experience?.rowVersion;
+  31: 
+  32:   if (
+  33:     typeof rowVersion !== "string" ||
+  34:     !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(rowVersion)
+  35:   ) {
+  36:     throw new TypeError(
+  37:       "A valid Experience rowVersion is required.",
+  38:     );
+  39:   }
+  40: 
+  41:   return rowVersion;
+  42: }
+
+================================================================================
+FILE: src\services\Experience\experienceApiService.js
+SHA256: F17CEBC4020100045A1154AC5F08FED555DCD86CE89357F0050FF34FE397C04A
+   1: import {
+   2:   apiGet,
+   3:   apiPost,
+   4:   apiPut,
+   5:   apiPatch,
+   6:   apiDelete,
+   7: } from "../apiClient.js";
+   8: 
+   9: import {
+  10:   prepareExperienceApiPayload,
+  11:   getExperienceRowVersion,
+  12: } from "./experienceApiAdapter.js";
+  13: 
+  14: const EXPERIENCE_ENDPOINT = "/experiences";
+  15: 
+  16: function experiencePath(experienceId) {
+  17:   if (
+  18:     typeof experienceId !== "string" ||
+  19:     !experienceId.trim() ||
+  20:     experienceId.trim().length > 200
+  21:   ) {
+  22:     throw new TypeError("A valid Experience ID is required.");
+  23:   }
+  24: 
+  25:   return `${EXPERIENCE_ENDPOINT}/${encodeURIComponent(
+  26:     experienceId.trim(),
+  27:   )}`;
+  28: }
+  29: 
+  30: function requireRowVersion(rowVersion) {
+  31:   return getExperienceRowVersion({ rowVersion });
+  32: }
+  33: 
+  34: export async function fetchExperiences(options = {}) {
+  35:   const response = await apiGet(EXPERIENCE_ENDPOINT, options);
+  36: 
+  37:   return response.data.experiences;
+  38: }
+  39: 
+  40: export async function fetchExperienceById(
+  41:   experienceId,
+  42:   options = {},
+  43: ) {
+  44:   const response = await apiGet(
+  45:     experiencePath(experienceId),
+  46:     options,
+  47:   );
+  48: 
+  49:   return response.data.experience;
+  50: }
+  51: 
+  52: export async function createExperienceApi(
+  53:   experience,
+  54:   options = {},
+  55: ) {
+  56:   const response = await apiPost(
+  57:     EXPERIENCE_ENDPOINT,
+  58:     prepareExperienceApiPayload(experience),
+  59:     options,
+  60:   );
+  61: 
+  62:   return response.data.experience;
+  63: }
+  64: 
+  65: export async function updateExperienceApi(
+  66:   experienceId,
+  67:   experience,
+  68:   rowVersion,
+  69:   options = {},
+  70: ) {
+  71:   const response = await apiPut(
+  72:     experiencePath(experienceId),
+  73:     {
+  74:       experience: prepareExperienceApiPayload(experience),
+  75:       rowVersion: requireRowVersion(rowVersion),
+  76:     },
+  77:     options,
+  78:   );
+  79: 
+  80:   return response.data.experience;
+  81: }
+  82: 
+  83: export async function setExperienceArchivedApi(
+  84:   experienceId,
+  85:   archived,
+  86:   rowVersion,
+  87:   options = {},
+  88: ) {
+  89:   if (typeof archived !== "boolean") {
+  90:     throw new TypeError("archived must be a boolean.");
+  91:   }
+  92: 
+  93:   const response = await apiPatch(
+  94:     `${experiencePath(experienceId)}/archive`,
+  95:     {
+  96:       archived,
+  97:       rowVersion: requireRowVersion(rowVersion),
+  98:     },
+  99:     options,
+ 100:   );
+ 101: 
+ 102:   return response.data.experience;
+ 103: }
+ 104: 
+ 105: export async function deleteExperienceApi(
+ 106:   experienceId,
+ 107:   rowVersion,
+ 108:   options = {},
+ 109: ) {
+ 110:   const response = await apiDelete(
+ 111:     experiencePath(experienceId),
+ 112:     {
+ 113:       ...options,
+ 114:       body: {
+ 115:         rowVersion: requireRowVersion(rowVersion),
+ 116:       },
+ 117:     },
+ 118:   );
+ 119: 
+ 120:   return response.data;
+ 121: }
+
+================================================================================
+FILE: src\services\Experience\experienceDatabaseService.js
+SHA256: 5828688BFCA10C7A68B81DFE40F07CFD6E8C12128C30BB3AD62A7032455092CA
+   1: import {
+   2:   fetchExperiences,
+   3:   fetchExperienceById,
+   4:   createExperienceApi,
+   5:   updateExperienceApi,
+   6:   setExperienceArchivedApi,
+   7:   deleteExperienceApi,
+   8: } from "./experienceApiService.js";
+   9: 
+  10: import {
+  11:   validateExperience,
+  12: } from "./experienceValidation.js";
+  13: 
+  14: import {
+  15:   getExperienceRowVersion,
+  16: } from "./experienceApiAdapter.js";
+  17: 
+  18: /*
+  19:  * Database-backed Experience service.
+  20:  *
+  21:  * Not activated in ExperienceDataContext yet.
+  22:  * Never reads or writes browser localStorage.
+  23:  */
+  24: 
+  25: function requireExperience(experience) {
+  26:   if (
+  27:     !experience ||
+  28:     typeof experience !== "object" ||
+  29:     Array.isArray(experience)
+  30:   ) {
+  31:     throw new TypeError("A complete Experience record is required.");
+  32:   }
+  33: 
+  34:   return experience;
+  35: }
+  36: 
+  37: function requireVersion(experience) {
+  38:   return getExperienceRowVersion(requireExperience(experience));
+  39: }
+  40: 
+  41: function requireMatchingId(experienceId, experience) {
+  42:   requireExperience(experience);
+  43: 
+  44:   if (experience.id !== experienceId) {
+  45:     throw new TypeError("Experience ID does not match the record.");
+  46:   }
+  47: }
+  48: 
+  49: export async function getExperiences({
+  50:   includeArchived = false,
+  51: } = {}) {
+  52:   const experiences = await fetchExperiences();
+  53: 
+  54:   if (!Array.isArray(experiences)) {
+  55:     throw new TypeError("The Experience API returned an invalid collection.");
+  56:   }
+  57: 
+  58:   return includeArchived
+  59:     ? experiences
+  60:     : experiences.filter((item) => item.status !== "archived");
+  61: }
+  62: 
+  63: export async function getExperienceById(experienceId) {
+  64:   return fetchExperienceById(experienceId);
+  65: }
+  66: 
+  67: export async function createExperience(experienceData) {
+  68:   requireExperience(experienceData);
+  69: 
+  70:   return createExperienceApi(experienceData);
+  71: }
+  72: 
+  73: /*
+  74:  * Updates require a complete record with the
+  75:  * rowVersion originally loaded by the client.
+  76:  *
+  77:  * No automatic conflict retries.
+  78:  */
+  79: export async function updateExperience(
+  80:   experienceId,
+  81:   experience,
+  82: ) {
+  83:   requireMatchingId(experienceId, experience);
+  84: 
+  85:   const rowVersion = requireVersion(experience);
+  86: 
+  87:   return updateExperienceApi(
+  88:     experienceId,
+  89:     experience,
+  90:     rowVersion,
+  91:   );
+  92: }
+  93: 
+  94: export async function archiveExperience(
+  95:   experienceId,
+  96:   experience,
+  97: ) {
+  98:   requireMatchingId(experienceId, experience);
+  99: 
+ 100:   return setExperienceArchivedApi(
+ 101:     experienceId,
+ 102:     true,
+ 103:     requireVersion(experience),
+ 104:   );
+ 105: }
+ 106: 
+ 107: export async function restoreExperience(
+ 108:   experienceId,
+ 109:   experience,
+ 110: ) {
+ 111:   requireMatchingId(experienceId, experience);
+ 112: 
+ 113:   return setExperienceArchivedApi(
+ 114:     experienceId,
+ 115:     false,
+ 116:     requireVersion(experience),
+ 117:   );
+ 118: }
+ 119: 
+ 120: export async function deleteExperience(
+ 121:   experienceId,
+ 122:   experience,
+ 123: ) {
+ 124:   requireMatchingId(experienceId, experience);
+ 125: 
+ 126:   return deleteExperienceApi(
+ 127:     experienceId,
+ 128:     requireVersion(experience),
+ 129:   );
+ 130: }
+ 131: 
+ 132: export async function validateExperienceDraft(experienceData) {
+ 133:   return validateExperience(experienceData);
+ 134: }
+
+================================================================================
+PROVIDER AND CONSUMER REFERENCES
+================================================================================
+src\App.jsx:44: import { useExperienceData } from "./context/ExperienceDataContext.jsx";
+src\App.jsx:61: const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
+src\main.jsx:9: import { AuthProvider } from "./context/AuthContext.jsx";
+src\main.jsx:17: import { ExperienceDataProvider } from "./context/ExperienceDataContext.jsx";
+src\main.jsx:47: <AuthProvider>
+src\main.jsx:59: <ExperienceDataProvider>
+src\main.jsx:69: </ExperienceDataProvider>
+src\main.jsx:74: </AuthProvider>
+src\context\AuthContext.jsx:139: export function AuthProvider({ children }) {
+src\context\AuthContext.jsx:823: throw new Error("useAuth must be used inside AuthProvider.");
+src\context\ExperienceDataContext.jsx:77: export function ExperienceDataProvider({ children }) {
+src\context\ExperienceDataContext.jsx:645: export function useExperienceData() {
+src\context\ExperienceDataContext.jsx:650: "useExperienceData must be used inside ExperienceDataProvider.",
+src\pages\Dashboard\Dashboard.jsx:4: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+src\pages\Dashboard\Dashboard.jsx:138: } = useExperienceData();
+src\pages\Experience\Experience.jsx:3: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+src\pages\Experience\Experience.jsx:36: } = useExperienceData();
+src\pages\Experience\Experience.jsx:109: await updateExperience(editingExperienceId, experienceData);
+src\pages\Experience\Experience.jsx:147: await archiveExperience(experience.id);
+src\pages\Experience\Experience.jsx:167: await restoreExperience(experience.id);
+src\pages\Experience\Experience.jsx:196: await deleteExperience(experience.id);
+src\pages\skills\Skills.jsx:4: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+src\pages\skills\Skills.jsx:41: const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
+src\services\Experience\experienceDatabaseService.js:79: export async function updateExperience(
+src\services\Experience\experienceDatabaseService.js:94: export async function archiveExperience(
+src\services\Experience\experienceDatabaseService.js:107: export async function restoreExperience(
+src\services\Experience\experienceDatabaseService.js:120: export async function deleteExperience(
+src\services\Experience\experienceService.js:141: export async function updateExperience(experienceId, updates) {
+src\services\Experience\experienceService.js:227: export async function archiveExperience(experienceId) {
+src\services\Experience\experienceService.js:228: return updateExperience(experienceId, {
+src\services\Experience\experienceService.js:239: export async function restoreExperience(experienceId) {
+src\services\Experience\experienceService.js:240: return updateExperience(experienceId, {
+src\services\Experience\experienceService.js:251: export async function deleteExperience(experienceId) {

@@ -1,0 +1,537 @@
+STEP 7D.3D.5D - EXPERIENCE AUTHENTICATION INSPECTION
+Mode: READ ONLY
+
+========================================
+FILE: frontend\src\services\Experience\experienceApiService.js
+========================================
+    1: import {
+    2:   apiGet,
+    3:   apiPost,
+    4:   apiPut,
+    5:   apiPatch,
+    6:   apiDelete,
+    7: } from "../apiClient.js";
+    8: 
+    9: import {
+   10:   prepareExperienceApiPayload,
+   11:   getExperienceRowVersion,
+   12: } from "./experienceApiAdapter.js";
+   13: 
+   14: const EXPERIENCE_ENDPOINT = "/experiences";
+   15: 
+   16: function experiencePath(experienceId) {
+   17:   if (
+   18:     typeof experienceId !== "string" ||
+   19:     !experienceId.trim() ||
+   20:     experienceId.trim().length > 200
+   21:   ) {
+   22:     throw new TypeError("A valid Experience ID is required.");
+   23:   }
+   24: 
+   25:   return `${EXPERIENCE_ENDPOINT}/${encodeURIComponent(
+   26:     experienceId.trim(),
+   27:   )}`;
+   28: }
+   29: 
+   30: function requireRowVersion(rowVersion) {
+   31:   return getExperienceRowVersion({ rowVersion });
+   32: }
+   33: 
+   34: export async function fetchExperiences(options = {}) {
+   35:   const response = await apiGet(EXPERIENCE_ENDPOINT, options);
+   36: 
+   37:   return response.data.experiences;
+   38: }
+   39: 
+   40: export async function fetchExperienceById(
+   41:   experienceId,
+   42:   options = {},
+   43: ) {
+   44:   const response = await apiGet(
+   45:     experiencePath(experienceId),
+   46:     options,
+   47:   );
+   48: 
+   49:   return response.data.experience;
+   50: }
+   51: 
+   52: export async function createExperienceApi(
+   53:   experience,
+   54:   options = {},
+   55: ) {
+   56:   const response = await apiPost(
+   57:     EXPERIENCE_ENDPOINT,
+   58:     prepareExperienceApiPayload(experience),
+   59:     options,
+   60:   );
+   61: 
+   62:   return response.data.experience;
+   63: }
+   64: 
+   65: export async function updateExperienceApi(
+   66:   experienceId,
+   67:   experience,
+   68:   rowVersion,
+   69:   options = {},
+   70: ) {
+   71:   const response = await apiPut(
+   72:     experiencePath(experienceId),
+   73:     {
+   74:       experience: prepareExperienceApiPayload(experience),
+   75:       rowVersion: requireRowVersion(rowVersion),
+   76:     },
+   77:     options,
+   78:   );
+   79: 
+   80:   return response.data.experience;
+   81: }
+   82: 
+   83: export async function setExperienceArchivedApi(
+   84:   experienceId,
+   85:   archived,
+   86:   rowVersion,
+   87:   options = {},
+   88: ) {
+   89:   if (typeof archived !== "boolean") {
+   90:     throw new TypeError("archived must be a boolean.");
+   91:   }
+   92: 
+   93:   const response = await apiPatch(
+   94:     `${experiencePath(experienceId)}/archive`,
+   95:     {
+   96:       archived,
+   97:       rowVersion: requireRowVersion(rowVersion),
+   98:     },
+   99:     options,
+  100:   );
+  101: 
+  102:   return response.data.experience;
+  103: }
+  104: 
+  105: export async function deleteExperienceApi(
+  106:   experienceId,
+  107:   rowVersion,
+  108:   options = {},
+  109: ) {
+  110:   const response = await apiDelete(
+  111:     experiencePath(experienceId),
+  112:     {
+  113:       ...options,
+  114:       body: {
+  115:         rowVersion: requireRowVersion(rowVersion),
+  116:       },
+  117:     },
+  118:   );
+  119: 
+  120:   return response.data;
+  121: }
+
+========================================
+FILE: frontend\src\services\Experience\experienceApiAdapter.js
+========================================
+    1: const SERVER_OWNED_EXPERIENCE_FIELDS = [
+    2:   "userId",
+    3:   "user_id",
+    4:   "createdAt",
+    5:   "updatedAt",
+    6:   "rowVersion",
+    7:   "recordStatus",
+    8:   "record_status",
+    9: ];
+   10: 
+   11: export function prepareExperienceApiPayload(experience) {
+   12:   if (
+   13:     !experience ||
+   14:     typeof experience !== "object" ||
+   15:     Array.isArray(experience)
+   16:   ) {
+   17:     throw new TypeError("A valid Experience object is required.");
+   18:   }
+   19: 
+   20:   const payload = structuredClone(experience);
+   21: 
+   22:   for (const field of SERVER_OWNED_EXPERIENCE_FIELDS) {
+   23:     delete payload[field];
+   24:   }
+   25: 
+   26:   return payload;
+   27: }
+   28: 
+   29: export function getExperienceRowVersion(experience) {
+   30:   const rowVersion = experience?.rowVersion;
+   31: 
+   32:   if (
+   33:     typeof rowVersion !== "string" ||
+   34:     !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(rowVersion)
+   35:   ) {
+   36:     throw new TypeError(
+   37:       "A valid Experience rowVersion is required.",
+   38:     );
+   39:   }
+   40: 
+   41:   return rowVersion;
+   42: }
+
+========================================
+FILE: frontend\src\services\Experience\experienceDatabaseService.js
+========================================
+    1: import {
+    2:   fetchExperiences,
+    3:   fetchExperienceById,
+    4:   createExperienceApi,
+    5:   updateExperienceApi,
+    6:   setExperienceArchivedApi,
+    7:   deleteExperienceApi,
+    8: } from "./experienceApiService.js";
+    9: 
+   10: import {
+   11:   validateExperience,
+   12: } from "./experienceValidation.js";
+   13: 
+   14: import {
+   15:   getExperienceRowVersion,
+   16: } from "./experienceApiAdapter.js";
+   17: 
+   18: /*
+   19:  * Database-backed Experience service.
+   20:  *
+   21:  * Not activated in ExperienceDataContext yet.
+   22:  * Never reads or writes browser localStorage.
+   23:  */
+   24: 
+   25: function requireExperience(experience) {
+   26:   if (
+   27:     !experience ||
+   28:     typeof experience !== "object" ||
+   29:     Array.isArray(experience)
+   30:   ) {
+   31:     throw new TypeError("A complete Experience record is required.");
+   32:   }
+   33: 
+   34:   return experience;
+   35: }
+   36: 
+   37: function requireVersion(experience) {
+   38:   return getExperienceRowVersion(requireExperience(experience));
+   39: }
+   40: 
+   41: function requireMatchingId(experienceId, experience) {
+   42:   requireExperience(experience);
+   43: 
+   44:   if (experience.id !== experienceId) {
+   45:     throw new TypeError("Experience ID does not match the record.");
+   46:   }
+   47: }
+   48: 
+   49: export async function getExperiences({
+   50:   includeArchived = false,
+   51: } = {}) {
+   52:   const experiences = await fetchExperiences();
+   53: 
+   54:   if (!Array.isArray(experiences)) {
+   55:     throw new TypeError("The Experience API returned an invalid collection.");
+   56:   }
+   57: 
+   58:   return includeArchived
+   59:     ? experiences
+   60:     : experiences.filter((item) => item.status !== "archived");
+   61: }
+   62: 
+   63: export async function getExperienceById(experienceId) {
+   64:   return fetchExperienceById(experienceId);
+   65: }
+   66: 
+   67: export async function createExperience(experienceData) {
+   68:   requireExperience(experienceData);
+   69: 
+   70:   return createExperienceApi(experienceData);
+   71: }
+   72: 
+   73: /*
+   74:  * Updates require a complete record with the
+   75:  * rowVersion originally loaded by the client.
+   76:  *
+   77:  * No automatic conflict retries.
+   78:  */
+   79: export async function updateExperience(
+   80:   experienceId,
+   81:   experience,
+   82: ) {
+   83:   requireMatchingId(experienceId, experience);
+   84: 
+   85:   const rowVersion = requireVersion(experience);
+   86: 
+   87:   return updateExperienceApi(
+   88:     experienceId,
+   89:     experience,
+   90:     rowVersion,
+   91:   );
+   92: }
+   93: 
+   94: export async function archiveExperience(
+   95:   experienceId,
+   96:   experience,
+   97: ) {
+   98:   requireMatchingId(experienceId, experience);
+   99: 
+  100:   return setExperienceArchivedApi(
+  101:     experienceId,
+  102:     true,
+  103:     requireVersion(experience),
+  104:   );
+  105: }
+  106: 
+  107: export async function restoreExperience(
+  108:   experienceId,
+  109:   experience,
+  110: ) {
+  111:   requireMatchingId(experienceId, experience);
+  112: 
+  113:   return setExperienceArchivedApi(
+  114:     experienceId,
+  115:     false,
+  116:     requireVersion(experience),
+  117:   );
+  118: }
+  119: 
+  120: export async function deleteExperience(
+  121:   experienceId,
+  122:   experience,
+  123: ) {
+  124:   requireMatchingId(experienceId, experience);
+  125: 
+  126:   return deleteExperienceApi(
+  127:     experienceId,
+  128:     requireVersion(experience),
+  129:   );
+  130: }
+  131: 
+  132: export async function validateExperienceDraft(experienceData) {
+  133:   return validateExperience(experienceData);
+  134: }
+
+========================================
+FILE: backend\src\middleware\authenticationMiddleware.js
+========================================
+    1: import { getAuthenticatedSession } from "../services/Service/sessionService.js";
+    2: 
+    3: import {
+    4:   clearRefreshTokenCookie,
+    5:   getRefreshTokenFromRequest,
+    6: } from "../security/sessionCookieSecurity.js";
+    7: 
+    8: /*
+    9:  * =========================================
+   10:  * Authentication Error
+   11:  * =========================================
+   12:  */
+   13: 
+   14: function createAuthenticationError({
+   15:   message,
+   16:   code = "AUTHENTICATION_REQUIRED",
+   17:   status = 401,
+   18:   publicMessage = "You must sign in to access this resource.",
+   19: }) {
+   20:   const error = new Error(message);
+   21: 
+   22:   error.name = "AuthenticationError";
+   23: 
+   24:   error.code = code;
+   25: 
+   26:   error.status = status;
+   27: 
+   28:   error.publicMessage = publicMessage;
+   29: 
+   30:   return error;
+   31: }
+   32: 
+   33: /*
+   34:  * =========================================
+   35:  * Invalid Session Errors
+   36:  * =========================================
+   37:  */
+   38: 
+   39: function shouldClearSessionCookie(error) {
+   40:   const invalidSessionCodes = new Set([
+   41:     "SESSION_REFRESH_TOKEN_INVALID",
+   42:     "SESSION_NOT_FOUND",
+   43:     "SESSION_REFRESH_CONFLICT",
+   44:   ]);
+   45: 
+   46:   return invalidSessionCodes.has(error?.code);
+   47: }
+   48: 
+   49: /*
+   50:  * =========================================
+   51:  * Safely Clear Refresh Cookie
+   52:  * =========================================
+   53:  */
+   54: 
+   55: function safelyClearRefreshTokenCookie(response) {
+   56:   try {
+   57:     clearRefreshTokenCookie(response);
+   58:   } catch (error) {
+   59:     console.error(
+   60:       "Unable to clear refresh-token cookie during authentication:",
+   61:       error,
+   62:     );
+   63:   }
+   64: }
+   65: 
+   66: /*
+   67:  * =========================================
+   68:  * Normalize Roles
+   69:  * =========================================
+   70:  */
+   71: 
+   72: function normalizeRoles(roles) {
+   73:   if (!Array.isArray(roles)) {
+   74:     return [];
+   75:   }
+   76: 
+   77:   return [
+   78:     ...new Set(
+   79:       roles
+   80:         .map((role) =>
+   81:           typeof role === "string" ? role.trim().toLowerCase() : "",
+   82:         )
+   83:         .filter(Boolean),
+   84:     ),
+   85:   ];
+   86: }
+   87: 
+   88: /*
+   89:  * =========================================
+   90:  * Create Request Authentication
+   91:  * =========================================
+   92:  */
+   93: 
+   94: function createRequestAuthentication({ user, roles, session }) {
+   95:   if (!user?.id || !session?.id) {
+   96:     throw createAuthenticationError({
+   97:       message:
+   98:         "The resolved session does not contain a valid user and session.",
+   99: 
+  100:       code: "AUTHENTICATION_CONTEXT_INVALID",
+  101: 
+  102:       status: 500,
+  103: 
+  104:       publicMessage: "Your session could not be verified.",
+  105:     });
+  106:   }
+  107: 
+  108:   const normalizedRoles = Object.freeze(normalizeRoles(roles));
+  109: 
+  110:   return Object.freeze({
+  111:     isAuthenticated: true,
+  112: 
+  113:     userId: user.id,
+  114: 
+  115:     sessionId: session.id,
+  116: 
+  117:     user,
+  118: 
+  119:     roles: normalizedRoles,
+  120: 
+  121:     session,
+  122:   });
+  123: }
+  124: 
+  125: /*
+  126:  * =========================================
+  127:  * Require Authentication
+  128:  * =========================================
+  129:  *
+  130:  * Resolves the HttpOnly refresh-token cookie,
+  131:  * validates the database session and places
+  132:  * public-safe identity information on:
+  133:  *
+  134:  * request.auth
+  135:  *
+  136:  * This middleware validates the session but
+  137:  * does not rotate its refresh token.
+  138:  */
+  139: 
+  140: export async function requireAuthentication(request, response, next) {
+  141:   /*
+  142:    * Protected responses must not be cached
+  143:    * or shared between authenticated users.
+  144:    */
+  145: 
+  146:   response.set({
+  147:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  148: 
+  149:     Pragma: "no-cache",
+  150: 
+  151:     Expires: "0",
+  152:   });
+  153: 
+  154:   response.vary("Cookie");
+  155: 
+  156:   try {
+  157:     const refreshToken = getRefreshTokenFromRequest(request);
+  158: 
+  159:     if (!refreshToken) {
+  160:       throw createAuthenticationError({
+  161:         message: "The request does not contain a refresh-token cookie.",
+  162: 
+  163:         code: "AUTHENTICATION_REQUIRED",
+  164: 
+  165:         status: 401,
+  166: 
+  167:         publicMessage: "You must sign in to access this resource.",
+  168:       });
+  169:     }
+  170: 
+  171:     const authentication = await getAuthenticatedSession({
+  172:       refreshToken,
+  173:     });
+  174: 
+  175:     request.auth = createRequestAuthentication(authentication);
+  176: 
+  177:     return next();
+  178:   } catch (error) {
+  179:     if (shouldClearSessionCookie(error)) {
+  180:       safelyClearRefreshTokenCookie(response);
+  181:     }
+  182: 
+  183:     return next(error);
+  184:   }
+  185: }
+
+========================================
+FILE: backend\src\routes\experienceRoutes.js
+========================================
+    1: import { Router } from "express";
+    2: 
+    3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+    4: 
+    5: import {
+    6:   listMyExperiences,
+    7:   getMyExperience,
+    8:   createMyExperience,
+    9:   updateMyExperience,
+   10:   setMyExperienceArchiveStatus,
+   11:   deleteMyExperience,
+   12: } from "../controllers/experienceController.js";
+   13: 
+   14: const router = Router();
+   15: 
+   16: // All Experience endpoints require authentication.
+   17: router.use(requireAuthentication);
+   18: 
+   19: router.get("/", listMyExperiences);
+   20: router.post("/", createMyExperience);
+   21: 
+   22: router.get("/:experienceId", getMyExperience);
+   23: router.put("/:experienceId", updateMyExperience);
+   24: 
+   25: router.patch(
+   26:   "/:experienceId/archive",
+   27:   setMyExperienceArchiveStatus,
+   28: );
+   29: 
+   30: router.delete("/:experienceId", deleteMyExperience);
+   31: 
+   32: export default router;
+

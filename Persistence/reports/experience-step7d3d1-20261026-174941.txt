@@ -1,0 +1,48 @@
+﻿EXPERIENCE STEP 7D.3D.1
+Timestamp: 20261026-174941
+
+Adapter original SHA256: AF9CB93CB6AE5BA709C3B355F129F36ED3121D7806233C031FC4CBF75B9217B3
+Adapter updated SHA256: ED597B68D83B6573067CD93A0AF1B40B09793AEB5E7F07E93189BD0C78622A4E
+
+Test original SHA256: B58549608733B509AF3ACAA9E9198646F9BE52548239C514CBB765DCCF9DBE13
+Test updated SHA256: D012D4B66B628D6AB462E526DA050EF5233CA46BEE884AA0F68EA7F2F1F41DA6
+
+Adapter backup: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\experience-api\experienceApiAdapter-20261026-174941.js.bak
+Test backup: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\experience-api\experienceApiAdapter-test-20261026-174941.mjs.bak
+
+Test exit code: 0
+
+TEST OUTPUT
+===========
+Γ£ö removes server-owned fields (1.6566ms)
+Γ£ö does not mutate the original experience (1.379ms)
+Γ£ö rejects invalid experience objects (0.6207ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.321ms)
+Γ£ö rejects invalid rowVersion values (0.4375ms)
+Γ£ö rejects noncanonical SQL Server rowVersion padding bits (0.2354ms)
+Γ£ö GET retrieves the Experience collection (43.0918ms)
+Γ£ö GET retrieves one Experience by ID (0.9454ms)
+Γ£ö POST creates an Experience without server-owned fields (1.027ms)
+Γ£ö PUT updates an Experience with rowVersion (0.968ms)
+Γ£ö PATCH archives an Experience with rowVersion (0.9207ms)
+Γ£ö PATCH restores an archived Experience (0.8163ms)
+Γ£ö DELETE sends rowVersion in the request body (1.0256ms)
+Γ£ö rejects invalid rowVersion before sending a request (1.916ms)
+Γ£ö rejects invalid Experience IDs (0.3393ms)
+Γ£ö preserves backend validation errors (1.3209ms)
+Γ£ö preserves concurrency conflict errors (0.874ms)
+Γ£ö preserves authentication errors (0.669ms)
+Γ£ö preserves a valid backend rowVersion (8.5443ms)
+Γ£ö does not add rowVersion to legacy records (0.2529ms)
+Γ£ö does not preserve an invalid rowVersion (0.2276ms)
+Γ£ö preserves rowVersion during collection normalization (0.2873ms)
+Γ£ö preserves rowVersion during model updates (1.3789ms)
+Γä╣ tests 23
+Γä╣ suites 0
+Γä╣ pass 23
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 186.4573
+

@@ -1,0 +1,2741 @@
+STEP 7D.3D.6G.1
+Experience UPDATE pipeline inspection
+Generated: 10/26/2026 19:03:51
+
+READ-ONLY INSPECTION
+
+
+==================================================
+FILE: frontend\src\context\ExperienceDataContext.jsx
+==================================================
+    1: import {
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useRef,
+    8:   useState,
+    9: } from "react";
+   10: 
+   11: import {
+   12:   archiveExperience as archiveExperienceService,
+   13:   createExperience as createExperienceService,
+   14:   deleteExperience as deleteExperienceService,
+   15:   getExperienceById as getExperienceByIdService,
+   16:   getExperiences as getExperiencesService,
+   17:   restoreExperience as restoreExperienceService,
+   18:   updateExperience as updateExperienceService,
+   19:   validateExperienceDraft as validateExperienceDraftService,
+   20: } from "../services/Experience/experienceContextCompatibility.js";
+   21: 
+   22: /*
+   23:  * =========================================
+   24:  * Context
+   25:  * =========================================
+   26:  */
+   27: 
+   28: const ExperienceDataContext = createContext(null);
+   29: 
+   30: /*
+   31:  * =========================================
+   32:  * Default Status
+   33:  * =========================================
+   34:  */
+   35: 
+   36: const INITIAL_OPERATION_STATE = {
+   37:   type: "",
+   38:   experienceId: "",
+   39:   status: "idle",
+   40: };
+   41: 
+   42: /*
+   43:  * =========================================
+   44:  * Error Normalization
+   45:  * =========================================
+   46:  */
+   47: 
+   48: function normalizeContextError(error) {
+   49:   return {
+   50:     message:
+   51:       error?.publicMessage ||
+   52:       error?.message ||
+   53:       "An unexpected experience-management error occurred.",
+   54: 
+   55:     code: error?.code || "EXPERIENCE_OPERATION_FAILED",
+   56: 
+   57:     status: Number(error?.status) || 500,
+   58: 
+   59:     errors: Array.isArray(error?.errors) ? error.errors : [],
+   60: 
+   61:     fieldErrors:
+   62:       error?.fieldErrors && typeof error.fieldErrors === "object"
+   63:         ? error.fieldErrors
+   64:         : {},
+   65: 
+   66:     validation: error?.validation || null,
+   67: 
+   68:     originalError: error,
+   69:   };
+   70: }
+   71: 
+   72: /*
+   73:  * =========================================
+   74:  * Provider
+   75:  * =========================================
+   76:  */
+   77: 
+   78: export function ExperienceDataProvider({ children }) {
+   79:   const [experiences, setExperiences] = useState([]);
+   80: 
+   81:   const experiencesRef = useRef(experiences);
+   82:   experiencesRef.current = experiences;
+   83: 
+   84:   const [isLoading, setIsLoading] = useState(true);
+   85: 
+   86:   const [loadStatus, setLoadStatus] = useState("idle");
+   87: 
+   88:   const [saveStatus, setSaveStatus] = useState("idle");
+   89: 
+   90:   const [error, setError] = useState(null);
+   91: 
+   92:   const [operation, setOperation] = useState(INITIAL_OPERATION_STATE);
+   93: 
+   94:   /*
+   95:    * =========================================
+   96:    * Error Management
+   97:    * =========================================
+   98:    */
+   99: 
+  100:   const clearError = useCallback(() => {
+  101:     setError(null);
+  102:   }, []);
+  103: 
+  104:   const resetSaveStatus = useCallback(() => {
+  105:     setSaveStatus("idle");
+  106:   }, []);
+  107: 
+  108:   const resetOperation = useCallback(() => {
+  109:     setOperation(INITIAL_OPERATION_STATE);
+  110:   }, []);
+  111: 
+  112:   /*
+  113:    * =========================================
+  114:    * Load Experiences
+  115:    * =========================================
+  116:    */
+  117: 
+  118:   const refreshExperiences = useCallback(
+  119:     async ({ includeArchived = true } = {}) => {
+  120:       try {
+  121:         setIsLoading(true);
+  122:         setLoadStatus("loading");
+  123:         setError(null);
+  124: 
+  125:         const loadedExperiences = await getExperiencesService({
+  126:           includeArchived,
+  127:         });
+  128: 
+  129:         setExperiences(
+  130:           Array.isArray(loadedExperiences) ? loadedExperiences : [],
+  131:         );
+  132: 
+  133:         setLoadStatus("success");
+  134: 
+  135:         return loadedExperiences;
+  136:       } catch (loadError) {
+  137:         const normalizedError = normalizeContextError(loadError);
+  138: 
+  139:         console.error("Unable to load experiences:", loadError);
+  140: 
+  141:         setExperiences([]);
+  142:         setLoadStatus("error");
+  143:         setError(normalizedError);
+  144: 
+  145:         throw loadError;
+  146:       } finally {
+  147:         setIsLoading(false);
+  148:       }
+  149:     },
+  150:     [],
+  151:   );
+  152: 
+  153:   /*
+  154:    * =========================================
+  155:    * Initial Load
+  156:    * =========================================
+  157:    */
+  158: 
+  159:   useEffect(() => {
+  160:     let isActive = true;
+  161: 
+  162:     const loadInitialExperiences = async () => {
+  163:       try {
+  164:         setIsLoading(true);
+  165:         setLoadStatus("loading");
+  166:         setError(null);
+  167: 
+  168:         const loadedExperiences = await getExperiencesService({
+  169:           includeArchived: true,
+  170:         });
+  171: 
+  172:         if (!isActive) {
+  173:           return;
+  174:         }
+  175: 
+  176:         setExperiences(
+  177:           Array.isArray(loadedExperiences) ? loadedExperiences : [],
+  178:         );
+  179: 
+  180:         setLoadStatus("success");
+  181:       } catch (loadError) {
+  182:         if (!isActive) {
+  183:           return;
+  184:         }
+  185: 
+  186:         console.error("Unable to load experiences:", loadError);
+  187: 
+  188:         setExperiences([]);
+  189:         setLoadStatus("error");
+  190: 
+  191:         setError(normalizeContextError(loadError));
+  192:       } finally {
+  193:         if (isActive) {
+  194:           setIsLoading(false);
+  195:         }
+  196:       }
+  197:     };
+  198: 
+  199:     loadInitialExperiences();
+  200: 
+  201:     return () => {
+  202:       isActive = false;
+  203:     };
+  204:   }, []);
+  205: 
+  206:   /*
+  207:    * =========================================
+  208:    * Get Experience
+  209:    * =========================================
+  210:    */
+  211: 
+  212:   const getExperienceById = useCallback(
+  213:     async (experienceId) => {
+  214:       /*
+  215:        * First use the existing context state to
+  216:        * avoid an unnecessary service request.
+  217:        */
+  218: 
+  219:       const existingExperience = experiences.find(
+  220:         (experience) => experience.id === experienceId,
+  221:       );
+  222: 
+  223:       if (existingExperience) {
+  224:         return existingExperience;
+  225:       }
+  226: 
+  227:       try {
+  228:         setError(null);
+  229: 
+  230:         return await getExperienceByIdService(experienceId);
+  231:       } catch (getError) {
+  232:         console.error("Unable to get experience:", getError);
+  233: 
+  234:         setError(normalizeContextError(getError));
+  235: 
+  236:         throw getError;
+  237:       }
+  238:     },
+  239:     [experiences],
+  240:   );
+  241: 
+  242:   /*
+  243:    * =========================================
+  244:    * Create Experience
+  245:    * =========================================
+  246:    */
+  247: 
+  248:   const createExperience = useCallback(async (experienceData) => {
+  249:     try {
+  250:       setSaveStatus("saving");
+  251:       setError(null);
+  252: 
+  253:       setOperation({
+  254:         type: "create",
+  255:         experienceId: "",
+  256:         status: "loading",
+  257:       });
+  258: 
+  259:       const createdExperience = await createExperienceService(experienceData);
+  260: 
+  261:       setExperiences((currentExperiences) => [
+  262:         createdExperience,
+  263: 
+  264:         ...currentExperiences.filter(
+  265:           (experience) => experience.id !== createdExperience.id,
+  266:         ),
+  267:       ]);
+  268: 
+  269:       setSaveStatus("success");
+  270: 
+  271:       setOperation({
+  272:         type: "create",
+  273:         experienceId: createdExperience.id,
+  274:         status: "success",
+  275:       });
+  276: 
+  277:       return createdExperience;
+  278:     } catch (createError) {
+  279:       console.error("Unable to create experience:", createError);
+  280: 
+  281:       setSaveStatus("error");
+  282: 
+  283:       setOperation({
+  284:         type: "create",
+  285:         experienceId: "",
+  286:         status: "error",
+  287:       });
+  288: 
+  289:       setError(normalizeContextError(createError));
+  290: 
+  291:       throw createError;
+  292:     }
+  293:   }, []);
+  294: 
+  295:   /*
+  296:    * =========================================
+  297:    * Update Experience
+  298:    * =========================================
+  299:    */
+  300: 
+  301:   const updateExperience = useCallback(async (experienceId, updates) => {
+  302:     try {
+  303:       setSaveStatus("saving");
+  304:       setError(null);
+  305: 
+  306:       setOperation({
+  307:         type: "update",
+  308:         experienceId,
+  309:         status: "loading",
+  310:       });
+  311: 
+  312:       const updatedExperience = await updateExperienceService(
+  313:         experiencesRef.current,
+  314:         experienceId,
+  315:         updates,
+  316:       );
+  317: 
+  318:       setExperiences((currentExperiences) =>
+  319:         currentExperiences.map((experience) =>
+  320:           experience.id === experienceId ? updatedExperience : experience,
+  321:         ),
+  322:       );
+  323: 
+  324:       setSaveStatus("success");
+  325: 
+  326:       setOperation({
+  327:         type: "update",
+  328:         experienceId,
+  329:         status: "success",
+  330:       });
+  331: 
+  332:       return updatedExperience;
+  333:     } catch (updateError) {
+  334:       console.error("Unable to update experience:", updateError);
+  335: 
+  336:       setSaveStatus("error");
+  337: 
+  338:       setOperation({
+  339:         type: "update",
+  340:         experienceId,
+  341:         status: "error",
+  342:       });
+  343: 
+  344:       setError(normalizeContextError(updateError));
+  345: 
+  346:       throw updateError;
+  347:     }
+  348:   }, []);
+  349: 
+  350:   /*
+  351:    * =========================================
+  352:    * Archive Experience
+  353:    * =========================================
+  354:    */
+  355: 
+  356:   const archiveExperience = useCallback(async (experienceId) => {
+  357:     try {
+  358:       setSaveStatus("saving");
+  359:       setError(null);
+  360: 
+  361:       setOperation({
+  362:         type: "archive",
+  363:         experienceId,
+  364:         status: "loading",
+  365:       });
+  366: 
+  367:       const archivedExperience = await archiveExperienceService(experiencesRef.current, experienceId);
+  368: 
+  369:       setExperiences((currentExperiences) =>
+  370:         currentExperiences.map((experience) =>
+  371:           experience.id === experienceId ? archivedExperience : experience,
+  372:         ),
+  373:       );
+  374: 
+  375:       setSaveStatus("success");
+  376: 
+  377:       setOperation({
+  378:         type: "archive",
+  379:         experienceId,
+  380:         status: "success",
+  381:       });
+  382: 
+  383:       return archivedExperience;
+  384:     } catch (archiveError) {
+  385:       console.error("Unable to archive experience:", archiveError);
+  386: 
+  387:       setSaveStatus("error");
+  388: 
+  389:       setOperation({
+  390:         type: "archive",
+  391:         experienceId,
+  392:         status: "error",
+  393:       });
+  394: 
+  395:       setError(normalizeContextError(archiveError));
+  396: 
+  397:       throw archiveError;
+  398:     }
+  399:   }, []);
+  400: 
+  401:   /*
+  402:    * =========================================
+  403:    * Restore Experience
+  404:    * =========================================
+  405:    */
+  406: 
+  407:   const restoreExperience = useCallback(async (experienceId) => {
+  408:     try {
+  409:       setSaveStatus("saving");
+  410:       setError(null);
+  411: 
+  412:       setOperation({
+  413:         type: "restore",
+  414:         experienceId,
+  415:         status: "loading",
+  416:       });
+  417: 
+  418:       const restoredExperience = await restoreExperienceService(experiencesRef.current, experienceId);
+  419: 
+  420:       setExperiences((currentExperiences) =>
+  421:         currentExperiences.map((experience) =>
+  422:           experience.id === experienceId ? restoredExperience : experience,
+  423:         ),
+  424:       );
+  425: 
+  426:       setSaveStatus("success");
+  427: 
+  428:       setOperation({
+  429:         type: "restore",
+  430:         experienceId,
+  431:         status: "success",
+  432:       });
+  433: 
+  434:       return restoredExperience;
+  435:     } catch (restoreError) {
+  436:       console.error("Unable to restore experience:", restoreError);
+  437: 
+  438:       setSaveStatus("error");
+  439: 
+  440:       setOperation({
+  441:         type: "restore",
+  442:         experienceId,
+  443:         status: "error",
+  444:       });
+  445: 
+  446:       setError(normalizeContextError(restoreError));
+  447: 
+  448:       throw restoreError;
+  449:     }
+  450:   }, []);
+  451: 
+  452:   /*
+  453:    * =========================================
+  454:    * Delete Experience
+  455:    * =========================================
+  456:    */
+  457: 
+  458:   const deleteExperience = useCallback(async (experienceId) => {
+  459:     try {
+  460:       setSaveStatus("saving");
+  461:       setError(null);
+  462: 
+  463:       setOperation({
+  464:         type: "delete",
+  465:         experienceId,
+  466:         status: "loading",
+  467:       });
+  468: 
+  469:       const deletionResult = await deleteExperienceService(experiencesRef.current, experienceId);
+  470: 
+  471:       setExperiences((currentExperiences) =>
+  472:         currentExperiences.filter(
+  473:           (experience) => experience.id !== experienceId,
+  474:         ),
+  475:       );
+  476: 
+  477:       setSaveStatus("success");
+  478: 
+  479:       setOperation({
+  480:         type: "delete",
+  481:         experienceId,
+  482:         status: "success",
+  483:       });
+  484: 
+  485:       return deletionResult;
+  486:     } catch (deleteError) {
+  487:       console.error("Unable to delete experience:", deleteError);
+  488: 
+  489:       setSaveStatus("error");
+  490: 
+  491:       setOperation({
+  492:         type: "delete",
+  493:         experienceId,
+  494:         status: "error",
+  495:       });
+  496: 
+  497:       setError(normalizeContextError(deleteError));
+  498: 
+  499:       throw deleteError;
+  500:     }
+  501:   }, []);
+  502: 
+  503:   /*
+  504:    * =========================================
+  505:    * Validate Draft
+  506:    * =========================================
+  507:    */
+  508: 
+  509:   const validateExperienceDraft = useCallback(async (experienceData) => {
+  510:     try {
+  511:       return await validateExperienceDraftService(experienceData);
+  512:     } catch (validationError) {
+  513:       console.error("Unable to validate experience:", validationError);
+  514: 
+  515:       setError(normalizeContextError(validationError));
+  516: 
+  517:       throw validationError;
+  518:     }
+  519:   }, []);
+  520: 
+  521:   /*
+  522:    * =========================================
+  523:    * Derived Collections
+  524:    * =========================================
+  525:    */
+  526: 
+  527:   const activeExperiences = useMemo(
+  528:     () => experiences.filter((experience) => experience.status !== "archived"),
+  529:     [experiences],
+  530:   );
+  531: 
+  532:   const archivedExperiences = useMemo(
+  533:     () => experiences.filter((experience) => experience.status === "archived"),
+  534:     [experiences],
+  535:   );
+  536: 
+  537:   const currentExperiences = useMemo(
+  538:     () =>
+  539:       activeExperiences.filter(
+  540:         (experience) => experience.dates?.isCurrent === true,
+  541:       ),
+  542:     [activeExperiences],
+  543:   );
+  544: 
+  545:   const previousExperiences = useMemo(
+  546:     () =>
+  547:       activeExperiences.filter(
+  548:         (experience) => experience.dates?.isCurrent !== true,
+  549:       ),
+  550:     [activeExperiences],
+  551:   );
+  552: 
+  553:   /*
+  554:    * =========================================
+  555:    * Context Value
+  556:    * =========================================
+  557:    */
+  558: 
+  559:   const contextValue = useMemo(
+  560:     () => ({
+  561:       /*
+  562:        * Records
+  563:        */
+  564: 
+  565:       experiences,
+  566:       activeExperiences,
+  567:       archivedExperiences,
+  568:       currentExperiences,
+  569:       previousExperiences,
+  570: 
+  571:       /*
+  572:        * Status
+  573:        */
+  574: 
+  575:       isLoading,
+  576:       loadStatus,
+  577:       saveStatus,
+  578:       operation,
+  579:       error,
+  580: 
+  581:       /*
+  582:        * Read operations
+  583:        */
+  584: 
+  585:       refreshExperiences,
+  586:       getExperienceById,
+  587: 
+  588:       /*
+  589:        * Write operations
+  590:        */
+  591: 
+  592:       createExperience,
+  593:       updateExperience,
+  594:       archiveExperience,
+  595:       restoreExperience,
+  596:       deleteExperience,
+  597: 
+  598:       /*
+  599:        * Validation
+  600:        */
+  601: 
+  602:       validateExperienceDraft,
+  603: 
+  604:       /*
+  605:        * Status management
+  606:        */
+  607: 
+  608:       clearError,
+  609:       resetSaveStatus,
+  610:       resetOperation,
+  611:     }),
+  612:     [
+  613:       experiences,
+  614:       activeExperiences,
+  615:       archivedExperiences,
+  616:       currentExperiences,
+  617:       previousExperiences,
+  618:       isLoading,
+  619:       loadStatus,
+  620:       saveStatus,
+  621:       operation,
+  622:       error,
+  623:       refreshExperiences,
+  624:       getExperienceById,
+  625:       createExperience,
+  626:       updateExperience,
+  627:       archiveExperience,
+  628:       restoreExperience,
+  629:       deleteExperience,
+  630:       validateExperienceDraft,
+  631:       clearError,
+  632:       resetSaveStatus,
+  633:       resetOperation,
+  634:     ],
+  635:   );
+  636: 
+  637:   return (
+  638:     <ExperienceDataContext.Provider value={contextValue}>
+  639:       {children}
+  640:     </ExperienceDataContext.Provider>
+  641:   );
+  642: }
+  643: 
+  644: /*
+  645:  * =========================================
+  646:  * Context Hook
+  647:  * =========================================
+  648:  */
+  649: 
+  650: export function useExperienceData() {
+  651:   const context = useContext(ExperienceDataContext);
+  652: 
+  653:   if (!context) {
+  654:     throw new Error(
+  655:       "useExperienceData must be used inside ExperienceDataProvider.",
+  656:     );
+  657:   }
+  658: 
+  659:   return context;
+  660: }
+
+==================================================
+FILE: frontend\src\services\Experience\experienceContextCompatibility.js
+==================================================
+    1: import { updateExperienceModel } from "../../models/experienceModel.js";
+    2: import { assertValidExperience } from "./experienceValidation.js";
+    3: import { getExperienceRowVersion } from "./experienceApiAdapter.js";
+    4: 
+    5: import * as database from "./experienceDatabaseService.js";
+    6: 
+    7: /*
+    8:  * Compatibility layer for the existing React Experience context.
+    9:  *
+   10:  * Not connected to ExperienceDataContext yet.
+   11:  * Does not access localStorage.
+   12:  *
+   13:  * The caller supplies the collection currently loaded by React.
+   14:  * Its rowVersion is deliberately used without refreshing it first,
+   15:  * so stale writes produce a concurrency conflict.
+   16:  */
+   17: 
+   18: function requireCollection(experiences) {
+   19:   if (!Array.isArray(experiences)) {
+   20:     throw new TypeError("The loaded Experience collection is required.");
+   21:   }
+   22: 
+   23:   return experiences;
+   24: }
+   25: 
+   26: function findLoadedExperience(experiences, experienceId) {
+   27:   const collection = requireCollection(experiences);
+   28: 
+   29:   const experience = collection.find(
+   30:     (item) => item?.id === experienceId,
+   31:   );
+   32: 
+   33:   if (!experience) {
+   34:     const error = new Error("The requested Experience is not loaded.");
+   35: 
+   36:     error.name = "ExperienceServiceError";
+   37:     error.code = "EXPERIENCE_NOT_LOADED";
+   38:     error.status = 404;
+   39: 
+   40:     throw error;
+   41:   }
+   42: 
+   43:   getExperienceRowVersion(experience);
+   44: 
+   45:   return experience;
+   46: }
+   47: 
+   48: function requireUpdates(updates) {
+   49:   if (
+   50:     !updates ||
+   51:     typeof updates !== "object" ||
+   52:     Array.isArray(updates)
+   53:   ) {
+   54:     throw new TypeError("Experience updates must be an object.");
+   55:   }
+   56: 
+   57:   if (
+   58:     Object.hasOwn(updates, "id") ||
+   59:     Object.hasOwn(updates, "rowVersion") ||
+   60:     Object.hasOwn(updates, "createdAt") ||
+   61:     Object.hasOwn(updates, "updatedAt")
+   62:   ) {
+   63:     throw new TypeError(
+   64:       "Experience updates cannot override server-owned fields.",
+   65:     );
+   66:   }
+   67: 
+   68:   return updates;
+   69: }
+   70: 
+   71: export async function getExperiences(options = {}) {
+   72:   return database.getExperiences(options);
+   73: }
+   74: 
+   75: export async function getExperienceById(experienceId) {
+   76:   return database.getExperienceById(experienceId);
+   77: }
+   78: 
+   79: export async function createExperience(experienceData) {
+   80:   assertValidExperience(experienceData);
+   81: 
+   82:   return database.createExperience(experienceData);
+   83: }
+   84: 
+   85: export async function updateExperience(
+   86:   experiences,
+   87:   experienceId,
+   88:   updates,
+   89: ) {
+   90:   const current = findLoadedExperience(experiences, experienceId);
+   91: 
+   92:   requireUpdates(updates);
+   93: 
+   94:   const updated = updateExperienceModel(current, updates);
+   95: 
+   96:   assertValidExperience(updated);
+   97: 
+   98:   return database.updateExperience(experienceId, updated);
+   99: }
+  100: 
+  101: export async function archiveExperience(experiences, experienceId) {
+  102:   const current = findLoadedExperience(experiences, experienceId);
+  103: 
+  104:   return database.archiveExperience(experienceId, current);
+  105: }
+  106: 
+  107: export async function restoreExperience(experiences, experienceId) {
+  108:   const current = findLoadedExperience(experiences, experienceId);
+  109: 
+  110:   return database.restoreExperience(experienceId, current);
+  111: }
+  112: 
+  113: export async function deleteExperience(experiences, experienceId) {
+  114:   const current = findLoadedExperience(experiences, experienceId);
+  115: 
+  116:   return database.deleteExperience(experienceId, current);
+  117: }
+  118: 
+  119: export async function validateExperienceDraft(experienceData) {
+  120:   return database.validateExperienceDraft(experienceData);
+  121: }
+
+==================================================
+FILE: frontend\src\services\Experience\experienceDatabaseService.js
+==================================================
+    1: import {
+    2:   fetchExperiences,
+    3:   fetchExperienceById,
+    4:   createExperienceApi,
+    5:   updateExperienceApi,
+    6:   setExperienceArchivedApi,
+    7:   deleteExperienceApi,
+    8: } from "./experienceApiService.js";
+    9: 
+   10: import {
+   11:   validateExperience,
+   12: } from "./experienceValidation.js";
+   13: 
+   14: import {
+   15:   getExperienceRowVersion,
+   16: } from "./experienceApiAdapter.js";
+   17: 
+   18: /*
+   19:  * Database-backed Experience service.
+   20:  *
+   21:  * Not activated in ExperienceDataContext yet.
+   22:  * Never reads or writes browser localStorage.
+   23:  */
+   24: 
+   25: function requireExperience(experience) {
+   26:   if (
+   27:     !experience ||
+   28:     typeof experience !== "object" ||
+   29:     Array.isArray(experience)
+   30:   ) {
+   31:     throw new TypeError("A complete Experience record is required.");
+   32:   }
+   33: 
+   34:   return experience;
+   35: }
+   36: 
+   37: function requireVersion(experience) {
+   38:   return getExperienceRowVersion(requireExperience(experience));
+   39: }
+   40: 
+   41: function requireMatchingId(experienceId, experience) {
+   42:   requireExperience(experience);
+   43: 
+   44:   if (experience.id !== experienceId) {
+   45:     throw new TypeError("Experience ID does not match the record.");
+   46:   }
+   47: }
+   48: 
+   49: export async function getExperiences({
+   50:   includeArchived = false,
+   51: } = {}) {
+   52:   const experiences = await fetchExperiences();
+   53: 
+   54:   if (!Array.isArray(experiences)) {
+   55:     throw new TypeError("The Experience API returned an invalid collection.");
+   56:   }
+   57: 
+   58:   return includeArchived
+   59:     ? experiences
+   60:     : experiences.filter((item) => item.status !== "archived");
+   61: }
+   62: 
+   63: export async function getExperienceById(experienceId) {
+   64:   return fetchExperienceById(experienceId);
+   65: }
+   66: 
+   67: export async function createExperience(experienceData) {
+   68:   requireExperience(experienceData);
+   69: 
+   70:   return createExperienceApi(experienceData);
+   71: }
+   72: 
+   73: /*
+   74:  * Updates require a complete record with the
+   75:  * rowVersion originally loaded by the client.
+   76:  *
+   77:  * No automatic conflict retries.
+   78:  */
+   79: export async function updateExperience(
+   80:   experienceId,
+   81:   experience,
+   82: ) {
+   83:   requireMatchingId(experienceId, experience);
+   84: 
+   85:   const rowVersion = requireVersion(experience);
+   86: 
+   87:   return updateExperienceApi(
+   88:     experienceId,
+   89:     experience,
+   90:     rowVersion,
+   91:   );
+   92: }
+   93: 
+   94: export async function archiveExperience(
+   95:   experienceId,
+   96:   experience,
+   97: ) {
+   98:   requireMatchingId(experienceId, experience);
+   99: 
+  100:   return setExperienceArchivedApi(
+  101:     experienceId,
+  102:     true,
+  103:     requireVersion(experience),
+  104:   );
+  105: }
+  106: 
+  107: export async function restoreExperience(
+  108:   experienceId,
+  109:   experience,
+  110: ) {
+  111:   requireMatchingId(experienceId, experience);
+  112: 
+  113:   return setExperienceArchivedApi(
+  114:     experienceId,
+  115:     false,
+  116:     requireVersion(experience),
+  117:   );
+  118: }
+  119: 
+  120: export async function deleteExperience(
+  121:   experienceId,
+  122:   experience,
+  123: ) {
+  124:   requireMatchingId(experienceId, experience);
+  125: 
+  126:   return deleteExperienceApi(
+  127:     experienceId,
+  128:     requireVersion(experience),
+  129:   );
+  130: }
+  131: 
+  132: export async function validateExperienceDraft(experienceData) {
+  133:   return validateExperience(experienceData);
+  134: }
+
+==================================================
+FILE: frontend\src\services\Experience\experienceApiAdapter.js
+==================================================
+    1: const SERVER_OWNED_EXPERIENCE_FIELDS = [
+    2:   "userId",
+    3:   "user_id",
+    4:   "createdAt",
+    5:   "updatedAt",
+    6:   "rowVersion",
+    7:   "recordStatus",
+    8:   "record_status",
+    9: ];
+   10: 
+   11: export function prepareExperienceApiPayload(experience) {
+   12:   if (
+   13:     !experience ||
+   14:     typeof experience !== "object" ||
+   15:     Array.isArray(experience)
+   16:   ) {
+   17:     throw new TypeError("A valid Experience object is required.");
+   18:   }
+   19: 
+   20:   const payload = structuredClone(experience);
+   21: 
+   22:   for (const field of SERVER_OWNED_EXPERIENCE_FIELDS) {
+   23:     delete payload[field];
+   24:   }
+   25: 
+   26:   return payload;
+   27: }
+   28: 
+   29: export function getExperienceRowVersion(experience) {
+   30:   const rowVersion = experience?.rowVersion;
+   31: 
+   32:   if (
+   33:     typeof rowVersion !== "string" ||
+   34:     !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(rowVersion)
+   35:   ) {
+   36:     throw new TypeError(
+   37:       "A valid Experience rowVersion is required.",
+   38:     );
+   39:   }
+   40: 
+   41:   return rowVersion;
+   42: }
+
+==================================================
+FILE: frontend\src\services\Experience\experienceApiService.js
+==================================================
+    1: import {
+    2:   apiGet,
+    3:   apiPost,
+    4:   apiPut,
+    5:   apiPatch,
+    6:   apiDelete,
+    7: } from "../apiClient.js";
+    8: 
+    9: import {
+   10:   prepareExperienceApiPayload,
+   11:   getExperienceRowVersion,
+   12: } from "./experienceApiAdapter.js";
+   13: 
+   14: const EXPERIENCE_ENDPOINT = "/experiences";
+   15: 
+   16: function experiencePath(experienceId) {
+   17:   if (
+   18:     typeof experienceId !== "string" ||
+   19:     !experienceId.trim() ||
+   20:     experienceId.trim().length > 200
+   21:   ) {
+   22:     throw new TypeError("A valid Experience ID is required.");
+   23:   }
+   24: 
+   25:   return `${EXPERIENCE_ENDPOINT}/${encodeURIComponent(
+   26:     experienceId.trim(),
+   27:   )}`;
+   28: }
+   29: 
+   30: function requireRowVersion(rowVersion) {
+   31:   return getExperienceRowVersion({ rowVersion });
+   32: }
+   33: 
+   34: export async function fetchExperiences(options = {}) {
+   35:   const response = await apiGet(EXPERIENCE_ENDPOINT, options);
+   36: 
+   37:   return response.data.experiences;
+   38: }
+   39: 
+   40: export async function fetchExperienceById(
+   41:   experienceId,
+   42:   options = {},
+   43: ) {
+   44:   const response = await apiGet(
+   45:     experiencePath(experienceId),
+   46:     options,
+   47:   );
+   48: 
+   49:   return response.data.experience;
+   50: }
+   51: 
+   52: export async function createExperienceApi(
+   53:   experience,
+   54:   options = {},
+   55: ) {
+   56:   const response = await apiPost(
+   57:     EXPERIENCE_ENDPOINT,
+   58:     prepareExperienceApiPayload(experience),
+   59:     options,
+   60:   );
+   61: 
+   62:   return response.data.experience;
+   63: }
+   64: 
+   65: export async function updateExperienceApi(
+   66:   experienceId,
+   67:   experience,
+   68:   rowVersion,
+   69:   options = {},
+   70: ) {
+   71:   const response = await apiPut(
+   72:     experiencePath(experienceId),
+   73:     {
+   74:       experience: prepareExperienceApiPayload(experience),
+   75:       rowVersion: requireRowVersion(rowVersion),
+   76:     },
+   77:     options,
+   78:   );
+   79: 
+   80:   return response.data.experience;
+   81: }
+   82: 
+   83: export async function setExperienceArchivedApi(
+   84:   experienceId,
+   85:   archived,
+   86:   rowVersion,
+   87:   options = {},
+   88: ) {
+   89:   if (typeof archived !== "boolean") {
+   90:     throw new TypeError("archived must be a boolean.");
+   91:   }
+   92: 
+   93:   const response = await apiPatch(
+   94:     `${experiencePath(experienceId)}/archive`,
+   95:     {
+   96:       archived,
+   97:       rowVersion: requireRowVersion(rowVersion),
+   98:     },
+   99:     options,
+  100:   );
+  101: 
+  102:   return response.data.experience;
+  103: }
+  104: 
+  105: export async function deleteExperienceApi(
+  106:   experienceId,
+  107:   rowVersion,
+  108:   options = {},
+  109: ) {
+  110:   const response = await apiDelete(
+  111:     experiencePath(experienceId),
+  112:     {
+  113:       ...options,
+  114:       body: {
+  115:         rowVersion: requireRowVersion(rowVersion),
+  116:       },
+  117:     },
+  118:   );
+  119: 
+  120:   return response.data;
+  121: }
+
+==================================================
+FILE: frontend\src\pages\Experience\Experience.jsx
+==================================================
+    1: import { useMemo, useState } from "react";
+    2: 
+    3: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+    4: 
+    5: import {
+    6:   getExperienceOrganizationName,
+    7:   getExperiencePositionTitle,
+    8:   getExperienceStatistics,
+    9: } from "../../services/Experience/experienceUtils.js";
+   10: 
+   11: import ExperienceDashboard from "./components/ExperienceDashboard/ExperienceDashboard.jsx";
+   12: import ExperiencePageHeader from "./components/ExperiencePageHeader/ExperiencePageHeader.jsx";
+   13: import ExperienceForm from "./components/ExperienceForm/ExperienceForm.jsx";
+   14: import ExperienceList from "./components/ExperienceList/ExperienceList.jsx";
+   15: 
+   16: import "./Experience.css";
+   17: 
+   18: function Experience() {
+   19:   const {
+   20:     experiences,
+   21:     activeExperiences,
+   22:     archivedExperiences,
+   23:     isLoading,
+   24:     loadStatus,
+   25:     saveStatus,
+   26:     operation,
+   27:     error,
+   28:     refreshExperiences,
+   29:     createExperience,
+   30:     updateExperience,
+   31:     archiveExperience,
+   32:     restoreExperience,
+   33:     deleteExperience,
+   34:     clearError,
+   35:     resetSaveStatus,
+   36:   } = useExperienceData();
+   37: 
+   38:   const [isFormOpen, setIsFormOpen] = useState(false);
+   39:   const [editingExperienceId, setEditingExperienceId] = useState(null);
+   40:   const [showArchived, setShowArchived] = useState(false);
+   41: 
+   42:   /*
+   43:    * =========================================
+   44:    * Derived Information
+   45:    * =========================================
+   46:    */
+   47: 
+   48:   const statistics = useMemo(
+   49:     () => getExperienceStatistics(experiences),
+   50:     [experiences],
+   51:   );
+   52: 
+   53:   /*
+   54:    * ExperienceList is responsible for search,
+   55:    * filtering, and sorting.
+   56:    */
+   57: 
+   58:   const selectedExperiences = showArchived
+   59:     ? archivedExperiences
+   60:     : activeExperiences;
+   61: 
+   62:   const editingExperience = useMemo(
+   63:     () =>
+   64:       editingExperienceId
+   65:         ? experiences.find(
+   66:             (experience) => experience.id === editingExperienceId,
+   67:           ) || null
+   68:         : null,
+   69:     [experiences, editingExperienceId],
+   70:   );
+   71: 
+   72:   /*
+   73:    * =========================================
+   74:    * Form Actions
+   75:    * =========================================
+   76:    */
+   77: 
+   78:   const handleAddExperience = () => {
+   79:     setEditingExperienceId(null);
+   80:     setIsFormOpen(true);
+   81: 
+   82:     clearError();
+   83:     resetSaveStatus();
+   84: 
+   85:     window.requestAnimationFrame(() => {
+   86:       document.querySelector(".experience-page-form")?.scrollIntoView({
+   87:         behavior: "smooth",
+   88:         block: "start",
+   89:       });
+   90:     });
+   91:   };
+   92: 
+   93:   const handleCloseForm = () => {
+   94:     setEditingExperienceId(null);
+   95:     setIsFormOpen(false);
+   96: 
+   97:     clearError();
+   98:     resetSaveStatus();
+   99:   };
+  100: 
+  101:   /*
+  102:    * =========================================
+  103:    * Save Experience
+  104:    * =========================================
+  105:    */
+  106: 
+  107:   const handleSaveExperience = async (experienceData) => {
+  108:     if (editingExperienceId) {
+  109:       await updateExperience(editingExperienceId, experienceData);
+  110:     } else {
+  111:       await createExperience(experienceData);
+  112:     }
+  113: 
+  114:     setEditingExperienceId(null);
+  115:     setIsFormOpen(false);
+  116:   };
+  117: 
+  118:   /*
+  119:    * =========================================
+  120:    * Edit Experience
+  121:    * =========================================
+  122:    */
+  123: 
+  124:   const handleEditExperience = (experience) => {
+  125:     setEditingExperienceId(experience.id);
+  126:     setIsFormOpen(true);
+  127: 
+  128:     clearError();
+  129:     resetSaveStatus();
+  130: 
+  131:     window.requestAnimationFrame(() => {
+  132:       document.querySelector(".experience-page-form")?.scrollIntoView({
+  133:         behavior: "smooth",
+  134:         block: "start",
+  135:       });
+  136:     });
+  137:   };
+  138: 
+  139:   /*
+  140:    * =========================================
+  141:    * Archive Experience
+  142:    * =========================================
+  143:    */
+  144: 
+  145:   const handleArchiveExperience = async (experience) => {
+  146:     try {
+  147:       await archiveExperience(experience.id);
+  148: 
+  149:       if (editingExperienceId === experience.id) {
+  150:         handleCloseForm();
+  151:       }
+  152:     } catch {
+  153:       /*
+  154:        * ExperienceDataContext displays the error.
+  155:        */
+  156:     }
+  157:   };
+  158: 
+  159:   /*
+  160:    * =========================================
+  161:    * Restore Experience
+  162:    * =========================================
+  163:    */
+  164: 
+  165:   const handleRestoreExperience = async (experience) => {
+  166:     try {
+  167:       await restoreExperience(experience.id);
+  168:     } catch {
+  169:       /*
+  170:        * ExperienceDataContext displays the error.
+  171:        */
+  172:     }
+  173:   };
+  174: 
+  175:   /*
+  176:    * =========================================
+  177:    * Delete Experience
+  178:    * =========================================
+  179:    */
+  180: 
+  181:   const handleDeleteExperience = async (experience) => {
+  182:     const positionTitle = getExperiencePositionTitle(experience);
+  183: 
+  184:     const organizationName = getExperienceOrganizationName(experience);
+  185: 
+  186:     const shouldDelete = window.confirm(
+  187:       `Permanently delete "${positionTitle}" at "${organizationName}"?\n\n` +
+  188:         "This action cannot be undone.",
+  189:     );
+  190: 
+  191:     if (!shouldDelete) {
+  192:       return;
+  193:     }
+  194: 
+  195:     try {
+  196:       await deleteExperience(experience.id);
+  197: 
+  198:       if (editingExperienceId === experience.id) {
+  199:         handleCloseForm();
+  200:       }
+  201:     } catch {
+  202:       /*
+  203:        * ExperienceDataContext displays the error.
+  204:        */
+  205:     }
+  206:   };
+  207: 
+  208:   /*
+  209:    * =========================================
+  210:    * Archive View
+  211:    * =========================================
+  212:    */
+  213: 
+  214:   const handleToggleArchived = () => {
+  215:     setShowArchived((currentValue) => !currentValue);
+  216: 
+  217:     setEditingExperienceId(null);
+  218:     setIsFormOpen(false);
+  219: 
+  220:     clearError();
+  221:     resetSaveStatus();
+  222:   };
+  223: 
+  224:   /*
+  225:    * =========================================
+  226:    * Retry Loading
+  227:    * =========================================
+  228:    */
+  229: 
+  230:   const handleRetryLoading = () => {
+  231:     refreshExperiences({
+  232:       includeArchived: true,
+  233:     }).catch(() => {
+  234:       /*
+  235:        * The context already records and displays
+  236:        * the loading error.
+  237:        */
+  238:     });
+  239:   };
+  240: 
+  241:   return (
+  242:     <main className="experience-page">
+  243:       <ExperiencePageHeader
+  244:         totalExperiences={experiences.length}
+  245:         archivedCount={archivedExperiences.length}
+  246:         showArchived={showArchived}
+  247:         isLoading={isLoading}
+  248:         onAddExperience={handleAddExperience}
+  249:         onToggleArchived={handleToggleArchived}
+  250:       />
+  251: 
+  252:       <ExperienceDashboard statistics={statistics} isLoading={isLoading} />
+  253: 
+  254:       {error && (
+  255:         <section
+  256:           className="experience-page-message experience-page-message--error"
+  257:           role="alert"
+  258:         >
+  259:           <div>
+  260:             <strong>Unable to complete the experience operation</strong>
+  261: 
+  262:             <p>{error.message}</p>
+  263:           </div>
+  264: 
+  265:           <button type="button" onClick={clearError}>
+  266:             Dismiss
+  267:           </button>
+  268:         </section>
+  269:       )}
+  270: 
+  271:       {saveStatus === "success" && (
+  272:         <section
+  273:           className="experience-page-message experience-page-message--success"
+  274:           role="status"
+  275:         >
+  276:           <div>
+  277:             <strong>Experience changes saved</strong>
+  278: 
+  279:             <p>
+  280:               The professional experience library has been updated successfully.
+  281:             </p>
+  282:           </div>
+  283: 
+  284:           <button type="button" onClick={resetSaveStatus}>
+  285:             Dismiss
+  286:           </button>
+  287:         </section>
+  288:       )}
+  289: 
+  290:       {saveStatus === "saving" && (
+  291:         <section
+  292:           className="experience-page-message experience-page-message--saving"
+  293:           role="status"
+  294:           aria-live="polite"
+  295:         >
+  296:           <span className="experience-page-message-loader" aria-hidden="true" />
+  297: 
+  298:           <div>
+  299:             <strong>Saving experience</strong>
+  300:             <p>Your experience information is being updated.</p>
+  301:           </div>
+  302:         </section>
+  303:       )}
+  304: 
+  305:       {isFormOpen && (
+  306:         <section className="experience-page-form">
+  307:           <header>
+  308:             <div>
+  309:               <span>Experience Editor</span>
+  310: 
+  311:               <h2>
+  312:                 {editingExperienceId
+  313:                   ? "Edit Experience"
+  314:                   : "Add Professional Experience"}
+  315:               </h2>
+  316: 
+  317:               <p>
+  318:                 Complete the information below to create a reusable professional
+  319:                 experience record.
+  320:               </p>
+  321:             </div>
+  322: 
+  323:             <button
+  324:               type="button"
+  325:               onClick={handleCloseForm}
+  326:               aria-label="Close experience form"
+  327:             >
+  328:               Ã—
+  329:             </button>
+  330:           </header>
+  331: 
+  332:           <ExperienceForm
+  333:             initialExperience={editingExperience}
+  334:             isSaving={saveStatus === "saving"}
+  335:             onSubmit={handleSaveExperience}
+  336:             onCancel={handleCloseForm}
+  337:           />
+  338:         </section>
+  339:       )}
+  340: 
+  341:       <section
+  342:         className="experience-page-library"
+  343:         aria-labelledby="experience-library-title"
+  344:       >
+  345:         <header className="experience-page-library-header">
+  346:           <div>
+  347:             <span>
+  348:               {showArchived ? "Archived Records" : "Experience Library"}
+  349:             </span>
+  350: 
+  351:             <h2 id="experience-library-title">
+  352:               {showArchived ? "Archived Experiences" : "Saved Experiences"}
+  353:             </h2>
+  354: 
+  355:             <p>
+  356:               {showArchived
+  357:                 ? "Archived records are preserved but unavailable to normal rÃ©sumÃ© and portfolio selection."
+  358:                 : "Manage the professional records available to your rÃ©sumÃ©s and portfolios."}
+  359:             </p>
+  360:           </div>
+  361: 
+  362:           <span className="experience-page-library-count">
+  363:             {selectedExperiences.length}{" "}
+  364:             {selectedExperiences.length === 1 ? "Experience" : "Experiences"}
+  365:           </span>
+  366:         </header>
+  367: 
+  368:         {isLoading && (
+  369:           <div
+  370:             className="experience-page-loading"
+  371:             role="status"
+  372:             aria-live="polite"
+  373:           >
+  374:             <span aria-hidden="true" />
+  375: 
+  376:             <div>
+  377:               <strong>Loading experiences</strong>
+  378: 
+  379:               <p>Retrieving your professional experience library.</p>
+  380:             </div>
+  381:           </div>
+  382:         )}
+  383: 
+  384:         {!isLoading && loadStatus === "error" && (
+  385:           <div className="experience-page-load-error">
+  386:             <span aria-hidden="true">!</span>
+  387: 
+  388:             <h3>Experiences could not be loaded</h3>
+  389: 
+  390:             <p>Check the browser storage and try loading the records again.</p>
+  391: 
+  392:             <button type="button" onClick={handleRetryLoading}>
+  393:               Try Again
+  394:             </button>
+  395:           </div>
+  396:         )}
+  397: 
+  398:         {!isLoading &&
+  399:           loadStatus !== "error" &&
+  400:           selectedExperiences.length === 0 && (
+  401:             <div className="experience-page-empty">
+  402:               <div aria-hidden="true">{showArchived ? "â–¡" : "âœ¦"}</div>
+  403: 
+  404:               <h3>
+  405:                 {showArchived
+  406:                   ? "No archived experiences"
+  407:                   : "No experiences saved yet"}
+  408:               </h3>
+  409: 
+  410:               <p>
+  411:                 {showArchived
+  412:                   ? "Experiences you archive will appear here."
+  413:                   : "Add your first professional experience to make it available for rÃ©sumÃ©s and portfolios."}
+  414:               </p>
+  415: 
+  416:               {!showArchived && (
+  417:                 <button type="button" onClick={handleAddExperience}>
+  418:                   Add Your First Experience
+  419:                 </button>
+  420:               )}
+  421:             </div>
+  422:           )}
+  423: 
+  424:         {!isLoading &&
+  425:           loadStatus !== "error" &&
+  426:           selectedExperiences.length > 0 && (
+  427:             <ExperienceList
+  428:               key={showArchived ? "archived" : "active"}
+  429:               experiences={selectedExperiences}
+  430:               operation={operation}
+  431:               onEdit={handleEditExperience}
+  432:               onArchive={handleArchiveExperience}
+  433:               onRestore={handleRestoreExperience}
+  434:               onDelete={handleDeleteExperience}
+  435:             />
+  436:           )}
+  437:       </section>
+  438:     </main>
+  439:   );
+  440: }
+  441: 
+  442: export default Experience;
+
+==================================================
+FILE: frontend\src\pages\Portfolio\components\Experience\Experience.jsx
+==================================================
+    1: import ExperienceItem from "./ExperienceItem/ExperienceItem";
+    2: 
+    3: import "./Experience.css";
+    4: 
+    5: function Experience({ experiences = [] }) {
+    6:   return (
+    7:     <section className="experience-section dashboard-card">
+    8:       <div className="experience-header">
+    9:         <div>
+   10:           <span className="experience-eyebrow">Career</span>
+   11: 
+   12:           <h3>Professional Experience</h3>
+   13: 
+   14:           <p>
+   15:             Highlight your professional experience, responsibilities, and career
+   16:             progression.
+   17:           </p>
+   18:         </div>
+   19: 
+   20:         <button type="button" className="experience-add-button">
+   21:           <span>+</span>
+   22:           <span>Add Experience</span>
+   23:         </button>
+   24:       </div>
+   25: 
+   26:       {experiences.length > 0 ? (
+   27:         <div className="experience-list">
+   28:           {experiences.map((experience) => (
+   29:             <ExperienceItem
+   30:               key={experience.id}
+   31:               jobTitle={experience.jobTitle}
+   32:               company={experience.company}
+   33:               location={experience.location}
+   34:               startDate={experience.startDate}
+   35:               endDate={experience.endDate}
+   36:               description={experience.description}
+   37:               current={experience.current}
+   38:             />
+   39:           ))}
+   40:         </div>
+   41:       ) : (
+   42:         <div className="experience-empty">
+   43:           <div className="experience-empty-icon">â—·</div>
+   44: 
+   45:           <h4>No experience added yet</h4>
+   46: 
+   47:           <p>
+   48:             Add your professional experience to help visitors understand your
+   49:             career journey.
+   50:           </p>
+   51: 
+   52:           <button type="button" className="experience-empty-button">
+   53:             Add Your First Experience
+   54:           </button>
+   55:         </div>
+   56:       )}
+   57:     </section>
+   58:   );
+   59: }
+   60: 
+   61: export default Experience;
+
+==================================================
+FILE: frontend\src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx
+==================================================
+    1: import { useEffect, useId, useState } from "react";
+    2: 
+    3: import {
+    4:   EMPLOYMENT_TYPE_OPTIONS,
+    5:   EXPERIENCE_CATEGORY_OPTIONS,
+    6:   EXPERIENCE_FIELD_LIMITS,
+    7:   EXPERIENCE_STATUS_OPTIONS,
+    8:   WORK_ARRANGEMENT_OPTIONS,
+    9: } from "../../../../config/experienceConfig.js";
+   10: 
+   11: import {
+   12:   createEmptyExperience,
+   13:   normalizeExperience,
+   14: } from "../../../../models/experienceModel.js";
+   15: 
+   16: import { validateExperience } from "../../../../services/Experience/experienceValidation.js";
+   17: 
+   18: import ResponsibilityEditor from "../ResponsibilityEditor/ResponsibilityEditor.jsx";
+   19: import AchievementEditor from "../AchievementEditor/AchievementEditor.jsx";
+   20: import ExperienceSkillsEditor from "../ExperienceSkillsEditor/ExperienceSkillsEditor.jsx";
+   21: import ExperienceOverviewBuilder from "../ExperienceOverviewBuilder/ExperienceOverviewBuilder.jsx";
+   22: import ExperienceTechnologyEditor from "./ExperienceTechnologyEditor/ExperienceTechnologyEditor.jsx";
+   23: 
+   24: import "./ExperienceForm.css";
+   25: 
+   26: /*
+   27:  * =========================================
+   28:  * Form Data Creation
+   29:  * =========================================
+   30:  */
+   31: 
+   32: function createFormData(initialExperience) {
+   33:   return initialExperience
+   34:     ? normalizeExperience(initialExperience)
+   35:     : createEmptyExperience();
+   36: }
+   37: 
+   38: /*
+   39:  * =========================================
+   40:  * Experience Form
+   41:  * =========================================
+   42:  */
+   43: 
+   44: function ExperienceForm({
+   45:   initialExperience = null,
+   46:   isSaving = false,
+   47:   onSubmit,
+   48:   onCancel,
+   49: }) {
+   50:   const formId = useId();
+   51: 
+   52:   const [formData, setFormData] = useState(() =>
+   53:     createFormData(initialExperience),
+   54:   );
+   55: 
+   56:   const [fieldErrors, setFieldErrors] = useState({});
+   57: 
+   58:   const [warnings, setWarnings] = useState([]);
+   59: 
+   60:   const [submissionError, setSubmissionError] = useState("");
+   61: 
+   62:   const isEditing = Boolean(initialExperience?.id);
+   63: 
+   64:   /*
+   65:    * =========================================
+   66:    * Synchronize Editing Record
+   67:    * =========================================
+   68:    */
+   69: 
+   70:   useEffect(() => {
+   71:     setFormData(createFormData(initialExperience));
+   72: 
+   73:     setFieldErrors({});
+   74:     setWarnings([]);
+   75:     setSubmissionError("");
+   76:   }, [initialExperience]);
+   77: 
+   78:   /*
+   79:    * =========================================
+   80:    * Error Management
+   81:    * =========================================
+   82:    */
+   83: 
+   84:   const clearFieldError = (fieldName) => {
+   85:     setFieldErrors((currentErrors) => {
+   86:       if (!currentErrors[fieldName]) {
+   87:         return currentErrors;
+   88:       }
+   89: 
+   90:       const nextErrors = {
+   91:         ...currentErrors,
+   92:       };
+   93: 
+   94:       delete nextErrors[fieldName];
+   95: 
+   96:       return nextErrors;
+   97:     });
+   98: 
+   99:     setSubmissionError("");
+  100:   };
+  101: 
+  102:   /*
+  103:    * =========================================
+  104:    * Top-Level Field Update
+  105:    * =========================================
+  106:    */
+  107: 
+  108:   const updateTopLevelField = (fieldName, value) => {
+  109:     setFormData((currentData) => ({
+  110:       ...currentData,
+  111:       [fieldName]: value,
+  112:     }));
+  113: 
+  114:     clearFieldError(fieldName);
+  115:   };
+  116: 
+  117:   /*
+  118:    * =========================================
+  119:    * Nested Field Update
+  120:    * =========================================
+  121:    */
+  122: 
+  123:   const updateNestedField = (sectionName, fieldName, value) => {
+  124:     setFormData((currentData) => ({
+  125:       ...currentData,
+  126: 
+  127:       [sectionName]: {
+  128:         ...currentData[sectionName],
+  129:         [fieldName]: value,
+  130:       },
+  131:     }));
+  132: 
+  133:     clearFieldError(`${sectionName}.${fieldName}`);
+  134:   };
+  135: 
+  136:   /*
+  137:    * =========================================
+  138:    * Current Position
+  139:    * =========================================
+  140:    */
+  141: 
+  142:   const handleCurrentPositionChange = (event) => {
+  143:     const { checked } = event.target;
+  144: 
+  145:     setFormData((currentData) => ({
+  146:       ...currentData,
+  147: 
+  148:       dates: {
+  149:         ...currentData.dates,
+  150:         isCurrent: checked,
+  151: 
+  152:         /*
+  153:          * A current position cannot have an
+  154:          * end date.
+  155:          */
+  156: 
+  157:         endDate: checked ? "" : currentData.dates.endDate,
+  158:       },
+  159:     }));
+  160: 
+  161:     clearFieldError("dates.isCurrent");
+  162:     clearFieldError("dates.endDate");
+  163:   };
+  164: 
+  165:   /*
+  166:    * =========================================
+  167:    * Leadership Toggle
+  168:    * =========================================
+  169:    */
+  170: 
+  171:   const handleLeadershipChange = (event) => {
+  172:     const { checked } = event.target;
+  173: 
+  174:     setFormData((currentData) => ({
+  175:       ...currentData,
+  176: 
+  177:       leadership: {
+  178:         ...currentData.leadership,
+  179: 
+  180:         hasLeadershipResponsibilities: checked,
+  181:       },
+  182:     }));
+  183: 
+  184:     clearFieldError("leadership.hasLeadershipResponsibilities");
+  185:   };
+  186: 
+  187:   /*
+  188:    * =========================================
+  189:    * Collection Update
+  190:    * =========================================
+  191:    */
+  192: 
+  193:   const updateCollectionField = (fieldName, values) => {
+  194:     setFormData((currentData) => ({
+  195:       ...currentData,
+  196:       [fieldName]: values,
+  197:     }));
+  198: 
+  199:     setFieldErrors((currentErrors) => {
+  200:       const nextErrors = {};
+  201: 
+  202:       Object.entries(currentErrors).forEach(([errorField, message]) => {
+  203:         if (
+  204:           errorField !== fieldName &&
+  205:           !errorField.startsWith(`${fieldName}.`)
+  206:         ) {
+  207:           nextErrors[errorField] = message;
+  208:         }
+  209:       });
+  210: 
+  211:       return nextErrors;
+  212:     });
+  213: 
+  214:     setSubmissionError("");
+  215:   };
+  216: 
+  217:   /*
+  218:    * =========================================
+  219:    * Form Submission
+  220:    * =========================================
+  221:    */
+  222: 
+  223:   const handleSubmit = async (event) => {
+  224:     event.preventDefault();
+  225: 
+  226:     setSubmissionError("");
+  227: 
+  228:     const validationResult = validateExperience(formData);
+  229: 
+  230:     setFieldErrors(validationResult.fieldErrors);
+  231: 
+  232:     setWarnings(validationResult.warnings);
+  233: 
+  234:     if (!validationResult.isValid) {
+  235:       setSubmissionError(
+  236:         `${validationResult.errors.length} ${
+  237:           validationResult.errors.length === 1
+  238:             ? "problem must"
+  239:             : "problems must"
+  240:         } be corrected before saving.`,
+  241:       );
+  242: 
+  243:       return;
+  244:     }
+  245: 
+  246:     try {
+  247:       await onSubmit?.(formData);
+  248:     } catch (error) {
+  249:       const serviceFieldErrors =
+  250:         error?.fieldErrors || error?.validation?.fieldErrors || {};
+  251: 
+  252:       setFieldErrors(serviceFieldErrors);
+  253: 
+  254:       setSubmissionError(
+  255:         error?.publicMessage ||
+  256:           error?.message ||
+  257:           "The experience could not be saved.",
+  258:       );
+  259:     }
+  260:   };
+  261: 
+  262:   /*
+  263:    * =========================================
+  264:    * Form IDs
+  265:    * =========================================
+  266:    */
+  267: 
+  268:   const getFieldId = (fieldName) => `${formId}-${fieldName}`;
+  269: 
+  270:   const handleOverviewUpdate = ({ overview, overviewMeta }) => {
+  271:     setFormData((currentData) => ({
+  272:       ...currentData,
+  273:       overview,
+  274:       overviewMeta,
+  275:     }));
+  276: 
+  277:     clearFieldError("overview");
+  278:     setSubmissionError("");
+  279:   };
+  280: 
+  281:   /*
+  282:    * =========================================
+  283:    * Technologies Update
+  284:    * =========================================
+  285:    */
+  286: 
+  287:   const handleTechnologiesChange = (nextTechnologies) => {
+  288:     setFormData((currentData) => ({
+  289:       ...currentData,
+  290: 
+  291:       technologies: nextTechnologies,
+  292:     }));
+  293: 
+  294:     clearFieldError("technologies");
+  295:     setSubmissionError("");
+  296:   };
+  297: 
+  298:   return (
+  299:     <form className="experience-form" onSubmit={handleSubmit} noValidate>
+  300:       {/* =====================================
+  301:           Role and Organization
+  302:           ===================================== */}
+  303: 
+  304:       <section
+  305:         className="experience-form-section"
+  306:         aria-labelledby={`${formId}-position-section-title`}
+  307:       >
+  308:         <header className="experience-form-section-header">
+  309:           <span aria-hidden="true" />
+  310: 
+  311:           <div>
+  312:             <small>Position</small>
+  313: 
+  314:             <h3 id={`${formId}-position-section-title`}>
+  315:               Role and Organization
+  316:             </h3>
+  317: 
+  318:             <p>
+  319:               Identify the role, organization, experience category, and
+  320:               employment arrangement.
+  321:             </p>
+  322:           </div>
+  323:         </header>
+  324: 
+  325:         <div className="experience-form-grid">
+  326:           <FormField
+  327:             className="experience-form-field--wide"
+  328:             id={getFieldId("position-title")}
+  329:             label="Position or Role Title"
+  330:             required
+  331:             error={fieldErrors["position.title"]}
+  332:           >
+  333:             <input
+  334:               id={getFieldId("position-title")}
+  335:               type="text"
+  336:               value={formData.position.title}
+  337:               onChange={(event) =>
+  338:                 updateNestedField("position", "title", event.target.value)
+  339:               }
+  340:               maxLength={EXPERIENCE_FIELD_LIMITS.positionTitle}
+  341:               placeholder="Example: IT Systems Administrator"
+  342:               autoComplete="organization-title"
+  343:             />
+  344:           </FormField>
+  345: 
+  346:           <FormField
+  347:             className="experience-form-field--wide"
+  348:             id={getFieldId("organization-name")}
+  349:             label="Organization, Employer, or Client"
+  350:             required
+  351:             error={fieldErrors["organization.name"]}
+  352:           >
+  353:             <input
+  354:               id={getFieldId("organization-name")}
+  355:               type="text"
+  356:               value={formData.organization.name}
+  357:               onChange={(event) =>
+  358:                 updateNestedField("organization", "name", event.target.value)
+  359:               }
+  360:               maxLength={EXPERIENCE_FIELD_LIMITS.organizationName}
+  361:               placeholder="Example: Example Financial Services"
+  362:               autoComplete="organization"
+  363:             />
+  364:           </FormField>
+  365: 
+  366:           <FormField
+  367:             id={getFieldId("category")}
+  368:             label="Experience Category"
+  369:             required
+  370:             error={fieldErrors.category}
+  371:           >
+  372:             <select
+  373:               id={getFieldId("category")}
+  374:               value={formData.category}
+  375:               onChange={(event) =>
+  376:                 updateTopLevelField("category", event.target.value)
+  377:               }
+  378:             >
+  379:               {EXPERIENCE_CATEGORY_OPTIONS.map((option) => (
+  380:                 <option key={option.value} value={option.value}>
+  381:                   {option.label}
+  382:                 </option>
+  383:               ))}
+  384:             </select>
+  385:           </FormField>
+  386: 
+  387:           <FormField
+  388:             id={getFieldId("employment-type")}
+  389:             label="Employment Type"
+  390:             required
+  391:             error={fieldErrors["position.employmentType"]}
+  392:           >
+  393:             <select
+  394:               id={getFieldId("employment-type")}
+  395:               value={formData.position.employmentType}
+  396:               onChange={(event) =>
+  397:                 updateNestedField(
+  398:                   "position",
+  399:                   "employmentType",
+  400:                   event.target.value,
+  401:                 )
+  402:               }
+  403:             >
+  404:               {EMPLOYMENT_TYPE_OPTIONS.map((option) => (
+  405:                 <option key={option.value} value={option.value}>
+  406:                   {option.label}
+  407:                 </option>
+  408:               ))}
+  409:             </select>
+  410:           </FormField>
+  411: 
+  412:           <FormField
+  413:             id={getFieldId("work-arrangement")}
+  414:             label="Work Arrangement"
+  415:             required
+  416:             error={fieldErrors["position.workArrangement"]}
+  417:           >
+  418:             <select
+  419:               id={getFieldId("work-arrangement")}
+  420:               value={formData.position.workArrangement}
+  421:               onChange={(event) =>
+  422:                 updateNestedField(
+  423:                   "position",
+  424:                   "workArrangement",
+  425:                   event.target.value,
+  426:                 )
+  427:               }
+  428:             >
+  429:               {WORK_ARRANGEMENT_OPTIONS.map((option) => (
+  430:                 <option key={option.value} value={option.value}>
+  431:                   {option.label}
+  432:                 </option>
+  433:               ))}
+  434:             </select>
+  435:           </FormField>
+  436: 
+  437:           <FormField
+  438:             id={getFieldId("industry")}
+  439:             label="Industry"
+  440:             error={fieldErrors["organization.industry"]}
+  441:           >
+  442:             <input
+  443:               id={getFieldId("industry")}
+  444:               type="text"
+  445:               value={formData.organization.industry}
+  446:               onChange={(event) =>
+  447:                 updateNestedField(
+  448:                   "organization",
+  449:                   "industry",
+  450:                   event.target.value,
+  451:                 )
+  452:               }
+  453:               maxLength={EXPERIENCE_FIELD_LIMITS.industry}
+  454:               placeholder="Example: Financial Services"
+  455:             />
+  456:           </FormField>
+  457: 
+  458:           <FormField
+  459:             className="experience-form-field--full"
+  460:             id={getFieldId("organization-website")}
+  461:             label="Organization Website"
+  462:             error={fieldErrors["organization.website"]}
+  463:             help="Optional. This link can be hidden from public documents."
+  464:           >
+  465:             <input
+  466:               id={getFieldId("organization-website")}
+  467:               type="url"
+  468:               value={formData.organization.website}
+  469:               onChange={(event) =>
+  470:                 updateNestedField("organization", "website", event.target.value)
+  471:               }
+  472:               maxLength={EXPERIENCE_FIELD_LIMITS.organizationWebsite}
+  473:               placeholder="Example: https://example.com"
+  474:               autoComplete="url"
+  475:             />
+  476:           </FormField>
+  477:         </div>
+  478:       </section>
+  479: 
+  480:       {/* =====================================
+  481:           Dates and Location
+  482:           ===================================== */}
+  483: 
+  484:       <section
+  485:         className="experience-form-section"
+  486:         aria-labelledby={`${formId}-timeline-section-title`}
+  487:       >
+  488:         <header className="experience-form-section-header">
+  489:           <span aria-hidden="true" />
+  490: 
+  491:           <div>
+  492:             <small>Timeline</small>
+  493: 
+  494:             <h3 id={`${formId}-timeline-section-title`}>Dates and Location</h3>
+  495: 
+  496:             <p>Enter when and where this experience occurred.</p>
+  497:           </div>
+  498:         </header>
+  499: 
+  500:         <div className="experience-form-grid">
+  501:           <FormField
+  502:             id={getFieldId("start-date")}
+  503:             label="Start Date"
+  504:             required
+  505:             error={fieldErrors["dates.startDate"]}
+  506:           >
+  507:             <input
+  508:               id={getFieldId("start-date")}
+  509:               type="month"
+  510:               value={formData.dates.startDate}
+  511:               onChange={(event) =>
+  512:                 updateNestedField("dates", "startDate", event.target.value)
+  513:               }
+  514:             />
+  515:           </FormField>
+  516: 
+  517:           <FormField
+  518:             id={getFieldId("end-date")}
+  519:             label="End Date"
+  520:             required={!formData.dates.isCurrent}
+  521:             error={fieldErrors["dates.endDate"]}
+  522:           >
+  523:             <input
+  524:               id={getFieldId("end-date")}
+  525:               type="month"
+  526:               value={formData.dates.endDate}
+  527:               onChange={(event) =>
+  528:                 updateNestedField("dates", "endDate", event.target.value)
+  529:               }
+  530:               disabled={formData.dates.isCurrent}
+  531:             />
+  532:           </FormField>
+  533: 
+  534:           <div className="experience-form-checkbox-field">
+  535:             <label>
+  536:               <input
+  537:                 type="checkbox"
+  538:                 checked={formData.dates.isCurrent}
+  539:                 onChange={handleCurrentPositionChange}
+  540:               />
+  541: 
+  542:               <span>
+  543:                 <strong>I currently hold this position</strong>
+  544: 
+  545:                 <small>The end date will be displayed as Present.</small>
+  546:               </span>
+  547:             </label>
+  548:           </div>
+  549: 
+  550:           <FormField
+  551:             id={getFieldId("city")}
+  552:             label="City"
+  553:             error={fieldErrors["location.city"]}
+  554:           >
+  555:             <input
+  556:               id={getFieldId("city")}
+  557:               type="text"
+  558:               value={formData.location.city}
+  559:               onChange={(event) =>
+  560:                 updateNestedField("location", "city", event.target.value)
+  561:               }
+  562:               maxLength={EXPERIENCE_FIELD_LIMITS.city}
+  563:               placeholder="Example: Coconut Creek"
+  564:               autoComplete="address-level2"
+  565:             />
+  566:           </FormField>
+  567: 
+  568:           <FormField
+  569:             id={getFieldId("state-region")}
+  570:             label="State or Region"
+  571:             error={fieldErrors["location.stateRegion"]}
+  572:           >
+  573:             <input
+  574:               id={getFieldId("state-region")}
+  575:               type="text"
+  576:               value={formData.location.stateRegion}
+  577:               onChange={(event) =>
+  578:                 updateNestedField("location", "stateRegion", event.target.value)
+  579:               }
+  580:               maxLength={EXPERIENCE_FIELD_LIMITS.stateRegion}
+  581:               placeholder="Example: Florida"
+  582:               autoComplete="address-level1"
+  583:             />
+  584:           </FormField>
+  585: 
+  586:           <FormField
+  587:             id={getFieldId("country")}
+  588:             label="Country"
+  589:             error={fieldErrors["location.country"]}
+  590:           >
+  591:             <input
+  592:               id={getFieldId("country")}
+  593:               type="text"
+  594:               value={formData.location.country}
+  595:               onChange={(event) =>
+  596:                 updateNestedField("location", "country", event.target.value)
+  597:               }
+  598:               maxLength={EXPERIENCE_FIELD_LIMITS.country}
+  599:               placeholder="Example: United States"
+  600:               autoComplete="country-name"
+  601:             />
+  602:           </FormField>
+  603: 
+  604:           <FormField
+  605:             className="experience-form-field--full"
+  606:             id={getFieldId("display-location")}
+  607:             label="Public Display Location"
+  608:             error={fieldErrors["location.displayValue"]}
+  609:             help="Optional. When provided, this value is shown instead of combining the city, region, and country."
+  610:           >
+  611:             <input
+  612:               id={getFieldId("display-location")}
+  613:               type="text"
+  614:               value={formData.location.displayValue}
+  615:               onChange={(event) =>
+  616:                 updateNestedField(
+  617:                   "location",
+  618:                   "displayValue",
+  619:                   event.target.value,
+  620:                 )
+  621:               }
+  622:               maxLength={EXPERIENCE_FIELD_LIMITS.locationDisplayValue}
+  623:               placeholder="Example: Coconut Creek, Florida"
+  624:             />
+  625:           </FormField>
+  626:         </div>
+  627:       </section>
+  628: 
+  629:       {/* =====================================
+  630:           Experience Overview
+  631:           ===================================== */}
+  632: 
+  633:       <ExperienceOverviewBuilder
+  634:         experience={formData}
+  635:         fieldError={fieldErrors.overview}
+  636:         disabled={isSaving}
+  637:         onChange={handleOverviewUpdate}
+  638:       />
+  639: 
+  640:       {/* =====================================
+  641:           Responsibility
+  642:           ===================================== */}
+  643: 
+  644:       <ResponsibilityEditor
+  645:         responsibilities={formData.responsibilities}
+  646:         fieldErrors={fieldErrors}
+  647:         disabled={isSaving}
+  648:         onChange={(nextResponsibilities) =>
+  649:           updateCollectionField("responsibilities", nextResponsibilities)
+  650:         }
+  651:       />
+  652: 
+  653:       {/* =====================================
+  654:           Achievements and Results
+  655:           ===================================== */}
+  656: 
+  657:       <AchievementEditor
+  658:         achievements={formData.achievements}
+  659:         fieldErrors={fieldErrors}
+  660:         disabled={isSaving}
+  661:         onChange={(nextAchievements) =>
+  662:           updateCollectionField("achievements", nextAchievements)
+  663:         }
+  664:       />
+  665: 
+  666:       {/* =====================================
+  667:           Skills and Competencies
+  668:           ===================================== */}
+  669: 
+  670:       <ExperienceSkillsEditor
+  671:         experience={formData}
+  672:         experienceSkills={formData.skills}
+  673:         fieldErrors={fieldErrors}
+  674:         disabled={isSaving}
+  675:         onChange={(nextSkills) => updateCollectionField("skills", nextSkills)}
+  676:       />
+  677: 
+  678:       <ExperienceTechnologyEditor
+  679:         technologies={formData.technologies || []}
+  680:         fieldError={fieldErrors.technologies}
+  681:         disabled={isSaving}
+  682:         onChange={handleTechnologiesChange}
+  683:       />
+  684: 
+  685:       {/* =====================================
+  686:           Leadership
+  687:           ===================================== */}
+  688: 
+  689:       <section
+  690:         className="experience-form-section"
+  691:         aria-labelledby={`${formId}-timeline-section-title`}
+  692:       >
+  693:         <header className="experience-form-section-header">
+  694:           <span aria-hidden="true" />
+  695: 
+  696:           <div>
+  697:             <small>Leadership</small>
+  698: 
+  699:             <h3 id={`${formId}-leadership-section-title`}>
+  700:               Leadership and Collaboration
+  701:             </h3>
+  702: 
+  703:             <p>
+  704:               Record supervision, mentoring, coordination, and leadership
+  705:               responsibilities.
+  706:             </p>
+  707:           </div>
+  708:         </header>
+  709: 
+  710:         <div className="experience-form-checkbox-field experience-form-checkbox-field--full">
+  711:           <label>
+  712:             <input
+  713:               type="checkbox"
+  714:               checked={formData.leadership.hasLeadershipResponsibilities}
+  715:               onChange={handleLeadershipChange}
+  716:             />
+  717: 
+  718:             <span>
+  719:               <strong>This role included leadership responsibilities</strong>
+  720: 
+  721:               <small>
+  722:                 Include supervision, mentoring, technical leadership, training,
+  723:                 or team coordination.
+  724:               </small>
+  725:             </span>
+  726:           </label>
+  727:         </div>
+  728: 
+  729:         {formData.leadership.hasLeadershipResponsibilities && (
+  730:           <div className="experience-form-grid experience-form-leadership-fields">
+  731:             <FormField
+  732:               id={getFieldId("people-managed")}
+  733:               label="People Managed or Supervised"
+  734:               error={fieldErrors["leadership.peopleManaged"]}
+  735:               help="Leave blank if the role involved leadership without direct supervision."
+  736:             >
+  737:               <input
+  738:                 id={getFieldId("people-managed")}
+  739:                 type="number"
+  740:                 min="0"
+  741:                 step="1"
+  742:                 value={formData.leadership.peopleManaged ?? ""}
+  743:                 onChange={(event) =>
+  744:                   updateNestedField(
+  745:                     "leadership",
+  746:                     "peopleManaged",
+  747:                     event.target.value,
+  748:                   )
+  749:                 }
+  750:                 placeholder="Example: 5"
+  751:               />
+  752:             </FormField>
+  753: 
+  754:             <FormField
+  755:               className="experience-form-field--full"
+  756:               id={getFieldId("leadership-description")}
+  757:               label="Leadership Description"
+  758:               error={fieldErrors["leadership.description"]}
+  759:               count={`${formData.leadership.description.length}/${
+  760:                 EXPERIENCE_FIELD_LIMITS.leadershipDescription
+  761:               }`}
+  762:             >
+  763:               <textarea
+  764:                 id={getFieldId("leadership-description")}
+  765:                 value={formData.leadership.description}
+  766:                 onChange={(event) =>
+  767:                   updateNestedField(
+  768:                     "leadership",
+  769:                     "description",
+  770:                     event.target.value,
+  771:                   )
+  772:                 }
+  773:                 rows={4}
+  774:                 maxLength={EXPERIENCE_FIELD_LIMITS.leadershipDescription}
+  775:                 placeholder="Example: Coordinated technical support activities, trained new team members, and helped establish troubleshooting procedures."
+  776:               />
+  777:             </FormField>
+  778:           </div>
+  779:         )}
+  780:       </section>
+  781: 
+  782:       {/* =====================================
+  783:           Private Career Information
+  784:           ===================================== */}
+  785: 
+  786:       <section
+  787:         className="experience-form-section"
+  788:         aria-labelledby={`${formId}-timeline-section-title`}
+  789:       >
+  790:         <header className="experience-form-section-header">
+  791:           <span aria-hidden="true" />
+  792: 
+  793:           <div>
+  794:             <small>Private Information</small>
+  795: 
+  796:             <h3 id={`${formId}-private-section-title`}>
+  797:               Career Management Notes
+  798:             </h3>
+  799: 
+  800:             <p>
+  801:               Save information that may help with interviews and career
+  802:               planning.
+  803:             </p>
+  804:           </div>
+  805:         </header>
+  806: 
+  807:         <div className="experience-form-private-notice" role="note">
+  808:           <span aria-hidden="true">â—</span>
+  809: 
+  810:           <p>
+  811:             These fields are private and should never appear automatically on a
+  812:             rÃ©sumÃ© or public portfolio.
+  813:           </p>
+  814:         </div>
+  815: 
+  816:         <div className="experience-form-grid">
+  817:           <FormField
+  818:             className="experience-form-field--full"
+  819:             id={getFieldId("reason-for-leaving")}
+  820:             label="Reason for Leaving"
+  821:             error={fieldErrors["privateInformation.reasonForLeaving"]}
+  822:             count={`${formData.privateInformation.reasonForLeaving.length}/${
+  823:               EXPERIENCE_FIELD_LIMITS.reasonForLeaving
+  824:             }`}
+  825:           >
+  826:             <textarea
+  827:               id={getFieldId("reason-for-leaving")}
+  828:               value={formData.privateInformation.reasonForLeaving}
+  829:               onChange={(event) =>
+  830:                 updateNestedField(
+  831:                   "privateInformation",
+  832:                   "reasonForLeaving",
+  833:                   event.target.value,
+  834:                 )
+  835:               }
+  836:               rows={3}
+  837:               maxLength={EXPERIENCE_FIELD_LIMITS.reasonForLeaving}
+  838:               placeholder="Optional private note about why the position ended."
+  839:             />
+  840:           </FormField>
+  841: 
+  842:           <FormField
+  843:             className="experience-form-field--full"
+  844:             id={getFieldId("private-notes")}
+  845:             label="Private Notes"
+  846:             error={fieldErrors["privateInformation.notes"]}
+  847:             count={`${formData.privateInformation.notes.length}/${
+  848:               EXPERIENCE_FIELD_LIMITS.privateNotes
+  849:             }`}
+  850:           >
+  851:             <textarea
+  852:               id={getFieldId("private-notes")}
+  853:               value={formData.privateInformation.notes}
+  854:               onChange={(event) =>
+  855:                 updateNestedField(
+  856:                   "privateInformation",
+  857:                   "notes",
+  858:                   event.target.value,
+  859:                 )
+  860:               }
+  861:               rows={4}
+  862:               maxLength={EXPERIENCE_FIELD_LIMITS.privateNotes}
+  863:               placeholder="Add private interview reminders, references, important context, or career notes."
+  864:             />
+  865:           </FormField>
+  866:         </div>
+  867:       </section>
+  868: 
+  869:       {/* =====================================
+  870:           Visibility and Status
+  871:           ===================================== */}
+  872: 
+  873:       <section
+  874:         className="experience-form-section"
+  875:         aria-labelledby={`${formId}-timeline-section-title`}
+  876:       >
+  877:         <header className="experience-form-section-header">
+  878:           <span aria-hidden="true" />
+  879: 
+  880:           <div>
+  881:             <small>Presentation</small>
+  882: 
+  883:             <h3 id={`${formId}-visibility-section-title`}>
+  884:               Visibility and Record Status
+  885:             </h3>
+  886: 
+  887:             <p>
+  888:               Choose the information available for rÃ©sumÃ© and portfolio
+  889:               presentation.
+  890:             </p>
+  891:           </div>
+  892:         </header>
+  893: 
+  894:         <FormField
+  895:           id={getFieldId("record-status")}
+  896:           label="Record Status"
+  897:           error={fieldErrors.status}
+  898:         >
+  899:           <select
+  900:             id={getFieldId("record-status")}
+  901:             value={formData.status}
+  902:             onChange={(event) =>
+  903:               updateTopLevelField("status", event.target.value)
+  904:             }
+  905:           >
+  906:             {EXPERIENCE_STATUS_OPTIONS.map((option) => (
+  907:               <option key={option.value} value={option.value}>
+  908:                 {option.label}
+  909:               </option>
+  910:             ))}
+  911:           </select>
+  912:         </FormField>
+  913: 
+  914:         <div className="experience-form-visibility-grid">
+  915:           <VisibilityOption
+  916:             label="Organization Website"
+  917:             description="Allow the organization website to appear publicly."
+  918:             checked={formData.visibility.showOrganizationWebsite}
+  919:             onChange={(checked) =>
+  920:               updateNestedField(
+  921:                 "visibility",
+  922:                 "showOrganizationWebsite",
+  923:                 checked,
+  924:               )
+  925:             }
+  926:           />
+  927: 
+  928:           <VisibilityOption
+  929:             label="Location"
+  930:             description="Allow the experience location to appear."
+  931:             checked={formData.visibility.showLocation}
+  932:             onChange={(checked) =>
+  933:               updateNestedField("visibility", "showLocation", checked)
+  934:             }
+  935:           />
+  936: 
+  937:           <VisibilityOption
+  938:             label="Employment Type"
+  939:             description="Show full-time, internship, contract, or another type."
+  940:             checked={formData.visibility.showEmploymentType}
+  941:             onChange={(checked) =>
+  942:               updateNestedField("visibility", "showEmploymentType", checked)
+  943:             }
+  944:           />
+  945: 
+  946:           <VisibilityOption
+  947:             label="Work Arrangement"
+  948:             description="Show whether the role was on-site, remote, or hybrid."
+  949:             checked={formData.visibility.showWorkArrangement}
+  950:             onChange={(checked) =>
+  951:               updateNestedField("visibility", "showWorkArrangement", checked)
+  952:             }
+  953:           />
+  954: 
+  955:           <VisibilityOption
+  956:             label="Responsibilities"
+  957:             description="Allow selected responsibilities to appear."
+  958:             checked={formData.visibility.showResponsibilities}
+  959:             onChange={(checked) =>
+  960:               updateNestedField("visibility", "showResponsibilities", checked)
+  961:             }
+  962:           />
+  963: 
+  964:           <VisibilityOption
+  965:             label="Achievements"
+  966:             description="Allow selected accomplishments and outcomes to appear."
+  967:             checked={formData.visibility.showAchievements}
+  968:             onChange={(checked) =>
+  969:               updateNestedField("visibility", "showAchievements", checked)
+  970:             }
+  971:           />
+  972: 
+  973:           <VisibilityOption
+  974:             label="Skills"
+  975:             description="Allow relevant professional skills to appear."
+  976:             checked={formData.visibility.showSkills}
+  977:             onChange={(checked) =>
+  978:               updateNestedField("visibility", "showSkills", checked)
+  979:             }
+  980:           />
+  981: 
+  982:           <VisibilityOption
+  983:             label="Technologies"
+  984:             description="Allow tools, technologies, and systems to appear."
+  985:             checked={formData.visibility.showTechnologies}
+  986:             onChange={(checked) =>
+  987:               updateNestedField("visibility", "showTechnologies", checked)
+  988:             }
+  989:           />
+  990:         </div>
+  991:       </section>
+  992: 
+  993:       {/* =====================================
+  994:           Validation Warnings
+  995:           ===================================== */}
+  996: 
+  997:       {warnings.length > 0 && (
+  998:         <section className="experience-form-warnings">
+  999:           <strong>Suggestions for a stronger experience</strong>
+ 1000: 
+ 1001:           <ul>
+ 1002:             {warnings.map((warning, index) => (
+ 1003:               <li key={`${warning.code}-${warning.field}-${index}`}>
+ 1004:                 {warning.message}
+ 1005:               </li>
+ 1006:             ))}
+ 1007:           </ul>
+ 1008:         </section>
+ 1009:       )}
+ 1010: 
+ 1011:       {/* =====================================
+ 1012:           Submission Error
+ 1013:           ===================================== */}
+ 1014: 
+ 1015:       {submissionError && (
+ 1016:         <div className="experience-form-submission-error" role="alert">
+ 1017:           <strong>Unable to save this experience</strong>
+ 1018: 
+ 1019:           <p>{submissionError}</p>
+ 1020:         </div>
+ 1021:       )}
+ 1022: 
+ 1023:       {/* =====================================
+ 1024:           Form Actions
+ 1025:           ===================================== */}
+ 1026: 
+ 1027:       <footer className="experience-form-actions">
+ 1028:         <button
+ 1029:           type="button"
+ 1030:           className="experience-form-cancel-button"
+ 1031:           onClick={onCancel}
+ 1032:           disabled={isSaving}
+ 1033:         >
+ 1034:           Cancel
+ 1035:         </button>
+ 1036: 
+ 1037:         <button
+ 1038:           type="submit"
+ 1039:           className="experience-form-save-button"
+ 1040:           disabled={isSaving}
+ 1041:         >
+ 1042:           {isSaving
+ 1043:             ? "Saving..."
+ 1044:             : isEditing
+ 1045:               ? "Save Changes"
+ 1046:               : "Save Experience"}
+ 1047:         </button>
+ 1048:       </footer>
+ 1049:     </form>
+ 1050:   );
+ 1051: }
+ 1052: 
+ 1053: /*
+ 1054:  * =========================================
+ 1055:  * Form Field
+ 1056:  * =========================================
+ 1057:  */
+ 1058: 
+ 1059: function FormField({
+ 1060:   id,
+ 1061:   label,
+ 1062:   required = false,
+ 1063:   error = "",
+ 1064:   help = "",
+ 1065:   count = "",
+ 1066:   className = "",
+ 1067:   children,
+ 1068: }) {
+ 1069:   return (
+ 1070:     <div
+ 1071:       className={`experience-form-field ${className} ${
+ 1072:         error ? "experience-form-field--error" : ""
+ 1073:       }`}
+ 1074:     >
+ 1075:       <div className="experience-form-label-row">
+ 1076:         <label htmlFor={id}>
+ 1077:           {label}
+ 1078: 
+ 1079:           {required && <span aria-hidden="true">*</span>}
+ 1080:         </label>
+ 1081: 
+ 1082:         {count && <small>{count}</small>}
+ 1083:       </div>
+ 1084: 
+ 1085:       {children}
+ 1086: 
+ 1087:       {help && !error && <small className="experience-form-help">{help}</small>}
+ 1088: 
+ 1089:       {error && (
+ 1090:         <p className="experience-form-field-error" role="alert">
+ 1091:           {error}
+ 1092:         </p>
+ 1093:       )}
+ 1094:     </div>
+ 1095:   );
+ 1096: }
+ 1097: 
+ 1098: /*
+ 1099:  * =========================================
+ 1100:  * Visibility Option
+ 1101:  * =========================================
+ 1102:  */
+ 1103: 
+ 1104: function VisibilityOption({ label, description, checked, onChange }) {
+ 1105:   return (
+ 1106:     <label className="experience-form-visibility-option">
+ 1107:       <input
+ 1108:         type="checkbox"
+ 1109:         checked={checked}
+ 1110:         onChange={(event) => onChange?.(event.target.checked)}
+ 1111:       />
+ 1112: 
+ 1113:       <span>
+ 1114:         <strong>{label}</strong>
+ 1115: 
+ 1116:         <small>{description}</small>
+ 1117:       </span>
+ 1118:     </label>
+ 1119:   );
+ 1120: }
+ 1121: 
+ 1122: export default ExperienceForm;

@@ -1,0 +1,42 @@
+const SERVER_OWNED_EXPERIENCE_FIELDS = [
+  "userId",
+  "user_id",
+  "createdAt",
+  "updatedAt",
+  "rowVersion",
+  "recordStatus",
+  "record_status",
+];
+
+export function prepareExperienceApiPayload(experience) {
+  if (
+    !experience ||
+    typeof experience !== "object" ||
+    Array.isArray(experience)
+  ) {
+    throw new TypeError("A valid Experience object is required.");
+  }
+
+  const payload = structuredClone(experience);
+
+  for (const field of SERVER_OWNED_EXPERIENCE_FIELDS) {
+    delete payload[field];
+  }
+
+  return payload;
+}
+
+export function getExperienceRowVersion(experience) {
+  const rowVersion = experience?.rowVersion;
+
+  if (
+    typeof rowVersion !== "string" ||
+    !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+  ) {
+    throw new TypeError(
+      "A valid Experience rowVersion is required.",
+    );
+  }
+
+  return rowVersion;
+}

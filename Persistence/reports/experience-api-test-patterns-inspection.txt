@@ -1,0 +1,1224 @@
+﻿EXPERIENCE API TEST PATTERNS INSPECTION
+Generated: 2026-10-26 17:19:17
+Backend: D:\Documents\Project\Portfolio\portfolio-plateform\backend
+
+===========================================================================
+FILE: test\api\projectApi.test.js
+===========================================================================
+SHA256: 1CC73F90ED2C434FA74828CE1AF7233BB810CFF7D9B5457A96B8FF5EF8A36605
+   1: import "dotenv/config";
+   2: 
+   3: import assert from "node:assert/strict";
+   4: import { beforeEach, describe, it, mock } from "node:test";
+   5: import express from "express";
+   6: import supertest from "supertest";
+   7: 
+   8: process.env.NODE_ENV = "test";
+   9: process.env.SESSION_COOKIE_NAME = "portfolio_refresh_token";
+  10: process.env.SESSION_COOKIE_PATH = "/api";
+  11: process.env.SESSION_COOKIE_SAME_SITE = "lax";
+  12: delete process.env.SESSION_COOKIE_DOMAIN;
+  13: 
+  14: const USER_ID = "11111111-1111-4111-8111-111111111111";
+  15: const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+  16: const SESSION_ID = "22222222-2222-4222-8222-222222222222";
+  17: const TOKEN = "project-test-refresh-token-12345678901234567890";
+  18: const ROW_VERSION = "AAAAAAAAAAE=";
+  19: 
+  20: let state;
+  21: 
+  22: function createProject() {
+  23:   return {
+  24:     id: PROJECT_ID,
+  25:     userId: USER_ID,
+  26:     title: "Portfolio Platform",
+  27:     archived: false,
+  28:     rowVersion: ROW_VERSION,
+  29:   };
+  30: }
+  31: 
+  32: function resetState() {
+  33:   state = {
+  34:     calls: [],
+  35:     error: null,
+  36:     project: createProject(),
+  37:   };
+  38: }
+  39: 
+  40: resetState();
+  41: 
+  42: function record(operation, input) {
+  43:   state.calls.push({ operation, input });
+  44: 
+  45:   if (state.error) {
+  46:     throw state.error;
+  47:   }
+  48: }
+  49: 
+  50: mock.module("../../src/services/Service/sessionService.js", {
+  51:   exports: {
+  52:     async getAuthenticatedSession() {
+  53:       return {
+  54:         user: {
+  55:           id: USER_ID,
+  56:           email: "project-test@example.com",
+  57:           emailVerifiedAt: "2026-09-23T00:00:00.000Z",
+  58:           accountStatus: "active",
+  59:         },
+  60:         roles: ["user"],
+  61:         session: {
+  62:           id: SESSION_ID,
+  63:           deviceName: "Test Browser",
+  64:           createdAt: "2026-09-23T00:00:00.000Z",
+  65:           lastUsedAt: "2026-09-23T00:00:00.000Z",
+  66:           expiresAt: "2026-10-23T00:00:00.000Z",
+  67:           isCurrent: true,
+  68:         },
+  69:       };
+  70:     },
+  71:   },
+  72: });
+  73: 
+  74: mock.module("../../src/services/Service/projectService.js", {
+  75:   exports: {
+  76:     async getAuthenticatedProjects(input) {
+  77:       record("list", input);
+  78:       return [state.project];
+  79:     },
+  80: 
+  81:     async getAuthenticatedProject(input) {
+  82:       record("get", input);
+  83:       return state.project;
+  84:     },
+  85: 
+  86:     async createAuthenticatedProject(input) {
+  87:       record("create", input);
+  88:       return state.project;
+  89:     },
+  90: 
+  91:     async updateAuthenticatedProject(input) {
+  92:       record("update", input);
+  93:       return state.project;
+  94:     },
+  95: 
+  96:     async setAuthenticatedProjectArchiveStatus(input) {
+  97:       record("archive", input);
+  98:       return {
+  99:         ...state.project,
+ 100:         archived: input.archived,
+ 101:       };
+ 102:     },
+ 103: 
+ 104:     async deleteAuthenticatedProject(input) {
+ 105:       record("delete", input);
+ 106:       return { deleted: true };
+ 107:     },
+ 108:   },
+ 109: });
+ 110: 
+ 111: const { default: projectRoutes } =
+ 112:   await import("../../src/routes/projectRoutes.js");
+ 113: 
+ 114: const { globalErrorHandler, notFoundHandler } =
+ 115:   await import("../../src/middleware/errorMiddleware.js");
+ 116: 
+ 117: const app = express();
+ 118: 
+ 119: app.use(express.json({ limit: "1mb" }));
+ 120: app.use("/api/projects", projectRoutes);
+ 121: app.use(notFoundHandler);
+ 122: app.use(globalErrorHandler);
+ 123: 
+ 124: const api = supertest(app);
+ 125: 
+ 126: function cookie() {
+ 127:   return `portfolio_refresh_token=${encodeURIComponent(TOKEN)}`;
+ 128: }
+ 129: 
+ 130: function authenticated(request) {
+ 131:   return request.set("Cookie", cookie());
+ 132: }
+ 133: 
+ 134: function lastCall() {
+ 135:   return state.calls.at(-1);
+ 136: }
+ 137: 
+ 138: describe("projects API", () => {
+ 139:   beforeEach(resetState);
+ 140: 
+ 141:   it("requires authentication before listing projects", async () => {
+ 142:     await api.get("/api/projects").expect(401);
+ 143:     assert.equal(state.calls.length, 0);
+ 144:   });
+ 145: 
+ 146:   it("lists projects belonging to the authenticated user", async () => {
+ 147:     const response = await authenticated(
+ 148:       api.get("/api/projects"),
+ 149:     ).expect(200);
+ 150: 
+ 151:     assert.equal(response.body.status, "success");
+ 152:     assert.equal(response.body.data.projects.length, 1);
+ 153: 
+ 154:     assert.deepEqual(lastCall(), {
+ 155:       operation: "list",
+ 156:       input: { userId: USER_ID },
+ 157:     });
+ 158: 
+ 159:     assert.match(response.headers["cache-control"], /no-store/);
+ 160:   });
+ 161: 
+ 162:   it("retrieves a project using the authenticated user ID", async () => {
+ 163:     const response = await authenticated(
+ 164:       api.get(`/api/projects/${PROJECT_ID}`),
+ 165:     ).expect(200);
+ 166: 
+ 167:     assert.equal(response.body.data.project.id, PROJECT_ID);
+ 168: 
+ 169:     assert.deepEqual(lastCall(), {
+ 170:       operation: "get",
+ 171:       input: {
+ 172:         userId: USER_ID,
+ 173:         projectId: PROJECT_ID,
+ 174:       },
+ 175:     });
+ 176:   });
+ 177: 
+ 178:   it("creates a project using the authenticated user ID", async () => {
+ 179:     const project = {
+ 180:       title: "Portfolio Platform",
+ 181:     };
+ 182: 
+ 183:     const response = await authenticated(
+ 184:       api.post("/api/projects"),
+ 185:     )
+ 186:       .send(project)
+ 187:       .expect(201);
+ 188: 
+ 189:     assert.equal(response.body.status, "success");
+ 190: 
+ 191:     assert.deepEqual(lastCall(), {
+ 192:       operation: "create",
+ 193:       input: {
+ 194:         userId: USER_ID,
+ 195:         project,
+ 196:       },
+ 197:     });
+ 198:   });
+ 199: 
+ 200:   it("updates a project with its rowVersion", async () => {
+ 201:     const project = {
+ 202:       title: "Updated Portfolio",
+ 203:     };
+ 204: 
+ 205:     await authenticated(
+ 206:       api.put(`/api/projects/${PROJECT_ID}`),
+ 207:     )
+ 208:       .send({
+ 209:         project,
+ 210:         rowVersion: ROW_VERSION,
+ 211:       })
+ 212:       .expect(200);
+ 213: 
+ 214:     assert.deepEqual(lastCall(), {
+ 215:       operation: "update",
+ 216:       input: {
+ 217:         userId: USER_ID,
+ 218:         projectId: PROJECT_ID,
+ 219:         project,
+ 220:         rowVersion: ROW_VERSION,
+ 221:       },
+ 222:     });
+ 223:   });
+ 224: 
+ 225:   it("rejects unexpected update request fields", async () => {
+ 226:     const response = await authenticated(
+ 227:       api.put(`/api/projects/${PROJECT_ID}`),
+ 228:     )
+ 229:       .send({
+ 230:         project: { title: "Updated" },
+ 231:         rowVersion: ROW_VERSION,
+ 232:         userId: "99999999-9999-4999-8999-999999999999",
+ 233:       })
+ 234:       .expect(400);
+ 235: 
+ 236:     assert.equal(response.body.code, "PROJECT_REQUEST_INVALID");
+ 237:     assert.equal(state.calls.length, 0);
+ 238:   });
+ 239: 
+ 240:   it("archives a project with its rowVersion", async () => {
+ 241:     const response = await authenticated(
+ 242:       api.patch(`/api/projects/${PROJECT_ID}/archive`),
+ 243:     )
+ 244:       .send({
+ 245:         archived: true,
+ 246:         rowVersion: ROW_VERSION,
+ 247:       })
+ 248:       .expect(200);
+ 249: 
+ 250:     assert.equal(response.body.data.project.archived, true);
+ 251: 
+ 252:     assert.deepEqual(lastCall(), {
+ 253:       operation: "archive",
+ 254:       input: {
+ 255:         userId: USER_ID,
+ 256:         projectId: PROJECT_ID,
+ 257:         archived: true,
+ 258:         rowVersion: ROW_VERSION,
+ 259:       },
+ 260:     });
+ 261:   });
+ 262: 
+ 263:   it("restores an archived project", async () => {
+ 264:     const response = await authenticated(
+ 265:       api.patch(`/api/projects/${PROJECT_ID}/archive`),
+ 266:     )
+ 267:       .send({
+ 268:         archived: false,
+ 269:         rowVersion: ROW_VERSION,
+ 270:       })
+ 271:       .expect(200);
+ 272: 
+ 273:     assert.equal(response.body.data.project.archived, false);
+ 274:     assert.equal(response.body.message, "Project restored successfully.");
+ 275:   });
+ 276: 
+ 277:   it("deletes a project using its rowVersion", async () => {
+ 278:     const response = await authenticated(
+ 279:       api.delete(`/api/projects/${PROJECT_ID}`),
+ 280:     )
+ 281:       .send({ rowVersion: ROW_VERSION })
+ 282:       .expect(200);
+ 283: 
+ 284:     assert.equal(response.body.data.deleted, true);
+ 285: 
+ 286:     assert.deepEqual(lastCall(), {
+ 287:       operation: "delete",
+ 288:       input: {
+ 289:         userId: USER_ID,
+ 290:         projectId: PROJECT_ID,
+ 291:         rowVersion: ROW_VERSION,
+ 292:       },
+ 293:     });
+ 294:   });
+ 295: 
+ 296:   it("rejects unexpected delete request fields", async () => {
+ 297:     const response = await authenticated(
+ 298:       api.delete(`/api/projects/${PROJECT_ID}`),
+ 299:     )
+ 300:       .send({
+ 301:         rowVersion: ROW_VERSION,
+ 302:         userId: USER_ID,
+ 303:       })
+ 304:       .expect(400);
+ 305: 
+ 306:     assert.equal(response.body.code, "PROJECT_REQUEST_INVALID");
+ 307:     assert.equal(state.calls.length, 0);
+ 308:   });
+ 309: 
+ 310:   it("passes service errors to the global error handler", async () => {
+ 311:     const error = new Error("Project not found.");
+ 312:     error.status = 404;
+ 313:     error.code = "PROJECT_NOT_FOUND";
+ 314:     error.publicMessage = "Project not found.";
+ 315: 
+ 316:     state.error = error;
+ 317: 
+ 318:     const response = await authenticated(
+ 319:       api.get(`/api/projects/${PROJECT_ID}`),
+ 320:     ).expect(404);
+ 321: 
+ 322:     assert.equal(response.body.code, "PROJECT_NOT_FOUND");
+ 323:   });
+ 324: 
+ 325:   it("rejects unauthenticated project deletion", async () => {
+ 326:     await api
+ 327:       .delete(`/api/projects/${PROJECT_ID}`)
+ 328:       .send({ rowVersion: ROW_VERSION })
+ 329:       .expect(401);
+ 330: 
+ 331:     assert.equal(state.calls.length, 0);
+ 332:   });
+ 333: });
+
+===========================================================================
+FILE: src\middleware\authenticationMiddleware.js
+===========================================================================
+SHA256: E9960A13642AA8D570FEBEBA1F50F6C7F3974787CC08612DE1E9A3FA164982F8
+   1: import { getAuthenticatedSession } from "../services/Service/sessionService.js";
+   2: 
+   3: import {
+   4:   clearRefreshTokenCookie,
+   5:   getRefreshTokenFromRequest,
+   6: } from "../security/sessionCookieSecurity.js";
+   7: 
+   8: /*
+   9:  * =========================================
+  10:  * Authentication Error
+  11:  * =========================================
+  12:  */
+  13: 
+  14: function createAuthenticationError({
+  15:   message,
+  16:   code = "AUTHENTICATION_REQUIRED",
+  17:   status = 401,
+  18:   publicMessage = "You must sign in to access this resource.",
+  19: }) {
+  20:   const error = new Error(message);
+  21: 
+  22:   error.name = "AuthenticationError";
+  23: 
+  24:   error.code = code;
+  25: 
+  26:   error.status = status;
+  27: 
+  28:   error.publicMessage = publicMessage;
+  29: 
+  30:   return error;
+  31: }
+  32: 
+  33: /*
+  34:  * =========================================
+  35:  * Invalid Session Errors
+  36:  * =========================================
+  37:  */
+  38: 
+  39: function shouldClearSessionCookie(error) {
+  40:   const invalidSessionCodes = new Set([
+  41:     "SESSION_REFRESH_TOKEN_INVALID",
+  42:     "SESSION_NOT_FOUND",
+  43:     "SESSION_REFRESH_CONFLICT",
+  44:   ]);
+  45: 
+  46:   return invalidSessionCodes.has(error?.code);
+  47: }
+  48: 
+  49: /*
+  50:  * =========================================
+  51:  * Safely Clear Refresh Cookie
+  52:  * =========================================
+  53:  */
+  54: 
+  55: function safelyClearRefreshTokenCookie(response) {
+  56:   try {
+  57:     clearRefreshTokenCookie(response);
+  58:   } catch (error) {
+  59:     console.error(
+  60:       "Unable to clear refresh-token cookie during authentication:",
+  61:       error,
+  62:     );
+  63:   }
+  64: }
+  65: 
+  66: /*
+  67:  * =========================================
+  68:  * Normalize Roles
+  69:  * =========================================
+  70:  */
+  71: 
+  72: function normalizeRoles(roles) {
+  73:   if (!Array.isArray(roles)) {
+  74:     return [];
+  75:   }
+  76: 
+  77:   return [
+  78:     ...new Set(
+  79:       roles
+  80:         .map((role) =>
+  81:           typeof role === "string" ? role.trim().toLowerCase() : "",
+  82:         )
+  83:         .filter(Boolean),
+  84:     ),
+  85:   ];
+  86: }
+  87: 
+  88: /*
+  89:  * =========================================
+  90:  * Create Request Authentication
+  91:  * =========================================
+  92:  */
+  93: 
+  94: function createRequestAuthentication({ user, roles, session }) {
+  95:   if (!user?.id || !session?.id) {
+  96:     throw createAuthenticationError({
+  97:       message:
+  98:         "The resolved session does not contain a valid user and session.",
+  99: 
+ 100:       code: "AUTHENTICATION_CONTEXT_INVALID",
+ 101: 
+ 102:       status: 500,
+ 103: 
+ 104:       publicMessage: "Your session could not be verified.",
+ 105:     });
+ 106:   }
+ 107: 
+ 108:   const normalizedRoles = Object.freeze(normalizeRoles(roles));
+ 109: 
+ 110:   return Object.freeze({
+ 111:     isAuthenticated: true,
+ 112: 
+ 113:     userId: user.id,
+ 114: 
+ 115:     sessionId: session.id,
+ 116: 
+ 117:     user,
+ 118: 
+ 119:     roles: normalizedRoles,
+ 120: 
+ 121:     session,
+ 122:   });
+ 123: }
+ 124: 
+ 125: /*
+ 126:  * =========================================
+ 127:  * Require Authentication
+ 128:  * =========================================
+ 129:  *
+ 130:  * Resolves the HttpOnly refresh-token cookie,
+ 131:  * validates the database session and places
+ 132:  * public-safe identity information on:
+ 133:  *
+ 134:  * request.auth
+ 135:  *
+ 136:  * This middleware validates the session but
+ 137:  * does not rotate its refresh token.
+ 138:  */
+ 139: 
+ 140: export async function requireAuthentication(request, response, next) {
+ 141:   /*
+ 142:    * Protected responses must not be cached
+ 143:    * or shared between authenticated users.
+ 144:    */
+ 145: 
+ 146:   response.set({
+ 147:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+ 148: 
+ 149:     Pragma: "no-cache",
+ 150: 
+ 151:     Expires: "0",
+ 152:   });
+ 153: 
+ 154:   response.vary("Cookie");
+ 155: 
+ 156:   try {
+ 157:     const refreshToken = getRefreshTokenFromRequest(request);
+ 158: 
+ 159:     if (!refreshToken) {
+ 160:       throw createAuthenticationError({
+ 161:         message: "The request does not contain a refresh-token cookie.",
+ 162: 
+ 163:         code: "AUTHENTICATION_REQUIRED",
+ 164: 
+ 165:         status: 401,
+ 166: 
+ 167:         publicMessage: "You must sign in to access this resource.",
+ 168:       });
+ 169:     }
+ 170: 
+ 171:     const authentication = await getAuthenticatedSession({
+ 172:       refreshToken,
+ 173:     });
+ 174: 
+ 175:     request.auth = createRequestAuthentication(authentication);
+ 176: 
+ 177:     return next();
+ 178:   } catch (error) {
+ 179:     if (shouldClearSessionCookie(error)) {
+ 180:       safelyClearRefreshTokenCookie(response);
+ 181:     }
+ 182: 
+ 183:     return next(error);
+ 184:   }
+ 185: }
+
+===========================================================================
+FILE: src\middleware\errorMiddleware.js
+===========================================================================
+SHA256: 76CE2055C6B36614372046A8E2EB699E1B569151B3E37594D10214C6937DE5D8
+   1: /*
+   2:  * =========================================
+   3:  * Route Not Found
+   4:  * =========================================
+   5:  */
+   6: 
+   7: export function notFoundHandler(request, response) {
+   8:   response.set({
+   9:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  10: 
+  11:     Pragma: "no-cache",
+  12: 
+  13:     Expires: "0",
+  14:   });
+  15: 
+  16:   return response.status(404).json({
+  17:     status: "error",
+  18: 
+  19:     code: "ROUTE_NOT_FOUND",
+  20: 
+  21:     message: `Route not found: ${request.method} ${request.originalUrl}`,
+  22:   });
+  23: }
+  24: 
+  25: /*
+  26:  * =========================================
+  27:  * Global Error Handler
+  28:  * =========================================
+  29:  */
+  30: 
+  31: export function globalErrorHandler(error, request, response, next) {
+  32:   /*
+  33:    * Express delegates to its default handler
+  34:    * if a response has already started.
+  35:    */
+  36: 
+  37:   if (response.headersSent) {
+  38:     return next(error);
+  39:   }
+  40: 
+  41:   const isMalformedJson =
+  42:     error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+  43: 
+  44:   const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+  45: 
+  46:   const code = isMalformedJson
+  47:     ? "INVALID_JSON"
+  48:     : normalizePublicCode(error, status);
+  49: 
+  50:   const message = isMalformedJson
+  51:     ? "The request body contains invalid JSON."
+  52:     : getPublicMessage(error, status);
+  53: 
+  54:   /*
+  55:    * Log complete technical information only
+  56:    * on the server.
+  57:    */
+  58: 
+  59:   console.error("Unhandled API error:", {
+  60:     method: request.method,
+  61: 
+  62:     url: request.originalUrl,
+  63: 
+  64:     name: error?.name,
+  65: 
+  66:     code: error?.code,
+  67: 
+  68:     message: error?.message,
+  69: 
+  70:     status,
+  71: 
+  72:     provider: error?.provider,
+  73: 
+  74:     stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+  75:   });
+  76: 
+  77:   response.set({
+  78:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  79: 
+  80:     Pragma: "no-cache",
+  81: 
+  82:     Expires: "0",
+  83:   });
+  84: 
+  85:   const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+  86: 
+  87:   const validationErrors = normalizeValidationErrors(
+  88:     error?.errors || error?.validationErrors,
+  89:   );
+  90: 
+  91:   return response.status(status).json({
+  92:     status: "error",
+  93: 
+  94:     code,
+  95: 
+  96:     message,
+  97: 
+  98:     ...(Object.keys(fieldErrors).length > 0
+  99:       ? {
+ 100:           fieldErrors,
+ 101:         }
+ 102:       : {}),
+ 103: 
+ 104:     ...(validationErrors.length > 0
+ 105:       ? {
+ 106:           errors: validationErrors,
+ 107:         }
+ 108:       : {}),
+ 109: 
+ 110:     /*
+ 111:      * Development details are useful while
+ 112:      * building the API but are excluded from
+ 113:      * production responses.
+ 114:      */
+ 115: 
+ 116:     ...(process.env.NODE_ENV === "development"
+ 117:       ? {
+ 118:           debug: {
+ 119:             name: error?.name || "Error",
+ 120: 
+ 121:             technicalMessage: error?.message || "Unknown error",
+ 122: 
+ 123:             provider: error?.provider || null,
+ 124:           },
+ 125:         }
+ 126:       : {}),
+ 127:   });
+ 128: }
+ 129: 
+ 130: /*
+ 131:  * =========================================
+ 132:  * Status Normalization
+ 133:  * =========================================
+ 134:  */
+ 135: 
+ 136: function normalizeStatus(status) {
+ 137:   const numericStatus = Number(status);
+ 138: 
+ 139:   if (
+ 140:     Number.isInteger(numericStatus) &&
+ 141:     numericStatus >= 400 &&
+ 142:     numericStatus <= 599
+ 143:   ) {
+ 144:     return numericStatus;
+ 145:   }
+ 146: 
+ 147:   return 500;
+ 148: }
+ 149: 
+ 150: /*
+ 151:  * =========================================
+ 152:  * Public Error Code
+ 153:  * =========================================
+ 154:  *
+ 155:  * Internal database and provider codes should
+ 156:  * not automatically be returned to clients.
+ 157:  * Application errors are public only when
+ 158:  * they also provide a publicMessage.
+ 159:  */
+ 160: 
+ 161: function normalizePublicCode(error, status) {
+ 162:   const code = typeof error?.code === "string" ? error.code.trim() : "";
+ 163: 
+ 164:   const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+ 165: 
+ 166:   if (error?.publicMessage && isSafeCode) {
+ 167:     return code;
+ 168:   }
+ 169: 
+ 170:   if (status === 400) {
+ 171:     return "BAD_REQUEST";
+ 172:   }
+ 173: 
+ 174:   if (status === 401) {
+ 175:     return "AUTHENTICATION_REQUIRED";
+ 176:   }
+ 177: 
+ 178:   if (status === 403) {
+ 179:     return "ACCESS_FORBIDDEN";
+ 180:   }
+ 181: 
+ 182:   if (status === 404) {
+ 183:     return "RESOURCE_NOT_FOUND";
+ 184:   }
+ 185: 
+ 186:   if (status === 409) {
+ 187:     return "RESOURCE_CONFLICT";
+ 188:   }
+ 189: 
+ 190:   if (status === 429) {
+ 191:     return "RATE_LIMIT_EXCEEDED";
+ 192:   }
+ 193: 
+ 194:   if (status === 503) {
+ 195:     return "SERVICE_UNAVAILABLE";
+ 196:   }
+ 197: 
+ 198:   return "INTERNAL_SERVER_ERROR";
+ 199: }
+ 200: 
+ 201: /*
+ 202:  * =========================================
+ 203:  * Public Error Message
+ 204:  * =========================================
+ 205:  */
+ 206: 
+ 207: function getPublicMessage(error, status) {
+ 208:   if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+ 209:     return error.publicMessage.trim();
+ 210:   }
+ 211: 
+ 212:   if (status === 400) {
+ 213:     return "The request could not be processed.";
+ 214:   }
+ 215: 
+ 216:   if (status === 401) {
+ 217:     return "Authentication is required.";
+ 218:   }
+ 219: 
+ 220:   if (status === 403) {
+ 221:     return "You do not have permission to perform this operation.";
+ 222:   }
+ 223: 
+ 224:   if (status === 404) {
+ 225:     return "The requested resource was not found.";
+ 226:   }
+ 227: 
+ 228:   if (status === 409) {
+ 229:     return "The request conflicts with the current resource state.";
+ 230:   }
+ 231: 
+ 232:   if (status === 429) {
+ 233:     return "Too many requests were submitted. Please try again later.";
+ 234:   }
+ 235: 
+ 236:   if (status === 503) {
+ 237:     return "The service is temporarily unavailable.";
+ 238:   }
+ 239: 
+ 240:   return "An unexpected server error occurred.";
+ 241: }
+ 242: 
+ 243: /*
+ 244:  * =========================================
+ 245:  * Field Error Normalization
+ 246:  * =========================================
+ 247:  */
+ 248: 
+ 249: function normalizeFieldErrors(fieldErrors) {
+ 250:   if (
+ 251:     !fieldErrors ||
+ 252:     typeof fieldErrors !== "object" ||
+ 253:     Array.isArray(fieldErrors)
+ 254:   ) {
+ 255:     return {};
+ 256:   }
+ 257: 
+ 258:   const normalized = {};
+ 259: 
+ 260:   for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+ 261:     const safeFieldName = String(fieldName).slice(0, 100);
+ 262: 
+ 263:     const messageValues = Array.isArray(messages) ? messages : [messages];
+ 264: 
+ 265:     const safeMessages = messageValues
+ 266:       .filter((message) => typeof message === "string")
+ 267:       .map((message) => message.trim().slice(0, 500))
+ 268:       .filter(Boolean);
+ 269: 
+ 270:     if (safeMessages.length > 0) {
+ 271:       normalized[safeFieldName] = safeMessages;
+ 272:     }
+ 273:   }
+ 274: 
+ 275:   return normalized;
+ 276: }
+ 277: 
+ 278: /*
+ 279:  * =========================================
+ 280:  * Validation Error Normalization
+ 281:  * =========================================
+ 282:  */
+ 283: 
+ 284: function normalizeValidationErrors(errors) {
+ 285:   if (!Array.isArray(errors)) {
+ 286:     return [];
+ 287:   }
+ 288: 
+ 289:   return errors
+ 290:     .slice(0, 50)
+ 291:     .map((validationError) => {
+ 292:       if (typeof validationError === "string") {
+ 293:         return {
+ 294:           field: "",
+ 295: 
+ 296:           code: "VALIDATION_ERROR",
+ 297: 
+ 298:           message: validationError.trim().slice(0, 500),
+ 299:         };
+ 300:       }
+ 301: 
+ 302:       if (!validationError || typeof validationError !== "object") {
+ 303:         return null;
+ 304:       }
+ 305: 
+ 306:       const message =
+ 307:         typeof validationError.message === "string"
+ 308:           ? validationError.message.trim().slice(0, 500)
+ 309:           : "";
+ 310: 
+ 311:       if (!message) {
+ 312:         return null;
+ 313:       }
+ 314: 
+ 315:       return {
+ 316:         field:
+ 317:           typeof validationError.field === "string"
+ 318:             ? validationError.field.trim().slice(0, 100)
+ 319:             : "",
+ 320: 
+ 321:         code:
+ 322:           typeof validationError.code === "string"
+ 323:             ? validationError.code.trim().slice(0, 100)
+ 324:             : "VALIDATION_ERROR",
+ 325: 
+ 326:         message,
+ 327:       };
+ 328:     })
+ 329:     .filter(Boolean);
+ 330: }
+
+===========================================================================
+FILE: src\services\Service\experienceService.js
+===========================================================================
+SHA256: B8D68FCA9581B5CE987A86EC28585C8679F1022EC8D715D3447A1E22F66F1FAF
+   1: import {
+   2:   listExperiencesByUser,
+   3:   findExperienceById,
+   4:   createExperience,
+   5:   updateExperience,
+   6:   deleteExperience,
+   7: } from "../../repositories/experienceRepository.js";
+   8: 
+   9: import {
+  10:   parseExperienceInput,
+  11:   parseExperienceRowVersion,
+  12: } from "../../schemas/experienceSchemas.js";
+  13: 
+  14: const SERVER_OWNED_FIELDS = [
+  15:   "userId",
+  16:   "user_id",
+  17:   "createdAt",
+  18:   "updatedAt",
+  19:   "rowVersion",
+  20:   "recordStatus",
+  21:   "record_status",
+  22: ];
+  23: 
+  24: function createExperienceError({
+  25:   message,
+  26:   code,
+  27:   status,
+  28:   publicMessage,
+  29: }) {
+  30:   const error = new Error(message);
+  31: 
+  32:   error.name = "ExperienceServiceError";
+  33:   error.code = code;
+  34:   error.status = status;
+  35:   error.publicMessage = publicMessage;
+  36: 
+  37:   return error;
+  38: }
+  39: 
+  40: function assertUserId(userId) {
+  41:   if (typeof userId !== "string" || !userId.trim()) {
+  42:     throw createExperienceError({
+  43:       message: "An authenticated user ID is required.",
+  44:       code: "EXPERIENCE_AUTHENTICATION_REQUIRED",
+  45:       status: 401,
+  46:       publicMessage:
+  47:         "You must sign in to access your Experiences.",
+  48:     });
+  49:   }
+  50: 
+  51:   return userId.trim();
+  52: }
+  53: 
+  54: function assertExperienceId(experienceId) {
+  55:   if (
+  56:     typeof experienceId !== "string" ||
+  57:     !experienceId.trim() ||
+  58:     experienceId.length > 200
+  59:   ) {
+  60:     throw createExperienceError({
+  61:       message: "A valid Experience ID is required.",
+  62:       code: "EXPERIENCE_ID_INVALID",
+  63:       status: 400,
+  64:       publicMessage: "The Experience identifier is invalid.",
+  65:     });
+  66:   }
+  67: 
+  68:   return experienceId.trim();
+  69: }
+  70: 
+  71: function experienceNotFound() {
+  72:   return createExperienceError({
+  73:     message: "Experience not found for authenticated user.",
+  74:     code: "EXPERIENCE_NOT_FOUND",
+  75:     status: 404,
+  76:     publicMessage:
+  77:       "The requested Experience could not be found.",
+  78:   });
+  79: }
+  80: 
+  81: function experienceVersionConflict() {
+  82:   return createExperienceError({
+  83:     message: "Experience version conflict.",
+  84:     code: "EXPERIENCE_VERSION_CONFLICT",
+  85:     status: 409,
+  86:     publicMessage:
+  87:       "This Experience was changed elsewhere. Reload it before saving.",
+  88:   });
+  89: }
+  90: 
+  91: function experienceIdMismatch() {
+  92:   return createExperienceError({
+  93:     message:
+  94:       "The Experience body ID does not match the requested Experience ID.",
+  95:     code: "EXPERIENCE_ID_MISMATCH",
+  96:     status: 400,
+  97:     publicMessage:
+  98:       "The Experience identifiers do not match.",
+  99:   });
+ 100: }
+ 101: 
+ 102: function withoutServerFields(experience) {
+ 103:   const result = { ...experience };
+ 104: 
+ 105:   for (const field of SERVER_OWNED_FIELDS) {
+ 106:     delete result[field];
+ 107:   }
+ 108: 
+ 109:   return result;
+ 110: }
+ 111: 
+ 112: export async function getAuthenticatedExperiences({ userId }) {
+ 113:   return listExperiencesByUser(assertUserId(userId));
+ 114: }
+ 115: 
+ 116: export async function getAuthenticatedExperience({
+ 117:   userId,
+ 118:   experienceId,
+ 119: }) {
+ 120:   const experience = await findExperienceById(
+ 121:     assertUserId(userId),
+ 122:     assertExperienceId(experienceId),
+ 123:   );
+ 124: 
+ 125:   if (!experience) {
+ 126:     throw experienceNotFound();
+ 127:   }
+ 128: 
+ 129:   return experience;
+ 130: }
+ 131: 
+ 132: export async function createAuthenticatedExperience({
+ 133:   userId,
+ 134:   experience,
+ 135: }) {
+ 136:   const authenticatedUserId = assertUserId(userId);
+ 137: 
+ 138:   // Reject invalid client data before accessing the database.
+ 139:   const validatedExperience = parseExperienceInput(experience);
+ 140: 
+ 141:   try {
+ 142:     return await createExperience(
+ 143:       authenticatedUserId,
+ 144:       validatedExperience,
+ 145:     );
+ 146:   } catch (error) {
+ 147:     if (error.number === 2627 || error.number === 2601) {
+ 148:       throw createExperienceError({
+ 149:         message: "Experience ID already exists.",
+ 150:         code: "EXPERIENCE_ALREADY_EXISTS",
+ 151:         status: 409,
+ 152:         publicMessage:
+ 153:           "An Experience with this identifier already exists.",
+ 154:       });
+ 155:     }
+ 156: 
+ 157:     throw error;
+ 158:   }
+ 159: }
+ 160: 
+ 161: export async function updateAuthenticatedExperience({
+ 162:   userId,
+ 163:   experienceId,
+ 164:   experience,
+ 165:   rowVersion,
+ 166: }) {
+ 167:   const authenticatedUserId = assertUserId(userId);
+ 168:   const normalizedExperienceId = assertExperienceId(experienceId);
+ 169: 
+ 170:   const expectedRowVersion =
+ 171:     parseExperienceRowVersion(rowVersion);
+ 172: 
+ 173:   const validatedExperience =
+ 174:     parseExperienceInput(experience);
+ 175: 
+ 176:   if (validatedExperience.id !== normalizedExperienceId) {
+ 177:     throw experienceIdMismatch();
+ 178:   }
+ 179: 
+ 180:   const existingExperience = await findExperienceById(
+ 181:     authenticatedUserId,
+ 182:     normalizedExperienceId,
+ 183:   );
+ 184: 
+ 185:   if (!existingExperience) {
+ 186:     throw experienceNotFound();
+ 187:   }
+ 188: 
+ 189:   const updatedExperience = await updateExperience(
+ 190:     authenticatedUserId,
+ 191:     validatedExperience,
+ 192:     expectedRowVersion,
+ 193:   );
+ 194: 
+ 195:   if (!updatedExperience) {
+ 196:     throw experienceVersionConflict();
+ 197:   }
+ 198: 
+ 199:   return updatedExperience;
+ 200: }
+ 201: 
+ 202: export async function setAuthenticatedExperienceArchiveStatus({
+ 203:   userId,
+ 204:   experienceId,
+ 205:   rowVersion,
+ 206:   archived,
+ 207: }) {
+ 208:   const authenticatedUserId = assertUserId(userId);
+ 209:   const normalizedExperienceId = assertExperienceId(experienceId);
+ 210: 
+ 211:   const expectedRowVersion =
+ 212:     parseExperienceRowVersion(rowVersion);
+ 213: 
+ 214:   if (typeof archived !== "boolean") {
+ 215:     throw createExperienceError({
+ 216:       message: "Archive status must be a boolean.",
+ 217:       code: "EXPERIENCE_ARCHIVE_STATUS_INVALID",
+ 218:       status: 400,
+ 219:       publicMessage: "A valid archive status is required.",
+ 220:     });
+ 221:   }
+ 222: 
+ 223:   const existingExperience = await findExperienceById(
+ 224:     authenticatedUserId,
+ 225:     normalizedExperienceId,
+ 226:   );
+ 227: 
+ 228:   if (!existingExperience) {
+ 229:     throw experienceNotFound();
+ 230:   }
+ 231: 
+ 232:   // Preserve editable Experience content while removing
+ 233:   // database-managed metadata.
+ 234:   const editableExperience =
+ 235:     withoutServerFields(existingExperience);
+ 236: 
+ 237:   const validatedExperience = parseExperienceInput({
+ 238:     ...editableExperience,
+ 239:     status: archived ? "archived" : "active",
+ 240:   });
+ 241: 
+ 242:   // Always use the caller's version for concurrency checks.
+ 243:   const updatedExperience = await updateExperience(
+ 244:     authenticatedUserId,
+ 245:     validatedExperience,
+ 246:     expectedRowVersion,
+ 247:   );
+ 248: 
+ 249:   if (!updatedExperience) {
+ 250:     throw experienceVersionConflict();
+ 251:   }
+ 252: 
+ 253:   return updatedExperience;
+ 254: }
+ 255: 
+ 256: export async function deleteAuthenticatedExperience({
+ 257:   userId,
+ 258:   experienceId,
+ 259:   rowVersion,
+ 260: }) {
+ 261:   const authenticatedUserId = assertUserId(userId);
+ 262:   const normalizedExperienceId = assertExperienceId(experienceId);
+ 263: 
+ 264:   const expectedRowVersion =
+ 265:     parseExperienceRowVersion(rowVersion);
+ 266: 
+ 267:   const existingExperience = await findExperienceById(
+ 268:     authenticatedUserId,
+ 269:     normalizedExperienceId,
+ 270:   );
+ 271: 
+ 272:   if (!existingExperience) {
+ 273:     throw experienceNotFound();
+ 274:   }
+ 275: 
+ 276:   const deleted = await deleteExperience(
+ 277:     authenticatedUserId,
+ 278:     normalizedExperienceId,
+ 279:     expectedRowVersion,
+ 280:   );
+ 281: 
+ 282:   if (!deleted) {
+ 283:     throw experienceVersionConflict();
+ 284:   }
+ 285: 
+ 286:   return { deleted: true };
+ 287: }
+
+===========================================================================
+FILE: package.json
+===========================================================================
+SHA256: 814EB4B5DC2CAEFF7746DD89F0A9E60DB1F7E65D5F2FF58CA5FEE481155FC0A5
+   1: {
+   2:   "name": "portfolio-platform-backend",
+   3:   "version": "1.0.0",
+   4:   "description": "Backend API for the portfolio and resume platform",
+   5:   "main": "src/server.js",
+   6:   "scripts": {
+   7:     "dev": "nodemon src/server.js",
+   8:     "start": "node src/server.js",
+   9:     "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+  10:     "db:migrate": "node src/database/runMigrations.js",
+  11:     "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+  12:     "test:local-sql": "node test-local-sql.mjs",
+  13:     "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+  14:     "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+  15:     "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+  16:     "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+  17:     "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+  18:     "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+  19:     "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+  20:     "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+  21:     "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+  22:     "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+  23:     "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+  24:     "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+  25:     "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+  26:     "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+  27:     "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+  28:     "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+  29:     "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+  30:     "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  31:   },
+  32:   "keywords": [],
+  33:   "type": "module",
+  34:   "dependencies": {
+  35:     "argon2": "^0.45.1",
+  36:     "cors": "^2.8.6",
+  37:     "dotenv": "^17.4.2",
+  38:     "express": "^5.2.1",
+  39:     "express-rate-limit": "^8.7.0",
+  40:     "file-type": "^22.1.1",
+  41:     "groq-sdk": "^1.6.0",
+  42:     "helmet": "^8.3.0",
+  43:     "mssql": "^12.7.2",
+  44:     "multer": "^2.4.0",
+  45:     "openai": "^7.9.0",
+  46:     "resend": "^6.28.1",
+  47:     "yauzl": "^3.4.0",
+  48:     "zod": "^4.5.4"
+  49:   },
+  50:   "devDependencies": {
+  51:     "nodemon": "^3.1.14",
+  52:     "supertest": "^7.2.2"
+  53:   }
+  54: }
+
+===========================================================================
+EXPERIENCE API TARGET FILE STATUS
+===========================================================================
+src\controllers\experienceController.js : Exists=False
+src\routes\experienceRoutes.js : Exists=False
+test\api\experienceApi.test.js : Exists=False

@@ -770,6 +770,11 @@ export function normalizeExperience(value = {}) {
 
     status,
 
+    ...(typeof source.rowVersion === "string" &&
+    /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+      ? { rowVersion: source.rowVersion }
+      : {}),
+
     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
 
     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,

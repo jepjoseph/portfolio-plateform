@@ -1,0 +1,37 @@
+﻿EXPERIENCE STEP 7D.2 RESULTS
+Generated: 2026-10-26 17:43:28
+Exit code: 0
+Original SHA256: FE9D20006E637CECF0E294C23ED6C4F26D498781CE792E5F0E2B6DC0144E90B7
+Updated SHA256: 92C26FCAE6C2CB1508556DFD646AADAC2094E6606C54E5840D665CDCA2EF0910
+Backup: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\experience-api\experienceModel-20261026-174328.js.bak
+
+Γ£ö removes server-owned fields (1.5191ms)
+Γ£ö does not mutate the original experience (1.2723ms)
+Γ£ö rejects invalid experience objects (0.557ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.2577ms)
+Γ£ö rejects invalid rowVersion values (0.452ms)
+Γ£ö GET retrieves the Experience collection (39.6876ms)
+Γ£ö GET retrieves one Experience by ID (1.0884ms)
+Γ£ö POST creates an Experience without server-owned fields (1.0082ms)
+Γ£ö PUT updates an Experience with rowVersion (0.9067ms)
+Γ£ö PATCH archives an Experience with rowVersion (0.8899ms)
+Γ£ö PATCH restores an archived Experience (0.6884ms)
+Γ£ö DELETE sends rowVersion in the request body (0.7285ms)
+Γ£ö rejects invalid rowVersion before sending a request (1.6236ms)
+Γ£ö rejects invalid Experience IDs (0.2632ms)
+Γ£ö preserves backend validation errors (1.0768ms)
+Γ£ö preserves concurrency conflict errors (0.708ms)
+Γ£ö preserves authentication errors (0.6958ms)
+Γ£ö preserves a valid backend rowVersion (10.2156ms)
+Γ£ö does not add rowVersion to legacy records (0.2764ms)
+Γ£ö does not preserve an invalid rowVersion (0.269ms)
+Γ£ö preserves rowVersion during collection normalization (0.3175ms)
+Γ£ö preserves rowVersion during model updates (1.3215ms)
+Γä╣ tests 22
+Γä╣ suites 0
+Γä╣ pass 22
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 186.9278

@@ -1,0 +1,48 @@
+﻿EXPERIENCE STEP 7D.3D.2
+Timestamp: 20261026-175144
+Test exit code: 0
+
+SERVICE SHA256:
+5828688BFCA10C7A68B81DFE40F07CFD6E8C12128C30BB3AD62A7032455092CA
+
+TEST SHA256:
+EF1EE9B53EFE3B99CA8F62B0F265297171E3D37AE43072E97F546B53A21FDCA9
+
+TEST OUTPUT:
+Γ£ö removes server-owned fields (1.762ms)
+Γ£ö does not mutate the original experience (1.4409ms)
+Γ£ö rejects invalid experience objects (0.8534ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.4465ms)
+Γ£ö rejects invalid rowVersion values (0.518ms)
+Γ£ö rejects noncanonical SQL Server rowVersion padding bits (0.2722ms)
+Γ£ö GET retrieves the Experience collection (43.809ms)
+Γ£ö GET retrieves one Experience by ID (1.0431ms)
+Γ£ö POST creates an Experience without server-owned fields (1.2261ms)
+Γ£ö PUT updates an Experience with rowVersion (1.1319ms)
+Γ£ö PATCH archives an Experience with rowVersion (0.9679ms)
+Γ£ö PATCH restores an archived Experience (0.692ms)
+Γ£ö DELETE sends rowVersion in the request body (0.7992ms)
+Γ£ö rejects invalid rowVersion before sending a request (1.8389ms)
+Γ£ö rejects invalid Experience IDs (0.3381ms)
+Γ£ö preserves backend validation errors (1.5034ms)
+Γ£ö preserves concurrency conflict errors (0.8532ms)
+Γ£ö preserves authentication errors (0.8246ms)
+Γ£ö database service exposes the existing Experience interface (1.1465ms)
+Γ£ö database service rejects update without a complete record (0.7589ms)
+Γ£ö database service rejects mismatched Experience IDs (0.2404ms)
+Γ£ö database service rejects archive without rowVersion (0.2982ms)
+Γ£ö database service rejects delete without rowVersion (0.3372ms)
+Γ£ö preserves a valid backend rowVersion (9.9801ms)
+Γ£ö does not add rowVersion to legacy records (0.2659ms)
+Γ£ö does not preserve an invalid rowVersion (0.2742ms)
+Γ£ö preserves rowVersion during collection normalization (0.3218ms)
+Γ£ö preserves rowVersion during model updates (0.4932ms)
+Γä╣ tests 28
+Γä╣ suites 0
+Γä╣ pass 28
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 248.7926
+

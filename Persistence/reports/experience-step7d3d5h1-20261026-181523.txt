@@ -1,0 +1,525 @@
+STEP 7D.3D.5H.1
+Environment loading inspection
+Mode: READ ONLY
+
+========================================
+FILE: backend\src\config\environment.js
+========================================
+   1: import { z } from "zod";
+   2: 
+   3: /*
+   4:  * =========================================
+   5:  * Boolean Environment Values
+   6:  * =========================================
+   7:  */
+   8: 
+   9: const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+  10: 
+  11: const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+  12: 
+  13: /*
+  14:  * =========================================
+  15:  * Optional Text Normalization
+  16:  * =========================================
+  17:  */
+  18: 
+  19: function normalizeOptionalText(value) {
+  20:   if (typeof value !== "string") {
+  21:     return value;
+  22:   }
+  23: 
+  24:   const normalizedValue = value.trim();
+  25: 
+  26:   return normalizedValue || undefined;
+  27: }
+  28: 
+  29: /*
+  30:  * =========================================
+  31:  * Boolean Normalization
+  32:  * =========================================
+  33:  */
+  34: 
+  35: function normalizeBooleanValue(value) {
+  36:   if (typeof value === "boolean") {
+  37:     return value;
+  38:   }
+  39: 
+  40:   const normalizedValue = String(value ?? "")
+  41:     .trim()
+  42:     .toLowerCase();
+  43: 
+  44:   if (TRUE_VALUES.has(normalizedValue)) {
+  45:     return true;
+  46:   }
+  47: 
+  48:   if (FALSE_VALUES.has(normalizedValue)) {
+  49:     return false;
+  50:   }
+  51: 
+  52:   return value;
+  53: }
+  54: 
+  55: /*
+  56:  * =========================================
+  57:  * Environment Schema
+  58:  * =========================================
+  59:  */
+  60: 
+  61: const environmentSchema = z
+  62:   .object({
+  63:     /*
+  64:      * =========================================
+  65:      * Application
+  66:      * =========================================
+  67:      */
+  68: 
+  69:     NODE_ENV: z
+  70:       .enum(["development", "test", "production"])
+  71:       .default("development"),
+  72: 
+  73:     PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+  74: 
+  75:     FRONTEND_URL: z.string().trim().min(1).default("http://localhost:5173"),
+  76: 
+  77:     PROFILE_PICTURE_STORAGE_PATH: z.preprocess(
+  78:       normalizeOptionalText,
+  79:       z.string().min(1).optional(),
+  80:     ),
+  81: 
+  82:     PROFILE_PICTURE_PUBLIC_BASE_URL: z.preprocess(
+  83:       normalizeOptionalText,
+  84:       z.string().url().optional(),
+  85:     ),
+  86: 
+  87:     PROJECT_MEDIA_STORAGE_PATH: z.preprocess(
+  88:       normalizeOptionalText,
+  89:       z.string().min(1).optional(),
+  90:     ),
+  91: 
+  92:     PROJECT_DOCUMENT_STORAGE_PATH: z.preprocess(
+  93:       normalizeOptionalText,
+  94:       z.string().min(1).optional(),
+  95:     ),
+  96: 
+  97:     PROJECT_MEDIA_PUBLIC_BASE_URL: z.preprocess(
+  98:       normalizeOptionalText,
+  99:       z.string().url().optional(),
+ 100:     ),
+ 101: 
+ 102:     /*
+ 103:      * =========================================
+ 104:      * Database Connection
+ 105:      * =========================================
+ 106:      */
+ 107: 
+ 108:     DB_HOST: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+ 109: 
+ 110:     DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
+ 111: 
+ 112:     DB_NAME: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+ 113: 
+ 114:     DB_USER: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+ 115: 
+ 116: [REDACTED]
+ 117:       normalizeOptionalText,
+ 118:       z.string().min(1).optional(),
+ 119:     ),
+ 120: 
+ 121:     /*
+ 122:      * =========================================
+ 123:      * Database Security
+ 124:      * =========================================
+ 125:      */
+ 126: 
+ 127:     DB_ENCRYPT: z.preprocess(normalizeBooleanValue, z.boolean()).default(true),
+ 128: 
+ 129:     DB_TRUST_SERVER_CERTIFICATE: z
+ 130:       .preprocess(normalizeBooleanValue, z.boolean())
+ 131:       .default(false),
+ 132: 
+ 133:     /*
+ 134:      * =========================================
+ 135:      * Database Timeouts
+ 136:      * =========================================
+ 137:      */
+ 138: 
+ 139:     DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+ 140: 
+ 141:     DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+ 142: 
+ 143:     /*
+ 144:      * =========================================
+ 145:      * Database Pool
+ 146:      * =========================================
+ 147:      */
+ 148: 
+ 149:     DB_POOL_MIN: z.coerce.number().int().min(0).default(0),
+ 150: 
+ 151:     DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+ 152: 
+ 153:     DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+ 154: 
+ 155:     /*
+ 156:      * =========================================
+ 157:      * Authentication Security Secrets
+ 158:      * =========================================
+ 159:      *
+ 160:      * These secrets are optional while the
+ 161:      * authentication routes are not active.
+ 162:      *
+ 163:      * Authentication utilities will reject
+ 164:      * operations if the secrets are missing.
+ 165:      */
+ 166: 
+ 167: [REDACTED]
+ 168:       normalizeOptionalText,
+ 169:       z.string().min(32).optional(),
+ 170:     ),
+ 171: 
+ 172: [REDACTED]
+ 173:       normalizeOptionalText,
+ 174:       z.string().min(32).optional(),
+ 175:     ),
+ 176: 
+ 177: [REDACTED]
+ 178:       normalizeOptionalText,
+ 179:       z.string().min(32).optional(),
+ 180:     ),
+ 181: 
+ 182:     /*
+ 183:      * =========================================
+ 184:      * Email Delivery
+ 185:      * =========================================
+ 186:      */
+ 187: 
+ 188:     EMAIL_PROVIDER: z.enum(["development", "resend"]).default("development"),
+ 189: 
+ 190:     EMAIL_FROM_NAME: z
+ 191:       .string()
+ 192:       .trim()
+ 193:       .min(1)
+ 194:       .max(100)
+ 195:       .default("PortAncest Portfolio Platform"),
+ 196: 
+ 197:     EMAIL_FROM_ADDRESS: z.preprocess(
+ 198:       normalizeOptionalText,
+ 199: 
+ 200:       z.string().email().optional(),
+ 201:     ),
+ 202: 
+ 203: [REDACTED]
+ 204:       normalizeOptionalText,
+ 205: 
+ 206:       z.string().min(20).optional(),
+ 207:     ),
+ 208: 
+ 209:     /*
+ 210:      * Authentication Sessions
+ 211:      */
+ 212: 
+ 213:     SESSION_REFRESH_TOKEN_DAYS: z.coerce
+ 214:       .number()
+ 215:       .int()
+ 216:       .min(1)
+ 217:       .max(365)
+ 218:       .default(30),
+ 219: 
+ 220:     SESSION_COOKIE_NAME: z
+ 221:       .string()
+ 222:       .trim()
+ 223:       .regex(
+ 224:         /^[A-Za-z0-9_-]+$/,
+ 225:         "SESSION_COOKIE_NAME contains unsupported characters.",
+ 226:       )
+ 227:       .default("portfolio_refresh_token"),
+ 228: 
+ 229:     SESSION_COOKIE_PATH: z.string().trim().startsWith("/").default("/api"),
+ 230: 
+ 231:     SESSION_COOKIE_DOMAIN: z.preprocess(
+ 232:       normalizeOptionalText,
+ 233:       z.string().min(1).optional(),
+ 234:     ),
+ 235: 
+ 236:     SESSION_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+ 237:   })
+ 238: 
+ 239:   /*
+ 240:    * =========================================
+ 241:    * Cross-Field Validation
+ 242:    * =========================================
+ 243:    */
+ 244: 
+ 245:   .superRefine((values, context) => {
+ 246:     /*
+ 247:      * =========================================
+ 248:      * Database Configuration Validation
+ 249:      * =========================================
+ 250:      */
+ 251: 
+ 252:     const databaseFields = [
+ 253:       ["DB_HOST", values.DB_HOST],
+ 254: 
+ 255:       ["DB_NAME", values.DB_NAME],
+ 256: 
+ 257:       ["DB_USER", values.DB_USER],
+ 258: 
+ 259:       ["DB_PASSWORD", values.DB_PASSWORD],
+ 260:     ];
+ 261: 
+ 262:     /*
+ 263:      * The API can temporarily run without a
+ 264:      * database.
+ 265:      *
+ 266:      * However, when any required database value
+ 267:      * is supplied, all required database values
+ 268:      * must be supplied.
+ 269:      */
+ 270: 
+ 271:     const hasAnyDatabaseValue = databaseFields.some(([, value]) =>
+ 272:       Boolean(value),
+ 273:     );
+ 274: 
+ 275:     if (hasAnyDatabaseValue) {
+ 276:       for (const [fieldName, value] of databaseFields) {
+ 277:         if (!value) {
+ 278:           context.addIssue({
+ 279:             code: "custom",
+ 280: 
+ 281:             path: [fieldName],
+ 282: 
+ 283:             message: `${fieldName} is required when database access is configured.`,
+ 284:           });
+ 285:         }
+ 286:       }
+ 287:     }
+ 288: 
+ 289:     /*
+ 290:      * =========================================
+ 291:      * Database Pool Validation
+ 292:      * =========================================
+ 293:      */
+ 294: 
+ 295:     if (values.DB_POOL_MIN > values.DB_POOL_MAX) {
+ 296:       context.addIssue({
+ 297:         code: "custom",
+ 298: 
+ 299:         path: ["DB_POOL_MIN"],
+ 300: 
+ 301:         message: "DB_POOL_MIN cannot be greater than DB_POOL_MAX.",
+ 302:       });
+ 303:     }
+ 304: 
+ 305:     /*
+ 306:      * =========================================
+ 307:      * Prevents OTPs from accidentally being printed in Azure production logs
+ 308:      * =========================================
+ 309:      */
+ 310: 
+ 311:     if (
+ 312:       values.NODE_ENV === "production" &&
+ 313:       values.EMAIL_PROVIDER === "development"
+ 314:     ) {
+ 315:       context.addIssue({
+ 316:         code: "custom",
+ 317: 
+ 318:         path: ["EMAIL_PROVIDER"],
+ 319: 
+ 320:         message: "The development email provider cannot be used in production.",
+ 321:       });
+ 322:     }
+ 323: 
+ 324:     if (
+ 325:       values.SESSION_COOKIE_SAME_SITE === "none" &&
+ 326:       values.NODE_ENV !== "production"
+ 327:     ) {
+ 328:       context.addIssue({
+ 329:         code: "custom",
+ 330: 
+ 331:         path: ["SESSION_COOKIE_SAME_SITE"],
+ 332: 
+ 333:         message:
+ 334:           'SameSite "none" requires a secure production HTTPS environment.',
+ 335:       });
+ 336:     }
+ 337: 
+ 338:     /*
+ 339:      * =========================================
+ 340:      * Resend Configuration
+ 341:      * =========================================
+ 342:      */
+ 343: 
+ 344:     if (values.EMAIL_PROVIDER === "resend") {
+ 345:       if (!values.RESEND_API_KEY) {
+ 346:         context.addIssue({
+ 347:           code: "custom",
+ 348: 
+ 349:           path: ["RESEND_API_KEY"],
+ 350: 
+ 351:           message: "RESEND_API_KEY is required when EMAIL_PROVIDER is resend.",
+ 352:         });
+ 353:       }
+ 354: 
+ 355:       if (!values.EMAIL_FROM_ADDRESS) {
+ 356:         context.addIssue({
+ 357:           code: "custom",
+ 358: 
+ 359:           path: ["EMAIL_FROM_ADDRESS"],
+ 360: 
+ 361:           message:
+ 362:             "EMAIL_FROM_ADDRESS is required when EMAIL_PROVIDER is resend.",
+ 363:         });
+ 364:       }
+ 365:     }
+ 366:   });
+ 367: 
+ 368: /*
+ 369:  * =========================================
+ 370:  * Cached Environment
+ 371:  * =========================================
+ 372:  */
+ 373: 
+ 374: let cachedEnvironment;
+ 375: 
+ 376: /*
+ 377:  * =========================================
+ 378:  * Read and Validate Environment
+ 379:  * =========================================
+ 380:  */
+ 381: 
+ 382: export function getEnvironment() {
+ 383:   if (cachedEnvironment) {
+ 384:     return cachedEnvironment;
+ 385:   }
+ 386: 
+ 387:   const result = environmentSchema.safeParse(process.env);
+ 388: 
+ 389:   if (!result.success) {
+ 390:     const details = result.error.issues
+ 391:       .map(
+ 392:         (issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`,
+ 393:       )
+ 394:       .join("\n");
+ 395: 
+ 396:     throw new Error(`Invalid environment configuration:\n${details}`);
+ 397:   }
+ 398: 
+ 399:   cachedEnvironment = Object.freeze(result.data);
+ 400: 
+ 401:   return cachedEnvironment;
+ 402: }
+ 403: 
+ 404: /*
+ 405:  * =========================================
+ 406:  * Database Configuration Status
+ 407:  * =========================================
+ 408:  */
+ 409: 
+ 410: export function isDatabaseConfigured(environment = getEnvironment()) {
+ 411:   return Boolean(
+ 412:     environment.DB_HOST &&
+ 413:     environment.DB_NAME &&
+ 414:     environment.DB_USER &&
+ 415:     environment.DB_PASSWORD,
+ 416:   );
+ 417: }
+ 418: 
+ 419: /*
+ 420:  * =========================================
+ 421:  * Authentication Secret Access
+ 422:  * =========================================
+ 423:  *
+ 424:  * This function prevents authentication
+ 425:  * operations from running without all three
+ 426:  * security secrets.
+ 427:  */
+ 428: 
+ 429: export function getAuthenticationSecrets(environment = getEnvironment()) {
+ 430:   const secrets = {
+ 431:     otp: environment.AUTH_OTP_HMAC_SECRET,
+ 432: 
+ 433:     token: environment.AUTH_TOKEN_HMAC_SECRET,
+ 434: 
+ 435:     ip: environment.AUTH_IP_HMAC_SECRET,
+ 436:   };
+ 437: 
+ 438:   const missingSecrets = Object.entries(secrets)
+ 439:     .filter(([, value]) => !value)
+ 440:     .map(([name]) => name);
+ 441: 
+ 442:   if (missingSecrets.length > 0) {
+ 443:     const error = new Error(
+ 444:       `Authentication security secrets are missing: ${missingSecrets.join(", ")}.`,
+ 445:     );
+ 446: 
+ 447:     error.name = "AuthenticationConfigurationError";
+ 448: 
+ 449:     error.code = "AUTHENTICATION_NOT_CONFIGURED";
+ 450: 
+ 451:     error.status = 503;
+ 452: 
+ 453:     error.publicMessage = "Authentication service is temporarily unavailable.";
+ 454: 
+ 455:     throw error;
+ 456:   }
+ 457: 
+ 458:   return Object.freeze(secrets);
+ 459: }
+
+========================================
+FILE: backend\package.json
+========================================
+   1: {
+   2:   "name": "portfolio-platform-backend",
+   3:   "version": "1.0.0",
+   4:   "description": "Backend API for the portfolio and resume platform",
+   5:   "main": "src/server.js",
+   6:   "scripts": {
+   7:     "dev": "nodemon src/server.js",
+   8:     "start": "node src/server.js",
+   9:     "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+  10:     "db:migrate": "node src/database/runMigrations.js",
+  11:     "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+  12:     "test:local-sql": "node test-local-sql.mjs",
+  13:     "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+  14:     "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+  15:     "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+  16:     "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+  17:     "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+  18:     "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+  19:     "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+  20:     "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+  21:     "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+  22:     "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+  23:     "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+  24:     "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+  25:     "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+  26:     "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+  27:     "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+  28:     "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+  29:     "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+  30:     "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  31:   },
+  32:   "keywords": [],
+  33:   "type": "module",
+  34:   "dependencies": {
+  35:     "argon2": "^0.45.1",
+  36:     "cors": "^2.8.6",
+  37:     "dotenv": "^17.4.2",
+  38:     "express": "^5.2.1",
+  39:     "express-rate-limit": "^8.7.0",
+  40:     "file-type": "^22.1.1",
+  41:     "groq-sdk": "^1.6.0",
+  42:     "helmet": "^8.3.0",
+  43:     "mssql": "^12.7.2",
+  44:     "multer": "^2.4.0",
+  45:     "openai": "^7.9.0",
+  46:     "resend": "^6.28.1",
+  47:     "yauzl": "^3.4.0",
+  48:     "zod": "^4.5.4"
+  49:   },
+  50:   "devDependencies": {
+  51:     "nodemon": "^3.1.14",
+  52:     "supertest": "^7.2.2"
+  53:   }
+  54: }
+

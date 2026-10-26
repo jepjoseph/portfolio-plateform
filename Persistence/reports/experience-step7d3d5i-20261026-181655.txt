@@ -1,0 +1,32 @@
+STEP 7D.3D.5I
+Running backend process inspection
+Mode: READ ONLY
+
+========================================
+1. PM2 APPLICATIONS
+========================================
+PM2 command not found.
+
+========================================
+2. NODE.JS PROCESSES
+========================================
+
+========================================
+3. BACKEND STARTUP FILE
+========================================
+   6: import "dotenv/config";
+  10: import { closeDatabase, connectDatabase } from "./config/database.js";
+  12: import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+  16:  * Environment
+  20: const environment = getEnvironment();
+  41:    * database settings have been supplied.
+  44:   if (isDatabaseConfigured(environment)) {
+  45:     await connectDatabase();
+  48:       "Database access is not configured. Database-backed routes will be unavailable.",
+  52:   server = app.listen(environment.PORT, () => {
+  53:     console.log(`Portfolio Platform API running on port ${environment.PORT}`);
+  55:     if (environment.NODE_ENV !== "production") {
+  57:         `API health check: http://localhost:${environment.PORT}/api/health`,
+  61:         `Database health check: http://localhost:${environment.PORT}/api/health/database`,
+  99:     await closeDatabase();
+ 101:     console.error("Unable to close the database pool cleanly:", error);

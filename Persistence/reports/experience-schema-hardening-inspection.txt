@@ -1,0 +1,3175 @@
+﻿==================================================
+FILE: frontend\src\models\experienceModel.js
+==================================================
+import {
+  EXPERIENCE_FIELD_LIMITS,
+  isValidEmploymentType,
+  isValidExperienceCategory,
+  isValidExperienceStatus,
+  isValidWorkArrangement,
+} from "../config/experienceConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ *
+ * This allows saved browser data and future
+ * database records to be migrated safely.
+ */
+
+export const EXPERIENCE_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createExperienceId(prefix = "experience") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, defaultValue = false) {
+  return typeof value === "boolean" ? value : defaultValue;
+}
+
+function normalizeNullableNumber(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.max(0, Math.trunc(numberValue));
+}
+
+function normalizeDate(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return "";
+  }
+
+  /*
+   * The form uses YYYY-MM values, but this also
+   * permits YYYY-MM-DD records imported later.
+   */
+
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(trimmedValue)
+  ) {
+    return "";
+  }
+
+  return trimmedValue;
+}
+
+function normalizeIdentifierList(values, maximumItems) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      values
+        .map((value) => {
+          if (typeof value === "string") {
+            return value.trim();
+          }
+
+          return String(value?.id || "").trim();
+        })
+        .filter(Boolean),
+    ),
+  ].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Responsibility Model
+ * =========================================
+ */
+
+export function createResponsibility(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          text: value,
+        }
+      : value || {};
+
+  return {
+    id: normalizeText(source.id, 200) || createExperienceId("responsibility"),
+
+    text: normalizeText(
+      source.text || source.description,
+      EXPERIENCE_FIELD_LIMITS.responsibilityText,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeResponsibilities(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createResponsibility)
+    .filter((responsibility) => responsibility.text)
+    .slice(0, EXPERIENCE_FIELD_LIMITS.maximumResponsibilities)
+    .map((responsibility, index) => ({
+      ...responsibility,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Achievement Model
+ * =========================================
+ */
+
+export function createAchievement(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          text: value,
+        }
+      : value || {};
+
+  return {
+    id: normalizeText(source.id, 200) || createExperienceId("achievement"),
+
+    text: normalizeText(
+      source.text || source.description || source.value,
+      EXPERIENCE_FIELD_LIMITS.achievementText,
+    ),
+
+    metric: normalizeText(
+      source.metric,
+      EXPERIENCE_FIELD_LIMITS.achievementMetric,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeAchievements(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createAchievement)
+    .filter((achievement) => achievement.text)
+    .slice(0, EXPERIENCE_FIELD_LIMITS.maximumAchievements)
+    .map((achievement, index) => ({
+      ...achievement,
+      order: index,
+    }));
+}
+/*
+ * =========================================
+ * Experience Skill Model
+ * =========================================
+ */
+
+export function createExperienceSkill(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const sourceProficiency =
+    source.proficiency && typeof source.proficiency === "object"
+      ? source.proficiency.level
+      : source.proficiency;
+
+  return {
+    id: normalizeText(source.id, 200) || createExperienceId("experience-skill"),
+
+    /*
+     * Permanent relationship to the central
+     * Skill Library.
+     */
+
+    skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+
+    /*
+     * The snapshot keeps the Experience readable
+     * if the central Skill record is renamed,
+     * archived, deleted, or temporarily unavailable.
+     */
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label || source.value,
+      EXPERIENCE_FIELD_LIMITS.skillName,
+    ),
+
+    /*
+     * Classification snapshots are optional.
+     * The current central Skill record remains the
+     * preferred source when it is available.
+     */
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      EXPERIENCE_FIELD_LIMITS.skillCategory,
+    ),
+
+    typeSnapshot: normalizeText(
+      source.typeSnapshot || source.type,
+      EXPERIENCE_FIELD_LIMITS.skillType,
+    ),
+
+    /*
+     * Experience-specific proficiency can differ
+     * from the general Skill Library proficiency.
+     */
+
+    level: normalizeText(
+      source.level || sourceProficiency,
+      EXPERIENCE_FIELD_LIMITS.skillLevel,
+    ),
+
+    /*
+     * Optional explanation of how the skill was
+     * applied specifically in this Experience.
+     */
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      EXPERIENCE_FIELD_LIMITS.skillUsageDescription,
+    ),
+
+    order:
+      Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+        ? Number(source.order)
+        : 0,
+  };
+}
+
+function normalizeExperienceSkills(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedSkills = values
+    .map(createExperienceSkill)
+    .filter((skill) => skill.skillId || skill.nameSnapshot);
+
+  const seenIdentities = new Set();
+
+  return normalizedSkills
+    .filter((skill) => {
+      const identity = skill.skillId
+        ? `id:${skill.skillId}`
+        : `name:${skill.nameSnapshot
+            .normalize("NFKC")
+            .toLocaleLowerCase()
+            .replace(/\s+/g, " ")
+            .trim()}`;
+
+      if (seenIdentities.has(identity)) {
+        return false;
+      }
+
+      seenIdentities.add(identity);
+
+      return true;
+    })
+    .slice(0, EXPERIENCE_FIELD_LIMITS.maximumSkills)
+    .map((skill, index) => ({
+      ...skill,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Experience Technology Model
+ * =========================================
+ */
+
+export function createExperienceTechnology(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const sourceProficiency =
+    source.proficiency && typeof source.proficiency === "object"
+      ? source.proficiency.level
+      : source.proficiency;
+
+  const nameSnapshot = normalizeText(
+    source.nameSnapshot || source.name || source.label || source.value,
+    EXPERIENCE_FIELD_LIMITS.technologyName,
+  );
+
+  return {
+    id:
+      normalizeText(source.id, 200) ||
+      createExperienceId("experience-technology"),
+
+    /*
+     * Permanent relationship to the central
+     * Skill Library.
+     */
+
+    skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+
+    /*
+     * Snapshot retained for historical display.
+     */
+
+    nameSnapshot,
+
+    /*
+     * Retained as a compatibility alias for older
+     * Experience display and validation code.
+     */
+
+    name: nameSnapshot,
+
+    /*
+     * Technology-specific relationship metadata.
+     */
+
+    category: normalizeText(
+      source.categorySnapshot || source.category,
+      EXPERIENCE_FIELD_LIMITS.technologyCategory,
+    ),
+
+    proficiency: normalizeText(
+      source.level || sourceProficiency,
+      EXPERIENCE_FIELD_LIMITS.technologyProficiency,
+    ),
+
+    usageDescription: normalizeText(
+      source.usageDescription || source.description,
+      EXPERIENCE_FIELD_LIMITS.technologyUsageDescription,
+    ),
+
+    order:
+      Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+        ? Number(source.order)
+        : 0,
+  };
+}
+
+function normalizeTechnologies(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedTechnologies = values
+    .map(createExperienceTechnology)
+    .filter((technology) => technology.skillId || technology.nameSnapshot);
+
+  const seenIdentities = new Set();
+
+  return normalizedTechnologies
+    .filter((technology) => {
+      const normalizedName = technology.nameSnapshot
+        .normalize("NFKC")
+        .toLocaleLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const identity = technology.skillId
+        ? `id:${technology.skillId}`
+        : `name:${normalizedName}`;
+
+      if (seenIdentities.has(identity)) {
+        return false;
+      }
+
+      seenIdentities.add(identity);
+
+      return true;
+    })
+    .slice(0, EXPERIENCE_FIELD_LIMITS.maximumTechnologies)
+    .map((technology, index) => ({
+      ...technology,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Empty Experience
+ * =========================================
+ */
+
+export function createEmptyExperience() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: EXPERIENCE_MODEL_VERSION,
+
+    id: createExperienceId(),
+
+    category: "employment",
+
+    position: {
+      title: "",
+      employmentType: "full-time",
+      workArrangement: "on-site",
+    },
+
+    organization: {
+      name: "",
+      website: "",
+      industry: "",
+    },
+
+    location: {
+      city: "",
+      stateRegion: "",
+      country: "",
+      displayValue: "",
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    overview: "",
+
+    overviewMeta: {
+      source: "manual",
+      status: "empty",
+      generatedAt: null,
+      contextFingerprint: "",
+      isStale: false,
+    },
+
+    responsibilities: [],
+
+    achievements: [],
+
+    skills: [],
+
+    technologies: [],
+
+    /*
+     * These values reference records from the
+     * central Projects collection.
+     */
+
+    relatedProjectIds: [],
+
+    leadership: {
+      hasLeadershipResponsibilities: false,
+      peopleManaged: null,
+      description: "",
+    },
+
+    /*
+     * Career-management information is private
+     * and should never be displayed automatically
+     * on a public rÃ©sumÃ© or portfolio.
+     */
+
+    privateInformation: {
+      reasonForLeaving: "",
+      notes: "",
+    },
+
+    visibility: {
+      showOrganizationWebsite: true,
+      showLocation: true,
+      showEmploymentType: true,
+      showWorkArrangement: true,
+      showResponsibilities: true,
+      showAchievements: true,
+      showSkills: true,
+      showTechnologies: true,
+    },
+
+    status: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Experience Normalization
+ * =========================================
+ */
+
+export function normalizeExperience(value = {}) {
+  const defaults = createEmptyExperience();
+  const source = value && typeof value === "object" ? value : {};
+
+  const position =
+    source.position && typeof source.position === "object"
+      ? source.position
+      : {};
+
+  const organization =
+    source.organization && typeof source.organization === "object"
+      ? source.organization
+      : {};
+
+  const location =
+    source.location && typeof source.location === "object"
+      ? source.location
+      : {};
+
+  const dates =
+    source.dates && typeof source.dates === "object" ? source.dates : {};
+
+  const leadership =
+    source.leadership && typeof source.leadership === "object"
+      ? source.leadership
+      : {};
+
+  const privateInformation =
+    source.privateInformation && typeof source.privateInformation === "object"
+      ? source.privateInformation
+      : {};
+
+  const visibility =
+    source.visibility && typeof source.visibility === "object"
+      ? source.visibility
+      : {};
+
+  const category = isValidExperienceCategory(source.category)
+    ? source.category
+    : defaults.category;
+
+  const employmentType = isValidEmploymentType(position.employmentType)
+    ? position.employmentType
+    : defaults.position.employmentType;
+
+  const workArrangement = isValidWorkArrangement(position.workArrangement)
+    ? position.workArrangement
+    : defaults.position.workArrangement;
+
+  const status = isValidExperienceStatus(source.status)
+    ? source.status
+    : defaults.status;
+
+  const isCurrent = normalizeBoolean(dates.isCurrent, false);
+
+  const overviewMeta =
+    source.overviewMeta && typeof source.overviewMeta === "object"
+      ? source.overviewMeta
+      : {};
+
+  return {
+    modelVersion: EXPERIENCE_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    category,
+
+    position: {
+      title: normalizeText(
+        position.title || source.positionTitle || source.title || source.role,
+        EXPERIENCE_FIELD_LIMITS.positionTitle,
+      ),
+
+      employmentType,
+
+      workArrangement,
+    },
+
+    organization: {
+      name: normalizeText(
+        organization.name ||
+          source.organizationName ||
+          source.company ||
+          source.employer,
+        EXPERIENCE_FIELD_LIMITS.organizationName,
+      ),
+
+      website: normalizeText(
+        organization.website || source.organizationWebsite,
+        EXPERIENCE_FIELD_LIMITS.organizationWebsite,
+      ),
+
+      industry: normalizeText(
+        organization.industry || source.industry,
+        EXPERIENCE_FIELD_LIMITS.industry,
+      ),
+    },
+
+    location: {
+      city: normalizeText(location.city, EXPERIENCE_FIELD_LIMITS.city),
+
+      stateRegion: normalizeText(
+        location.stateRegion || location.state,
+        EXPERIENCE_FIELD_LIMITS.stateRegion,
+      ),
+
+      country: normalizeText(location.country, EXPERIENCE_FIELD_LIMITS.country),
+
+      displayValue: normalizeText(
+        location.displayValue ||
+          source.locationValue ||
+          (typeof source.location === "string" ? source.location : ""),
+        EXPERIENCE_FIELD_LIMITS.locationDisplayValue,
+      ),
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    overview: normalizeText(
+      source.overview || source.description,
+      EXPERIENCE_FIELD_LIMITS.overview,
+    ),
+
+    overviewMeta: {
+      source: overviewMeta.source === "ai" ? "ai" : "manual",
+
+      status:
+        normalizeText(overviewMeta.status, 50) ||
+        (source.overview ? "draft" : "empty"),
+
+      generatedAt: normalizeText(overviewMeta.generatedAt, 100),
+
+      contextFingerprint: normalizeText(overviewMeta.contextFingerprint, 300),
+
+      isStale: overviewMeta.isStale === true,
+    },
+
+    responsibilities: normalizeResponsibilities(source.responsibilities),
+
+    achievements: normalizeAchievements(
+      source.achievements || source.highlights,
+    ),
+
+    skills: normalizeExperienceSkills(source.skills),
+
+    technologies: normalizeTechnologies(source.technologies || source.tools),
+
+    relatedProjectIds: normalizeIdentifierList(
+      source.relatedProjectIds || source.projectIds,
+      EXPERIENCE_FIELD_LIMITS.maximumRelatedProjects,
+    ),
+
+    leadership: {
+      hasLeadershipResponsibilities: normalizeBoolean(
+        leadership.hasLeadershipResponsibilities,
+        false,
+      ),
+
+      peopleManaged: normalizeNullableNumber(leadership.peopleManaged),
+
+      description: normalizeText(
+        leadership.description,
+        EXPERIENCE_FIELD_LIMITS.leadershipDescription,
+      ),
+    },
+
+    privateInformation: {
+      reasonForLeaving: normalizeText(
+        privateInformation.reasonForLeaving || source.reasonForLeaving,
+        EXPERIENCE_FIELD_LIMITS.reasonForLeaving,
+      ),
+
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        EXPERIENCE_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    visibility: {
+      showOrganizationWebsite: normalizeBoolean(
+        visibility.showOrganizationWebsite,
+        defaults.visibility.showOrganizationWebsite,
+      ),
+
+      showLocation: normalizeBoolean(
+        visibility.showLocation,
+        defaults.visibility.showLocation,
+      ),
+
+      showEmploymentType: normalizeBoolean(
+        visibility.showEmploymentType,
+        defaults.visibility.showEmploymentType,
+      ),
+
+      showWorkArrangement: normalizeBoolean(
+        visibility.showWorkArrangement,
+        defaults.visibility.showWorkArrangement,
+      ),
+
+      showResponsibilities: normalizeBoolean(
+        visibility.showResponsibilities,
+        defaults.visibility.showResponsibilities,
+      ),
+
+      showAchievements: normalizeBoolean(
+        visibility.showAchievements,
+        defaults.visibility.showAchievements,
+      ),
+
+      showSkills: normalizeBoolean(
+        visibility.showSkills,
+        defaults.visibility.showSkills,
+      ),
+
+      showTechnologies: normalizeBoolean(
+        visibility.showTechnologies,
+        defaults.visibility.showTechnologies,
+      ),
+    },
+
+    status,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * New Experience
+ * =========================================
+ */
+
+export function createExperience(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeExperience({
+    ...values,
+
+    id: normalizeText(values.id, 200) || createExperienceId(),
+
+    createdAt: normalizeText(values.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Updated Experience
+ * =========================================
+ */
+
+export function updateExperienceModel(currentExperience, updates = {}) {
+  return normalizeExperience({
+    ...currentExperience,
+    ...updates,
+
+    position: {
+      ...currentExperience?.position,
+      ...updates.position,
+    },
+
+    organization: {
+      ...currentExperience?.organization,
+      ...updates.organization,
+    },
+
+    location: {
+      ...currentExperience?.location,
+      ...updates.location,
+    },
+
+    dates: {
+      ...currentExperience?.dates,
+      ...updates.dates,
+    },
+
+    overviewMeta: {
+      ...currentExperience?.overviewMeta,
+      ...updates?.overviewMeta,
+    },
+
+    leadership: {
+      ...currentExperience?.leadership,
+      ...updates.leadership,
+    },
+
+    privateInformation: {
+      ...currentExperience?.privateInformation,
+      ...updates.privateInformation,
+    },
+
+    visibility: {
+      ...currentExperience?.visibility,
+      ...updates.visibility,
+    },
+
+    id: currentExperience?.id,
+
+    createdAt: currentExperience?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Collection Normalization
+ * =========================================
+ */
+
+export function normalizeExperienceCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedExperiences = values.map(normalizeExperience);
+
+  return normalizedExperiences.filter(
+    (experience, index, collection) =>
+      collection.findIndex((candidate) => candidate.id === experience.id) ===
+      index,
+  );
+}
+
+/*
+ * =========================================
+ * Public Experience
+ * =========================================
+ *
+ * Removes private career-management information
+ * before an experience is used publicly.
+ */
+
+export function createPublicExperience(value) {
+  const experience = normalizeExperience(value);
+
+  const { privateInformation, ...publicExperience } = experience;
+
+  return publicExperience;
+}
+
+==================================================
+FILE: frontend\src\config\experienceConfig.js
+==================================================
+/*
+ * =========================================
+ * Employment Types
+ * =========================================
+ */
+
+export const EMPLOYMENT_TYPE_OPTIONS = [
+  {
+    value: "full-time",
+    label: "Full-time",
+  },
+  {
+    value: "part-time",
+    label: "Part-time",
+  },
+  {
+    value: "contract",
+    label: "Contract",
+  },
+  {
+    value: "temporary",
+    label: "Temporary",
+  },
+  {
+    value: "internship",
+    label: "Internship",
+  },
+  {
+    value: "apprenticeship",
+    label: "Apprenticeship",
+  },
+  {
+    value: "freelance",
+    label: "Freelance",
+  },
+  {
+    value: "self-employed",
+    label: "Self-employed",
+  },
+  {
+    value: "volunteer",
+    label: "Volunteer",
+  },
+  {
+    value: "seasonal",
+    label: "Seasonal",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Work Arrangements
+ * =========================================
+ */
+
+export const WORK_ARRANGEMENT_OPTIONS = [
+  {
+    value: "on-site",
+    label: "On-site",
+  },
+  {
+    value: "remote",
+    label: "Remote",
+  },
+  {
+    value: "hybrid",
+    label: "Hybrid",
+  },
+  {
+    value: "field-based",
+    label: "Field-based",
+  },
+  {
+    value: "travel-based",
+    label: "Travel-based",
+  },
+  {
+    value: "other",
+    label: "Other",
+  },
+];
+
+/*
+ * =========================================
+ * Experience Categories
+ * =========================================
+ */
+
+export const EXPERIENCE_CATEGORY_OPTIONS = [
+  {
+    value: "employment",
+    label: "Employment",
+    description: "A paid position with an employer.",
+  },
+  {
+    value: "internship",
+    label: "Internship",
+    description: "A professional internship or cooperative experience.",
+  },
+  {
+    value: "freelance",
+    label: "Freelance",
+    description: "Independent work completed for one or more clients.",
+  },
+  {
+    value: "self-employment",
+    label: "Self-employment",
+    description: "Professional work completed through your own business.",
+  },
+  {
+    value: "volunteer",
+    label: "Volunteer",
+    description: "Unpaid professional or community service.",
+  },
+  {
+    value: "leadership",
+    label: "Leadership",
+    description: "A leadership position in an organization or program.",
+  },
+  {
+    value: "research",
+    label: "Research",
+    description: "Academic, scientific, or industry research experience.",
+  },
+  {
+    value: "teaching",
+    label: "Teaching or Mentoring",
+    description: "Teaching, tutoring, training, or mentoring experience.",
+  },
+  {
+    value: "military",
+    label: "Military Service",
+    description: "Military or public service experience.",
+  },
+  {
+    value: "other",
+    label: "Other Experience",
+    description: "Another form of relevant professional experience.",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const EXPERIENCE_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+    description: "Available for use in rÃ©sumÃ©s and portfolios.",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+    description: "Retained but hidden from normal selection lists.",
+  },
+];
+
+/*
+ * =========================================
+ * Proficiency or Usage Levels
+ * =========================================
+ */
+
+export const EXPERIENCE_SKILL_LEVEL_OPTIONS = [
+  {
+    value: "",
+    label: "Not specified",
+  },
+  {
+    value: "foundational",
+    label: "Foundational",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+  },
+];
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ *
+ * These limits should later be mirrored in
+ * backend validation and SQL column sizes.
+ */
+
+export const EXPERIENCE_FIELD_LIMITS = {
+  positionTitle: 200,
+  organizationName: 200,
+  organizationWebsite: 500,
+  industry: 150,
+
+  city: 120,
+  stateRegion: 120,
+  country: 120,
+  locationDisplayValue: 300,
+
+  overview: 3000,
+
+  responsibilityText: 1500,
+
+  achievementText: 1500,
+  achievementMetric: 300,
+
+  skillName: 150,
+  skillCategory: 100,
+  skillType: 100,
+  skillLevel: 50,
+  skillUsageDescription: 500,
+
+  technologyName: 150,
+  technologyCategory: 100,
+  technologyProficiency: 50,
+  technologyUsageDescription: 500,
+
+  leadershipDescription: 1500,
+  reasonForLeaving: 1000,
+  privateNotes: 3000,
+
+  maximumResponsibilities: 30,
+  maximumAchievements: 30,
+  maximumSkills: 50,
+  maximumTechnologies: 50,
+  maximumRelatedProjects: 30,
+};
+
+/*
+ * =========================================
+ * Required Fields
+ * =========================================
+ */
+
+export const EXPERIENCE_REQUIRED_FIELDS = [
+  "position.title",
+  "organization.name",
+  "dates.startDate",
+];
+
+/*
+ * =========================================
+ * Form Sections
+ * =========================================
+ *
+ * The ExperienceForm can use this configuration
+ * to organize its interface consistently.
+ */
+
+export const EXPERIENCE_FORM_SECTIONS = [
+  {
+    id: "position",
+    number: "01",
+    label: "Position",
+    title: "Role and Organization",
+    description:
+      "Enter the position, organization, employment type, and working arrangement.",
+  },
+  {
+    id: "dates-location",
+    number: "02",
+    label: "Timeline",
+    title: "Dates and Location",
+    description:
+      "Describe when and where this professional experience occurred.",
+  },
+  {
+    id: "overview",
+    number: "03",
+    label: "Overview",
+    title: "Experience Overview",
+    description:
+      "Provide a concise explanation of the role, its purpose, and its scope.",
+  },
+  {
+    id: "responsibilities",
+    number: "04",
+    label: "Responsibilities",
+    title: "Primary Responsibilities",
+    description:
+      "Record the important duties and ongoing responsibilities of the role.",
+  },
+  {
+    id: "achievements",
+    number: "05",
+    label: "Impact",
+    title: "Achievements and Results",
+    description: "Document meaningful accomplishments and measurable outcomes.",
+  },
+  {
+    id: "skills-tools",
+    number: "06",
+    label: "Capabilities",
+    title: "Skills and Technologies",
+    description:
+      "Identify the skills, tools, technologies, systems, and methods used.",
+  },
+  {
+    id: "leadership",
+    number: "07",
+    label: "Leadership",
+    title: "Leadership and Collaboration",
+    description:
+      "Describe team leadership, mentoring, supervision, or collaboration.",
+  },
+  {
+    id: "settings",
+    number: "08",
+    label: "Management",
+    title: "Record Settings",
+    description: "Manage visibility, private career notes, and record status.",
+  },
+];
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+export function getEmploymentTypeOption(value) {
+  return findOption(EMPLOYMENT_TYPE_OPTIONS, value);
+}
+
+export function getEmploymentTypeLabel(value) {
+  return getEmploymentTypeOption(value)?.label || "";
+}
+
+export function getWorkArrangementOption(value) {
+  return findOption(WORK_ARRANGEMENT_OPTIONS, value);
+}
+
+export function getWorkArrangementLabel(value) {
+  return getWorkArrangementOption(value)?.label || "";
+}
+
+export function getExperienceCategoryOption(value) {
+  return findOption(EXPERIENCE_CATEGORY_OPTIONS, value);
+}
+
+export function getExperienceCategoryLabel(value) {
+  return getExperienceCategoryOption(value)?.label || "";
+}
+
+export function getExperienceStatusOption(value) {
+  return findOption(EXPERIENCE_STATUS_OPTIONS, value);
+}
+
+export function getExperienceStatusLabel(value) {
+  return getExperienceStatusOption(value)?.label || "";
+}
+
+export function isValidEmploymentType(value) {
+  return Boolean(getEmploymentTypeOption(value));
+}
+
+export function isValidWorkArrangement(value) {
+  return Boolean(getWorkArrangementOption(value));
+}
+
+export function isValidExperienceCategory(value) {
+  return Boolean(getExperienceCategoryOption(value));
+}
+
+export function isValidExperienceStatus(value) {
+  return Boolean(getExperienceStatusOption(value));
+}
+
+==================================================
+FILE: frontend\src\services\Experience\experienceValidation.js
+==================================================
+import {
+  EXPERIENCE_FIELD_LIMITS,
+  getEmploymentTypeLabel,
+  getExperienceCategoryLabel,
+  getExperienceStatusLabel,
+  getWorkArrangementLabel,
+  isValidEmploymentType,
+  isValidExperienceCategory,
+  isValidExperienceStatus,
+  isValidWorkArrangement,
+} from "../../config/experienceConfig.js";
+
+/*
+ * =========================================
+ * Basic Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function getItemText(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+
+  return getText(
+    value.text || value.name || value.description || value.value || value.label,
+  );
+}
+
+function hasText(value) {
+  return getText(value).length > 0;
+}
+
+function createIssue(field, message, code = "invalid") {
+  return {
+    field,
+    message,
+    code,
+  };
+}
+
+/*
+ * =========================================
+ * Date Helpers
+ * =========================================
+ */
+
+const EXPERIENCE_DATE_PATTERN =
+  /^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
+
+function isValidExperienceDate(value) {
+  const text = getText(value);
+
+  if (!text || !EXPERIENCE_DATE_PATTERN.test(text)) {
+    return false;
+  }
+
+  /*
+   * YYYY-MM dates are valid after passing the
+   * regular expression.
+   */
+
+  if (text.length === 7) {
+    return true;
+  }
+
+  /*
+   * Validate complete YYYY-MM-DD dates so values
+   * such as February 31 are rejected.
+   */
+
+  const [year, month, day] = text.split("-").map(Number);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function getComparableDate(value, useEndOfMonth = false) {
+  const text = getText(value);
+
+  if (!isValidExperienceDate(text)) {
+    return null;
+  }
+
+  const [year, month, suppliedDay] = text.split("-").map(Number);
+
+  let day = suppliedDay;
+
+  if (!day) {
+    day = useEndOfMonth ? new Date(Date.UTC(year, month, 0)).getUTCDate() : 1;
+  }
+
+  return Date.UTC(year, month - 1, day);
+}
+
+/*
+ * =========================================
+ * URL Validation
+ * =========================================
+ */
+
+function isValidWebsite(value) {
+  const text = getText(value);
+
+  if (!text) {
+    return true;
+  }
+
+  try {
+    const normalizedUrl = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+
+    const url = new URL(normalizedUrl);
+
+    return ["http:", "https:"].includes(url.protocol) && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * =========================================
+ * Validation Collector
+ * =========================================
+ */
+
+function createValidationCollector() {
+  const errors = [];
+  const warnings = [];
+
+  return {
+    errors,
+    warnings,
+
+    addError(field, message, code) {
+      errors.push(createIssue(field, message, code));
+    },
+
+    addWarning(field, message, code = "warning") {
+      warnings.push(createIssue(field, message, code));
+    },
+  };
+}
+
+/*
+ * =========================================
+ * Text Length Validation
+ * =========================================
+ */
+
+function validateTextLength(collector, field, value, maximumLength, label) {
+  if (typeof value !== "string") {
+    return;
+  }
+
+  if (value.trim().length > maximumLength) {
+    collector.addError(
+      field,
+      `${label} cannot exceed ${maximumLength} characters.`,
+      "too_long",
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Duplicate Validation
+ * =========================================
+ */
+
+function findDuplicateIndexes(values, getIdentity) {
+  const seen = new Map();
+  const duplicates = [];
+
+  values.forEach((value, index) => {
+    const identity = getIdentity(value).trim().toLocaleLowerCase();
+
+    if (!identity) {
+      return;
+    }
+
+    if (seen.has(identity)) {
+      duplicates.push({
+        firstIndex: seen.get(identity),
+        duplicateIndex: index,
+      });
+
+      return;
+    }
+
+    seen.set(identity, index);
+  });
+
+  return duplicates;
+}
+
+/*
+ * =========================================
+ * Required Information
+ * =========================================
+ */
+
+function validateRequiredInformation(collector, experience) {
+  const position = getObject(experience.position);
+  const organization = getObject(experience.organization);
+  const dates = getObject(experience.dates);
+
+  if (!hasText(position.title)) {
+    collector.addError(
+      "position.title",
+      "Enter the position or role title.",
+      "required",
+    );
+  }
+
+  if (!hasText(organization.name)) {
+    collector.addError(
+      "organization.name",
+      "Enter the organization, employer, or client name.",
+      "required",
+    );
+  }
+
+  if (!hasText(dates.startDate)) {
+    collector.addError(
+      "dates.startDate",
+      "Enter the experience start date.",
+      "required",
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Category and Option Validation
+ * =========================================
+ */
+
+function validateConfiguredOptions(collector, experience) {
+  const position = getObject(experience.position);
+
+  if (!isValidExperienceCategory(experience.category)) {
+    collector.addError(
+      "category",
+      "Select a valid experience category.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidEmploymentType(position.employmentType)) {
+    collector.addError(
+      "position.employmentType",
+      "Select a valid employment type.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidWorkArrangement(position.workArrangement)) {
+    collector.addError(
+      "position.workArrangement",
+      "Select a valid work arrangement.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidExperienceStatus(experience.status)) {
+    collector.addError(
+      "status",
+      "Select a valid experience status.",
+      "invalid_option",
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Date Validation
+ * =========================================
+ */
+
+function validateDates(collector, experience) {
+  const dates = getObject(experience.dates);
+
+  const startDate = getText(dates.startDate);
+  const endDate = getText(dates.endDate);
+  const isCurrent = dates.isCurrent === true;
+
+  if (startDate && !isValidExperienceDate(startDate)) {
+    collector.addError(
+      "dates.startDate",
+      "Enter a valid start date.",
+      "invalid_date",
+    );
+  }
+
+  if (isCurrent && endDate) {
+    collector.addError(
+      "dates.endDate",
+      "A current position cannot have an end date.",
+      "current_position_has_end_date",
+    );
+  }
+
+  if (!isCurrent && !endDate) {
+    collector.addError(
+      "dates.endDate",
+      "Enter an end date or mark this position as current.",
+      "required",
+    );
+  }
+
+  if (!isCurrent && endDate && !isValidExperienceDate(endDate)) {
+    collector.addError(
+      "dates.endDate",
+      "Enter a valid end date.",
+      "invalid_date",
+    );
+  }
+
+  if (
+    startDate &&
+    endDate &&
+    isValidExperienceDate(startDate) &&
+    isValidExperienceDate(endDate)
+  ) {
+    const comparableStartDate = getComparableDate(startDate);
+
+    const comparableEndDate = getComparableDate(endDate, true);
+
+    if (comparableEndDate < comparableStartDate) {
+      collector.addError(
+        "dates.endDate",
+        "The end date cannot be earlier than the start date.",
+        "invalid_date_order",
+      );
+    }
+  }
+}
+
+/*
+ * =========================================
+ * Position and Organization
+ * =========================================
+ */
+
+function validatePositionAndOrganization(collector, experience) {
+  const position = getObject(experience.position);
+  const organization = getObject(experience.organization);
+
+  validateTextLength(
+    collector,
+    "position.title",
+    position.title,
+    EXPERIENCE_FIELD_LIMITS.positionTitle,
+    "Position title",
+  );
+
+  validateTextLength(
+    collector,
+    "organization.name",
+    organization.name,
+    EXPERIENCE_FIELD_LIMITS.organizationName,
+    "Organization name",
+  );
+
+  validateTextLength(
+    collector,
+    "organization.website",
+    organization.website,
+    EXPERIENCE_FIELD_LIMITS.organizationWebsite,
+    "Organization website",
+  );
+
+  validateTextLength(
+    collector,
+    "organization.industry",
+    organization.industry,
+    EXPERIENCE_FIELD_LIMITS.industry,
+    "Industry",
+  );
+
+  if (organization.website && !isValidWebsite(organization.website)) {
+    collector.addError(
+      "organization.website",
+      "Enter a valid organization website.",
+      "invalid_url",
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Location
+ * =========================================
+ */
+
+function validateLocation(collector, experience) {
+  const location = getObject(experience.location);
+
+  validateTextLength(
+    collector,
+    "location.city",
+    location.city,
+    EXPERIENCE_FIELD_LIMITS.city,
+    "City",
+  );
+
+  validateTextLength(
+    collector,
+    "location.stateRegion",
+    location.stateRegion,
+    EXPERIENCE_FIELD_LIMITS.stateRegion,
+    "State or region",
+  );
+
+  validateTextLength(
+    collector,
+    "location.country",
+    location.country,
+    EXPERIENCE_FIELD_LIMITS.country,
+    "Country",
+  );
+
+  validateTextLength(
+    collector,
+    "location.displayValue",
+    location.displayValue,
+    EXPERIENCE_FIELD_LIMITS.locationDisplayValue,
+    "Display location",
+  );
+}
+
+/*
+ * =========================================
+ * Overview
+ * =========================================
+ */
+
+function validateOverview(collector, experience) {
+  validateTextLength(
+    collector,
+    "overview",
+    experience.overview,
+    EXPERIENCE_FIELD_LIMITS.overview,
+    "Experience overview",
+  );
+}
+
+/*
+ * =========================================
+ * Responsibilities
+ * =========================================
+ */
+
+function validateResponsibilities(collector, experience) {
+  const responsibilities = getArray(experience.responsibilities);
+
+  if (
+    responsibilities.length > EXPERIENCE_FIELD_LIMITS.maximumResponsibilities
+  ) {
+    collector.addError(
+      "responsibilities",
+      `Add no more than ${EXPERIENCE_FIELD_LIMITS.maximumResponsibilities} responsibilities.`,
+      "too_many_items",
+    );
+  }
+
+  responsibilities.forEach((responsibility, index) => {
+    const text = getItemText(responsibility);
+
+    if (!text) {
+      collector.addError(
+        `responsibilities.${index}.text`,
+        "Responsibility text cannot be empty.",
+        "required",
+      );
+
+      return;
+    }
+
+    validateTextLength(
+      collector,
+      `responsibilities.${index}.text`,
+      text,
+      EXPERIENCE_FIELD_LIMITS.responsibilityText,
+      "Responsibility",
+    );
+  });
+
+  const duplicates = findDuplicateIndexes(responsibilities, getItemText);
+
+  duplicates.forEach(({ duplicateIndex }) => {
+    collector.addError(
+      `responsibilities.${duplicateIndex}.text`,
+      "This responsibility has already been added.",
+      "duplicate",
+    );
+  });
+}
+
+/*
+ * =========================================
+ * Achievements
+ * =========================================
+ */
+
+function validateAchievements(collector, experience) {
+  const achievements = getArray(experience.achievements);
+
+  if (achievements.length > EXPERIENCE_FIELD_LIMITS.maximumAchievements) {
+    collector.addError(
+      "achievements",
+      `Add no more than ${EXPERIENCE_FIELD_LIMITS.maximumAchievements} achievements.`,
+      "too_many_items",
+    );
+  }
+
+  achievements.forEach((achievement, index) => {
+    const item = getObject(achievement);
+    const text = getItemText(achievement);
+
+    if (!text) {
+      collector.addError(
+        `achievements.${index}.text`,
+        "Achievement text cannot be empty.",
+        "required",
+      );
+
+      return;
+    }
+
+    validateTextLength(
+      collector,
+      `achievements.${index}.text`,
+      text,
+      EXPERIENCE_FIELD_LIMITS.achievementText,
+      "Achievement",
+    );
+
+    validateTextLength(
+      collector,
+      `achievements.${index}.metric`,
+      item.metric,
+      EXPERIENCE_FIELD_LIMITS.achievementMetric,
+      "Achievement metric",
+    );
+  });
+
+  const duplicates = findDuplicateIndexes(achievements, getItemText);
+
+  duplicates.forEach(({ duplicateIndex }) => {
+    collector.addError(
+      `achievements.${duplicateIndex}.text`,
+      "This achievement has already been added.",
+      "duplicate",
+    );
+  });
+}
+
+/*
+ * =========================================
+ * Central Skill Relationship Helpers
+ * =========================================
+ */
+
+const EXPERIENCE_SKILL_LEVEL_VALUES = [
+  "",
+  "foundational",
+  "intermediate",
+  "advanced",
+  "expert",
+];
+
+function getRelationshipSkillId(value) {
+  const relationship = getObject(value);
+
+  return getText(relationship.skillId || relationship.profileSkillId);
+}
+
+function getSkillSnapshotName(value) {
+  const relationship = getObject(value);
+
+  return getText(
+    relationship.nameSnapshot ||
+      relationship.name ||
+      relationship.label ||
+      relationship.value,
+  );
+}
+
+function validateRelationshipIdentifier(collector, field, value, label) {
+  if (!value) {
+    return;
+  }
+
+  if (typeof value !== "string") {
+    collector.addError(
+      field,
+      `${label} has an invalid identifier.`,
+      "invalid_identifier",
+    );
+
+    return;
+  }
+
+  if (value.trim().length > 200) {
+    collector.addError(
+      field,
+      `${label} identifier cannot exceed 200 characters.`,
+      "too_long",
+    );
+  }
+}
+
+function validateRelationshipOrder(collector, field, value) {
+  if (value === undefined || value === null || value === "") {
+    return;
+  }
+
+  if (!Number.isInteger(value) || value < 0) {
+    collector.addError(
+      field,
+      "Relationship order must be a whole number of zero or greater.",
+      "invalid_order",
+    );
+  }
+}
+
+function validateRelationshipProficiency(collector, field, value, label) {
+  const proficiency = getText(value);
+
+  if (!EXPERIENCE_SKILL_LEVEL_VALUES.includes(proficiency)) {
+    collector.addError(
+      field,
+      `Select a valid ${label.toLowerCase()} proficiency level.`,
+      "invalid_option",
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Skills
+ * =========================================
+ */
+
+function validateSkills(collector, experience) {
+  const skills = getArray(experience.skills);
+
+  if (skills.length > EXPERIENCE_FIELD_LIMITS.maximumSkills) {
+    collector.addError(
+      "skills",
+      `Add no more than ${EXPERIENCE_FIELD_LIMITS.maximumSkills} skills.`,
+      "too_many_items",
+    );
+  }
+
+  skills.forEach((skill, index) => {
+    const relationship = getObject(skill);
+
+    const skillId = getRelationshipSkillId(relationship);
+
+    const nameSnapshot = getSkillSnapshotName(relationship);
+
+    const categorySnapshot = getText(relationship.categorySnapshot);
+
+    const typeSnapshot = getText(relationship.typeSnapshot);
+
+    const level = relationship.level ?? "";
+
+    const usageDescription = relationship.usageDescription;
+
+    validateRelationshipIdentifier(
+      collector,
+      `skills.${index}.id`,
+      relationship.id,
+      "Skill relationship",
+    );
+
+    validateRelationshipIdentifier(
+      collector,
+      `skills.${index}.skillId`,
+      skillId,
+      "Central skill",
+    );
+
+    if (!skillId && !nameSnapshot) {
+      collector.addError(
+        `skills.${index}.skillId`,
+        "Select a saved skill or provide a skill name.",
+        "required",
+      );
+
+      return;
+    }
+
+    /*
+     * A snapshot is required even when the central
+     * Skill Library relationship exists. This keeps
+     * the experience readable if the central record
+     * is archived, deleted, or temporarily unavailable.
+     */
+
+    if (skillId && !nameSnapshot) {
+      collector.addError(
+        `skills.${index}.nameSnapshot`,
+        "Store the skill name snapshot with this relationship.",
+        "required_snapshot",
+      );
+    }
+
+    if (!skillId && nameSnapshot) {
+      collector.addWarning(
+        `skills.${index}.skillId`,
+        `"${nameSnapshot}" is a legacy skill without a central Skill Library relationship.`,
+        "missing_skill_relationship",
+      );
+    }
+
+    validateTextLength(
+      collector,
+      `skills.${index}.nameSnapshot`,
+      nameSnapshot,
+      EXPERIENCE_FIELD_LIMITS.skillName,
+      "Skill name",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.categorySnapshot`,
+      categorySnapshot,
+      EXPERIENCE_FIELD_LIMITS.skillCategory,
+      "Skill category snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.typeSnapshot`,
+      typeSnapshot,
+      EXPERIENCE_FIELD_LIMITS.skillType,
+      "Skill type snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.level`,
+      level,
+      EXPERIENCE_FIELD_LIMITS.skillLevel,
+      "Experience-specific proficiency",
+    );
+
+    validateRelationshipProficiency(
+      collector,
+      `skills.${index}.level`,
+      level,
+      "Skill",
+    );
+
+    validateTextLength(
+      collector,
+      `skills.${index}.usageDescription`,
+      usageDescription,
+      EXPERIENCE_FIELD_LIMITS.skillUsageDescription,
+      "Skill usage description",
+    );
+
+    validateRelationshipOrder(
+      collector,
+      `skills.${index}.order`,
+      relationship.order,
+    );
+  });
+
+  /*
+   * Prefer the permanent central skill ID for
+   * duplicate detection. Fall back to the snapshot
+   * name for migrated or legacy records.
+   */
+
+  const duplicates = findDuplicateIndexes(skills, (skill) => {
+    const skillId = getRelationshipSkillId(skill);
+
+    if (skillId) {
+      return `id:${skillId}`;
+    }
+
+    return `name:${getSkillSnapshotName(skill)}`;
+  });
+
+  duplicates.forEach(({ duplicateIndex }) => {
+    collector.addError(
+      `skills.${duplicateIndex}.skillId`,
+      "This skill has already been added to the experience.",
+      "duplicate",
+    );
+  });
+}
+
+/*
+ * =========================================
+ * Technologies
+ * =========================================
+ */
+
+function validateTechnologies(collector, experience) {
+  const technologies = getArray(experience.technologies);
+
+  if (technologies.length > EXPERIENCE_FIELD_LIMITS.maximumTechnologies) {
+    collector.addError(
+      "technologies",
+      `Add no more than ${EXPERIENCE_FIELD_LIMITS.maximumTechnologies} technologies.`,
+      "too_many_items",
+    );
+  }
+
+  technologies.forEach((technology, index) => {
+    const relationship = getObject(technology);
+
+    const skillId = getRelationshipSkillId(relationship);
+
+    const nameSnapshot = getSkillSnapshotName(relationship);
+
+    const category = getText(relationship.category);
+
+    const proficiency = relationship.proficiency ?? "";
+
+    const usageDescription = relationship.usageDescription;
+
+    validateRelationshipIdentifier(
+      collector,
+      `technologies.${index}.id`,
+      relationship.id,
+      "Technology relationship",
+    );
+
+    validateRelationshipIdentifier(
+      collector,
+      `technologies.${index}.skillId`,
+      skillId,
+      "Central skill",
+    );
+
+    if (!skillId && !nameSnapshot) {
+      collector.addError(
+        `technologies.${index}.skillId`,
+        "Select a saved technology or provide its name.",
+        "required",
+      );
+
+      return;
+    }
+
+    if (skillId && !nameSnapshot) {
+      collector.addError(
+        `technologies.${index}.nameSnapshot`,
+        "Store the technology name snapshot with this relationship.",
+        "required_snapshot",
+      );
+    }
+
+    if (!skillId && nameSnapshot) {
+      collector.addWarning(
+        `technologies.${index}.skillId`,
+        `"${nameSnapshot}" is a legacy technology without a central Skill Library relationship.`,
+        "missing_skill_relationship",
+      );
+    }
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.nameSnapshot`,
+      nameSnapshot,
+      EXPERIENCE_FIELD_LIMITS.technologyName,
+      "Technology name",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.name`,
+      relationship.name,
+      EXPERIENCE_FIELD_LIMITS.technologyName,
+      "Technology compatibility name",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.category`,
+      category,
+      EXPERIENCE_FIELD_LIMITS.technologyCategory,
+      "Technology category",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.proficiency`,
+      proficiency,
+      EXPERIENCE_FIELD_LIMITS.technologyProficiency,
+      "Technology proficiency",
+    );
+
+    validateRelationshipProficiency(
+      collector,
+      `technologies.${index}.proficiency`,
+      proficiency,
+      "Technology",
+    );
+
+    validateTextLength(
+      collector,
+      `technologies.${index}.usageDescription`,
+      usageDescription,
+      EXPERIENCE_FIELD_LIMITS.technologyUsageDescription,
+      "Technology usage description",
+    );
+
+    validateRelationshipOrder(
+      collector,
+      `technologies.${index}.order`,
+      relationship.order,
+    );
+  });
+
+  const duplicates = findDuplicateIndexes(technologies, (technology) => {
+    const skillId = getRelationshipSkillId(technology);
+
+    if (skillId) {
+      return `id:${skillId}`;
+    }
+
+    return `name:${getSkillSnapshotName(technology)}`;
+  });
+
+  duplicates.forEach(({ duplicateIndex }) => {
+    collector.addError(
+      `technologies.${duplicateIndex}.skillId`,
+      "This technology has already been added to the experience.",
+      "duplicate",
+    );
+  });
+}
+
+/*
+ * =========================================
+ * Related Projects
+ * =========================================
+ */
+
+function validateRelatedProjects(collector, experience) {
+  const projectIds = getArray(experience.relatedProjectIds);
+
+  if (projectIds.length > EXPERIENCE_FIELD_LIMITS.maximumRelatedProjects) {
+    collector.addError(
+      "relatedProjectIds",
+      `Select no more than ${EXPERIENCE_FIELD_LIMITS.maximumRelatedProjects} related projects.`,
+      "too_many_items",
+    );
+  }
+
+  const normalizedIds = projectIds
+    .map((projectId) => getText(projectId))
+    .filter(Boolean);
+
+  const duplicates = findDuplicateIndexes(
+    normalizedIds,
+    (projectId) => projectId,
+  );
+
+  duplicates.forEach(({ duplicateIndex }) => {
+    collector.addError(
+      `relatedProjectIds.${duplicateIndex}`,
+      "This related project has already been selected.",
+      "duplicate",
+    );
+  });
+}
+
+/*
+ * =========================================
+ * Leadership
+ * =========================================
+ */
+
+function validateLeadership(collector, experience) {
+  const leadership = getObject(experience.leadership);
+
+  const hasLeadershipResponsibilities =
+    leadership.hasLeadershipResponsibilities === true;
+
+  const peopleManaged = leadership.peopleManaged;
+
+  if (
+    peopleManaged !== "" &&
+    peopleManaged !== null &&
+    peopleManaged !== undefined
+  ) {
+    const numberValue = Number(peopleManaged);
+
+    if (!Number.isInteger(numberValue) || numberValue < 0) {
+      collector.addError(
+        "leadership.peopleManaged",
+        "People managed must be a whole number of zero or greater.",
+        "invalid_number",
+      );
+    }
+
+    if (numberValue > 100000) {
+      collector.addError(
+        "leadership.peopleManaged",
+        "Enter a realistic number of people managed.",
+        "invalid_number",
+      );
+    }
+
+    if (!hasLeadershipResponsibilities && numberValue > 0) {
+      collector.addWarning(
+        "leadership.hasLeadershipResponsibilities",
+        "People managed was entered, but leadership responsibilities are not enabled.",
+        "leadership_mismatch",
+      );
+    }
+  }
+
+  validateTextLength(
+    collector,
+    "leadership.description",
+    leadership.description,
+    EXPERIENCE_FIELD_LIMITS.leadershipDescription,
+    "Leadership description",
+  );
+}
+
+/*
+ * =========================================
+ * Private Information
+ * =========================================
+ */
+
+function validatePrivateInformation(collector, experience) {
+  const privateInformation = getObject(experience.privateInformation);
+
+  validateTextLength(
+    collector,
+    "privateInformation.reasonForLeaving",
+    privateInformation.reasonForLeaving,
+    EXPERIENCE_FIELD_LIMITS.reasonForLeaving,
+    "Reason for leaving",
+  );
+
+  validateTextLength(
+    collector,
+    "privateInformation.notes",
+    privateInformation.notes,
+    EXPERIENCE_FIELD_LIMITS.privateNotes,
+    "Private notes",
+  );
+}
+
+/*
+ * =========================================
+ * Meaningful Content
+ * =========================================
+ */
+
+function validateMeaningfulContent(collector, experience) {
+  const hasOverview = hasText(experience.overview);
+
+  const hasResponsibility = getArray(experience.responsibilities).some(
+    (responsibility) => hasText(getItemText(responsibility)),
+  );
+
+  const hasAchievement = getArray(experience.achievements).some((achievement) =>
+    hasText(getItemText(achievement)),
+  );
+
+  if (!hasOverview && !hasResponsibility && !hasAchievement) {
+    collector.addError(
+      "overview",
+      "Add an overview, responsibility, or achievement that explains what you did.",
+      "insufficient_content",
+    );
+  }
+
+  if (!hasAchievement) {
+    collector.addWarning(
+      "achievements",
+      "Consider adding at least one achievement or outcome to strengthen this experience.",
+      "missing_achievement",
+    );
+  }
+
+  const hasCapability =
+    getArray(experience.skills).some((skill) => {
+      return Boolean(
+        getRelationshipSkillId(skill) || getSkillSnapshotName(skill),
+      );
+    }) ||
+    getArray(experience.technologies).some((technology) => {
+      return Boolean(
+        getRelationshipSkillId(technology) || getSkillSnapshotName(technology),
+      );
+    });
+
+  if (!hasCapability) {
+    collector.addWarning(
+      "skills",
+      "Consider adding relevant skills or technologies used in this role.",
+      "missing_capability",
+    );
+  }
+}
+
+/*
+ * =========================================
+ * Build Field Error Map
+ * =========================================
+ */
+
+export function createExperienceFieldErrorMap(errors = []) {
+  return errors.reduce((fieldErrors, error) => {
+    if (!fieldErrors[error.field]) {
+      fieldErrors[error.field] = error.message;
+    }
+
+    return fieldErrors;
+  }, {});
+}
+
+/*
+ * =========================================
+ * Main Validation
+ * =========================================
+ */
+
+export function validateExperience(experienceValue) {
+  const experience = getObject(experienceValue);
+  const collector = createValidationCollector();
+
+  validateRequiredInformation(collector, experience);
+
+  validateConfiguredOptions(collector, experience);
+
+  validateDates(collector, experience);
+
+  validatePositionAndOrganization(collector, experience);
+
+  validateLocation(collector, experience);
+  validateOverview(collector, experience);
+
+  validateResponsibilities(collector, experience);
+
+  validateAchievements(collector, experience);
+  validateSkills(collector, experience);
+
+  validateTechnologies(collector, experience);
+
+  validateRelatedProjects(collector, experience);
+
+  validateLeadership(collector, experience);
+
+  validatePrivateInformation(collector, experience);
+
+  validateMeaningfulContent(collector, experience);
+
+  return {
+    isValid: collector.errors.length === 0,
+    errors: collector.errors,
+    warnings: collector.warnings,
+
+    fieldErrors: createExperienceFieldErrorMap(collector.errors),
+  };
+}
+
+/*
+ * =========================================
+ * Assertion for Save Operations
+ * =========================================
+ */
+
+export function assertValidExperience(experience) {
+  const validationResult = validateExperience(experience);
+
+  if (validationResult.isValid) {
+    return validationResult;
+  }
+
+  const error = new Error(
+    "The experience contains invalid or incomplete information.",
+  );
+
+  error.name = "ExperienceValidationError";
+  error.code = "EXPERIENCE_VALIDATION_FAILED";
+  error.status = 400;
+
+  error.validation = validationResult;
+  error.errors = validationResult.errors;
+  error.fieldErrors = validationResult.fieldErrors;
+
+  throw error;
+}
+
+/*
+ * =========================================
+ * Human-Readable Summary
+ * =========================================
+ */
+
+export function getExperienceValidationSummary(experience) {
+  const validationResult = validateExperience(experience);
+
+  if (!validationResult.isValid) {
+    return `${validationResult.errors.length} ${
+      validationResult.errors.length === 1 ? "problem must" : "problems must"
+    } be corrected before saving.`;
+  }
+
+  if (validationResult.warnings.length > 0) {
+    return `Ready to save with ${validationResult.warnings.length} ${
+      validationResult.warnings.length === 1 ? "suggestion" : "suggestions"
+    } for improvement.`;
+  }
+
+  return "This experience is complete and ready to save.";
+}
+
+/*
+ * =========================================
+ * Development Description
+ * =========================================
+ */
+
+export function getExperienceDescription(experience) {
+  const position = getObject(experience?.position);
+
+  const organization = getObject(experience?.organization);
+
+  const parts = [
+    getText(position.title),
+    getText(organization.name),
+    getEmploymentTypeLabel(position.employmentType),
+    getWorkArrangementLabel(position.workArrangement),
+    getExperienceCategoryLabel(experience?.category),
+    getExperienceStatusLabel(experience?.status),
+  ].filter(Boolean);
+
+  return parts.join(" Â· ");
+}
+
+==================================================
+FILE: backend\src\schemas\experienceSchemas.js
+==================================================
+const CATEGORIES = new Set([
+  "employment", "internship", "freelance", "self-employment",
+  "volunteer", "leadership", "research", "teaching",
+  "military", "other",
+]);
+
+const EMPLOYMENT_TYPES = new Set([
+  "full-time", "part-time", "contract", "temporary",
+  "internship", "apprenticeship", "freelance",
+  "self-employed", "volunteer", "seasonal", "other",
+]);
+
+const WORK_ARRANGEMENTS = new Set([
+  "on-site", "remote", "hybrid", "field-based",
+  "travel-based", "other",
+]);
+
+const STATUSES = new Set(["active", "archived"]);
+const PROFICIENCIES = new Set([
+  "", "foundational", "intermediate", "advanced", "expert",
+]);
+
+const LIMITS = {
+  "position.title": 200,
+  "organization.name": 200,
+  "organization.website": 500,
+  "organization.industry": 150,
+  "location.city": 120,
+  "location.stateRegion": 120,
+  "location.country": 120,
+  "location.displayValue": 300,
+  "overview": 3000,
+  "leadership.description": 1500,
+  "privateInformation.reasonForLeaving": 1000,
+  "privateInformation.notes": 3000,
+};
+
+const COLLECTION_LIMITS = {
+  responsibilities: 30,
+  achievements: 30,
+  skills: 50,
+  technologies: 50,
+  relatedProjectIds: 30,
+};
+
+const SERVER_FIELDS = [
+  "userId", "user_id", "createdAt", "updatedAt",
+  "rowVersion", "recordStatus", "record_status",
+];
+
+const ID_PATTERN =
+  /^experience-(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d{13}-[a-z0-9]{8})$/i;
+
+const DATE_PATTERN =
+  /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
+
+function isObject(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function createValidationError(errors) {
+  const error = new Error("Experience validation failed.");
+  error.name = "ExperienceValidationError";
+  error.code = "EXPERIENCE_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage = "Please correct the Experience information.";
+  error.errors = errors;
+  error.fieldErrors = {};
+
+  for (const item of errors) {
+    if (!error.fieldErrors[item.field]) {
+      error.fieldErrors[item.field] = item.message;
+    }
+  }
+
+  return error;
+}
+
+function addError(errors, field, code, message) {
+  errors.push({ field, code, message });
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function checkText(errors, field, value, max, required = false) {
+  if (value !== undefined && typeof value !== "string") {
+    addError(errors, field, "invalid_type", "Must be text.");
+    return;
+  }
+
+  if (required && !text(value)) {
+    addError(errors, field, "required", "This field is required.");
+  }
+
+  if (typeof value === "string" && value.trim().length > max) {
+    addError(errors, field, "too_long", `Maximum ${max} characters.`);
+  }
+}
+
+function checkObject(errors, source, key) {
+  if (!isObject(source[key])) {
+    addError(errors, key, "invalid_type", "Must be an object.");
+    return {};
+  }
+
+  return source[key];
+}
+
+function checkBoolean(errors, field, value) {
+  if (value !== undefined && typeof value !== "boolean") {
+    addError(errors, field, "invalid_type", "Must be a boolean.");
+  }
+}
+
+function checkOption(errors, field, value, allowed) {
+  if (!allowed.has(value)) {
+    addError(errors, field, "invalid_option", "Invalid selection.");
+  }
+}
+
+function validDate(value) {
+  const match = typeof value === "string"
+    ? value.match(DATE_PATTERN)
+    : null;
+
+  if (!match) return false;
+  if (!match[3]) return true;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
+}
+
+function comparableDate(value, endOfMonth = false) {
+  const [year, month, suppliedDay] = value.split("-").map(Number);
+  const day = suppliedDay ||
+    (endOfMonth ? new Date(Date.UTC(year, month, 0)).getUTCDate() : 1);
+
+  return Date.UTC(year, month - 1, day);
+}
+
+function checkDates(errors, dates) {
+  const start = dates.startDate;
+  const end = dates.endDate;
+  const current = dates.isCurrent;
+
+  checkBoolean(errors, "dates.isCurrent", current);
+
+  if (!validDate(start)) {
+    addError(errors, "dates.startDate", "invalid_date",
+      "A valid start date is required.");
+  }
+
+  if (current === true && text(end)) {
+    addError(errors, "dates.endDate", "current_position_has_end_date",
+      "A current position cannot have an end date.");
+  }
+
+  if (current !== true && !text(end)) {
+    addError(errors, "dates.endDate", "required",
+      "An end date is required for a previous position.");
+  } else if (text(end) && !validDate(end)) {
+    addError(errors, "dates.endDate", "invalid_date",
+      "Invalid end date.");
+  }
+
+  if (validDate(start) && validDate(end) &&
+      comparableDate(end, true) < comparableDate(start)) {
+    addError(errors, "dates.endDate", "invalid_date_order",
+      "End date cannot precede start date.");
+  }
+}
+
+function checkCollection(errors, experience, name) {
+  const values = experience[name];
+
+  if (values === undefined) return;
+
+  if (!Array.isArray(values)) {
+    addError(errors, name, "invalid_type", "Must be an array.");
+    return;
+  }
+
+  if (values.length > COLLECTION_LIMITS[name]) {
+    addError(errors, name, "too_many_items",
+      `Maximum ${COLLECTION_LIMITS[name]} items.`);
+  }
+}
+
+function checkUnique(errors, values, field, identity) {
+  const seen = new Set();
+
+  values.forEach((item, index) => {
+    const key = identity(item).trim().toLowerCase();
+    if (!key) return;
+
+    if (seen.has(key)) {
+      addError(errors, `${field}.${index}`, "duplicate",
+        "Duplicate entry.");
+    }
+    seen.add(key);
+  });
+}
+
+function checkRelationships(errors, values, kind) {
+  if (!Array.isArray(values)) return;
+
+  values.forEach((value, index) => {
+    const prefix = `${kind}.${index}`;
+
+    if (!isObject(value)) {
+      addError(errors, prefix, "invalid_type", "Must be an object.");
+      return;
+    }
+
+    const skillId = text(value.skillId || value.profileSkillId);
+    const snapshot = text(
+      value.nameSnapshot || value.name || value.label || value.value
+    );
+
+    if (!skillId && !snapshot) {
+      addError(errors, `${prefix}.skillId`, "required",
+        "Select a saved skill or provide its name.");
+    }
+
+    if (skillId && !snapshot) {
+      addError(errors, `${prefix}.nameSnapshot`, "required_snapshot",
+        "A name snapshot is required.");
+    }
+
+    for (const field of ["id", "skillId"]) {
+      if (value[field] !== undefined) {
+        checkText(errors, `${prefix}.${field}`, value[field], 200);
+      }
+    }
+
+    const levelField = kind === "skills" ? "level" : "proficiency";
+    const level = value[levelField] ?? "";
+
+    checkOption(errors, `${prefix}.${levelField}`, level, PROFICIENCIES);
+
+    if (value.order !== undefined &&
+        (!Number.isInteger(value.order) || value.order < 0)) {
+      addError(errors, `${prefix}.order`, "invalid_order",
+        "Order must be a nonnegative integer.");
+    }
+
+    const limits = kind === "skills"
+      ? { nameSnapshot: 150, categorySnapshot: 100,
+          typeSnapshot: 100, usageDescription: 500 }
+      : { nameSnapshot: 150, name: 150,
+          category: 100, usageDescription: 500 };
+
+    for (const [field, max] of Object.entries(limits)) {
+      checkText(errors, `${prefix}.${field}`, value[field], max);
+    }
+  });
+
+  checkUnique(errors, values, kind, (value) => {
+    if (!isObject(value)) return "";
+    const id = text(value.skillId || value.profileSkillId);
+    const name = text(value.nameSnapshot || value.name);
+    return id ? `id:${id}` : `name:${name}`;
+  });
+}
+
+export function parseExperienceInput(value) {
+  const errors = [];
+
+  if (!isObject(value)) {
+    throw createValidationError([{
+      field: "experience",
+      code: "invalid_type",
+      message: "Experience must be an object.",
+    }]);
+  }
+
+  for (const field of SERVER_FIELDS) {
+    if (Object.hasOwn(value, field)) {
+      addError(errors, field, "server_owned",
+        "This field is managed by the server.");
+    }
+  }
+
+  if (typeof value.id !== "string" ||
+      value.id.length > 200 || !ID_PATTERN.test(value.id)) {
+    addError(errors, "id", "invalid_identifier",
+      "A valid Experience ID is required.");
+  }
+
+  checkOption(errors, "category", value.category, CATEGORIES);
+  checkOption(errors, "status", value.status, STATUSES);
+
+  const position = checkObject(errors, value, "position");
+  const organization = checkObject(errors, value, "organization");
+  const dates = checkObject(errors, value, "dates");
+
+  checkOption(errors, "position.employmentType",
+    position.employmentType, EMPLOYMENT_TYPES);
+  checkOption(errors, "position.workArrangement",
+    position.workArrangement, WORK_ARRANGEMENTS);
+
+  for (const [field, max] of Object.entries(LIMITS)) {
+    const [section, property] = field.split(".");
+    const fieldValue = property ? value[section]?.[property] : value[field];
+
+    checkText(errors, field, fieldValue, max,
+      field === "position.title" || field === "organization.name");
+  }
+
+  if (value.organization?.website) {
+    const website = text(value.organization.website);
+
+    try {
+      const normalized = /^https?:\/\//i.test(website)
+        ? website : `https://${website}`;
+      const url = new URL(normalized);
+
+      if (!["http:", "https:"].includes(url.protocol) || !url.hostname) {
+        throw new Error("Invalid URL");
+      }
+    } catch {
+      addError(errors, "organization.website", "invalid_url",
+        "A valid website is required.");
+    }
+  }
+
+  checkDates(errors, dates);
+
+  for (const name of Object.keys(COLLECTION_LIMITS)) {
+    checkCollection(errors, value, name);
+  }
+
+  for (const kind of ["responsibilities", "achievements"]) {
+    const values = value[kind];
+    if (!Array.isArray(values)) continue;
+
+    values.forEach((item, index) => {
+      const itemText = typeof item === "string"
+        ? item : isObject(item) ? item.text : "";
+
+      checkText(errors, `${kind}.${index}.text`, itemText,
+        kind === "responsibilities" ? 1500 : 1500, true);
+
+      if (kind === "achievements" && isObject(item)) {
+        checkText(errors, `${kind}.${index}.metric`, item.metric, 300);
+      }
+    });
+
+    checkUnique(errors, values, kind, (item) =>
+      typeof item === "string" ? item : text(item?.text));
+  }
+
+  checkRelationships(errors, value.skills, "skills");
+  checkRelationships(errors, value.technologies, "technologies");
+
+  if (Array.isArray(value.relatedProjectIds)) {
+    value.relatedProjectIds.forEach((id, index) => {
+      checkText(errors, `relatedProjectIds.${index}`, id, 200, true);
+    });
+
+    checkUnique(errors, value.relatedProjectIds,
+      "relatedProjectIds", (id) => text(id));
+  }
+
+  for (const name of ["location", "leadership",
+    "privateInformation", "visibility", "overviewMeta"]) {
+    if (value[name] !== undefined && !isObject(value[name])) {
+      addError(errors, name, "invalid_type", "Must be an object.");
+    }
+  }
+
+  const leadership = isObject(value.leadership) ? value.leadership : {};
+  checkBoolean(errors, "leadership.hasLeadershipResponsibilities",
+    leadership.hasLeadershipResponsibilities);
+
+  const people = leadership.peopleManaged;
+  if (people !== undefined && people !== null && people !== "") {
+    const number = Number(people);
+
+    if (!Number.isInteger(number) || number < 0 || number > 100000) {
+      addError(errors, "leadership.peopleManaged", "invalid_number",
+        "People managed must be between 0 and 100000.");
+    }
+  }
+
+  if (isObject(value.visibility)) {
+    for (const [key, enabled] of Object.entries(value.visibility)) {
+      checkBoolean(errors, `visibility.${key}`, enabled);
+    }
+  }
+
+  const hasOverview = Boolean(text(value.overview));
+  const hasResponsibility = Array.isArray(value.responsibilities) &&
+    value.responsibilities.some((item) =>
+      Boolean(text(typeof item === "string" ? item : item?.text)));
+  const hasAchievement = Array.isArray(value.achievements) &&
+    value.achievements.some((item) =>
+      Boolean(text(typeof item === "string" ? item : item?.text)));
+
+  if (!hasOverview && !hasResponsibility && !hasAchievement) {
+    addError(errors, "overview", "insufficient_content",
+      "Provide an overview, responsibility, or achievement.");
+  }
+
+  if (errors.length) {
+    throw createValidationError(errors);
+  }
+
+  return structuredClone(value);
+}
+
+export function parseExperienceRowVersion(value) {
+  if (typeof value !== "string" ||
+      !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(value) ||
+      Buffer.from(value, "base64").length !== 8) {
+    throw createValidationError([{
+      field: "rowVersion",
+      code: "EXPERIENCE_VERSION_INVALID",
+      message: "A valid Experience version is required.",
+    }]);
+  }
+
+  return value;
+}
+
+==================================================
+FILE: backend\test\schemas\experienceSchemas.test.js
+==================================================
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  parseExperienceInput,
+  parseExperienceRowVersion,
+} from "../../src/schemas/experienceSchemas.js";
+
+function validExperience() {
+  return {
+    id: "experience-550e8400-e29b-41d4-a716-446655440000",
+    category: "employment",
+    status: "active",
+    position: {
+      title: "Systems Administrator",
+      employmentType: "full-time",
+      workArrangement: "on-site",
+    },
+    organization: {
+      name: "Example Bank",
+      website: "",
+      industry: "Banking",
+    },
+    dates: {
+      startDate: "2021-01",
+      endDate: "",
+      isCurrent: true,
+    },
+    overview: "Maintained enterprise IT infrastructure.",
+    responsibilities: [],
+    achievements: [],
+    skills: [],
+    technologies: [],
+    relatedProjectIds: [],
+    privateInformation: {
+      reasonForLeaving: "",
+      notes: "",
+    },
+  };
+}
+
+function expectError(value, field) {
+  assert.throws(
+    () => parseExperienceInput(value),
+    (error) => error.status === 400 &&
+      error.code === "EXPERIENCE_VALIDATION_FAILED" &&
+      error.errors.some((item) => item.field === field),
+  );
+}
+
+test("accepts UUID-based Experience ID", () => {
+  const value = validExperience();
+  assert.equal(parseExperienceInput(value).id, value.id);
+});
+
+test("accepts frontend fallback Experience ID", () => {
+  const value = validExperience();
+  value.id = "experience-1791850000000-abc123xy";
+  assert.equal(parseExperienceInput(value).id, value.id);
+});
+
+test("rejects unsafe Experience ID", () => {
+  const value = validExperience();
+  value.id = "../another-user";
+  expectError(value, "id");
+});
+
+test("rejects missing position title", () => {
+  const value = validExperience();
+  value.position.title = " ";
+  expectError(value, "position.title");
+});
+
+test("rejects missing organization", () => {
+  const value = validExperience();
+  value.organization.name = "";
+  expectError(value, "organization.name");
+});
+
+test("rejects invalid category", () => {
+  const value = validExperience();
+  value.category = "invalid";
+  expectError(value, "category");
+});
+
+test("rejects impossible calendar dates", () => {
+  const value = validExperience();
+  value.dates.startDate = "2026-02-30";
+  expectError(value, "dates.startDate");
+});
+
+test("rejects end date for current position", () => {
+  const value = validExperience();
+  value.dates.endDate = "2026-10";
+  expectError(value, "dates.endDate");
+});
+
+test("requires end date for previous position", () => {
+  const value = validExperience();
+  value.dates.isCurrent = false;
+  expectError(value, "dates.endDate");
+});
+
+test("rejects reversed date range", () => {
+  const value = validExperience();
+  value.dates = {
+    startDate: "2026-10-20",
+    endDate: "2026-10-05",
+    isCurrent: false,
+  };
+  expectError(value, "dates.endDate");
+});
+
+test("requires meaningful content", () => {
+  const value = validExperience();
+  value.overview = "";
+  expectError(value, "overview");
+});
+
+test("rejects duplicate responsibilities", () => {
+  const value = validExperience();
+  value.responsibilities = [
+    { text: "Managed servers" },
+    { text: "managed servers" },
+  ];
+  expectError(value, "responsibilities.1");
+});
+
+test("rejects more than 50 skills", () => {
+  const value = validExperience();
+  value.skills = Array.from({ length: 51 }, (_, index) => ({
+    nameSnapshot: `Skill ${index}`,
+  }));
+  expectError(value, "skills");
+});
+
+test("requires a snapshot for linked skills", () => {
+  const value = validExperience();
+  value.skills = [{ skillId: "skill-1" }];
+  expectError(value, "skills.0.nameSnapshot");
+});
+
+test("rejects invalid proficiency", () => {
+  const value = validExperience();
+  value.technologies = [{
+    nameSnapshot: "JavaScript",
+    proficiency: "super-expert",
+  }];
+  expectError(value, "technologies.0.proficiency");
+});
+
+test("rejects oversized private notes", () => {
+  const value = validExperience();
+  value.privateInformation.notes = "x".repeat(3001);
+  expectError(value, "privateInformation.notes");
+});
+
+test("rejects client-owned timestamp metadata", () => {
+  const value = validExperience();
+  value.createdAt = "2020-01-01T00:00:00Z";
+  expectError(value, "createdAt");
+});
+
+test("rejects client-supplied rowVersion", () => {
+  const value = validExperience();
+  value.rowVersion = Buffer.alloc(8, 1).toString("base64");
+  expectError(value, "rowVersion");
+});
+
+test("accepts SQL Server rowVersion", () => {
+  const version = Buffer.alloc(8, 1).toString("base64");
+  assert.equal(parseExperienceRowVersion(version), version);
+});
+
+test("rejects malformed SQL Server rowVersion", () => {
+  assert.throws(
+    () => parseExperienceRowVersion("invalid"),
+    (error) => error.status === 400,
+  );
+});
+

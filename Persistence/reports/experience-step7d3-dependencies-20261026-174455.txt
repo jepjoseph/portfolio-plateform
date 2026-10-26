@@ -1,0 +1,782 @@
+﻿EXPERIENCE STEP 7D.3 DEPENDENCY INSPECTION
+Generated: 2026-10-26 17:44:55
+
+
+================================================================================
+SEARCH: useExperienceData
+================================================================================
+frontend\src\App.jsx:44: import { useExperienceData } from "./context/ExperienceDataContext.jsx";
+frontend\src\App.jsx:61: const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
+frontend\src\context\ExperienceDataContext.jsx:645: export function useExperienceData() {
+frontend\src\context\ExperienceDataContext.jsx:650: "useExperienceData must be used inside ExperienceDataProvider.",
+frontend\src\pages\Dashboard\Dashboard.jsx:4: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+frontend\src\pages\Dashboard\Dashboard.jsx:138: } = useExperienceData();
+frontend\src\pages\Experience\Experience.jsx:3: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+frontend\src\pages\Experience\Experience.jsx:36: } = useExperienceData();
+frontend\src\pages\skills\Skills.jsx:4: import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+frontend\src\pages\skills\Skills.jsx:41: const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
+Matches found: 10
+
+================================================================================
+SEARCH: ExperienceDataProvider
+================================================================================
+frontend\src\main.jsx:17: import { ExperienceDataProvider } from "./context/ExperienceDataContext.jsx";
+frontend\src\main.jsx:59: <ExperienceDataProvider>
+frontend\src\main.jsx:69: </ExperienceDataProvider>
+frontend\src\context\ExperienceDataContext.jsx:77: export function ExperienceDataProvider({ children }) {
+frontend\src\context\ExperienceDataContext.jsx:650: "useExperienceData must be used inside ExperienceDataProvider.",
+Matches found: 5
+
+================================================================================
+SEARCH: useAuth
+================================================================================
+frontend\src\components\Header\Header.jsx:1: import { useAuth } from "../../context/AuthContext";
+frontend\src\components\Header\Header.jsx:73: const { user, roles } = useAuth();
+frontend\src\components\PublicHeader\PublicHeader.jsx:5: import { useAuth } from "../../context/AuthContext.jsx";
+frontend\src\components\PublicHeader\PublicHeader.jsx:43: const { isAuthenticated } = useAuth();
+frontend\src\components\Sidebar\Sidebar.jsx:4: import { useAuth } from "../../context/AuthContext";
+frontend\src\components\Sidebar\Sidebar.jsx:65: const { user, logout } = useAuth();
+frontend\src\context\AuthContext.jsx:819: export function useAuth() {
+frontend\src\context\AuthContext.jsx:823: throw new Error("useAuth must be used inside AuthProvider.");
+frontend\src\context\ProfileDataContext.jsx:10: import { useAuth } from "./AuthContext.jsx";
+frontend\src\context\ProfileDataContext.jsx:63: const { isAuthenticated, isInitializing } = useAuth();
+frontend\src\pages\Auth\Login\Login.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\Login\Login.jsx:74: const { beginPasswordLogin, operation, clearError } = useAuth();
+frontend\src\pages\Auth\LoginVerify\LoginVerify.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\LoginVerify\LoginVerify.jsx:62: const { completeLogin, operation, clearError } = useAuth();
+frontend\src\pages\Auth\Register\Register.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\Register\Register.jsx:40: const { beginRegistration, operation, clearError } = useAuth();
+frontend\src\pages\Auth\RegisterVerify\RegisterVerify.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\RegisterVerify\RegisterVerify.jsx:56: const { verifyRegistration, operation, clearError } = useAuth();
+frontend\src\pages\Auth\SetPassword\SetPassword.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\SetPassword\SetPassword.jsx:72: const { finishRegistration, operation, clearError } = useAuth();
+frontend\src\pages\Public\About\About.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\About\About.jsx:10: const { isAuthenticated } = useAuth();
+frontend\src\pages\Public\Contact\Contact.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Contact\Contact.jsx:275: const { user, isAuthenticated } = useAuth();
+frontend\src\pages\Public\Home\Home.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Home\Home.jsx:147: const { isAuthenticated } = useAuth();
+frontend\src\pages\Public\HowItWorks\HowItWorks.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\HowItWorks\HowItWorks.jsx:192: const { isAuthenticated } = useAuth();
+frontend\src\pages\Public\NotFound\NotFound.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\NotFound\NotFound.jsx:20: const { isAuthenticated, isInitializing } = useAuth();
+frontend\src\pages\Public\Opportunities\Opportunities.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Opportunities\Opportunities.jsx:100: const { isAuthenticated } = useAuth();
+frontend\src\pages\Public\Support\Support.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Support\Support.jsx:334: const { isAuthenticated } = useAuth();
+frontend\src\pages\Settings\Settings.jsx:3: import { useAuth } from "../../context/AuthContext.jsx";
+frontend\src\pages\Settings\Settings.jsx:127: const { user, session: authenticatedSession } = useAuth();
+frontend\src\routes\GuestRoute.jsx:3: import { useAuth } from "../context/AuthContext.jsx";
+frontend\src\routes\GuestRoute.jsx:18: const { isAuthenticated, isInitializing } = useAuth();
+frontend\src\routes\ProtectedRoute.jsx:3: import { AUTH_STATUS, useAuth } from "../context/AuthContext.jsx";
+frontend\src\routes\ProtectedRoute.jsx:24: } = useAuth();
+Matches found: 40
+
+================================================================================
+SEARCH: AuthProvider
+================================================================================
+frontend\src\main.jsx:9: import { AuthProvider } from "./context/AuthContext.jsx";
+frontend\src\main.jsx:47: <AuthProvider>
+frontend\src\main.jsx:74: </AuthProvider>
+frontend\src\context\AuthContext.jsx:139: export function AuthProvider({ children }) {
+frontend\src\context\AuthContext.jsx:823: throw new Error("useAuth must be used inside AuthProvider.");
+Matches found: 5
+
+================================================================================
+SEARCH: AuthContext
+================================================================================
+frontend\src\main.jsx:9: import { AuthProvider } from "./context/AuthContext.jsx";
+frontend\src\components\Header\Header.jsx:1: import { useAuth } from "../../context/AuthContext";
+frontend\src\components\PublicHeader\PublicHeader.jsx:5: import { useAuth } from "../../context/AuthContext.jsx";
+frontend\src\components\Sidebar\Sidebar.jsx:4: import { useAuth } from "../../context/AuthContext";
+frontend\src\context\AuthContext.jsx:72: const AuthContext = createContext(null);
+frontend\src\context\AuthContext.jsx:809: <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+frontend\src\context\AuthContext.jsx:820: const context = useContext(AuthContext);
+frontend\src\context\ProfileDataContext.jsx:10: import { useAuth } from "./AuthContext.jsx";
+frontend\src\pages\Auth\Login\Login.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\LoginVerify\LoginVerify.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\Register\Register.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\RegisterVerify\RegisterVerify.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Auth\SetPassword\SetPassword.jsx:5: import { AUTH_OPERATION, useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\About\About.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Contact\Contact.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Home\Home.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\HowItWorks\HowItWorks.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\NotFound\NotFound.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Opportunities\Opportunities.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Public\Support\Support.jsx:5: import { useAuth } from "../../../context/AuthContext.jsx";
+frontend\src\pages\Settings\Settings.jsx:3: import { useAuth } from "../../context/AuthContext.jsx";
+frontend\src\routes\GuestRoute.jsx:3: import { useAuth } from "../context/AuthContext.jsx";
+frontend\src\routes\ProtectedRoute.jsx:3: import { AUTH_STATUS, useAuth } from "../context/AuthContext.jsx";
+Matches found: 23
+
+================================================================================
+SEARCH: getExperiences
+================================================================================
+frontend\src\config\experienceConfig.js:359: export function getExperienceStatusOption(value) {
+frontend\src\config\experienceConfig.js:363: export function getExperienceStatusLabel(value) {
+frontend\src\config\experienceConfig.js:364: return getExperienceStatusOption(value)?.label || "";
+frontend\src\config\experienceConfig.js:380: return Boolean(getExperienceStatusOption(value));
+frontend\src\context\ExperienceDataContext.jsx:15: getExperiences as getExperiencesService,
+frontend\src\context\ExperienceDataContext.jsx:121: const loadedExperiences = await getExperiencesService({
+frontend\src\context\ExperienceDataContext.jsx:164: const loadedExperiences = await getExperiencesService({
+frontend\src\pages\Experience\Experience.jsx:8: getExperienceStatistics,
+frontend\src\pages\Experience\Experience.jsx:49: () => getExperienceStatistics(experiences),
+frontend\src\services\Experience\experienceService.js:63: export async function getExperiences({ includeArchived = false } = {}) {
+frontend\src\services\Experience\experienceStorage.js:444: export function getExperienceStorageInformation() {
+frontend\src\services\Experience\experienceUtils.js:4: getExperienceStatusLabel,
+frontend\src\services\Experience\experienceUtils.js:304: export function getExperienceSecondaryLabel(experience) {
+frontend\src\services\Experience\experienceUtils.js:324: export function getExperienceStatusDisplay(experience) {
+frontend\src\services\Experience\experienceUtils.js:325: return getExperienceStatusLabel(experience?.status) || "Active";
+frontend\src\services\Experience\experienceUtils.js:710: export function getExperienceStatistics(experiences) {
+frontend\src\services\Experience\experienceValidation.js:5: getExperienceStatusLabel,
+frontend\src\services\Experience\experienceValidation.js:1263: getExperienceStatusLabel(experience?.status),
+Matches found: 18
+
+================================================================================
+SEARCH: updateExperience
+================================================================================
+frontend\src\context\ExperienceDataContext.jsx:17: updateExperience as updateExperienceService,
+frontend\src\context\ExperienceDataContext.jsx:297: const updateExperience = useCallback(async (experienceId, updates) => {
+frontend\src\context\ExperienceDataContext.jsx:308: const updatedExperience = await updateExperienceService(
+frontend\src\context\ExperienceDataContext.jsx:588: updateExperience,
+frontend\src\context\ExperienceDataContext.jsx:621: updateExperience,
+frontend\src\models\experienceModel.js:810: export function updateExperienceModel(currentExperience, updates = {}) {
+frontend\src\pages\Experience\Experience.jsx:30: updateExperience,
+frontend\src\pages\Experience\Experience.jsx:109: await updateExperience(editingExperienceId, experienceData);
+frontend\src\services\Experience\experienceApiService.js:65: export async function updateExperienceApi(
+frontend\src\services\Experience\experienceService.js:4: updateExperienceModel,
+frontend\src\services\Experience\experienceService.js:141: export async function updateExperience(experienceId, updates) {
+frontend\src\services\Experience\experienceService.js:210: const updatedExperience = updateExperienceModel(currentExperience, updates);
+frontend\src\services\Experience\experienceService.js:228: return updateExperience(experienceId, {
+frontend\src\services\Experience\experienceService.js:240: return updateExperience(experienceId, {
+Matches found: 14
+
+================================================================================
+SEARCH: archiveExperience
+================================================================================
+frontend\src\context\ExperienceDataContext.jsx:11: archiveExperience as archiveExperienceService,
+frontend\src\context\ExperienceDataContext.jsx:351: const archiveExperience = useCallback(async (experienceId) => {
+frontend\src\context\ExperienceDataContext.jsx:362: const archivedExperience = await archiveExperienceService(experienceId);
+frontend\src\context\ExperienceDataContext.jsx:589: archiveExperience,
+frontend\src\context\ExperienceDataContext.jsx:622: archiveExperience,
+frontend\src\pages\Experience\Experience.jsx:31: archiveExperience,
+frontend\src\pages\Experience\Experience.jsx:145: const handleArchiveExperience = async (experience) => {
+frontend\src\pages\Experience\Experience.jsx:147: await archiveExperience(experience.id);
+frontend\src\pages\Experience\Experience.jsx:432: onArchive={handleArchiveExperience}
+frontend\src\services\Experience\experienceService.js:227: export async function archiveExperience(experienceId) {
+Matches found: 10
+
+================================================================================
+SEARCH: restoreExperience
+================================================================================
+frontend\src\context\ExperienceDataContext.jsx:16: restoreExperience as restoreExperienceService,
+frontend\src\context\ExperienceDataContext.jsx:402: const restoreExperience = useCallback(async (experienceId) => {
+frontend\src\context\ExperienceDataContext.jsx:413: const restoredExperience = await restoreExperienceService(experienceId);
+frontend\src\context\ExperienceDataContext.jsx:590: restoreExperience,
+frontend\src\context\ExperienceDataContext.jsx:623: restoreExperience,
+frontend\src\pages\Experience\Experience.jsx:32: restoreExperience,
+frontend\src\pages\Experience\Experience.jsx:165: const handleRestoreExperience = async (experience) => {
+frontend\src\pages\Experience\Experience.jsx:167: await restoreExperience(experience.id);
+frontend\src\pages\Experience\Experience.jsx:433: onRestore={handleRestoreExperience}
+frontend\src\services\Experience\experienceService.js:239: export async function restoreExperience(experienceId) {
+Matches found: 10
+
+================================================================================
+SEARCH: deleteExperience
+================================================================================
+frontend\src\context\ExperienceDataContext.jsx:13: deleteExperience as deleteExperienceService,
+frontend\src\context\ExperienceDataContext.jsx:453: const deleteExperience = useCallback(async (experienceId) => {
+frontend\src\context\ExperienceDataContext.jsx:464: const deletionResult = await deleteExperienceService(experienceId);
+frontend\src\context\ExperienceDataContext.jsx:591: deleteExperience,
+frontend\src\context\ExperienceDataContext.jsx:624: deleteExperience,
+frontend\src\pages\Experience\Experience.jsx:33: deleteExperience,
+frontend\src\pages\Experience\Experience.jsx:181: const handleDeleteExperience = async (experience) => {
+frontend\src\pages\Experience\Experience.jsx:196: await deleteExperience(experience.id);
+frontend\src\pages\Experience\Experience.jsx:434: onDelete={handleDeleteExperience}
+frontend\src\services\Experience\experienceApiService.js:105: export async function deleteExperienceApi(
+frontend\src\services\Experience\experienceService.js:251: export async function deleteExperience(experienceId) {
+Matches found: 11
+
+================================================================================
+SEARCH: rowVersion
+================================================================================
+frontend\src\models\experienceModel.js:773: ...(typeof source.rowVersion === "string" &&
+frontend\src\models\experienceModel.js:774: /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+frontend\src\models\experienceModel.js:775: ? { rowVersion: source.rowVersion }
+frontend\src\models\projectModel.js:829: ...(typeof source.rowVersion === "string" &&
+frontend\src\models\projectModel.js:830: /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+frontend\src\models\projectModel.js:831: ? { rowVersion: source.rowVersion }
+frontend\src\services\Experience\experienceApiAdapter.js:6: "rowVersion",
+frontend\src\services\Experience\experienceApiAdapter.js:29: export function getExperienceRowVersion(experience) {
+frontend\src\services\Experience\experienceApiAdapter.js:30: const rowVersion = experience?.rowVersion;
+frontend\src\services\Experience\experienceApiAdapter.js:33: typeof rowVersion !== "string" ||
+frontend\src\services\Experience\experienceApiAdapter.js:34: !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+frontend\src\services\Experience\experienceApiAdapter.js:37: "A valid Experience rowVersion is required.",
+frontend\src\services\Experience\experienceApiAdapter.js:41: return rowVersion;
+frontend\src\services\Experience\experienceApiService.js:11: getExperienceRowVersion,
+frontend\src\services\Experience\experienceApiService.js:30: function requireRowVersion(rowVersion) {
+frontend\src\services\Experience\experienceApiService.js:31: return getExperienceRowVersion({ rowVersion });
+frontend\src\services\Experience\experienceApiService.js:68: rowVersion,
+frontend\src\services\Experience\experienceApiService.js:75: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Experience\experienceApiService.js:86: rowVersion,
+frontend\src\services\Experience\experienceApiService.js:97: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Experience\experienceApiService.js:107: rowVersion,
+frontend\src\services\Experience\experienceApiService.js:115: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Project\projectApiAdapter.js:7: "rowVersion",
+frontend\src\services\Project\projectApiAdapter.js:28: export function getProjectRowVersion(project) {
+frontend\src\services\Project\projectApiAdapter.js:29: const rowVersion = project?.rowVersion;
+frontend\src\services\Project\projectApiAdapter.js:32: typeof rowVersion !== "string" ||
+frontend\src\services\Project\projectApiAdapter.js:33: !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+frontend\src\services\Project\projectApiAdapter.js:36: "A valid Project rowVersion is required.",
+frontend\src\services\Project\projectApiAdapter.js:40: return rowVersion;
+frontend\src\services\Project\projectApiService.js:22: function requireRowVersion(rowVersion) {
+frontend\src\services\Project\projectApiService.js:23: if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+frontend\src\services\Project\projectApiService.js:24: throw new TypeError("A Project rowVersion is required.");
+frontend\src\services\Project\projectApiService.js:27: return rowVersion.trim();
+frontend\src\services\Project\projectApiService.js:48: rowVersion,
+frontend\src\services\Project\projectApiService.js:55: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Project\projectApiService.js:66: rowVersion,
+frontend\src\services\Project\projectApiService.js:77: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Project\projectApiService.js:87: rowVersion,
+frontend\src\services\Project\projectApiService.js:93: rowVersion: requireRowVersion(rowVersion),
+Matches found: 39
+
+================================================================================
+API CLIENT IMPLEMENTATION
+================================================================================
+SHA256: 799468800C72422D1B90E75A6EB85BD8FB45FCD37180980658F9EDE64565D3B1
+   1: /*
+   2:  * =========================================
+   3:  * API Configuration
+   4:  * =========================================
+   5:  */
+   6: 
+   7: const DEFAULT_API_ORIGIN = "http://localhost:5000";
+   8: 
+   9: const DEFAULT_TIMEOUT_MS = 30000;
+  10: 
+  11: /*
+  12:  * =========================================
+  13:  * Authentication Session Event
+  14:  * =========================================
+  15:  */
+  16: 
+  17: export const AUTH_SESSION_INVALID_EVENT =
+  18:   "portfolio-platform:auth-session-invalid";
+  19: 
+  20: const INVALID_SESSION_CODES = new Set([
+  21:   "AUTHENTICATION_REQUIRED",
+  22:   "SESSION_REFRESH_TOKEN_INVALID",
+  23:   "SESSION_NOT_FOUND",
+  24:   "SESSION_REFRESH_CONFLICT",
+  25: ]);
+  26: 
+  27: /*
+  28:  * =========================================
+  29:  * Invalid Session Notification
+  30:  * =========================================
+  31:  */
+  32: 
+  33: function notifyInvalidAuthenticationSession(error) {
+  34:   if (
+  35:     typeof window === "undefined" ||
+  36:     (Number(error?.status) !== 401 &&
+  37:       error?.code !== "SESSION_REFRESH_CONFLICT")
+  38:   ) {
+  39:     return;
+  40:   }
+  41: 
+  42:   if (!INVALID_SESSION_CODES.has(error?.code)) {
+  43:     return;
+  44:   }
+  45: 
+  46:   window.dispatchEvent(
+  47:     new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+  48:       detail: {
+  49:         status: error.status,
+  50: 
+  51:         code: error.code,
+  52: 
+  53:         message: error.message,
+  54:       },
+  55:     }),
+  56:   );
+  57: }
+  58: 
+  59: /*
+  60:  * VITE_API_BASE_URL may be configured as:
+  61:  *
+  62:  * http://localhost:5000
+  63:  *
+  64:  * or:
+  65:  *
+  66:  * http://localhost:5000/api
+  67:  *
+  68:  * Both formats are supported.
+  69:  */
+  70: 
+  71: function normalizeApiBaseUrl(value) {
+  72:   const configuredValue = typeof value === "string" ? value.trim() : "";
+  73: 
+  74:   const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+  75: 
+  76:   return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+  77: }
+  78: 
+  79: export const API_BASE_URL = normalizeApiBaseUrl(
+  80:   import.meta.env?.VITE_API_BASE_URL,
+  81: );
+  82: 
+  83: /*
+  84:  * =========================================
+  85:  * API Error
+  86:  * =========================================
+  87:  */
+  88: 
+  89: export class ApiError extends Error {
+  90:   constructor({
+  91:     message,
+  92:     status = 0,
+  93:     code = "API_REQUEST_FAILED",
+  94:     fieldErrors = {},
+  95:     errors = [],
+  96:     details = null,
+  97:     method = "",
+  98:     url = "",
+  99:     cause,
+ 100:   }) {
+ 101:     super(message || "The request could not be completed.", {
+ 102:       cause,
+ 103:     });
+ 104: 
+ 105:     this.name = "ApiError";
+ 106: 
+ 107:     this.status = Number(status) || 0;
+ 108: 
+ 109:     this.code = code || "API_REQUEST_FAILED";
+ 110: 
+ 111:     this.fieldErrors =
+ 112:       fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+ 113: 
+ 114:     this.errors = Array.isArray(errors) ? errors : [];
+ 115: 
+ 116:     this.details = details || null;
+ 117: 
+ 118:     this.method = method;
+ 119: 
+ 120:     this.url = url;
+ 121:   }
+ 122: }
+ 123: 
+ 124: /*
+ 125:  * =========================================
+ 126:  * Endpoint Normalization
+ 127:  * =========================================
+ 128:  */
+ 129: 
+ 130: function normalizeEndpoint(endpoint) {
+ 131:   if (typeof endpoint !== "string" || !endpoint.trim()) {
+ 132:     throw new TypeError("A relative API endpoint is required.");
+ 133:   }
+ 134: 
+ 135:   const normalizedEndpoint = endpoint.trim();
+ 136: 
+ 137:   /*
+ 138:    * Prevent accidental cookie-bearing
+ 139:    * requests to arbitrary external origins.
+ 140:    */
+ 141: 
+ 142:   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+ 143:     throw new TypeError("API endpoints must be relative paths.");
+ 144:   }
+ 145: 
+ 146:   return normalizedEndpoint.startsWith("/")
+ 147:     ? normalizedEndpoint
+ 148:     : `/${normalizedEndpoint}`;
+ 149: }
+ 150: 
+ 151: /*
+ 152:  * =========================================
+ 153:  * Query Parameters
+ 154:  * =========================================
+ 155:  */
+ 156: 
+ 157: function appendQueryParameters(url, query) {
+ 158:   if (!query || typeof query !== "object") {
+ 159:     return url;
+ 160:   }
+ 161: 
+ 162:   const requestUrl = new URL(url);
+ 163: 
+ 164:   for (const [name, value] of Object.entries(query)) {
+ 165:     if (value === undefined || value === null || value === "") {
+ 166:       continue;
+ 167:     }
+ 168: 
+ 169:     if (Array.isArray(value)) {
+ 170:       for (const item of value) {
+ 171:         requestUrl.searchParams.append(name, String(item));
+ 172:       }
+ 173: 
+ 174:       continue;
+ 175:     }
+ 176: 
+ 177:     requestUrl.searchParams.set(name, String(value));
+ 178:   }
+ 179: 
+ 180:   return requestUrl.toString();
+ 181: }
+ 182: 
+ 183: /*
+ 184:  * =========================================
+ 185:  * Request Body Preparation
+ 186:  * =========================================
+ 187:  */
+ 188: 
+ 189: function isFormData(value) {
+ 190:   return typeof FormData !== "undefined" && value instanceof FormData;
+ 191: }
+ 192: 
+ 193: function isUrlSearchParams(value) {
+ 194:   return (
+ 195:     typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+ 196:   );
+ 197: }
+ 198: 
+ 199: function isBlob(value) {
+ 200:   return typeof Blob !== "undefined" && value instanceof Blob;
+ 201: }
+ 202: 
+ 203: function shouldSerializeAsJson(body) {
+ 204:   return (
+ 205:     body !== undefined &&
+ 206:     body !== null &&
+ 207:     typeof body === "object" &&
+ 208:     !isFormData(body) &&
+ 209:     !isUrlSearchParams(body) &&
+ 210:     !isBlob(body) &&
+ 211:     !(body instanceof ArrayBuffer)
+ 212:   );
+ 213: }
+ 214: 
+ 215: function prepareRequestBody({ body, headers }) {
+ 216:   if (body === undefined || body === null) {
+ 217:     return undefined;
+ 218:   }
+ 219: 
+ 220:   if (shouldSerializeAsJson(body)) {
+ 221:     if (!headers.has("Content-Type")) {
+ 222:       headers.set("Content-Type", "application/json");
+ 223:     }
+ 224: 
+ 225:     return JSON.stringify(body);
+ 226:   }
+ 227: 
+ 228:   /*
+ 229:    * Never set Content-Type manually for
+ 230:    * FormData. The browser must add its
+ 231:    * multipart boundary.
+ 232:    */
+ 233: 
+ 234:   return body;
+ 235: }
+ 236: 
+ 237: /*
+ 238:  * =========================================
+ 239:  * Response Parsing
+ 240:  * =========================================
+ 241:  */
+ 242: 
+ 243: async function parseResponseBody(response) {
+ 244:   if (response.status === 204 || response.status === 205) {
+ 245:     return null;
+ 246:   }
+ 247: 
+ 248:   const text = await response.text();
+ 249: 
+ 250:   if (!text) {
+ 251:     return null;
+ 252:   }
+ 253: 
+ 254:   const contentType = response.headers.get("content-type") || "";
+ 255: 
+ 256:   if (contentType.includes("application/json")) {
+ 257:     try {
+ 258:       return JSON.parse(text);
+ 259:     } catch {
+ 260:       return {
+ 261:         message: "The server returned an invalid JSON response.",
+ 262:       };
+ 263:     }
+ 264:   }
+ 265: 
+ 266:   /*
+ 267:    * Some development proxies may omit the
+ 268:    * JSON content type. Attempt JSON parsing
+ 269:    * before treating the body as plain text.
+ 270:    */
+ 271: 
+ 272:   try {
+ 273:     return JSON.parse(text);
+ 274:   } catch {
+ 275:     return {
+ 276:       message: text,
+ 277:     };
+ 278:   }
+ 279: }
+ 280: 
+ 281: /*
+ 282:  * =========================================
+ 283:  * API Error Creation
+ 284:  * =========================================
+ 285:  */
+ 286: 
+ 287: function createResponseError({ response, data, method, url }) {
+ 288:   const error = new ApiError({
+ 289:     message: data?.message || `The server returned HTTP ${response.status}.`,
+ 290: 
+ 291:     status: response.status,
+ 292: 
+ 293:     code: data?.code || "API_REQUEST_FAILED",
+ 294: 
+ 295:     fieldErrors: data?.fieldErrors,
+ 296: 
+ 297:     errors: data?.errors,
+ 298: 
+ 299:     details: data?.details,
+ 300: 
+ 301:     method,
+ 302: 
+ 303:     url,
+ 304:   });
+ 305: 
+ 306:   notifyInvalidAuthenticationSession(error);
+ 307: 
+ 308:   return error;
+ 309: }
+ 310: 
+ 311: /*
+ 312:  * =========================================
+ 313:  * Timeout and Abort Signal
+ 314:  * =========================================
+ 315:  */
+ 316: 
+ 317: function createRequestAbortController({ signal, timeoutMs }) {
+ 318:   const controller = new AbortController();
+ 319: 
+ 320:   let wasTimedOut = false;
+ 321: 
+ 322:   const handleExternalAbort = () => {
+ 323:     controller.abort(signal?.reason);
+ 324:   };
+ 325: 
+ 326:   if (signal) {
+ 327:     if (signal.aborted) {
+ 328:       handleExternalAbort();
+ 329:     } else {
+ 330:       signal.addEventListener("abort", handleExternalAbort, {
+ 331:         once: true,
+ 332:       });
+ 333:     }
+ 334:   }
+ 335: 
+ 336:   const timeoutId = globalThis.setTimeout(() => {
+ 337:     wasTimedOut = true;
+ 338: 
+ 339:     controller.abort();
+ 340:   }, timeoutMs);
+ 341: 
+ 342:   return {
+ 343:     signal: controller.signal,
+ 344: 
+ 345:     wasTimedOut() {
+ 346:       return wasTimedOut;
+ 347:     },
+ 348: 
+ 349:     cleanup() {
+ 350:       globalThis.clearTimeout(timeoutId);
+ 351: 
+ 352:       signal?.removeEventListener?.("abort", handleExternalAbort);
+ 353:     },
+ 354:   };
+ 355: }
+ 356: 
+ 357: /*
+ 358:  * =========================================
+ 359:  * API Request
+ 360:  * =========================================
+ 361:  */
+ 362: 
+ 363: export async function apiRequest(
+ 364:   endpoint,
+ 365:   {
+ 366:     method = "GET",
+ 367:     body,
+ 368:     query,
+ 369:     headers: customHeaders,
+ 370:     signal,
+ 371:     timeoutMs = DEFAULT_TIMEOUT_MS,
+ 372:     cache = "no-store",
+ 373:   } = {},
+ 374: ) {
+ 375:   const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+ 376: 
+ 377:   const normalizedEndpoint = normalizeEndpoint(endpoint);
+ 378: 
+ 379:   const requestUrl = appendQueryParameters(
+ 380:     `${API_BASE_URL}${normalizedEndpoint}`,
+ 381:     query,
+ 382:   );
+ 383: 
+ 384:   const headers = new Headers(customHeaders || {});
+ 385: 
+ 386:   if (!headers.has("Accept")) {
+ 387:     headers.set("Accept", "application/json");
+ 388:   }
+ 389: 
+ 390:   const requestBody = prepareRequestBody({
+ 391:     body,
+ 392: 
+ 393:     headers,
+ 394:   });
+ 395: 
+ 396:   const abortState = createRequestAbortController({
+ 397:     signal,
+ 398: 
+ 399:     timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+ 400:   });
+ 401: 
+ 402:   try {
+ 403:     const response = await fetch(requestUrl, {
+ 404:       method: normalizedMethod,
+ 405: 
+ 406:       /*
+ 407:        * Required for HttpOnly session
+ 408:        * cookies on cross-origin requests.
+ 409:        */
+ 410: 
+ 411:       credentials: "include",
+ 412: 
+ 413:       headers,
+ 414: 
+ 415:       body: ["GET", "HEAD"].includes(normalizedMethod)
+ 416:         ? undefined
+ 417:         : requestBody,
+ 418: 
+ 419:       signal: abortState.signal,
+ 420: 
+ 421:       cache,
+ 422:     });
+ 423: 
+ 424:     const data = await parseResponseBody(response);
+ 425: 
+ 426:     if (!response.ok) {
+ 427:       throw createResponseError({
+ 428:         response,
+ 429: 
+ 430:         data,
+ 431: 
+ 432:         method: normalizedMethod,
+ 433: 
+ 434:         url: requestUrl,
+ 435:       });
+ 436:     }
+ 437: 
+ 438:     return data;
+ 439:   } catch (error) {
+ 440:     if (error instanceof ApiError) {
+ 441:       throw error;
+ 442:     }
+ 443: 
+ 444:     if (error?.name === "AbortError") {
+ 445:       throw new ApiError({
+ 446:         message: abortState.wasTimedOut()
+ 447:           ? "The server took too long to respond."
+ 448:           : "The request was canceled.",
+ 449: 
+ 450:         status: 0,
+ 451: 
+ 452:         code: abortState.wasTimedOut()
+ 453:           ? "API_REQUEST_TIMEOUT"
+ 454:           : "API_REQUEST_ABORTED",
+ 455: 
+ 456:         method: normalizedMethod,
+ 457: 
+ 458:         url: requestUrl,
+ 459: 
+ 460:         cause: error,
+ 461:       });
+ 462:     }
+ 463: 
+ 464:     throw new ApiError({
+ 465:       message:
+ 466:         "Unable to connect to the server. Check your connection and try again.",
+ 467: 
+ 468:       status: 0,
+ 469: 
+ 470:       code: "API_NETWORK_ERROR",
+ 471: 
+ 472:       method: normalizedMethod,
+ 473: 
+ 474:       url: requestUrl,
+ 475: 
+ 476:       cause: error,
+ 477:     });
+ 478:   } finally {
+ 479:     abortState.cleanup();
+ 480:   }
+ 481: }
+ 482: 
+ 483: /*
+ 484:  * =========================================
+ 485:  * Convenience Methods
+ 486:  * =========================================
+ 487:  */
+ 488: 
+ 489: export function apiGet(endpoint, options = {}) {
+ 490:   return apiRequest(endpoint, {
+ 491:     ...options,
+ 492: 
+ 493:     method: "GET",
+ 494:   });
+ 495: }
+ 496: 
+ 497: export function apiPost(endpoint, body, options = {}) {
+ 498:   return apiRequest(endpoint, {
+ 499:     ...options,
+ 500: 
+ 501:     method: "POST",
+ 502: 
+ 503:     body,
+ 504:   });
+ 505: }
+ 506: 
+ 507: export function apiPut(endpoint, body, options = {}) {
+ 508:   return apiRequest(endpoint, {
+ 509:     ...options,
+ 510: 
+ 511:     method: "PUT",
+ 512: 
+ 513:     body,
+ 514:   });
+ 515: }
+ 516: 
+ 517: export function apiPatch(endpoint, body, options = {}) {
+ 518:   return apiRequest(endpoint, {
+ 519:     ...options,
+ 520: 
+ 521:     method: "PATCH",
+ 522: 
+ 523:     body,
+ 524:   });
+ 525: }
+ 526: 
+ 527: export function apiDelete(endpoint, options = {}) {
+ 528:   return apiRequest(endpoint, {
+ 529:     ...options,
+ 530: 
+ 531:     method: "DELETE",
+ 532:   });
+ 533: }
+ 534: 

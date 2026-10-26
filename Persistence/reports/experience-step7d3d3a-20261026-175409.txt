@@ -1,0 +1,57 @@
+﻿EXPERIENCE STEP 7D.3D.3A
+Timestamp: 20261026-175409
+
+Test exit code: 0
+Backup: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\experience-api\experienceDatabaseDelegation-20261026-175409.mjs.bak
+
+Original SHA256: 1E301487334AEF0FA8621491D4DB80ADD614F8CA789CB58A3B317FB5A2918E26
+Updated SHA256: CFF51E934D561FE096F5334D7180B2D049328AB1336C5B87CC3BD82E066F2B60
+
+TEST OUTPUT
+===========
+Γ£ö removes server-owned fields (2.511ms)
+Γ£ö does not mutate the original experience (1.7443ms)
+Γ£ö rejects invalid experience objects (0.9935ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.4197ms)
+Γ£ö rejects invalid rowVersion values (0.6346ms)
+Γ£ö rejects noncanonical SQL Server rowVersion padding bits (0.3131ms)
+Γ£ö GET retrieves the Experience collection (63.6777ms)
+Γ£ö GET retrieves one Experience by ID (1.2831ms)
+Γ£ö POST creates an Experience without server-owned fields (1.5524ms)
+Γ£ö PUT updates an Experience with rowVersion (1.3207ms)
+Γ£ö PATCH archives an Experience with rowVersion (1.202ms)
+Γ£ö PATCH restores an archived Experience (0.9601ms)
+Γ£ö DELETE sends rowVersion in the request body (1.1598ms)
+Γ£ö rejects invalid rowVersion before sending a request (1.8356ms)
+Γ£ö rejects invalid Experience IDs (0.3461ms)
+Γ£ö preserves backend validation errors (1.4477ms)
+Γ£ö preserves concurrency conflict errors (1.007ms)
+Γ£ö preserves authentication errors (1.0262ms)
+Γ£ö retrieves active experiences (46.3354ms)
+Γ£ö retrieves archived experiences when requested (0.8045ms)
+Γ£ö retrieves one experience (0.7818ms)
+Γ£ö creates an experience (1.1394ms)
+Γ£ö updates an experience using rowVersion (1.2442ms)
+Γ£ö archives an experience using rowVersion (1.9704ms)
+Γ£ö restores an experience using rowVersion (0.783ms)
+Γ£ö deletes an experience using rowVersion (0.6405ms)
+Γ£ö does not retry a concurrency conflict (1.2655ms)
+Γ£ö database service exposes the existing Experience interface (1.9019ms)
+Γ£ö database service rejects update without a complete record (1.2158ms)
+Γ£ö database service rejects mismatched Experience IDs (0.408ms)
+Γ£ö database service rejects archive without rowVersion (0.4518ms)
+Γ£ö database service rejects delete without rowVersion (0.4094ms)
+Γ£ö preserves a valid backend rowVersion (12.928ms)
+Γ£ö does not add rowVersion to legacy records (0.4331ms)
+Γ£ö does not preserve an invalid rowVersion (0.4649ms)
+Γ£ö preserves rowVersion during collection normalization (0.4951ms)
+Γ£ö preserves rowVersion during model updates (0.6074ms)
+Γä╣ tests 37
+Γä╣ suites 0
+Γä╣ pass 37
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 246.9429
+

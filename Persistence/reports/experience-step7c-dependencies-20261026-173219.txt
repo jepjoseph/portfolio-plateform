@@ -1,0 +1,2116 @@
+﻿EXPERIENCE API - STEP 7C DEPENDENCY INSPECTION
+Generated: 2026-10-26 17:32:19
+
+=== TARGET FILE VERIFICATION ===
+FILE: frontend\src\services\Experience\experienceApiAdapter.js
+EXISTS: False
+
+FILE: frontend\src\services\Experience\experienceApiService.js
+EXISTS: False
+
+=== DEPENDENCY CONTENTS ===
+
+===========================================================================
+FILE: frontend\src\services\apiClient.js
+===========================================================================
+SHA256: 799468800C72422D1B90E75A6EB85BD8FB45FCD37180980658F9EDE64565D3B1
+   1: /*
+   2:  * =========================================
+   3:  * API Configuration
+   4:  * =========================================
+   5:  */
+   6: 
+   7: const DEFAULT_API_ORIGIN = "http://localhost:5000";
+   8: 
+   9: const DEFAULT_TIMEOUT_MS = 30000;
+  10: 
+  11: /*
+  12:  * =========================================
+  13:  * Authentication Session Event
+  14:  * =========================================
+  15:  */
+  16: 
+  17: export const AUTH_SESSION_INVALID_EVENT =
+  18:   "portfolio-platform:auth-session-invalid";
+  19: 
+  20: const INVALID_SESSION_CODES = new Set([
+  21:   "AUTHENTICATION_REQUIRED",
+  22:   "SESSION_REFRESH_TOKEN_INVALID",
+  23:   "SESSION_NOT_FOUND",
+  24:   "SESSION_REFRESH_CONFLICT",
+  25: ]);
+  26: 
+  27: /*
+  28:  * =========================================
+  29:  * Invalid Session Notification
+  30:  * =========================================
+  31:  */
+  32: 
+  33: function notifyInvalidAuthenticationSession(error) {
+  34:   if (
+  35:     typeof window === "undefined" ||
+  36:     (Number(error?.status) !== 401 &&
+  37:       error?.code !== "SESSION_REFRESH_CONFLICT")
+  38:   ) {
+  39:     return;
+  40:   }
+  41: 
+  42:   if (!INVALID_SESSION_CODES.has(error?.code)) {
+  43:     return;
+  44:   }
+  45: 
+  46:   window.dispatchEvent(
+  47:     new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+  48:       detail: {
+  49:         status: error.status,
+  50: 
+  51:         code: error.code,
+  52: 
+  53:         message: error.message,
+  54:       },
+  55:     }),
+  56:   );
+  57: }
+  58: 
+  59: /*
+  60:  * VITE_API_BASE_URL may be configured as:
+  61:  *
+  62:  * http://localhost:5000
+  63:  *
+  64:  * or:
+  65:  *
+  66:  * http://localhost:5000/api
+  67:  *
+  68:  * Both formats are supported.
+  69:  */
+  70: 
+  71: function normalizeApiBaseUrl(value) {
+  72:   const configuredValue = typeof value === "string" ? value.trim() : "";
+  73: 
+  74:   const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+  75: 
+  76:   return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+  77: }
+  78: 
+  79: export const API_BASE_URL = normalizeApiBaseUrl(
+  80:   import.meta.env?.VITE_API_BASE_URL,
+  81: );
+  82: 
+  83: /*
+  84:  * =========================================
+  85:  * API Error
+  86:  * =========================================
+  87:  */
+  88: 
+  89: export class ApiError extends Error {
+  90:   constructor({
+  91:     message,
+  92:     status = 0,
+  93:     code = "API_REQUEST_FAILED",
+  94:     fieldErrors = {},
+  95:     errors = [],
+  96:     details = null,
+  97:     method = "",
+  98:     url = "",
+  99:     cause,
+ 100:   }) {
+ 101:     super(message || "The request could not be completed.", {
+ 102:       cause,
+ 103:     });
+ 104: 
+ 105:     this.name = "ApiError";
+ 106: 
+ 107:     this.status = Number(status) || 0;
+ 108: 
+ 109:     this.code = code || "API_REQUEST_FAILED";
+ 110: 
+ 111:     this.fieldErrors =
+ 112:       fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+ 113: 
+ 114:     this.errors = Array.isArray(errors) ? errors : [];
+ 115: 
+ 116:     this.details = details || null;
+ 117: 
+ 118:     this.method = method;
+ 119: 
+ 120:     this.url = url;
+ 121:   }
+ 122: }
+ 123: 
+ 124: /*
+ 125:  * =========================================
+ 126:  * Endpoint Normalization
+ 127:  * =========================================
+ 128:  */
+ 129: 
+ 130: function normalizeEndpoint(endpoint) {
+ 131:   if (typeof endpoint !== "string" || !endpoint.trim()) {
+ 132:     throw new TypeError("A relative API endpoint is required.");
+ 133:   }
+ 134: 
+ 135:   const normalizedEndpoint = endpoint.trim();
+ 136: 
+ 137:   /*
+ 138:    * Prevent accidental cookie-bearing
+ 139:    * requests to arbitrary external origins.
+ 140:    */
+ 141: 
+ 142:   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+ 143:     throw new TypeError("API endpoints must be relative paths.");
+ 144:   }
+ 145: 
+ 146:   return normalizedEndpoint.startsWith("/")
+ 147:     ? normalizedEndpoint
+ 148:     : `/${normalizedEndpoint}`;
+ 149: }
+ 150: 
+ 151: /*
+ 152:  * =========================================
+ 153:  * Query Parameters
+ 154:  * =========================================
+ 155:  */
+ 156: 
+ 157: function appendQueryParameters(url, query) {
+ 158:   if (!query || typeof query !== "object") {
+ 159:     return url;
+ 160:   }
+ 161: 
+ 162:   const requestUrl = new URL(url);
+ 163: 
+ 164:   for (const [name, value] of Object.entries(query)) {
+ 165:     if (value === undefined || value === null || value === "") {
+ 166:       continue;
+ 167:     }
+ 168: 
+ 169:     if (Array.isArray(value)) {
+ 170:       for (const item of value) {
+ 171:         requestUrl.searchParams.append(name, String(item));
+ 172:       }
+ 173: 
+ 174:       continue;
+ 175:     }
+ 176: 
+ 177:     requestUrl.searchParams.set(name, String(value));
+ 178:   }
+ 179: 
+ 180:   return requestUrl.toString();
+ 181: }
+ 182: 
+ 183: /*
+ 184:  * =========================================
+ 185:  * Request Body Preparation
+ 186:  * =========================================
+ 187:  */
+ 188: 
+ 189: function isFormData(value) {
+ 190:   return typeof FormData !== "undefined" && value instanceof FormData;
+ 191: }
+ 192: 
+ 193: function isUrlSearchParams(value) {
+ 194:   return (
+ 195:     typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+ 196:   );
+ 197: }
+ 198: 
+ 199: function isBlob(value) {
+ 200:   return typeof Blob !== "undefined" && value instanceof Blob;
+ 201: }
+ 202: 
+ 203: function shouldSerializeAsJson(body) {
+ 204:   return (
+ 205:     body !== undefined &&
+ 206:     body !== null &&
+ 207:     typeof body === "object" &&
+ 208:     !isFormData(body) &&
+ 209:     !isUrlSearchParams(body) &&
+ 210:     !isBlob(body) &&
+ 211:     !(body instanceof ArrayBuffer)
+ 212:   );
+ 213: }
+ 214: 
+ 215: function prepareRequestBody({ body, headers }) {
+ 216:   if (body === undefined || body === null) {
+ 217:     return undefined;
+ 218:   }
+ 219: 
+ 220:   if (shouldSerializeAsJson(body)) {
+ 221:     if (!headers.has("Content-Type")) {
+ 222:       headers.set("Content-Type", "application/json");
+ 223:     }
+ 224: 
+ 225:     return JSON.stringify(body);
+ 226:   }
+ 227: 
+ 228:   /*
+ 229:    * Never set Content-Type manually for
+ 230:    * FormData. The browser must add its
+ 231:    * multipart boundary.
+ 232:    */
+ 233: 
+ 234:   return body;
+ 235: }
+ 236: 
+ 237: /*
+ 238:  * =========================================
+ 239:  * Response Parsing
+ 240:  * =========================================
+ 241:  */
+ 242: 
+ 243: async function parseResponseBody(response) {
+ 244:   if (response.status === 204 || response.status === 205) {
+ 245:     return null;
+ 246:   }
+ 247: 
+ 248:   const text = await response.text();
+ 249: 
+ 250:   if (!text) {
+ 251:     return null;
+ 252:   }
+ 253: 
+ 254:   const contentType = response.headers.get("content-type") || "";
+ 255: 
+ 256:   if (contentType.includes("application/json")) {
+ 257:     try {
+ 258:       return JSON.parse(text);
+ 259:     } catch {
+ 260:       return {
+ 261:         message: "The server returned an invalid JSON response.",
+ 262:       };
+ 263:     }
+ 264:   }
+ 265: 
+ 266:   /*
+ 267:    * Some development proxies may omit the
+ 268:    * JSON content type. Attempt JSON parsing
+ 269:    * before treating the body as plain text.
+ 270:    */
+ 271: 
+ 272:   try {
+ 273:     return JSON.parse(text);
+ 274:   } catch {
+ 275:     return {
+ 276:       message: text,
+ 277:     };
+ 278:   }
+ 279: }
+ 280: 
+ 281: /*
+ 282:  * =========================================
+ 283:  * API Error Creation
+ 284:  * =========================================
+ 285:  */
+ 286: 
+ 287: function createResponseError({ response, data, method, url }) {
+ 288:   const error = new ApiError({
+ 289:     message: data?.message || `The server returned HTTP ${response.status}.`,
+ 290: 
+ 291:     status: response.status,
+ 292: 
+ 293:     code: data?.code || "API_REQUEST_FAILED",
+ 294: 
+ 295:     fieldErrors: data?.fieldErrors,
+ 296: 
+ 297:     errors: data?.errors,
+ 298: 
+ 299:     details: data?.details,
+ 300: 
+ 301:     method,
+ 302: 
+ 303:     url,
+ 304:   });
+ 305: 
+ 306:   notifyInvalidAuthenticationSession(error);
+ 307: 
+ 308:   return error;
+ 309: }
+ 310: 
+ 311: /*
+ 312:  * =========================================
+ 313:  * Timeout and Abort Signal
+ 314:  * =========================================
+ 315:  */
+ 316: 
+ 317: function createRequestAbortController({ signal, timeoutMs }) {
+ 318:   const controller = new AbortController();
+ 319: 
+ 320:   let wasTimedOut = false;
+ 321: 
+ 322:   const handleExternalAbort = () => {
+ 323:     controller.abort(signal?.reason);
+ 324:   };
+ 325: 
+ 326:   if (signal) {
+ 327:     if (signal.aborted) {
+ 328:       handleExternalAbort();
+ 329:     } else {
+ 330:       signal.addEventListener("abort", handleExternalAbort, {
+ 331:         once: true,
+ 332:       });
+ 333:     }
+ 334:   }
+ 335: 
+ 336:   const timeoutId = globalThis.setTimeout(() => {
+ 337:     wasTimedOut = true;
+ 338: 
+ 339:     controller.abort();
+ 340:   }, timeoutMs);
+ 341: 
+ 342:   return {
+ 343:     signal: controller.signal,
+ 344: 
+ 345:     wasTimedOut() {
+ 346:       return wasTimedOut;
+ 347:     },
+ 348: 
+ 349:     cleanup() {
+ 350:       globalThis.clearTimeout(timeoutId);
+ 351: 
+ 352:       signal?.removeEventListener?.("abort", handleExternalAbort);
+ 353:     },
+ 354:   };
+ 355: }
+ 356: 
+ 357: /*
+ 358:  * =========================================
+ 359:  * API Request
+ 360:  * =========================================
+ 361:  */
+ 362: 
+ 363: export async function apiRequest(
+ 364:   endpoint,
+ 365:   {
+ 366:     method = "GET",
+ 367:     body,
+ 368:     query,
+ 369:     headers: customHeaders,
+ 370:     signal,
+ 371:     timeoutMs = DEFAULT_TIMEOUT_MS,
+ 372:     cache = "no-store",
+ 373:   } = {},
+ 374: ) {
+ 375:   const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+ 376: 
+ 377:   const normalizedEndpoint = normalizeEndpoint(endpoint);
+ 378: 
+ 379:   const requestUrl = appendQueryParameters(
+ 380:     `${API_BASE_URL}${normalizedEndpoint}`,
+ 381:     query,
+ 382:   );
+ 383: 
+ 384:   const headers = new Headers(customHeaders || {});
+ 385: 
+ 386:   if (!headers.has("Accept")) {
+ 387:     headers.set("Accept", "application/json");
+ 388:   }
+ 389: 
+ 390:   const requestBody = prepareRequestBody({
+ 391:     body,
+ 392: 
+ 393:     headers,
+ 394:   });
+ 395: 
+ 396:   const abortState = createRequestAbortController({
+ 397:     signal,
+ 398: 
+ 399:     timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+ 400:   });
+ 401: 
+ 402:   try {
+ 403:     const response = await fetch(requestUrl, {
+ 404:       method: normalizedMethod,
+ 405: 
+ 406:       /*
+ 407:        * Required for HttpOnly session
+ 408:        * cookies on cross-origin requests.
+ 409:        */
+ 410: 
+ 411:       credentials: "include",
+ 412: 
+ 413:       headers,
+ 414: 
+ 415:       body: ["GET", "HEAD"].includes(normalizedMethod)
+ 416:         ? undefined
+ 417:         : requestBody,
+ 418: 
+ 419:       signal: abortState.signal,
+ 420: 
+ 421:       cache,
+ 422:     });
+ 423: 
+ 424:     const data = await parseResponseBody(response);
+ 425: 
+ 426:     if (!response.ok) {
+ 427:       throw createResponseError({
+ 428:         response,
+ 429: 
+ 430:         data,
+ 431: 
+ 432:         method: normalizedMethod,
+ 433: 
+ 434:         url: requestUrl,
+ 435:       });
+ 436:     }
+ 437: 
+ 438:     return data;
+ 439:   } catch (error) {
+ 440:     if (error instanceof ApiError) {
+ 441:       throw error;
+ 442:     }
+ 443: 
+ 444:     if (error?.name === "AbortError") {
+ 445:       throw new ApiError({
+ 446:         message: abortState.wasTimedOut()
+ 447:           ? "The server took too long to respond."
+ 448:           : "The request was canceled.",
+ 449: 
+ 450:         status: 0,
+ 451: 
+ 452:         code: abortState.wasTimedOut()
+ 453:           ? "API_REQUEST_TIMEOUT"
+ 454:           : "API_REQUEST_ABORTED",
+ 455: 
+ 456:         method: normalizedMethod,
+ 457: 
+ 458:         url: requestUrl,
+ 459: 
+ 460:         cause: error,
+ 461:       });
+ 462:     }
+ 463: 
+ 464:     throw new ApiError({
+ 465:       message:
+ 466:         "Unable to connect to the server. Check your connection and try again.",
+ 467: 
+ 468:       status: 0,
+ 469: 
+ 470:       code: "API_NETWORK_ERROR",
+ 471: 
+ 472:       method: normalizedMethod,
+ 473: 
+ 474:       url: requestUrl,
+ 475: 
+ 476:       cause: error,
+ 477:     });
+ 478:   } finally {
+ 479:     abortState.cleanup();
+ 480:   }
+ 481: }
+ 482: 
+ 483: /*
+ 484:  * =========================================
+ 485:  * Convenience Methods
+ 486:  * =========================================
+ 487:  */
+ 488: 
+ 489: export function apiGet(endpoint, options = {}) {
+ 490:   return apiRequest(endpoint, {
+ 491:     ...options,
+ 492: 
+ 493:     method: "GET",
+ 494:   });
+ 495: }
+ 496: 
+ 497: export function apiPost(endpoint, body, options = {}) {
+ 498:   return apiRequest(endpoint, {
+ 499:     ...options,
+ 500: 
+ 501:     method: "POST",
+ 502: 
+ 503:     body,
+ 504:   });
+ 505: }
+ 506: 
+ 507: export function apiPut(endpoint, body, options = {}) {
+ 508:   return apiRequest(endpoint, {
+ 509:     ...options,
+ 510: 
+ 511:     method: "PUT",
+ 512: 
+ 513:     body,
+ 514:   });
+ 515: }
+ 516: 
+ 517: export function apiPatch(endpoint, body, options = {}) {
+ 518:   return apiRequest(endpoint, {
+ 519:     ...options,
+ 520: 
+ 521:     method: "PATCH",
+ 522: 
+ 523:     body,
+ 524:   });
+ 525: }
+ 526: 
+ 527: export function apiDelete(endpoint, options = {}) {
+ 528:   return apiRequest(endpoint, {
+ 529:     ...options,
+ 530: 
+ 531:     method: "DELETE",
+ 532:   });
+ 533: }
+ 534: 
+
+===========================================================================
+FILE: frontend\src\services\Project\projectApiAdapter.js
+===========================================================================
+SHA256: 3120C33066809CDCF513466EFE317B2109195DE549E4C81D019F458CB0B650A8
+   1: 
+   2: const SERVER_OWNED_PROJECT_FIELDS = [
+   3:   "userId",
+   4:   "user_id",
+   5:   "createdAt",
+   6:   "updatedAt",
+   7:   "rowVersion",
+   8: ];
+   9: 
+  10: export function prepareProjectApiPayload(project) {
+  11:   if (
+  12:     !project ||
+  13:     typeof project !== "object" ||
+  14:     Array.isArray(project)
+  15:   ) {
+  16:     throw new TypeError("A valid Project object is required.");
+  17:   }
+  18: 
+  19:   const payload = structuredClone(project);
+  20: 
+  21:   for (const field of SERVER_OWNED_PROJECT_FIELDS) {
+  22:     delete payload[field];
+  23:   }
+  24: 
+  25:   return payload;
+  26: }
+  27: 
+  28: export function getProjectRowVersion(project) {
+  29:   const rowVersion = project?.rowVersion;
+  30: 
+  31:   if (
+  32:     typeof rowVersion !== "string" ||
+  33:     !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+  34:   ) {
+  35:     throw new TypeError(
+  36:       "A valid Project rowVersion is required.",
+  37:     );
+  38:   }
+  39: 
+  40:   return rowVersion;
+  41: }
+
+===========================================================================
+FILE: frontend\src\services\Project\projectApiService.js
+===========================================================================
+SHA256: 7DA873744FE63BE2A9B178210AE727D9FB577E5CF356570E3C6EE0A0F47FCDFF
+   1: 
+   2: import {
+   3:   apiGet,
+   4:   apiPost,
+   5:   apiPut,
+   6:   apiPatch,
+   7:   apiDelete,
+   8: } from "../apiClient.js";
+   9: 
+  10: import { prepareProjectApiPayload } from "./projectApiAdapter.js";
+  11: 
+  12: const PROJECT_ENDPOINT = "/projects";
+  13: 
+  14: function projectPath(projectId) {
+  15:   if (typeof projectId !== "string" || !projectId.trim()) {
+  16:     throw new TypeError("A Project ID is required.");
+  17:   }
+  18: 
+  19:   return `${PROJECT_ENDPOINT}/${encodeURIComponent(projectId.trim())}`;
+  20: }
+  21: 
+  22: function requireRowVersion(rowVersion) {
+  23:   if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+  24:     throw new TypeError("A Project rowVersion is required.");
+  25:   }
+  26: 
+  27:   return rowVersion.trim();
+  28: }
+  29: 
+  30: export async function fetchProjects(options = {}) {
+  31:   const response = await apiGet(PROJECT_ENDPOINT, options);
+  32:   return response.data.projects;
+  33: }
+  34: 
+  35: export async function fetchProjectById(projectId, options = {}) {
+  36:   const response = await apiGet(projectPath(projectId), options);
+  37:   return response.data.project;
+  38: }
+  39: 
+  40: export async function createProjectApi(project, options = {}) {
+  41:   const response = await apiPost(PROJECT_ENDPOINT, prepareProjectApiPayload(project), options);
+  42:   return response.data.project;
+  43: }
+  44: 
+  45: export async function updateProjectApi(
+  46:   projectId,
+  47:   project,
+  48:   rowVersion,
+  49:   options = {},
+  50: ) {
+  51:   const response = await apiPut(
+  52:     projectPath(projectId),
+  53:     {
+  54:       project: prepareProjectApiPayload(project),
+  55:       rowVersion: requireRowVersion(rowVersion),
+  56:     },
+  57:     options,
+  58:   );
+  59: 
+  60:   return response.data.project;
+  61: }
+  62: 
+  63: export async function setProjectArchivedApi(
+  64:   projectId,
+  65:   archived,
+  66:   rowVersion,
+  67:   options = {},
+  68: ) {
+  69:   if (typeof archived !== "boolean") {
+  70:     throw new TypeError("archived must be a boolean.");
+  71:   }
+  72: 
+  73:   const response = await apiPatch(
+  74:     `${projectPath(projectId)}/archive`,
+  75:     {
+  76:       archived,
+  77:       rowVersion: requireRowVersion(rowVersion),
+  78:     },
+  79:     options,
+  80:   );
+  81: 
+  82:   return response.data.project;
+  83: }
+  84: 
+  85: export async function deleteProjectApi(
+  86:   projectId,
+  87:   rowVersion,
+  88:   options = {},
+  89: ) {
+  90:   const response = await apiDelete(projectPath(projectId), {
+  91:     ...options,
+  92:     body: {
+  93:       rowVersion: requireRowVersion(rowVersion),
+  94:     },
+  95:   });
+  96: 
+  97:   return response.data;
+  98: }
+  99: 
+
+===========================================================================
+FILE: frontend\src\models\experienceModel.js
+===========================================================================
+SHA256: FE9D20006E637CECF0E294C23ED6C4F26D498781CE792E5F0E2B6DC0144E90B7
+   1: import {
+   2:   EXPERIENCE_FIELD_LIMITS,
+   3:   isValidEmploymentType,
+   4:   isValidExperienceCategory,
+   5:   isValidExperienceStatus,
+   6:   isValidWorkArrangement,
+   7: } from "../config/experienceConfig.js";
+   8: 
+   9: /*
+  10:  * =========================================
+  11:  * Model Version
+  12:  * =========================================
+  13:  *
+  14:  * This allows saved browser data and future
+  15:  * database records to be migrated safely.
+  16:  */
+  17: 
+  18: export const EXPERIENCE_MODEL_VERSION = 2;
+  19: 
+  20: /*
+  21:  * =========================================
+  22:  * ID Creation
+  23:  * =========================================
+  24:  */
+  25: 
+  26: export function createExperienceId(prefix = "experience") {
+  27:   if (
+  28:     typeof crypto !== "undefined" &&
+  29:     typeof crypto.randomUUID === "function"
+  30:   ) {
+  31:     return `${prefix}-${crypto.randomUUID()}`;
+  32:   }
+  33: 
+  34:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  35: }
+  36: 
+  37: /*
+  38:  * =========================================
+  39:  * Primitive Normalization
+  40:  * =========================================
+  41:  */
+  42: 
+  43: function normalizeText(value, maximumLength = Infinity) {
+  44:   if (typeof value !== "string") {
+  45:     return "";
+  46:   }
+  47: 
+  48:   return value.trim().slice(0, maximumLength);
+  49: }
+  50: 
+  51: function normalizeBoolean(value, defaultValue = false) {
+  52:   return typeof value === "boolean" ? value : defaultValue;
+  53: }
+  54: 
+  55: function normalizeNullableNumber(value) {
+  56:   if (value === "" || value === null || value === undefined) {
+  57:     return null;
+  58:   }
+  59: 
+  60:   const numberValue = Number(value);
+  61: 
+  62:   if (!Number.isFinite(numberValue)) {
+  63:     return null;
+  64:   }
+  65: 
+  66:   return Math.max(0, Math.trunc(numberValue));
+  67: }
+  68: 
+  69: function normalizeDate(value) {
+  70:   if (typeof value !== "string") {
+  71:     return "";
+  72:   }
+  73: 
+  74:   const trimmedValue = value.trim();
+  75: 
+  76:   if (!trimmedValue) {
+  77:     return "";
+  78:   }
+  79: 
+  80:   /*
+  81:    * The form uses YYYY-MM values, but this also
+  82:    * permits YYYY-MM-DD records imported later.
+  83:    */
+  84: 
+  85:   if (
+  86:     !/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(trimmedValue)
+  87:   ) {
+  88:     return "";
+  89:   }
+  90: 
+  91:   return trimmedValue;
+  92: }
+  93: 
+  94: function normalizeIdentifierList(values, maximumItems) {
+  95:   if (!Array.isArray(values)) {
+  96:     return [];
+  97:   }
+  98: 
+  99:   return [
+ 100:     ...new Set(
+ 101:       values
+ 102:         .map((value) => {
+ 103:           if (typeof value === "string") {
+ 104:             return value.trim();
+ 105:           }
+ 106: 
+ 107:           return String(value?.id || "").trim();
+ 108:         })
+ 109:         .filter(Boolean),
+ 110:     ),
+ 111:   ].slice(0, maximumItems);
+ 112: }
+ 113: 
+ 114: /*
+ 115:  * =========================================
+ 116:  * Responsibility Model
+ 117:  * =========================================
+ 118:  */
+ 119: 
+ 120: export function createResponsibility(value = {}) {
+ 121:   const source =
+ 122:     typeof value === "string"
+ 123:       ? {
+ 124:           text: value,
+ 125:         }
+ 126:       : value || {};
+ 127: 
+ 128:   return {
+ 129:     id: normalizeText(source.id, 200) || createExperienceId("responsibility"),
+ 130: 
+ 131:     text: normalizeText(
+ 132:       source.text || source.description,
+ 133:       EXPERIENCE_FIELD_LIMITS.responsibilityText,
+ 134:     ),
+ 135: 
+ 136:     order:
+ 137:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+ 138:   };
+ 139: }
+ 140: 
+ 141: function normalizeResponsibilities(values) {
+ 142:   if (!Array.isArray(values)) {
+ 143:     return [];
+ 144:   }
+ 145: 
+ 146:   return values
+ 147:     .map(createResponsibility)
+ 148:     .filter((responsibility) => responsibility.text)
+ 149:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumResponsibilities)
+ 150:     .map((responsibility, index) => ({
+ 151:       ...responsibility,
+ 152:       order: index,
+ 153:     }));
+ 154: }
+ 155: 
+ 156: /*
+ 157:  * =========================================
+ 158:  * Achievement Model
+ 159:  * =========================================
+ 160:  */
+ 161: 
+ 162: export function createAchievement(value = {}) {
+ 163:   const source =
+ 164:     typeof value === "string"
+ 165:       ? {
+ 166:           text: value,
+ 167:         }
+ 168:       : value || {};
+ 169: 
+ 170:   return {
+ 171:     id: normalizeText(source.id, 200) || createExperienceId("achievement"),
+ 172: 
+ 173:     text: normalizeText(
+ 174:       source.text || source.description || source.value,
+ 175:       EXPERIENCE_FIELD_LIMITS.achievementText,
+ 176:     ),
+ 177: 
+ 178:     metric: normalizeText(
+ 179:       source.metric,
+ 180:       EXPERIENCE_FIELD_LIMITS.achievementMetric,
+ 181:     ),
+ 182: 
+ 183:     order:
+ 184:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+ 185:   };
+ 186: }
+ 187: 
+ 188: function normalizeAchievements(values) {
+ 189:   if (!Array.isArray(values)) {
+ 190:     return [];
+ 191:   }
+ 192: 
+ 193:   return values
+ 194:     .map(createAchievement)
+ 195:     .filter((achievement) => achievement.text)
+ 196:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumAchievements)
+ 197:     .map((achievement, index) => ({
+ 198:       ...achievement,
+ 199:       order: index,
+ 200:     }));
+ 201: }
+ 202: /*
+ 203:  * =========================================
+ 204:  * Experience Skill Model
+ 205:  * =========================================
+ 206:  */
+ 207: 
+ 208: export function createExperienceSkill(value = {}) {
+ 209:   const source =
+ 210:     typeof value === "string"
+ 211:       ? {
+ 212:           nameSnapshot: value,
+ 213:         }
+ 214:       : value && typeof value === "object"
+ 215:         ? value
+ 216:         : {};
+ 217: 
+ 218:   const sourceProficiency =
+ 219:     source.proficiency && typeof source.proficiency === "object"
+ 220:       ? source.proficiency.level
+ 221:       : source.proficiency;
+ 222: 
+ 223:   return {
+ 224:     id: normalizeText(source.id, 200) || createExperienceId("experience-skill"),
+ 225: 
+ 226:     /*
+ 227:      * Permanent relationship to the central
+ 228:      * Skill Library.
+ 229:      */
+ 230: 
+ 231:     skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+ 232: 
+ 233:     /*
+ 234:      * The snapshot keeps the Experience readable
+ 235:      * if the central Skill record is renamed,
+ 236:      * archived, deleted, or temporarily unavailable.
+ 237:      */
+ 238: 
+ 239:     nameSnapshot: normalizeText(
+ 240:       source.nameSnapshot || source.name || source.label || source.value,
+ 241:       EXPERIENCE_FIELD_LIMITS.skillName,
+ 242:     ),
+ 243: 
+ 244:     /*
+ 245:      * Classification snapshots are optional.
+ 246:      * The current central Skill record remains the
+ 247:      * preferred source when it is available.
+ 248:      */
+ 249: 
+ 250:     categorySnapshot: normalizeText(
+ 251:       source.categorySnapshot || source.category,
+ 252:       EXPERIENCE_FIELD_LIMITS.skillCategory,
+ 253:     ),
+ 254: 
+ 255:     typeSnapshot: normalizeText(
+ 256:       source.typeSnapshot || source.type,
+ 257:       EXPERIENCE_FIELD_LIMITS.skillType,
+ 258:     ),
+ 259: 
+ 260:     /*
+ 261:      * Experience-specific proficiency can differ
+ 262:      * from the general Skill Library proficiency.
+ 263:      */
+ 264: 
+ 265:     level: normalizeText(
+ 266:       source.level || sourceProficiency,
+ 267:       EXPERIENCE_FIELD_LIMITS.skillLevel,
+ 268:     ),
+ 269: 
+ 270:     /*
+ 271:      * Optional explanation of how the skill was
+ 272:      * applied specifically in this Experience.
+ 273:      */
+ 274: 
+ 275:     usageDescription: normalizeText(
+ 276:       source.usageDescription || source.description,
+ 277:       EXPERIENCE_FIELD_LIMITS.skillUsageDescription,
+ 278:     ),
+ 279: 
+ 280:     order:
+ 281:       Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+ 282:         ? Number(source.order)
+ 283:         : 0,
+ 284:   };
+ 285: }
+ 286: 
+ 287: function normalizeExperienceSkills(values) {
+ 288:   if (!Array.isArray(values)) {
+ 289:     return [];
+ 290:   }
+ 291: 
+ 292:   const normalizedSkills = values
+ 293:     .map(createExperienceSkill)
+ 294:     .filter((skill) => skill.skillId || skill.nameSnapshot);
+ 295: 
+ 296:   const seenIdentities = new Set();
+ 297: 
+ 298:   return normalizedSkills
+ 299:     .filter((skill) => {
+ 300:       const identity = skill.skillId
+ 301:         ? `id:${skill.skillId}`
+ 302:         : `name:${skill.nameSnapshot
+ 303:             .normalize("NFKC")
+ 304:             .toLocaleLowerCase()
+ 305:             .replace(/\s+/g, " ")
+ 306:             .trim()}`;
+ 307: 
+ 308:       if (seenIdentities.has(identity)) {
+ 309:         return false;
+ 310:       }
+ 311: 
+ 312:       seenIdentities.add(identity);
+ 313: 
+ 314:       return true;
+ 315:     })
+ 316:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumSkills)
+ 317:     .map((skill, index) => ({
+ 318:       ...skill,
+ 319:       order: index,
+ 320:     }));
+ 321: }
+ 322: 
+ 323: /*
+ 324:  * =========================================
+ 325:  * Experience Technology Model
+ 326:  * =========================================
+ 327:  */
+ 328: 
+ 329: export function createExperienceTechnology(value = {}) {
+ 330:   const source =
+ 331:     typeof value === "string"
+ 332:       ? {
+ 333:           nameSnapshot: value,
+ 334:         }
+ 335:       : value && typeof value === "object"
+ 336:         ? value
+ 337:         : {};
+ 338: 
+ 339:   const sourceProficiency =
+ 340:     source.proficiency && typeof source.proficiency === "object"
+ 341:       ? source.proficiency.level
+ 342:       : source.proficiency;
+ 343: 
+ 344:   const nameSnapshot = normalizeText(
+ 345:     source.nameSnapshot || source.name || source.label || source.value,
+ 346:     EXPERIENCE_FIELD_LIMITS.technologyName,
+ 347:   );
+ 348: 
+ 349:   return {
+ 350:     id:
+ 351:       normalizeText(source.id, 200) ||
+ 352:       createExperienceId("experience-technology"),
+ 353: 
+ 354:     /*
+ 355:      * Permanent relationship to the central
+ 356:      * Skill Library.
+ 357:      */
+ 358: 
+ 359:     skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+ 360: 
+ 361:     /*
+ 362:      * Snapshot retained for historical display.
+ 363:      */
+ 364: 
+ 365:     nameSnapshot,
+ 366: 
+ 367:     /*
+ 368:      * Retained as a compatibility alias for older
+ 369:      * Experience display and validation code.
+ 370:      */
+ 371: 
+ 372:     name: nameSnapshot,
+ 373: 
+ 374:     /*
+ 375:      * Technology-specific relationship metadata.
+ 376:      */
+ 377: 
+ 378:     category: normalizeText(
+ 379:       source.categorySnapshot || source.category,
+ 380:       EXPERIENCE_FIELD_LIMITS.technologyCategory,
+ 381:     ),
+ 382: 
+ 383:     proficiency: normalizeText(
+ 384:       source.level || sourceProficiency,
+ 385:       EXPERIENCE_FIELD_LIMITS.technologyProficiency,
+ 386:     ),
+ 387: 
+ 388:     usageDescription: normalizeText(
+ 389:       source.usageDescription || source.description,
+ 390:       EXPERIENCE_FIELD_LIMITS.technologyUsageDescription,
+ 391:     ),
+ 392: 
+ 393:     order:
+ 394:       Number.isInteger(Number(source.order)) && Number(source.order) >= 0
+ 395:         ? Number(source.order)
+ 396:         : 0,
+ 397:   };
+ 398: }
+ 399: 
+ 400: function normalizeTechnologies(values) {
+ 401:   if (!Array.isArray(values)) {
+ 402:     return [];
+ 403:   }
+ 404: 
+ 405:   const normalizedTechnologies = values
+ 406:     .map(createExperienceTechnology)
+ 407:     .filter((technology) => technology.skillId || technology.nameSnapshot);
+ 408: 
+ 409:   const seenIdentities = new Set();
+ 410: 
+ 411:   return normalizedTechnologies
+ 412:     .filter((technology) => {
+ 413:       const normalizedName = technology.nameSnapshot
+ 414:         .normalize("NFKC")
+ 415:         .toLocaleLowerCase()
+ 416:         .replace(/\s+/g, " ")
+ 417:         .trim();
+ 418: 
+ 419:       const identity = technology.skillId
+ 420:         ? `id:${technology.skillId}`
+ 421:         : `name:${normalizedName}`;
+ 422: 
+ 423:       if (seenIdentities.has(identity)) {
+ 424:         return false;
+ 425:       }
+ 426: 
+ 427:       seenIdentities.add(identity);
+ 428: 
+ 429:       return true;
+ 430:     })
+ 431:     .slice(0, EXPERIENCE_FIELD_LIMITS.maximumTechnologies)
+ 432:     .map((technology, index) => ({
+ 433:       ...technology,
+ 434:       order: index,
+ 435:     }));
+ 436: }
+ 437: 
+ 438: /*
+ 439:  * =========================================
+ 440:  * Empty Experience
+ 441:  * =========================================
+ 442:  */
+ 443: 
+ 444: export function createEmptyExperience() {
+ 445:   const timestamp = new Date().toISOString();
+ 446: 
+ 447:   return {
+ 448:     modelVersion: EXPERIENCE_MODEL_VERSION,
+ 449: 
+ 450:     id: createExperienceId(),
+ 451: 
+ 452:     category: "employment",
+ 453: 
+ 454:     position: {
+ 455:       title: "",
+ 456:       employmentType: "full-time",
+ 457:       workArrangement: "on-site",
+ 458:     },
+ 459: 
+ 460:     organization: {
+ 461:       name: "",
+ 462:       website: "",
+ 463:       industry: "",
+ 464:     },
+ 465: 
+ 466:     location: {
+ 467:       city: "",
+ 468:       stateRegion: "",
+ 469:       country: "",
+ 470:       displayValue: "",
+ 471:     },
+ 472: 
+ 473:     dates: {
+ 474:       startDate: "",
+ 475:       endDate: "",
+ 476:       isCurrent: false,
+ 477:     },
+ 478: 
+ 479:     overview: "",
+ 480: 
+ 481:     overviewMeta: {
+ 482:       source: "manual",
+ 483:       status: "empty",
+ 484:       generatedAt: null,
+ 485:       contextFingerprint: "",
+ 486:       isStale: false,
+ 487:     },
+ 488: 
+ 489:     responsibilities: [],
+ 490: 
+ 491:     achievements: [],
+ 492: 
+ 493:     skills: [],
+ 494: 
+ 495:     technologies: [],
+ 496: 
+ 497:     /*
+ 498:      * These values reference records from the
+ 499:      * central Projects collection.
+ 500:      */
+ 501: 
+ 502:     relatedProjectIds: [],
+ 503: 
+ 504:     leadership: {
+ 505:       hasLeadershipResponsibilities: false,
+ 506:       peopleManaged: null,
+ 507:       description: "",
+ 508:     },
+ 509: 
+ 510:     /*
+ 511:      * Career-management information is private
+ 512:      * and should never be displayed automatically
+ 513:      * on a public rÃ©sumÃ© or portfolio.
+ 514:      */
+ 515: 
+ 516:     privateInformation: {
+ 517:       reasonForLeaving: "",
+ 518:       notes: "",
+ 519:     },
+ 520: 
+ 521:     visibility: {
+ 522:       showOrganizationWebsite: true,
+ 523:       showLocation: true,
+ 524:       showEmploymentType: true,
+ 525:       showWorkArrangement: true,
+ 526:       showResponsibilities: true,
+ 527:       showAchievements: true,
+ 528:       showSkills: true,
+ 529:       showTechnologies: true,
+ 530:     },
+ 531: 
+ 532:     status: "active",
+ 533: 
+ 534:     createdAt: timestamp,
+ 535:     updatedAt: timestamp,
+ 536:   };
+ 537: }
+ 538: 
+ 539: /*
+ 540:  * =========================================
+ 541:  * Experience Normalization
+ 542:  * =========================================
+ 543:  */
+ 544: 
+ 545: export function normalizeExperience(value = {}) {
+ 546:   const defaults = createEmptyExperience();
+ 547:   const source = value && typeof value === "object" ? value : {};
+ 548: 
+ 549:   const position =
+ 550:     source.position && typeof source.position === "object"
+ 551:       ? source.position
+ 552:       : {};
+ 553: 
+ 554:   const organization =
+ 555:     source.organization && typeof source.organization === "object"
+ 556:       ? source.organization
+ 557:       : {};
+ 558: 
+ 559:   const location =
+ 560:     source.location && typeof source.location === "object"
+ 561:       ? source.location
+ 562:       : {};
+ 563: 
+ 564:   const dates =
+ 565:     source.dates && typeof source.dates === "object" ? source.dates : {};
+ 566: 
+ 567:   const leadership =
+ 568:     source.leadership && typeof source.leadership === "object"
+ 569:       ? source.leadership
+ 570:       : {};
+ 571: 
+ 572:   const privateInformation =
+ 573:     source.privateInformation && typeof source.privateInformation === "object"
+ 574:       ? source.privateInformation
+ 575:       : {};
+ 576: 
+ 577:   const visibility =
+ 578:     source.visibility && typeof source.visibility === "object"
+ 579:       ? source.visibility
+ 580:       : {};
+ 581: 
+ 582:   const category = isValidExperienceCategory(source.category)
+ 583:     ? source.category
+ 584:     : defaults.category;
+ 585: 
+ 586:   const employmentType = isValidEmploymentType(position.employmentType)
+ 587:     ? position.employmentType
+ 588:     : defaults.position.employmentType;
+ 589: 
+ 590:   const workArrangement = isValidWorkArrangement(position.workArrangement)
+ 591:     ? position.workArrangement
+ 592:     : defaults.position.workArrangement;
+ 593: 
+ 594:   const status = isValidExperienceStatus(source.status)
+ 595:     ? source.status
+ 596:     : defaults.status;
+ 597: 
+ 598:   const isCurrent = normalizeBoolean(dates.isCurrent, false);
+ 599: 
+ 600:   const overviewMeta =
+ 601:     source.overviewMeta && typeof source.overviewMeta === "object"
+ 602:       ? source.overviewMeta
+ 603:       : {};
+ 604: 
+ 605:   return {
+ 606:     modelVersion: EXPERIENCE_MODEL_VERSION,
+ 607: 
+ 608:     id: normalizeText(source.id, 200) || defaults.id,
+ 609: 
+ 610:     category,
+ 611: 
+ 612:     position: {
+ 613:       title: normalizeText(
+ 614:         position.title || source.positionTitle || source.title || source.role,
+ 615:         EXPERIENCE_FIELD_LIMITS.positionTitle,
+ 616:       ),
+ 617: 
+ 618:       employmentType,
+ 619: 
+ 620:       workArrangement,
+ 621:     },
+ 622: 
+ 623:     organization: {
+ 624:       name: normalizeText(
+ 625:         organization.name ||
+ 626:           source.organizationName ||
+ 627:           source.company ||
+ 628:           source.employer,
+ 629:         EXPERIENCE_FIELD_LIMITS.organizationName,
+ 630:       ),
+ 631: 
+ 632:       website: normalizeText(
+ 633:         organization.website || source.organizationWebsite,
+ 634:         EXPERIENCE_FIELD_LIMITS.organizationWebsite,
+ 635:       ),
+ 636: 
+ 637:       industry: normalizeText(
+ 638:         organization.industry || source.industry,
+ 639:         EXPERIENCE_FIELD_LIMITS.industry,
+ 640:       ),
+ 641:     },
+ 642: 
+ 643:     location: {
+ 644:       city: normalizeText(location.city, EXPERIENCE_FIELD_LIMITS.city),
+ 645: 
+ 646:       stateRegion: normalizeText(
+ 647:         location.stateRegion || location.state,
+ 648:         EXPERIENCE_FIELD_LIMITS.stateRegion,
+ 649:       ),
+ 650: 
+ 651:       country: normalizeText(location.country, EXPERIENCE_FIELD_LIMITS.country),
+ 652: 
+ 653:       displayValue: normalizeText(
+ 654:         location.displayValue ||
+ 655:           source.locationValue ||
+ 656:           (typeof source.location === "string" ? source.location : ""),
+ 657:         EXPERIENCE_FIELD_LIMITS.locationDisplayValue,
+ 658:       ),
+ 659:     },
+ 660: 
+ 661:     dates: {
+ 662:       startDate: normalizeDate(dates.startDate || source.startDate),
+ 663: 
+ 664:       endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+ 665: 
+ 666:       isCurrent,
+ 667:     },
+ 668: 
+ 669:     overview: normalizeText(
+ 670:       source.overview || source.description,
+ 671:       EXPERIENCE_FIELD_LIMITS.overview,
+ 672:     ),
+ 673: 
+ 674:     overviewMeta: {
+ 675:       source: overviewMeta.source === "ai" ? "ai" : "manual",
+ 676: 
+ 677:       status:
+ 678:         normalizeText(overviewMeta.status, 50) ||
+ 679:         (source.overview ? "draft" : "empty"),
+ 680: 
+ 681:       generatedAt: normalizeText(overviewMeta.generatedAt, 100),
+ 682: 
+ 683:       contextFingerprint: normalizeText(overviewMeta.contextFingerprint, 300),
+ 684: 
+ 685:       isStale: overviewMeta.isStale === true,
+ 686:     },
+ 687: 
+ 688:     responsibilities: normalizeResponsibilities(source.responsibilities),
+ 689: 
+ 690:     achievements: normalizeAchievements(
+ 691:       source.achievements || source.highlights,
+ 692:     ),
+ 693: 
+ 694:     skills: normalizeExperienceSkills(source.skills),
+ 695: 
+ 696:     technologies: normalizeTechnologies(source.technologies || source.tools),
+ 697: 
+ 698:     relatedProjectIds: normalizeIdentifierList(
+ 699:       source.relatedProjectIds || source.projectIds,
+ 700:       EXPERIENCE_FIELD_LIMITS.maximumRelatedProjects,
+ 701:     ),
+ 702: 
+ 703:     leadership: {
+ 704:       hasLeadershipResponsibilities: normalizeBoolean(
+ 705:         leadership.hasLeadershipResponsibilities,
+ 706:         false,
+ 707:       ),
+ 708: 
+ 709:       peopleManaged: normalizeNullableNumber(leadership.peopleManaged),
+ 710: 
+ 711:       description: normalizeText(
+ 712:         leadership.description,
+ 713:         EXPERIENCE_FIELD_LIMITS.leadershipDescription,
+ 714:       ),
+ 715:     },
+ 716: 
+ 717:     privateInformation: {
+ 718:       reasonForLeaving: normalizeText(
+ 719:         privateInformation.reasonForLeaving || source.reasonForLeaving,
+ 720:         EXPERIENCE_FIELD_LIMITS.reasonForLeaving,
+ 721:       ),
+ 722: 
+ 723:       notes: normalizeText(
+ 724:         privateInformation.notes || source.privateNotes,
+ 725:         EXPERIENCE_FIELD_LIMITS.privateNotes,
+ 726:       ),
+ 727:     },
+ 728: 
+ 729:     visibility: {
+ 730:       showOrganizationWebsite: normalizeBoolean(
+ 731:         visibility.showOrganizationWebsite,
+ 732:         defaults.visibility.showOrganizationWebsite,
+ 733:       ),
+ 734: 
+ 735:       showLocation: normalizeBoolean(
+ 736:         visibility.showLocation,
+ 737:         defaults.visibility.showLocation,
+ 738:       ),
+ 739: 
+ 740:       showEmploymentType: normalizeBoolean(
+ 741:         visibility.showEmploymentType,
+ 742:         defaults.visibility.showEmploymentType,
+ 743:       ),
+ 744: 
+ 745:       showWorkArrangement: normalizeBoolean(
+ 746:         visibility.showWorkArrangement,
+ 747:         defaults.visibility.showWorkArrangement,
+ 748:       ),
+ 749: 
+ 750:       showResponsibilities: normalizeBoolean(
+ 751:         visibility.showResponsibilities,
+ 752:         defaults.visibility.showResponsibilities,
+ 753:       ),
+ 754: 
+ 755:       showAchievements: normalizeBoolean(
+ 756:         visibility.showAchievements,
+ 757:         defaults.visibility.showAchievements,
+ 758:       ),
+ 759: 
+ 760:       showSkills: normalizeBoolean(
+ 761:         visibility.showSkills,
+ 762:         defaults.visibility.showSkills,
+ 763:       ),
+ 764: 
+ 765:       showTechnologies: normalizeBoolean(
+ 766:         visibility.showTechnologies,
+ 767:         defaults.visibility.showTechnologies,
+ 768:       ),
+ 769:     },
+ 770: 
+ 771:     status,
+ 772: 
+ 773:     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+ 774: 
+ 775:     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+ 776:   };
+ 777: }
+ 778: 
+ 779: /*
+ 780:  * =========================================
+ 781:  * New Experience
+ 782:  * =========================================
+ 783:  */
+ 784: 
+ 785: export function createExperience(values = {}) {
+ 786:   const timestamp = new Date().toISOString();
+ 787: 
+ 788:   return normalizeExperience({
+ 789:     ...values,
+ 790: 
+ 791:     id: normalizeText(values.id, 200) || createExperienceId(),
+ 792: 
+ 793:     createdAt: normalizeText(values.createdAt, 100) || timestamp,
+ 794: 
+ 795:     updatedAt: timestamp,
+ 796:   });
+ 797: }
+ 798: 
+ 799: /*
+ 800:  * =========================================
+ 801:  * Updated Experience
+ 802:  * =========================================
+ 803:  */
+ 804: 
+ 805: export function updateExperienceModel(currentExperience, updates = {}) {
+ 806:   return normalizeExperience({
+ 807:     ...currentExperience,
+ 808:     ...updates,
+ 809: 
+ 810:     position: {
+ 811:       ...currentExperience?.position,
+ 812:       ...updates.position,
+ 813:     },
+ 814: 
+ 815:     organization: {
+ 816:       ...currentExperience?.organization,
+ 817:       ...updates.organization,
+ 818:     },
+ 819: 
+ 820:     location: {
+ 821:       ...currentExperience?.location,
+ 822:       ...updates.location,
+ 823:     },
+ 824: 
+ 825:     dates: {
+ 826:       ...currentExperience?.dates,
+ 827:       ...updates.dates,
+ 828:     },
+ 829: 
+ 830:     overviewMeta: {
+ 831:       ...currentExperience?.overviewMeta,
+ 832:       ...updates?.overviewMeta,
+ 833:     },
+ 834: 
+ 835:     leadership: {
+ 836:       ...currentExperience?.leadership,
+ 837:       ...updates.leadership,
+ 838:     },
+ 839: 
+ 840:     privateInformation: {
+ 841:       ...currentExperience?.privateInformation,
+ 842:       ...updates.privateInformation,
+ 843:     },
+ 844: 
+ 845:     visibility: {
+ 846:       ...currentExperience?.visibility,
+ 847:       ...updates.visibility,
+ 848:     },
+ 849: 
+ 850:     id: currentExperience?.id,
+ 851: 
+ 852:     createdAt: currentExperience?.createdAt,
+ 853: 
+ 854:     updatedAt: new Date().toISOString(),
+ 855:   });
+ 856: }
+ 857: 
+ 858: /*
+ 859:  * =========================================
+ 860:  * Collection Normalization
+ 861:  * =========================================
+ 862:  */
+ 863: 
+ 864: export function normalizeExperienceCollection(values) {
+ 865:   if (!Array.isArray(values)) {
+ 866:     return [];
+ 867:   }
+ 868: 
+ 869:   const normalizedExperiences = values.map(normalizeExperience);
+ 870: 
+ 871:   return normalizedExperiences.filter(
+ 872:     (experience, index, collection) =>
+ 873:       collection.findIndex((candidate) => candidate.id === experience.id) ===
+ 874:       index,
+ 875:   );
+ 876: }
+ 877: 
+ 878: /*
+ 879:  * =========================================
+ 880:  * Public Experience
+ 881:  * =========================================
+ 882:  *
+ 883:  * Removes private career-management information
+ 884:  * before an experience is used publicly.
+ 885:  */
+ 886: 
+ 887: export function createPublicExperience(value) {
+ 888:   const experience = normalizeExperience(value);
+ 889: 
+ 890:   const { privateInformation, ...publicExperience } = experience;
+ 891: 
+ 892:   return publicExperience;
+ 893: }
+
+===========================================================================
+FILE: backend\src\controllers\experienceController.js
+===========================================================================
+SHA256: 927C4EA4BF40DBC5A74E5A0220DFAC8F0AE682D9D23715D8389DB70BAF737CA0
+   1: import {
+   2:   getAuthenticatedExperiences,
+   3:   getAuthenticatedExperience,
+   4:   createAuthenticatedExperience,
+   5:   updateAuthenticatedExperience,
+   6:   setAuthenticatedExperienceArchiveStatus,
+   7:   deleteAuthenticatedExperience,
+   8: } from "../services/Service/experienceService.js";
+   9: 
+  10: function requestError(message) {
+  11:   const error = new Error(message);
+  12:   error.name = "ExperienceRequestError";
+  13:   error.code = "EXPERIENCE_REQUEST_INVALID";
+  14:   error.status = 400;
+  15:   error.publicMessage = message;
+  16:   return error;
+  17: }
+  18: 
+  19: function requireFields(value, allowedFields) {
+  20:   if (
+  21:     value === null ||
+  22:     typeof value !== "object" ||
+  23:     Array.isArray(value)
+  24:   ) {
+  25:     throw requestError("Request body must be a JSON object.");
+  26:   }
+  27: 
+  28:   const unexpected = Object.keys(value).filter(
+  29:     (field) => !allowedFields.includes(field),
+  30:   );
+  31: 
+  32:   if (unexpected.length > 0) {
+  33:     throw requestError(
+  34:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+  35:     );
+  36:   }
+  37: 
+  38:   return value;
+  39: }
+  40: 
+  41: function sendSuccess(response, status, message, data) {
+  42:   response.set({
+  43:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  44:     Pragma: "no-cache",
+  45:     Expires: "0",
+  46:   });
+  47: 
+  48:   return response.status(status).json({
+  49:     status: "success",
+  50:     message,
+  51:     data,
+  52:   });
+  53: }
+  54: 
+  55: export async function listMyExperiences(request, response, next) {
+  56:   try {
+  57:     const experiences = await getAuthenticatedExperiences({
+  58:       userId: request.auth.userId,
+  59:     });
+  60: 
+  61:     return sendSuccess(
+  62:       response,
+  63:       200,
+  64:       "Experiences retrieved successfully.",
+  65:       { experiences },
+  66:     );
+  67:   } catch (error) {
+  68:     return next(error);
+  69:   }
+  70: }
+  71: 
+  72: export async function getMyExperience(request, response, next) {
+  73:   try {
+  74:     const experience = await getAuthenticatedExperience({
+  75:       userId: request.auth.userId,
+  76:       experienceId: request.params.experienceId,
+  77:     });
+  78: 
+  79:     return sendSuccess(
+  80:       response,
+  81:       200,
+  82:       "Experience retrieved successfully.",
+  83:       { experience },
+  84:     );
+  85:   } catch (error) {
+  86:     return next(error);
+  87:   }
+  88: }
+  89: 
+  90: export async function createMyExperience(request, response, next) {
+  91:   try {
+  92:     const experience = await createAuthenticatedExperience({
+  93:       userId: request.auth.userId,
+  94:       experience: request.body,
+  95:     });
+  96: 
+  97:     return sendSuccess(
+  98:       response,
+  99:       201,
+ 100:       "Experience created successfully.",
+ 101:       { experience },
+ 102:     );
+ 103:   } catch (error) {
+ 104:     return next(error);
+ 105:   }
+ 106: }
+ 107: 
+ 108: export async function updateMyExperience(request, response, next) {
+ 109:   try {
+ 110:     const body = requireFields(request.body, [
+ 111:       "experience",
+ 112:       "rowVersion",
+ 113:     ]);
+ 114: 
+ 115:     const experience = await updateAuthenticatedExperience({
+ 116:       userId: request.auth.userId,
+ 117:       experienceId: request.params.experienceId,
+ 118:       experience: body.experience,
+ 119:       rowVersion: body.rowVersion,
+ 120:     });
+ 121: 
+ 122:     return sendSuccess(
+ 123:       response,
+ 124:       200,
+ 125:       "Experience updated successfully.",
+ 126:       { experience },
+ 127:     );
+ 128:   } catch (error) {
+ 129:     return next(error);
+ 130:   }
+ 131: }
+ 132: 
+ 133: export async function setMyExperienceArchiveStatus(
+ 134:   request,
+ 135:   response,
+ 136:   next,
+ 137: ) {
+ 138:   try {
+ 139:     const body = requireFields(request.body, [
+ 140:       "archived",
+ 141:       "rowVersion",
+ 142:     ]);
+ 143: 
+ 144:     const experience =
+ 145:       await setAuthenticatedExperienceArchiveStatus({
+ 146:         userId: request.auth.userId,
+ 147:         experienceId: request.params.experienceId,
+ 148:         archived: body.archived,
+ 149:         rowVersion: body.rowVersion,
+ 150:       });
+ 151: 
+ 152:     return sendSuccess(
+ 153:       response,
+ 154:       200,
+ 155:       body.archived
+ 156:         ? "Experience archived successfully."
+ 157:         : "Experience restored successfully.",
+ 158:       { experience },
+ 159:     );
+ 160:   } catch (error) {
+ 161:     return next(error);
+ 162:   }
+ 163: }
+ 164: 
+ 165: export async function deleteMyExperience(request, response, next) {
+ 166:   try {
+ 167:     const body = requireFields(request.body, ["rowVersion"]);
+ 168: 
+ 169:     const result = await deleteAuthenticatedExperience({
+ 170:       userId: request.auth.userId,
+ 171:       experienceId: request.params.experienceId,
+ 172:       rowVersion: body.rowVersion,
+ 173:     });
+ 174: 
+ 175:     return sendSuccess(
+ 176:       response,
+ 177:       200,
+ 178:       "Experience deleted successfully.",
+ 179:       result,
+ 180:     );
+ 181:   } catch (error) {
+ 182:     return next(error);
+ 183:   }
+ 184: }
+
+===========================================================================
+FILE: backend\src\routes\experienceRoutes.js
+===========================================================================
+SHA256: 347F5F80D5C93DEC2D77E85A443D19BF86760EA6AAE64368E30F08C7BAA51680
+   1: import { Router } from "express";
+   2: 
+   3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+   4: 
+   5: import {
+   6:   listMyExperiences,
+   7:   getMyExperience,
+   8:   createMyExperience,
+   9:   updateMyExperience,
+  10:   setMyExperienceArchiveStatus,
+  11:   deleteMyExperience,
+  12: } from "../controllers/experienceController.js";
+  13: 
+  14: const router = Router();
+  15: 
+  16: // All Experience endpoints require authentication.
+  17: router.use(requireAuthentication);
+  18: 
+  19: router.get("/", listMyExperiences);
+  20: router.post("/", createMyExperience);
+  21: 
+  22: router.get("/:experienceId", getMyExperience);
+  23: router.put("/:experienceId", updateMyExperience);
+  24: 
+  25: router.patch(
+  26:   "/:experienceId/archive",
+  27:   setMyExperienceArchiveStatus,
+  28: );
+  29: 
+  30: router.delete("/:experienceId", deleteMyExperience);
+  31: 
+  32: export default router;
+
+===========================================================================
+FILE: backend\src\services\Service\experienceService.js
+===========================================================================
+SHA256: B8D68FCA9581B5CE987A86EC28585C8679F1022EC8D715D3447A1E22F66F1FAF
+   1: import {
+   2:   listExperiencesByUser,
+   3:   findExperienceById,
+   4:   createExperience,
+   5:   updateExperience,
+   6:   deleteExperience,
+   7: } from "../../repositories/experienceRepository.js";
+   8: 
+   9: import {
+  10:   parseExperienceInput,
+  11:   parseExperienceRowVersion,
+  12: } from "../../schemas/experienceSchemas.js";
+  13: 
+  14: const SERVER_OWNED_FIELDS = [
+  15:   "userId",
+  16:   "user_id",
+  17:   "createdAt",
+  18:   "updatedAt",
+  19:   "rowVersion",
+  20:   "recordStatus",
+  21:   "record_status",
+  22: ];
+  23: 
+  24: function createExperienceError({
+  25:   message,
+  26:   code,
+  27:   status,
+  28:   publicMessage,
+  29: }) {
+  30:   const error = new Error(message);
+  31: 
+  32:   error.name = "ExperienceServiceError";
+  33:   error.code = code;
+  34:   error.status = status;
+  35:   error.publicMessage = publicMessage;
+  36: 
+  37:   return error;
+  38: }
+  39: 
+  40: function assertUserId(userId) {
+  41:   if (typeof userId !== "string" || !userId.trim()) {
+  42:     throw createExperienceError({
+  43:       message: "An authenticated user ID is required.",
+  44:       code: "EXPERIENCE_AUTHENTICATION_REQUIRED",
+  45:       status: 401,
+  46:       publicMessage:
+  47:         "You must sign in to access your Experiences.",
+  48:     });
+  49:   }
+  50: 
+  51:   return userId.trim();
+  52: }
+  53: 
+  54: function assertExperienceId(experienceId) {
+  55:   if (
+  56:     typeof experienceId !== "string" ||
+  57:     !experienceId.trim() ||
+  58:     experienceId.length > 200
+  59:   ) {
+  60:     throw createExperienceError({
+  61:       message: "A valid Experience ID is required.",
+  62:       code: "EXPERIENCE_ID_INVALID",
+  63:       status: 400,
+  64:       publicMessage: "The Experience identifier is invalid.",
+  65:     });
+  66:   }
+  67: 
+  68:   return experienceId.trim();
+  69: }
+  70: 
+  71: function experienceNotFound() {
+  72:   return createExperienceError({
+  73:     message: "Experience not found for authenticated user.",
+  74:     code: "EXPERIENCE_NOT_FOUND",
+  75:     status: 404,
+  76:     publicMessage:
+  77:       "The requested Experience could not be found.",
+  78:   });
+  79: }
+  80: 
+  81: function experienceVersionConflict() {
+  82:   return createExperienceError({
+  83:     message: "Experience version conflict.",
+  84:     code: "EXPERIENCE_VERSION_CONFLICT",
+  85:     status: 409,
+  86:     publicMessage:
+  87:       "This Experience was changed elsewhere. Reload it before saving.",
+  88:   });
+  89: }
+  90: 
+  91: function experienceIdMismatch() {
+  92:   return createExperienceError({
+  93:     message:
+  94:       "The Experience body ID does not match the requested Experience ID.",
+  95:     code: "EXPERIENCE_ID_MISMATCH",
+  96:     status: 400,
+  97:     publicMessage:
+  98:       "The Experience identifiers do not match.",
+  99:   });
+ 100: }
+ 101: 
+ 102: function withoutServerFields(experience) {
+ 103:   const result = { ...experience };
+ 104: 
+ 105:   for (const field of SERVER_OWNED_FIELDS) {
+ 106:     delete result[field];
+ 107:   }
+ 108: 
+ 109:   return result;
+ 110: }
+ 111: 
+ 112: export async function getAuthenticatedExperiences({ userId }) {
+ 113:   return listExperiencesByUser(assertUserId(userId));
+ 114: }
+ 115: 
+ 116: export async function getAuthenticatedExperience({
+ 117:   userId,
+ 118:   experienceId,
+ 119: }) {
+ 120:   const experience = await findExperienceById(
+ 121:     assertUserId(userId),
+ 122:     assertExperienceId(experienceId),
+ 123:   );
+ 124: 
+ 125:   if (!experience) {
+ 126:     throw experienceNotFound();
+ 127:   }
+ 128: 
+ 129:   return experience;
+ 130: }
+ 131: 
+ 132: export async function createAuthenticatedExperience({
+ 133:   userId,
+ 134:   experience,
+ 135: }) {
+ 136:   const authenticatedUserId = assertUserId(userId);
+ 137: 
+ 138:   // Reject invalid client data before accessing the database.
+ 139:   const validatedExperience = parseExperienceInput(experience);
+ 140: 
+ 141:   try {
+ 142:     return await createExperience(
+ 143:       authenticatedUserId,
+ 144:       validatedExperience,
+ 145:     );
+ 146:   } catch (error) {
+ 147:     if (error.number === 2627 || error.number === 2601) {
+ 148:       throw createExperienceError({
+ 149:         message: "Experience ID already exists.",
+ 150:         code: "EXPERIENCE_ALREADY_EXISTS",
+ 151:         status: 409,
+ 152:         publicMessage:
+ 153:           "An Experience with this identifier already exists.",
+ 154:       });
+ 155:     }
+ 156: 
+ 157:     throw error;
+ 158:   }
+ 159: }
+ 160: 
+ 161: export async function updateAuthenticatedExperience({
+ 162:   userId,
+ 163:   experienceId,
+ 164:   experience,
+ 165:   rowVersion,
+ 166: }) {
+ 167:   const authenticatedUserId = assertUserId(userId);
+ 168:   const normalizedExperienceId = assertExperienceId(experienceId);
+ 169: 
+ 170:   const expectedRowVersion =
+ 171:     parseExperienceRowVersion(rowVersion);
+ 172: 
+ 173:   const validatedExperience =
+ 174:     parseExperienceInput(experience);
+ 175: 
+ 176:   if (validatedExperience.id !== normalizedExperienceId) {
+ 177:     throw experienceIdMismatch();
+ 178:   }
+ 179: 
+ 180:   const existingExperience = await findExperienceById(
+ 181:     authenticatedUserId,
+ 182:     normalizedExperienceId,
+ 183:   );
+ 184: 
+ 185:   if (!existingExperience) {
+ 186:     throw experienceNotFound();
+ 187:   }
+ 188: 
+ 189:   const updatedExperience = await updateExperience(
+ 190:     authenticatedUserId,
+ 191:     validatedExperience,
+ 192:     expectedRowVersion,
+ 193:   );
+ 194: 
+ 195:   if (!updatedExperience) {
+ 196:     throw experienceVersionConflict();
+ 197:   }
+ 198: 
+ 199:   return updatedExperience;
+ 200: }
+ 201: 
+ 202: export async function setAuthenticatedExperienceArchiveStatus({
+ 203:   userId,
+ 204:   experienceId,
+ 205:   rowVersion,
+ 206:   archived,
+ 207: }) {
+ 208:   const authenticatedUserId = assertUserId(userId);
+ 209:   const normalizedExperienceId = assertExperienceId(experienceId);
+ 210: 
+ 211:   const expectedRowVersion =
+ 212:     parseExperienceRowVersion(rowVersion);
+ 213: 
+ 214:   if (typeof archived !== "boolean") {
+ 215:     throw createExperienceError({
+ 216:       message: "Archive status must be a boolean.",
+ 217:       code: "EXPERIENCE_ARCHIVE_STATUS_INVALID",
+ 218:       status: 400,
+ 219:       publicMessage: "A valid archive status is required.",
+ 220:     });
+ 221:   }
+ 222: 
+ 223:   const existingExperience = await findExperienceById(
+ 224:     authenticatedUserId,
+ 225:     normalizedExperienceId,
+ 226:   );
+ 227: 
+ 228:   if (!existingExperience) {
+ 229:     throw experienceNotFound();
+ 230:   }
+ 231: 
+ 232:   // Preserve editable Experience content while removing
+ 233:   // database-managed metadata.
+ 234:   const editableExperience =
+ 235:     withoutServerFields(existingExperience);
+ 236: 
+ 237:   const validatedExperience = parseExperienceInput({
+ 238:     ...editableExperience,
+ 239:     status: archived ? "archived" : "active",
+ 240:   });
+ 241: 
+ 242:   // Always use the caller's version for concurrency checks.
+ 243:   const updatedExperience = await updateExperience(
+ 244:     authenticatedUserId,
+ 245:     validatedExperience,
+ 246:     expectedRowVersion,
+ 247:   );
+ 248: 
+ 249:   if (!updatedExperience) {
+ 250:     throw experienceVersionConflict();
+ 251:   }
+ 252: 
+ 253:   return updatedExperience;
+ 254: }
+ 255: 
+ 256: export async function deleteAuthenticatedExperience({
+ 257:   userId,
+ 258:   experienceId,
+ 259:   rowVersion,
+ 260: }) {
+ 261:   const authenticatedUserId = assertUserId(userId);
+ 262:   const normalizedExperienceId = assertExperienceId(experienceId);
+ 263: 
+ 264:   const expectedRowVersion =
+ 265:     parseExperienceRowVersion(rowVersion);
+ 266: 
+ 267:   const existingExperience = await findExperienceById(
+ 268:     authenticatedUserId,
+ 269:     normalizedExperienceId,
+ 270:   );
+ 271: 
+ 272:   if (!existingExperience) {
+ 273:     throw experienceNotFound();
+ 274:   }
+ 275: 
+ 276:   const deleted = await deleteExperience(
+ 277:     authenticatedUserId,
+ 278:     normalizedExperienceId,
+ 279:     expectedRowVersion,
+ 280:   );
+ 281: 
+ 282:   if (!deleted) {
+ 283:     throw experienceVersionConflict();
+ 284:   }
+ 285: 
+ 286:   return { deleted: true };
+ 287: }

@@ -1,0 +1,230 @@
+﻿EXPERIENCE STEP 7D.3D.3
+Timestamp: 20261026-175255
+Test exit code: 1
+
+TEST FILE SHA256:
+1E301487334AEF0FA8621491D4DB80ADD614F8CA789CB58A3B317FB5A2918E26
+
+TEST OUTPUT:
+Γ£ö removes server-owned fields (1.3845ms)
+Γ£ö does not mutate the original experience (1.2986ms)
+Γ£ö rejects invalid experience objects (0.7087ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.2887ms)
+Γ£ö rejects invalid rowVersion values (0.4102ms)
+Γ£ö rejects noncanonical SQL Server rowVersion padding bits (0.3026ms)
+Γ£ö GET retrieves the Experience collection (54.8161ms)
+Γ£ö GET retrieves one Experience by ID (1.3783ms)
+Γ£ö POST creates an Experience without server-owned fields (1.7379ms)
+Γ£ö PUT updates an Experience with rowVersion (1.5677ms)
+Γ£ö PATCH archives an Experience with rowVersion (1.4127ms)
+Γ£ö PATCH restores an archived Experience (0.8483ms)
+Γ£ö DELETE sends rowVersion in the request body (0.8542ms)
+Γ£ö rejects invalid rowVersion before sending a request (2.1068ms)
+Γ£ö rejects invalid Experience IDs (0.3638ms)
+Γ£ö preserves backend validation errors (1.6535ms)
+Γ£ö preserves concurrency conflict errors (1.1124ms)
+Γ£ö preserves authentication errors (0.8411ms)
+Γ£û retrieves active experiences (41.082ms)
+Γ£û retrieves archived experiences when requested (1.3451ms)
+Γ£û retrieves one experience (0.885ms)
+Γ£û creates an experience (1.1953ms)
+Γ£û updates an experience using rowVersion (1.534ms)
+Γ£û archives an experience using rowVersion (2.1985ms)
+Γ£û restores an experience using rowVersion (0.8666ms)
+Γ£û deletes an experience using rowVersion (0.8154ms)
+Γ£ö does not retry a concurrency conflict (0.9439ms)
+Γ£ö database service exposes the existing Experience interface (1.7308ms)
+Γ£ö database service rejects update without a complete record (1.1347ms)
+Γ£ö database service rejects mismatched Experience IDs (0.3346ms)
+Γ£ö database service rejects archive without rowVersion (0.4229ms)
+Γ£ö database service rejects delete without rowVersion (0.4139ms)
+Γ£ö preserves a valid backend rowVersion (11.174ms)
+Γ£ö does not add rowVersion to legacy records (0.3099ms)
+Γ£ö does not preserve an invalid rowVersion (0.3265ms)
+Γ£ö preserves rowVersion during collection normalization (0.3934ms)
+Γ£ö preserves rowVersion during model updates (0.552ms)
+Γä╣ tests 37
+Γä╣ suites 0
+Γä╣ pass 29
+Γä╣ fail 8
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 230.3143
+
+Γ£û failing tests:
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:51:1
+Γ£û retrieves active experiences (41.082ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async fetchExperiences (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:35:20)
+      ... 3 lines matching cause stack trace ...
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'GET',
+    url: 'http://localhost:5000/api/experiences',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async fetchExperiences (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:35:20)
+        at async getExperiences (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceDatabaseService.js:52:23)
+        at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:64:18)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:70:1
+Γ£û retrieves archived experiences when requested (1.3451ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async fetchExperiences (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:35:20)
+      ... 3 lines matching cause stack trace ...
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'GET',
+    url: 'http://localhost:5000/api/experiences',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async fetchExperiences (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:35:20)
+        at async getExperiences (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceDatabaseService.js:52:23)
+        at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:83:18)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:90:1
+Γ£û retrieves one experience (0.885ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async fetchExperienceById (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:44:20)
+      at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:97:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'GET',
+    url: 'http://localhost:5000/api/experiences/experience-1234567890123-abcdefgh',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async fetchExperienceById (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:44:20)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:102:1
+Γ£û creates an experience (1.1953ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async createExperienceApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:56:20)
+      at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:109:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'POST',
+    url: 'http://localhost:5000/api/experiences',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async createExperienceApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:56:20)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:114:1
+Γ£û updates an experience using rowVersion (1.534ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async updateExperienceApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:71:20)
+      at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:127:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'PUT',
+    url: 'http://localhost:5000/api/experiences/experience-1234567890123-abcdefgh',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async updateExperienceApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:71:20)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:133:1
+Γ£û archives an experience using rowVersion (2.1985ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async setExperienceArchivedApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:93:20)
+      at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:146:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'PATCH',
+    url: 'http://localhost:5000/api/experiences/experience-1234567890123-abcdefgh/archive',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async setExperienceArchivedApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:93:20)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:153:1
+Γ£û restores an experience using rowVersion (0.8666ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async setExperienceArchivedApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:93:20)
+      at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:164:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'PATCH',
+    url: 'http://localhost:5000/api/experiences/experience-1234567890123-abcdefgh/archive',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async setExperienceArchivedApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:93:20)
+  }
+
+test at tests\Experience\experienceDatabaseDelegation.test.mjs:173:1
+Γ£û deletes an experience using rowVersion (0.8154ms)
+  Error [ApiError]: Unable to connect to the server. Check your connection and try again.
+      at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:464:11)
+      at async deleteExperienceApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:110:20)
+      at async TestContext.<anonymous> (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/tests/Experience/experienceDatabaseDelegation.test.mjs:184:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 0,
+    code: 'API_NETWORK_ERROR',
+    fieldErrors: {},
+    errors: [],
+    details: null,
+    method: 'DELETE',
+    url: 'http://localhost:5000/api/experiences/experience-1234567890123-abcdefgh',
+    [cause]: TypeError [Error]: response.text is not a function
+        at parseResponseBody (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:248:31)
+        at apiRequest (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/apiClient.js:424:24)
+        at async deleteExperienceApi (file:///D:/Documents/Project/Portfolio/portfolio-plateform/frontend/src/services/Experience/experienceApiService.js:110:20)
+  }
+

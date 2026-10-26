@@ -1,0 +1,67 @@
+﻿STEP 7D.3D.4E - POSITIVE-PATH TESTS
+Timestamp: 20261026-180235
+Test exit code: 0
+
+Test file: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\tests\Experience\experienceCompatibilityPositive.test.mjs
+SHA256: 8714F582FEAF84E2A52BD2AF4EA88AF95CF670EBB90DEC71566CBB5DBDEBFD1C
+
+TEST OUTPUT
+Γ£ö removes server-owned fields (1.9921ms)
+Γ£ö does not mutate the original experience (1.5562ms)
+Γ£ö rejects invalid experience objects (0.962ms)
+Γ£ö accepts a valid SQL Server rowVersion (0.4497ms)
+Γ£ö rejects invalid rowVersion values (0.5908ms)
+Γ£ö rejects noncanonical SQL Server rowVersion padding bits (0.3619ms)
+Γ£ö GET retrieves the Experience collection (55.8075ms)
+Γ£ö GET retrieves one Experience by ID (1.758ms)
+Γ£ö POST creates an Experience without server-owned fields (1.6803ms)
+Γ£ö PUT updates an Experience with rowVersion (2.1213ms)
+Γ£ö PATCH archives an Experience with rowVersion (1.5835ms)
+Γ£ö PATCH restores an archived Experience (2.3187ms)
+Γ£ö DELETE sends rowVersion in the request body (1.4024ms)
+Γ£ö rejects invalid rowVersion before sending a request (1.5348ms)
+Γ£ö rejects invalid Experience IDs (0.8789ms)
+Γ£ö preserves backend validation errors (1.7054ms)
+Γ£ö preserves concurrency conflict errors (1.306ms)
+Γ£ö preserves authentication errors (1.2288ms)
+Γ£ö partial update preserves nested fields and original rowVersion (65.9337ms)
+Γ£ö archive sends the loaded rowVersion (1.9008ms)
+Γ£ö restore sends the loaded rowVersion (1.5687ms)
+Γ£ö delete sends the loaded rowVersion (2.8359ms)
+Γ£ö backend concurrency conflicts propagate without retry (2.3894ms)
+Γ£ö compatibility layer exports the required context methods (1.9344ms)
+Γ£ö update rejects an unavailable collection (1.2115ms)
+Γ£ö update rejects an Experience not loaded by React (0.4195ms)
+Γ£ö update rejects a record without rowVersion (0.485ms)
+Γ£ö update rejects attempts to override server-owned fields (0.5709ms)
+Γ£ö archive rejects an unloaded record (0.4423ms)
+Γ£ö restore rejects a record without rowVersion (0.4113ms)
+Γ£ö delete rejects a record without rowVersion (1.8209ms)
+Γ£ö retrieves active experiences (64.5156ms)
+Γ£ö retrieves archived experiences when requested (0.9744ms)
+Γ£ö retrieves one experience (1.0447ms)
+Γ£ö creates an experience (1.4321ms)
+Γ£ö updates an experience using rowVersion (1.7608ms)
+Γ£ö archives an experience using rowVersion (0.9517ms)
+Γ£ö restores an experience using rowVersion (0.6286ms)
+Γ£ö deletes an experience using rowVersion (0.6294ms)
+Γ£ö does not retry a concurrency conflict (1.0603ms)
+Γ£ö database service exposes the existing Experience interface (1.7858ms)
+Γ£ö database service rejects update without a complete record (1.1349ms)
+Γ£ö database service rejects mismatched Experience IDs (0.3713ms)
+Γ£ö database service rejects archive without rowVersion (0.4965ms)
+Γ£ö database service rejects delete without rowVersion (0.4407ms)
+Γ£ö preserves a valid backend rowVersion (13.9943ms)
+Γ£ö does not add rowVersion to legacy records (0.4582ms)
+Γ£ö does not preserve an invalid rowVersion (0.501ms)
+Γ£ö preserves rowVersion during collection normalization (0.5594ms)
+Γ£ö preserves rowVersion during model updates (0.6998ms)
+Γä╣ tests 50
+Γä╣ suites 0
+Γä╣ pass 50
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 284.7262
+

@@ -1,0 +1,12 @@
+﻿STEP 7D.3D.6G.2
+Experience UPDATE payload correction
+
+Target: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Experience\Experience.jsx
+Backup: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\Experience\Experience-update-20261026-190506.jsx.bak
+Original SHA256: 38668E0643BC880760292708BA7E94DE58217D0A906649AEF54BADBE56D2428E
+Updated SHA256: FBF2CE367D4E49C063A4347FC02FEC3E1C401B0209ED395DF65322F9E530B8D9
+
+Change: Remove server-owned metadata from Experience update payload.
+Original rowVersion remains managed by the compatibility layer.
+Database writes performed by script: NO
+Application files modified: 1

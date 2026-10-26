@@ -1,0 +1,849 @@
+﻿EXPERIENCE API ARCHITECTURE INSPECTION
+Generated: 2026-10-26 17:18:39
+Backend: D:\Documents\Project\Portfolio\portfolio-plateform\backend
+
+
+===========================================================================
+FILE: src\app.js
+===========================================================================
+   1: import cors from "cors";
+   2: import express from "express";
+   3: import helmet from "helmet";
+   4: 
+   5: import userRoutes from "./routes/userRoutes.js";
+   6: 
+   7: import { checkDatabaseHealth } from "./config/database.js";
+   8: 
+   9: import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+  10: 
+  11: import aiRoutes from "./routes/aiRoutes.js";
+  12: import authRoutes from "./routes/authRoutes.js";
+  13: import profileRoutes from "./routes/profileRoutes.js";
+  14: import projectRoutes from "./routes/projectRoutes.js";
+  15: 
+  16: import {
+  17:   globalErrorHandler,
+  18:   notFoundHandler,
+  19: } from "./middleware/errorMiddleware.js";
+  20: 
+  21: import supportRoutes from "./routes/supportRoutes.js";
+  22: 
+  23: /*
+  24:  * =========================================
+  25:  * Environment and Application
+  26:  * =========================================
+  27:  */
+  28: 
+  29: const environment = getEnvironment();
+  30: 
+  31: const app = express();
+  32: 
+  33: /*
+  34:  * =========================================
+  35:  * Express Information Header
+  36:  * =========================================
+  37:  */
+  38: 
+  39: app.disable("x-powered-by");
+  40: 
+  41: /*
+  42:  * =========================================
+  43:  * Security Headers
+  44:  * =========================================
+  45:  */
+  46: 
+  47: app.use(helmet());
+  48: 
+  49: /*
+  50:  * =========================================
+  51:  * Allowed Frontend Origins
+  52:  * =========================================
+  53:  */
+  54: 
+  55: const allowedOrigins = environment.FRONTEND_URL.split(",")
+  56:   .map((origin) => origin.trim())
+  57:   .filter(Boolean);
+  58: 
+  59: /*
+  60:  * =========================================
+  61:  * CORS
+  62:  * =========================================
+  63:  */
+  64: 
+  65: app.use(
+  66:   cors({
+  67:     origin(origin, callback) {
+  68:       /*
+  69:        * Postman, curl and server-to-server
+  70:        * requests may not include Origin.
+  71:        */
+  72: 
+  73:       if (!origin) {
+  74:         return callback(null, true);
+  75:       }
+  76: 
+  77:       if (allowedOrigins.includes(origin)) {
+  78:         return callback(null, true);
+  79:       }
+  80: 
+  81:       const error = new Error(`Origin not allowed by CORS: ${origin}`);
+  82: 
+  83:       error.name = "CorsOriginError";
+  84: 
+  85:       error.code = "CORS_ORIGIN_DENIED";
+  86: 
+  87:       error.status = 403;
+  88: 
+  89:       error.publicMessage = "This website is not allowed to access the API.";
+  90: 
+  91:       return callback(error);
+  92:     },
+  93: 
+  94:     credentials: true,
+  95: 
+  96:     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  97: 
+  98:     allowedHeaders: ["Content-Type", "Authorization"],
+  99:   }),
+ 100: );
+ 101: 
+ 102: /*
+ 103:  * =========================================
+ 104:  * Public Profile Pictures
+ 105:  * =========================================
+ 106:  */
+ 107: 
+ 108: if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+ 109:   app.use(
+ 110:     "/uploads/profile-pictures",
+ 111:     (request, response, next) => {
+ 112:       /*
+ 113:        * Profile pictures are intentionally public assets.
+ 114:        * Allow the portfolio frontend to display them even
+ 115:        * though the frontend and API use different origins.
+ 116:        */
+ 117: 
+ 118:       response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+ 119: 
+ 120:       next();
+ 121:     },
+ 122:     express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+ 123:       fallthrough: true,
+ 124:       index: false,
+ 125:       dotfiles: "deny",
+ 126:     }),
+ 127:   );
+ 128: }
+ 129: 
+ 130: /*
+ 131:  * =========================================
+ 132:  * Request Body
+ 133:  * =========================================
+ 134:  */
+ 135: 
+ 136: app.use(
+ 137:   express.json({
+ 138:     limit: "1mb",
+ 139:   }),
+ 140: );
+ 141: 
+ 142: /*
+ 143:  * =========================================
+ 144:  * API Health Check
+ 145:  * =========================================
+ 146:  */
+ 147: 
+ 148: app.get("/api/health", (req, res) => {
+ 149:   return res.status(200).json({
+ 150:     status: "ok",
+ 151: 
+ 152:     service: "portfolio-platform-api",
+ 153: 
+ 154:     environment: environment.NODE_ENV,
+ 155: 
+ 156:     databaseConfigured: isDatabaseConfigured(environment),
+ 157: 
+ 158:     timestamp: new Date().toISOString(),
+ 159:   });
+ 160: });
+ 161: 
+ 162: /*
+ 163:  * =========================================
+ 164:  * Database Health Check
+ 165:  * =========================================
+ 166:  */
+ 167: 
+ 168: app.get("/api/health/database", async (req, res) => {
+ 169:   const health = await checkDatabaseHealth();
+ 170: 
+ 171:   const isHealthy = health.status === "ok";
+ 172: 
+ 173:   let message = "Database connection is unavailable.";
+ 174: 
+ 175:   if (isHealthy) {
+ 176:     message = "Database connection is healthy.";
+ 177:   } else if (health.status === "not-configured") {
+ 178:     message = "Database service is not configured.";
+ 179:   }
+ 180: 
+ 181:   return res.status(isHealthy ? 200 : 503).json({
+ 182:     status: health.status,
+ 183: 
+ 184:     service: "portfolio-platform-database",
+ 185: 
+ 186:     configured: health.configured,
+ 187: 
+ 188:     responseTimeMs: health.responseTimeMs,
+ 189: 
+ 190:     message,
+ 191: 
+ 192:     timestamp: new Date().toISOString(),
+ 193:   });
+ 194: });
+ 195: 
+ 196: /*
+ 197:  * =========================================
+ 198:  * Application Routes
+ 199:  * =========================================
+ 200:  */
+ 201: app.use("/api/auth", authRoutes);
+ 202: 
+ 203: app.use("/api/ai", aiRoutes);
+ 204: 
+ 205: app.use("/api/users", userRoutes);
+ 206: 
+ 207: app.use("/api/support", supportRoutes);
+ 208: 
+ 209: app.use("/api/profile", profileRoutes);
+ 210: app.use("/api/projects", projectRoutes);
+ 211: /*
+ 212:  * The Profile and Skill routes remain disabled
+ 213:  * until their repositories and authentication
+ 214:  * middleware are implemented.
+ 215:  *
+ 216:  * Later:
+ 217:  *
+ 218:  * app.use("/api/profile", profileRoutes);
+ 219:  * app.use("/api/skills", skillRoutes);
+ 220:  */
+ 221: 
+ 222: /*
+ 223:  * =========================================
+ 224:  * Route Not Found
+ 225:  * =========================================
+ 226:  */
+ 227: 
+ 228: app.use(notFoundHandler);
+ 229: 
+ 230: /*
+ 231:  * =========================================
+ 232:  * Global Error Handler
+ 233:  * =========================================
+ 234:  */
+ 235: 
+ 236: app.use(globalErrorHandler);
+ 237: 
+ 238: export default app;
+
+===========================================================================
+FILE: src\server.js
+===========================================================================
+   1: /*
+   2:  *============================
+   3:  *Import
+   4:  *============================
+   5:  */
+   6: import "dotenv/config";
+   7: 
+   8: import app from "./app.js";
+   9: 
+  10: import { closeDatabase, connectDatabase } from "./config/database.js";
+  11: 
+  12: import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+  13: 
+  14: /*
+  15:  * =========================================
+  16:  * Environment
+  17:  * =========================================
+  18:  */
+  19: 
+  20: const environment = getEnvironment();
+  21: 
+  22: /*
+  23:  * =========================================
+  24:  * Server State
+  25:  * =========================================
+  26:  */
+  27: 
+  28: let server = null;
+  29: 
+  30: let isShuttingDown = false;
+  31: 
+  32: /*
+  33:  * =========================================
+  34:  * Start Server
+  35:  * =========================================
+  36:  */
+  37: 
+  38: async function startServer() {
+  39:   /*
+  40:    * Connect before accepting requests when
+  41:    * database settings have been supplied.
+  42:    */
+  43: 
+  44:   if (isDatabaseConfigured(environment)) {
+  45:     await connectDatabase();
+  46:   } else {
+  47:     console.warn(
+  48:       "Database access is not configured. Database-backed routes will be unavailable.",
+  49:     );
+  50:   }
+  51: 
+  52:   server = app.listen(environment.PORT, () => {
+  53:     console.log(`Portfolio Platform API running on port ${environment.PORT}`);
+  54: 
+  55:     if (environment.NODE_ENV !== "production") {
+  56:       console.log(
+  57:         `API health check: http://localhost:${environment.PORT}/api/health`,
+  58:       );
+  59: 
+  60:       console.log(
+  61:         `Database health check: http://localhost:${environment.PORT}/api/health/database`,
+  62:       );
+  63:     }
+  64:   });
+  65: }
+  66: 
+  67: /*
+  68:  * =========================================
+  69:  * Graceful Shutdown
+  70:  * =========================================
+  71:  */
+  72: 
+  73: async function shutdown(signal, exitCode = 0) {
+  74:   if (isShuttingDown) {
+  75:     return;
+  76:   }
+  77: 
+  78:   isShuttingDown = true;
+  79: 
+  80:   console.log(`${signal} received. Closing API server.`);
+  81: 
+  82:   /*
+  83:    * Stop accepting new HTTP requests.
+  84:    */
+  85: 
+  86:   if (server) {
+  87:     await new Promise((resolve) => {
+  88:       server.close(resolve);
+  89:     });
+  90: 
+  91:     console.log("API server closed.");
+  92:   }
+  93: 
+  94:   /*
+  95:    * Close the SQL Server connection pool.
+  96:    */
+  97: 
+  98:   try {
+  99:     await closeDatabase();
+ 100:   } catch (error) {
+ 101:     console.error("Unable to close the database pool cleanly:", error);
+ 102: 
+ 103:     exitCode = 1;
+ 104:   }
+ 105: 
+ 106:   process.exit(exitCode);
+ 107: }
+ 108: 
+ 109: /*
+ 110:  * =========================================
+ 111:  * Operating System Signals
+ 112:  * =========================================
+ 113:  */
+ 114: 
+ 115: process.on("SIGTERM", () => {
+ 116:   shutdown("SIGTERM");
+ 117: });
+ 118: 
+ 119: process.on("SIGINT", () => {
+ 120:   shutdown("SIGINT");
+ 121: });
+ 122: 
+ 123: /*
+ 124:  * =========================================
+ 125:  * Unexpected Promise Rejections
+ 126:  * =========================================
+ 127:  */
+ 128: 
+ 129: process.on("unhandledRejection", (error) => {
+ 130:   console.error("Unhandled promise rejection:", error);
+ 131: 
+ 132:   shutdown("UNHANDLED_REJECTION", 1);
+ 133: });
+ 134: 
+ 135: /*
+ 136:  * =========================================
+ 137:  * Unexpected Synchronous Errors
+ 138:  * =========================================
+ 139:  */
+ 140: 
+ 141: process.on("uncaughtException", (error) => {
+ 142:   console.error("Uncaught exception:", error);
+ 143: 
+ 144:   shutdown("UNCAUGHT_EXCEPTION", 1);
+ 145: });
+ 146: 
+ 147: /*
+ 148:  * =========================================
+ 149:  * Application Startup
+ 150:  * =========================================
+ 151:  */
+ 152: 
+ 153: startServer().catch((error) => {
+ 154:   console.error("Unable to start Portfolio Platform API:", error);
+ 155: 
+ 156:   shutdown("STARTUP_FAILURE", 1);
+ 157: });
+
+===========================================================================
+FILE: src\controllers\projectController.js
+===========================================================================
+   1: import {
+   2:   getAuthenticatedProjects,
+   3:   getAuthenticatedProject,
+   4:   createAuthenticatedProject,
+   5:   updateAuthenticatedProject,
+   6:   setAuthenticatedProjectArchiveStatus,
+   7:   deleteAuthenticatedProject,
+   8: } from "../services/Service/projectService.js";
+   9: 
+  10: function setPrivateHeaders(response) {
+  11:   response.set({
+  12:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  13:     Pragma: "no-cache",
+  14:     Expires: "0",
+  15:   });
+  16: }
+  17: 
+  18: function projectRequestError(message) {
+  19:   const error = new Error(message);
+  20:   error.name = "ProjectRequestError";
+  21:   error.code = "PROJECT_REQUEST_INVALID";
+  22:   error.status = 400;
+  23:   error.publicMessage = message;
+  24:   return error;
+  25: }
+  26: 
+  27: function requireObject(value, name) {
+  28:   if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  29:     throw projectRequestError(`${name} must be a JSON object.`);
+  30:   }
+  31: 
+  32:   return value;
+  33: }
+  34: 
+  35: function requireFields(body, allowedFields) {
+  36:   const input = requireObject(body, "Request body");
+  37: 
+  38:   const unexpected = Object.keys(input).filter(
+  39:     (field) => !allowedFields.includes(field),
+  40:   );
+  41: 
+  42:   if (unexpected.length > 0) {
+  43:     throw projectRequestError(
+  44:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+  45:     );
+  46:   }
+  47: 
+  48:   return input;
+  49: }
+  50: 
+  51: export async function listMyProjects(request, response, next) {
+  52:   try {
+  53:     const projects = await getAuthenticatedProjects({
+  54:       userId: request.auth.userId,
+  55:     });
+  56: 
+  57:     setPrivateHeaders(response);
+  58: 
+  59:     return response.status(200).json({
+  60:       status: "success",
+  61:       message: "Projects retrieved successfully.",
+  62:       data: { projects },
+  63:     });
+  64:   } catch (error) {
+  65:     return next(error);
+  66:   }
+  67: }
+  68: 
+  69: export async function getMyProject(request, response, next) {
+  70:   try {
+  71:     const project = await getAuthenticatedProject({
+  72:       userId: request.auth.userId,
+  73:       projectId: request.params.projectId,
+  74:     });
+  75: 
+  76:     setPrivateHeaders(response);
+  77: 
+  78:     return response.status(200).json({
+  79:       status: "success",
+  80:       message: "Project retrieved successfully.",
+  81:       data: { project },
+  82:     });
+  83:   } catch (error) {
+  84:     return next(error);
+  85:   }
+  86: }
+  87: 
+  88: export async function createMyProject(request, response, next) {
+  89:   try {
+  90:     const project = await createAuthenticatedProject({
+  91:       userId: request.auth.userId,
+  92:       project: request.body,
+  93:     });
+  94: 
+  95:     setPrivateHeaders(response);
+  96: 
+  97:     return response.status(201).json({
+  98:       status: "success",
+  99:       message: "Project created successfully.",
+ 100:       data: { project },
+ 101:     });
+ 102:   } catch (error) {
+ 103:     return next(error);
+ 104:   }
+ 105: }
+ 106: 
+ 107: export async function updateMyProject(request, response, next) {
+ 108:   try {
+ 109:     const body = requireFields(request.body, ["project", "rowVersion"]);
+ 110: 
+ 111:     const project = await updateAuthenticatedProject({
+ 112:       userId: request.auth.userId,
+ 113:       projectId: request.params.projectId,
+ 114:       project: body.project,
+ 115:       rowVersion: body.rowVersion,
+ 116:     });
+ 117: 
+ 118:     setPrivateHeaders(response);
+ 119: 
+ 120:     return response.status(200).json({
+ 121:       status: "success",
+ 122:       message: "Project updated successfully.",
+ 123:       data: { project },
+ 124:     });
+ 125:   } catch (error) {
+ 126:     return next(error);
+ 127:   }
+ 128: }
+ 129: 
+ 130: export async function setMyProjectArchiveStatus(request, response, next) {
+ 131:   try {
+ 132:     const body = requireFields(request.body, ["archived", "rowVersion"]);
+ 133: 
+ 134:     const project = await setAuthenticatedProjectArchiveStatus({
+ 135:       userId: request.auth.userId,
+ 136:       projectId: request.params.projectId,
+ 137:       archived: body.archived,
+ 138:       rowVersion: body.rowVersion,
+ 139:     });
+ 140: 
+ 141:     setPrivateHeaders(response);
+ 142: 
+ 143:     return response.status(200).json({
+ 144:       status: "success",
+ 145:       message: body.archived
+ 146:         ? "Project archived successfully."
+ 147:         : "Project restored successfully.",
+ 148:       data: { project },
+ 149:     });
+ 150:   } catch (error) {
+ 151:     return next(error);
+ 152:   }
+ 153: }
+ 154: 
+ 155: export async function deleteMyProject(request, response, next) {
+ 156:   try {
+ 157:     const body = requireFields(request.body, ["rowVersion"]);
+ 158: 
+ 159:     const result = await deleteAuthenticatedProject({
+ 160:       userId: request.auth.userId,
+ 161:       projectId: request.params.projectId,
+ 162:       rowVersion: body.rowVersion,
+ 163:     });
+ 164: 
+ 165:     setPrivateHeaders(response);
+ 166: 
+ 167:     return response.status(200).json({
+ 168:       status: "success",
+ 169:       message: "Project deleted successfully.",
+ 170:       data: result,
+ 171:     });
+ 172:   } catch (error) {
+ 173:     return next(error);
+ 174:   }
+ 175: }
+
+===========================================================================
+FILE: src\routes\projectRoutes.js
+===========================================================================
+   1: import { Router } from "express";
+   2: 
+   3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+   4: 
+   5: import {
+   6:   listMyProjects,
+   7:   getMyProject,
+   8:   createMyProject,
+   9:   updateMyProject,
+  10:   setMyProjectArchiveStatus,
+  11:   deleteMyProject,
+  12: } from "../controllers/projectController.js";
+  13: 
+  14: import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+  15: 
+  16: import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+  17: 
+  18: import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+  19: 
+  20: import {
+  21:   uploadMyProjectMedia,
+  22:   listMyProjectMedia,
+  23:   getMyProjectMedia,
+  24:   deleteMyProjectMedia,
+  25: } from "../controllers/projectMediaController.js";
+  26: 
+  27: import { uploadProjectDocument } from "../middleware/project/projectDocumentUploadMiddleware.js";
+  28: import { validateProjectDocument } from "../middleware/project/projectDocumentValidationMiddleware.js";
+  29: 
+  30: import {
+  31:   uploadMyProjectDocument,
+  32:   listMyProjectDocuments,
+  33:   getMyProjectDocument,
+  34:   deleteMyProjectDocument,
+  35: } from "../controllers/projectDocumentController.js";
+  36: const router = Router();
+  37: 
+  38: /*
+  39:  * All Project API endpoints require an
+  40:  * authenticated user session.
+  41:  */
+  42: router.use(requireAuthentication);
+  43: 
+  44: /*
+  45:  * GET /api/projects
+  46:  * POST /api/projects
+  47:  */
+  48: router.get("/", listMyProjects);
+  49: router.post("/", createMyProject);
+  50: 
+  51: /*
+  52:  * GET /api/projects/:projectId
+  53:  * PUT /api/projects/:projectId
+  54:  */
+  55: router.get("/:projectId", getMyProject);
+  56: router.put("/:projectId", updateMyProject);
+  57: 
+  58: /*
+  59:  * PATCH /api/projects/:projectId/archive
+  60:  */
+  61: router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+  62: 
+  63: /*
+  64:  * =========================================
+  65:  * Project Media Listing
+  66:  * =========================================
+  67:  *
+  68:  * GET /api/projects/:projectId/media
+  69:  *
+  70:  * Authentication is applied globally.
+  71:  * Project ownership is verified before
+  72:  * returning media metadata.
+  73:  */
+  74: 
+  75: router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+  76: 
+  77: /*
+  78:  * =========================================
+  79:  * Project Media Retrieval
+  80:  * =========================================
+  81:  */
+  82: 
+  83: router.get(
+  84:   "/:projectId/media/:mediaId",
+  85:   requireProjectOwnership,
+  86:   getMyProjectMedia,
+  87: );
+  88: 
+  89: /*
+  90:  * =========================================
+  91:  * Project Media Upload
+  92:  * =========================================
+  93:  *
+  94:  * Authentication is applied globally.
+  95:  *
+  96:  * Ownership must be verified before Multer
+  97:  * writes the uploaded file.
+  98:  */
+  99: 
+ 100: router.post(
+ 101:   "/:projectId/media",
+ 102:   requireProjectOwnership,
+ 103:   uploadProjectMedia,
+ 104:   validateProjectMedia,
+ 105:   uploadMyProjectMedia,
+ 106: );
+ 107: 
+ 108: /*
+ 109:  * DELETE /api/projects/:projectId
+ 110:  */
+ 111: router.delete("/:projectId", deleteMyProject);
+ 112: 
+ 113: router.delete(
+ 114:   "/:projectId/media/:mediaId",
+ 115:   requireProjectOwnership,
+ 116:   deleteMyProjectMedia,
+ 117: );
+ 118: 
+ 119: /*
+ 120:  * =========================================
+ 121:  * Project Document API
+ 122:  * =========================================
+ 123:  *
+ 124:  * Authentication is applied globally.
+ 125:  * Ownership is checked before file access
+ 126:  * or Multer writes uploaded documents.
+ 127:  */
+ 128: 
+ 129: router.get(
+ 130:   "/:projectId/documents",
+ 131:   requireProjectOwnership,
+ 132:   listMyProjectDocuments,
+ 133: );
+ 134: 
+ 135: router.get(
+ 136:   "/:projectId/documents/:documentId",
+ 137:   requireProjectOwnership,
+ 138:   getMyProjectDocument,
+ 139: );
+ 140: 
+ 141: router.post(
+ 142:   "/:projectId/documents",
+ 143:   requireProjectOwnership,
+ 144:   uploadProjectDocument,
+ 145:   validateProjectDocument,
+ 146:   uploadMyProjectDocument,
+ 147: );
+ 148: 
+ 149: router.delete(
+ 150:   "/:projectId/documents/:documentId",
+ 151:   requireProjectOwnership,
+ 152:   deleteMyProjectDocument,
+ 153: );
+ 154: export default router;
+
+===========================================================================
+AUTHENTICATION AND ROUTE REFERENCES
+===========================================================================
+src\app.js:14: import projectRoutes from "./routes/projectRoutes.js";
+src\app.js:17: globalErrorHandler,
+src\app.js:47: app.use(helmet());
+src\app.js:65: app.use(
+src\app.js:109: app.use(
+src\app.js:136: app.use(
+src\app.js:201: app.use("/api/auth", authRoutes);
+src\app.js:203: app.use("/api/ai", aiRoutes);
+src\app.js:205: app.use("/api/users", userRoutes);
+src\app.js:207: app.use("/api/support", supportRoutes);
+src\app.js:209: app.use("/api/profile", profileRoutes);
+src\app.js:210: app.use("/api/projects", projectRoutes);
+src\app.js:218: * app.use("/api/profile", profileRoutes);
+src\app.js:219: * app.use("/api/skills", skillRoutes);
+src\app.js:228: app.use(notFoundHandler);
+src\app.js:236: app.use(globalErrorHandler);
+src\controllers\profileController.js:27: userId: request.auth.userId,
+src\controllers\profileController.js:47: userId: request.auth.userId,
+src\controllers\profileController.js:148: userId: request.auth.userId,
+src\controllers\projectController.js:54: userId: request.auth.userId,
+src\controllers\projectController.js:72: userId: request.auth.userId,
+src\controllers\projectController.js:91: userId: request.auth.userId,
+src\controllers\projectController.js:112: userId: request.auth.userId,
+src\controllers\projectController.js:135: userId: request.auth.userId,
+src\controllers\projectController.js:160: userId: request.auth.userId,
+src\controllers\projectDocumentController.js:36: userId: request.auth.userId,
+src\controllers\projectDocumentController.js:56: userId: request.auth.userId,
+src\controllers\projectDocumentController.js:76: const userId = request.auth.userId;
+src\controllers\projectDocumentController.js:162: userId: request.auth.userId,
+src\controllers\projectMediaController.js:43: userId: request.auth.userId,
+src\controllers\projectMediaController.js:67: userId: request.auth.userId,
+src\controllers\projectMediaController.js:98: const userId = request.auth.userId;
+src\controllers\projectMediaController.js:228: userId: request.auth.userId,
+src\middleware\authenticationMiddleware.js:140: export async function requireAuthentication(request, response, next) {
+src\middleware\errorMiddleware.js:31: export function globalErrorHandler(error, request, response, next) {
+src\middleware\project\projectDocumentValidationMiddleware.js:273: const userId = request.auth.userId;
+src\middleware\project\projectMediaValidationMiddleware.js:108: request.auth.userId,
+src\repositories\sessionRepository.js:134: app_user.email,
+src\repositories\sessionRepository.js:135: app_user.normalized_email,
+src\repositories\sessionRepository.js:136: app_user.email_verified_at,
+src\repositories\sessionRepository.js:137: app_user.account_status,
+src\repositories\sessionRepository.js:138: app_user.locked_until,
+src\repositories\sessionRepository.js:142: INNER JOIN dbo.users AS app_user
+src\repositories\sessionRepository.js:143: ON app_user.id =
+src\repositories\sessionRepository.js:147: app_user.id
+src\repositories\sessionRepository.js:156: AND app_user.account_status =
+src\repositories\sessionRepository.js:160: app_user.locked_until IS NULL
+src\repositories\sessionRepository.js:161: OR app_user.locked_until <=
+src\routes\profileRoutes.js:5: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+src\routes\profileRoutes.js:15: router.use(requireAuthentication);
+src\routes\projectRoutes.js:3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+src\routes\projectRoutes.js:12: } from "../controllers/projectController.js";
+src\routes\projectRoutes.js:42: router.use(requireAuthentication);
+src\routes\userRoutes.js:12: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+src\routes\userRoutes.js:104: requireAuthentication,
+src\routes\userRoutes.js:120: requireAuthentication,
+src\routes\userRoutes.js:135: requireAuthentication,
+src\routes\userRoutes.js:145: requireAuthentication,
+test\api\profileApi.test.js:140: const { globalErrorHandler, notFoundHandler } =
+test\api\profileApi.test.js:145: app.use(express.json({ limit: "1mb" }));
+test\api\profileApi.test.js:146: app.use("/api/profile", profileRoutes);
+test\api\profileApi.test.js:147: app.use(notFoundHandler);
+test\api\profileApi.test.js:148: app.use(globalErrorHandler);
+test\api\projectApi.test.js:111: const { default: projectRoutes } =
+test\api\projectApi.test.js:112: await import("../../src/routes/projectRoutes.js");
+test\api\projectApi.test.js:114: const { globalErrorHandler, notFoundHandler } =
+test\api\projectApi.test.js:119: app.use(express.json({ limit: "1mb" }));
+test\api\projectApi.test.js:120: app.use("/api/projects", projectRoutes);
+test\api\projectApi.test.js:121: app.use(notFoundHandler);
+test\api\projectApi.test.js:122: app.use(globalErrorHandler);
+test\api\projectDocumentApi.test.js:187: const { default: projectRoutes } =
+test\api\projectDocumentApi.test.js:188: await import("../../src/routes/projectRoutes.js");
+test\api\projectDocumentApi.test.js:190: const { globalErrorHandler, notFoundHandler } =
+test\api\projectDocumentApi.test.js:201: app.use(express.json({ limit: "1mb" }));
+test\api\projectDocumentApi.test.js:202: app.use("/api/projects", projectRoutes);
+test\api\projectDocumentApi.test.js:203: app.use(notFoundHandler);
+test\api\projectDocumentApi.test.js:204: app.use(globalErrorHandler);
+test\api\projectMediaApi.test.js:268: const { default: projectRoutes } =
+test\api\projectMediaApi.test.js:269: await import("../../src/routes/projectRoutes.js");
+test\api\projectMediaApi.test.js:271: const { globalErrorHandler, notFoundHandler } =
+test\api\projectMediaApi.test.js:288: app.use(express.json({ limit: "1mb" }));
+test\api\projectMediaApi.test.js:290: app.use("/api/projects", projectRoutes);
+test\api\projectMediaApi.test.js:292: app.use(notFoundHandler);
+test\api\projectMediaApi.test.js:294: app.use(globalErrorHandler);
+test\middleware\authenticationMiddleware.test.js:118: const { requireAuthentication } =
+test\middleware\authenticationMiddleware.test.js:262: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:276: assert.equal(request.auth.userId, USER_ID);
+test\middleware\authenticationMiddleware.test.js:292: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:310: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:330: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:358: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:410: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:446: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:476: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:510: await requireAuthentication(request, response, next);
+test\middleware\authenticationMiddleware.test.js:542: await requireAuthentication(request, response, next);
+test\middleware\profilePictureUploadMiddleware.test.js:30: app.use((request, response, next) => {
+test\middleware\profilePictureUploadMiddleware.test.js:110: app.use((request, response, next) => {
+test\middleware\profilePictureUploadMiddleware.test.js:173: app.use((request, response, next) => {
+test\project\projectMediaUploadMiddleware.test.js:81: app.use((error, request, response, next) => {
+test\project\projectMediaValidationMiddleware.test.js:64: app.use((error, request, response, next) => {

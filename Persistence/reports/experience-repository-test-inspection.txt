@@ -1,0 +1,1653 @@
+﻿==================================================
+FILE: test\repositories\loginRepository.test.js
+==================================================
+import assert from "node:assert/strict";
+
+import { beforeEach, describe, it, mock } from "node:test";
+
+/*
+ * =========================================
+ * Mock Database State
+ * =========================================
+ */
+
+let databaseState;
+
+function resetDatabaseState() {
+  databaseState = {
+    queryQueue: [],
+
+    executedQueries: [],
+
+    transactions: [],
+  };
+}
+
+resetDatabaseState();
+
+/*
+ * =========================================
+ * Queue SQL Result
+ * =========================================
+ */
+
+function queueQuery(expectedPattern, result) {
+  databaseState.queryQueue.push({
+    expectedPattern,
+
+    result,
+  });
+}
+
+function assertQueryQueueEmpty() {
+  assert.equal(
+    databaseState.queryQueue.length,
+    0,
+    "Not every queued SQL operation was executed.",
+  );
+}
+
+/*
+ * =========================================
+ * Mock SQL Request
+ * =========================================
+ */
+
+class MockRequest {
+  constructor(parent = null) {
+    this.parent = parent;
+    this.inputs = {};
+  }
+
+  input(name, type, value) {
+    this.inputs[name] = {
+      type,
+      value,
+    };
+
+    return this;
+  }
+
+  async query(queryText) {
+    const queued = databaseState.queryQueue.shift();
+
+    assert.ok(queued, `Unexpected SQL query:\n${queryText}`);
+
+    assert.match(queryText, queued.expectedPattern);
+
+    databaseState.executedQueries.push({
+      queryText,
+
+      inputs: this.inputs,
+
+      parent: this.parent,
+    });
+
+    if (queued.result instanceof Error) {
+      throw queued.result;
+    }
+
+    if (typeof queued.result === "function") {
+      return queued.result({
+        queryText,
+
+        inputs: this.inputs,
+
+        parent: this.parent,
+      });
+    }
+
+    return queued.result;
+  }
+}
+
+/*
+ * =========================================
+ * Mock SQL Transaction
+ * =========================================
+ */
+
+class MockTransaction {
+  constructor(pool) {
+    this.pool = pool;
+
+    this.beginCalls = [];
+    this.commitCalls = 0;
+    this.rollbackCalls = 0;
+
+    databaseState.transactions.push(this);
+  }
+
+  async begin(isolationLevel) {
+    this.beginCalls.push(isolationLevel);
+  }
+
+  async commit() {
+    this.commitCalls += 1;
+  }
+
+  async rollback() {
+    this.rollbackCalls += 1;
+  }
+}
+
+/*
+ * =========================================
+ * Mock SQL Types
+ * =========================================
+ */
+
+const sqlMock = {
+  UniqueIdentifier: "UniqueIdentifier",
+
+  Bit: "Bit",
+
+  Int: "Int",
+
+  Char(length) {
+    return `Char(${length})`;
+  },
+
+  NVarChar(length) {
+    return `NVarChar(${length})`;
+  },
+
+  DateTime2(precision) {
+    return `DateTime2(${precision})`;
+  },
+
+  Transaction: MockTransaction,
+
+  Request: MockRequest,
+
+  ISOLATION_LEVEL: {
+    SERIALIZABLE: "SERIALIZABLE",
+  },
+};
+
+/*
+ * =========================================
+ * Mock Database Pool
+ * =========================================
+ */
+
+const poolMock = {
+  request() {
+    return new MockRequest(this);
+  },
+};
+
+/*
+ * =========================================
+ * Mock Database Module
+ * =========================================
+ */
+
+mock.module("../../src/config/database.js", {
+  exports: {
+    async getDatabasePool() {
+      return poolMock;
+    },
+
+    sql: sqlMock,
+  },
+});
+
+/*
+ * =========================================
+ * Import Repository
+ * =========================================
+ */
+
+const {
+  completeLoginWithSession,
+  findUserForPasswordLogin,
+  getLoginChallengeById,
+  markLoginChallengeVerified,
+  recordFailedLoginOtpAttempt,
+  recordPasswordLoginFailure,
+  recordPasswordLoginSuccess,
+  recordUnknownPasswordLoginFailure,
+  replaceLoginChallenge,
+} = await import("../../src/repositories/loginRepository.js");
+
+/*
+ * =========================================
+ * Shared Records
+ * =========================================
+ */
+
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+
+const CHALLENGE_ID = "22222222-2222-4222-8222-222222222222";
+
+const SESSION_ID = "33333333-3333-4333-8333-333333333333";
+
+function createUserRecord(overrides = {}) {
+  return {
+    id: USER_ID,
+
+    email: "jean@example.com",
+
+    normalized_email: "jean@example.com",
+
+    password_hash: "$argon2id$test-password-hash",
+
+    email_verified_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    account_status: "active",
+
+    failed_login_count: 0,
+
+    locked_until: null,
+
+    last_login_at: null,
+
+    created_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    updated_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    ...overrides,
+  };
+}
+
+function createChallengeRecord(overrides = {}) {
+  return {
+    id: CHALLENGE_ID,
+
+    user_id: USER_ID,
+
+    pending_email: "jean@example.com",
+
+    normalized_pending_email: "jean@example.com",
+
+    purpose: "login",
+
+    code_hash: "a".repeat(64),
+
+    continuation_token_hash: null,
+
+    attempt_count: 0,
+
+    maximum_attempts: 5,
+
+    expires_at: new Date("2026-09-16T12:10:00.000Z"),
+
+    last_sent_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    verified_at: null,
+
+    consumed_at: null,
+
+    request_ip_hash: "b".repeat(64),
+
+    created_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    ...overrides,
+  };
+}
+
+function createSessionRecord(overrides = {}) {
+  return {
+    id: SESSION_ID,
+
+    user_id: USER_ID,
+
+    refresh_token_hash: "c".repeat(64),
+
+    device_name: "Chrome on Windows",
+
+    user_agent: "LoginRepositoryTest/1.0",
+
+    ip_address_hash: "d".repeat(64),
+
+    created_at: new Date("2026-09-16T12:05:00.000Z"),
+
+    last_used_at: new Date("2026-09-16T12:05:00.000Z"),
+
+    expires_at: new Date("2026-10-16T12:05:00.000Z"),
+
+    revoked_at: null,
+
+    revocation_reason: null,
+
+    ...overrides,
+  };
+}
+
+/*
+ * =========================================
+ * Tests
+ * =========================================
+ */
+
+describe("loginRepository", () => {
+  beforeEach(() => {
+    resetDatabaseState();
+  });
+
+  /*
+   * =========================================
+   * User Lookup
+   * =========================================
+   */
+
+  it("finds a user for password verification", async () => {
+    const userRecord = createUserRecord();
+
+    queueQuery(/FROM dbo\.users/, {
+      recordset: [userRecord],
+    });
+
+    const result = await findUserForPasswordLogin("jean@example.com");
+
+    assert.equal(result.id, USER_ID);
+
+    assert.equal(result.email, "jean@example.com");
+
+    assert.equal(result.passwordHash, userRecord.password_hash);
+
+    assert.equal(result.accountStatus, "active");
+
+    const query = databaseState.executedQueries[0];
+
+    assert.equal(query.inputs.normalizedEmail.value, "jean@example.com");
+
+    assertQueryQueueEmpty();
+  });
+
+  it("returns null when no login account exists", async () => {
+    queueQuery(/FROM dbo\.users/, {
+      recordset: [],
+    });
+
+    const result = await findUserForPasswordLogin("missing@example.com");
+
+    assert.equal(result, null);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Unknown User Audit
+   * =========================================
+   */
+
+  it("records a failed password attempt for an unknown email", async () => {
+    queueQuery(/INSERT INTO dbo\.login_audit_events/, {
+      recordset: [],
+    });
+
+    await recordUnknownPasswordLoginFailure({
+      email: "missing@example.com",
+
+      failureReason: "invalid_credentials",
+
+      ipAddressHash: "a".repeat(64),
+
+      userAgent: "Test Agent",
+    });
+
+    const query = databaseState.executedQueries[0];
+
+    assert.equal(query.inputs.email.value, "missing@example.com");
+
+    assert.equal(query.inputs.failureReason.value, "invalid_credentials");
+
+    assert.match(query.queryText, /password_login_failed/);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Password Failure
+   * =========================================
+   */
+
+  it("increments failed-password attempts, locks the account, audits and commits", async () => {
+    const lockedUntil = new Date("2026-09-16T12:15:00.000Z");
+
+    queueQuery(/UPDATE dbo\.users/, {
+      recordset: [
+        {
+          failed_login_count: 5,
+
+          locked_until: lockedUntil,
+        },
+      ],
+    });
+
+    queueQuery(/password_login_failed/, {
+      recordset: [],
+    });
+
+    const result = await recordPasswordLoginFailure({
+      userId: USER_ID,
+
+      email: "jean@example.com",
+
+      maximumFailures: 5,
+
+      lockMinutes: 15,
+
+      failureReason: "invalid_credentials",
+
+      ipAddressHash: "a".repeat(64),
+
+      userAgent: "Test Agent",
+    });
+
+    assert.equal(result.failedLoginCount, 5);
+
+    assert.equal(result.lockedUntil, lockedUntil);
+
+    assert.equal(result.wasLocked, true);
+
+    const transaction = databaseState.transactions[0];
+
+    assert.deepEqual(transaction.beginCalls, ["SERIALIZABLE"]);
+
+    assert.equal(transaction.commitCalls, 1);
+
+    assert.equal(transaction.rollbackCalls, 0);
+
+    const auditQuery = databaseState.executedQueries[1];
+
+    assert.equal(auditQuery.inputs.wasLocked.value, true);
+
+    assertQueryQueueEmpty();
+  });
+
+  it("rolls back a password-failure transaction when auditing fails", async () => {
+    queueQuery(/UPDATE dbo\.users/, {
+      recordset: [
+        {
+          failed_login_count: 1,
+
+          locked_until: null,
+        },
+      ],
+    });
+
+    queueQuery(/password_login_failed/, new Error("Audit insert failed"));
+
+    await assert.rejects(
+      () =>
+        recordPasswordLoginFailure({
+          userId: USER_ID,
+
+          email: "jean@example.com",
+        }),
+
+      /Audit insert failed/,
+    );
+
+    const transaction = databaseState.transactions[0];
+
+    assert.equal(transaction.commitCalls, 0);
+
+    assert.equal(transaction.rollbackCalls, 1);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Password Success
+   * =========================================
+   */
+
+  it("resets failed-password state and records password success", async () => {
+    queueQuery(/password_login_succeeded/, {
+      recordset: [],
+    });
+
+    await recordPasswordLoginSuccess({
+      userId: USER_ID,
+
+      email: "jean@example.com",
+
+      ipAddressHash: "a".repeat(64),
+
+      userAgent: "Test Agent",
+    });
+
+    const query = databaseState.executedQueries[0];
+
+    assert.match(query.queryText, /failed_login_count = 0/);
+
+    assert.match(query.queryText, /locked_until = NULL/);
+
+    assert.match(query.queryText, /password_login_succeeded/);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Login Challenge Creation
+   * =========================================
+   */
+
+  it("replaces an existing login challenge and commits", async () => {
+    const challenge = createChallengeRecord();
+
+    queueQuery(/DELETE FROM dbo\.auth_challenges/, {
+      recordset: [],
+    });
+
+    queueQuery(/INSERT INTO dbo\.auth_challenges/, {
+      recordset: [challenge],
+    });
+
+    const result = await replaceLoginChallenge({
+      id: CHALLENGE_ID,
+
+      userId: USER_ID,
+
+      email: "jean@example.com",
+
+      normalizedEmail: "jean@example.com",
+
+      codeHash: "a".repeat(64),
+
+      expiresAt: challenge.expires_at,
+
+      lastSentAt: challenge.last_sent_at,
+
+      maximumAttempts: 5,
+
+      requestIpHash: "b".repeat(64),
+
+      userAgent: "Test Agent",
+    });
+
+    assert.equal(result.id, CHALLENGE_ID);
+
+    assert.equal(result.userId, USER_ID);
+
+    assert.equal(result.purpose, "login");
+
+    const transaction = databaseState.transactions[0];
+
+    assert.equal(transaction.commitCalls, 1);
+
+    assert.equal(transaction.rollbackCalls, 0);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Challenge Lookup
+   * =========================================
+   */
+
+  it("loads a login challenge by ID", async () => {
+    const challenge = createChallengeRecord();
+
+    queueQuery(/purpose = N'login'/, {
+      recordset: [challenge],
+    });
+
+    const result = await getLoginChallengeById(CHALLENGE_ID);
+
+    assert.equal(result.id, CHALLENGE_ID);
+
+    assert.equal(result.codeHash, "a".repeat(64));
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Failed OTP
+   * =========================================
+   */
+
+  it("increments an incorrect OTP attempt, audits and commits", async () => {
+    queueQuery(/attempt_count =\s+attempt_count \+ 1/, {
+      recordset: [
+        {
+          attempt_count: 2,
+
+          maximum_attempts: 5,
+        },
+      ],
+    });
+
+    queueQuery(/login_otp_failed/, {
+      recordset: [],
+    });
+
+    const result = await recordFailedLoginOtpAttempt({
+      challengeId: CHALLENGE_ID,
+
+      userId: USER_ID,
+
+      email: "jean@example.com",
+
+      ipAddressHash: "b".repeat(64),
+
+      userAgent: "Test Agent",
+    });
+
+    assert.deepEqual(result, {
+      attemptCount: 2,
+
+      maximumAttempts: 5,
+    });
+
+    const transaction = databaseState.transactions[0];
+
+    assert.equal(transaction.commitCalls, 1);
+
+    assert.equal(transaction.rollbackCalls, 0);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * OTP Verification
+   * =========================================
+   */
+
+  it("marks a login OTP verified, audits and commits", async () => {
+    const challenge = createChallengeRecord({
+      verified_at: new Date("2026-09-16T12:03:00.000Z"),
+    });
+
+    queueQuery(/SET\s+verified_at\s*=/, {
+      recordset: [challenge],
+    });
+
+    queueQuery(/login_otp_verified/, {
+      recordset: [],
+    });
+
+    const result = await markLoginChallengeVerified({
+      challengeId: CHALLENGE_ID,
+
+      userId: USER_ID,
+
+      email: "jean@example.com",
+
+      ipAddressHash: "b".repeat(64),
+
+      userAgent: "Test Agent",
+    });
+
+    assert.equal(result.id, CHALLENGE_ID);
+
+    assert.ok(result.verifiedAt);
+
+    const transaction = databaseState.transactions[0];
+
+    assert.equal(transaction.commitCalls, 1);
+
+    assert.equal(transaction.rollbackCalls, 0);
+
+    assertQueryQueueEmpty();
+  });
+
+  /*
+   * =========================================
+   * Complete Login
+   * =========================================
+   */
+
+  it("consumes a verified challenge, creates a session, audits and commits", async () => {
+    const challenge = createChallengeRecord({
+      verified_at: new Date("2026-09-16T12:03:00.000Z"),
+    });
+
+    const user = createUserRecord();
+
+    const session = createSessionRecord();
+
+    queueQuery(/WITH \(UPDLOCK, HOLDLOCK\)/, {
+      recordset: [challenge],
+    });
+
+    queueQuery(/FROM dbo\.users/, {
+      recordset: [user],
+    });
+
+    queueQuery(/INSERT INTO dbo\.sessions/, {
+      recordset: [session],
+    });
+
+    queueQuery(/login_completed/, {
+      recordset: [],
+    });
+
+    queueQuery(/FROM dbo\.user_roles/, {
+      recordset: [
+        {
+          name: "admin",
+        },
+
+        {
+          name: "user",
+        },
+      ],
+    });
+
+    const result = await completeLoginWithSession({
+      challengeId: CHALLENGE_ID,
+
+      refreshTokenHash: session.refresh_token_hash,
+
+      deviceName: "Chrome on Windows",
+
+      userAgent: "Test Agent",
+
+      ipAddressHash: "d".repeat(64),
+
+      expiresAt: session.expires_at,
+    });
+
+    assert.equal(result.user.id, USER_ID);
+
+    assert.equal(result.user.passwordHash, user.password_hash);
+
+    assert.equal(result.session.id, SESSION_ID);
+
+    assert.deepEqual(result.roles, ["admin", "user"]);
+
+    const transaction = databaseState.transactions[0];
+
+    assert.deepEqual(transaction.beginCalls, ["SERIALIZABLE"]);
+
+    assert.equal(transaction.commitCalls, 1);
+
+    assert.equal(transaction.rollbackCalls, 0);
+
+    assertQueryQueueEmpty();
+  });
+
+  it("rolls back login completion when the verified challenge is unavailable", async () => {
+    queueQuery(/WITH \(UPDLOCK, HOLDLOCK\)/, {
+      recordset: [],
+    });
+
+    await assert.rejects(
+      () =>
+        completeLoginWithSession({
+          challengeId: CHALLENGE_ID,
+
+          refreshTokenHash: "c".repeat(64),
+
+          expiresAt: new Date("2026-10-16T12:00:00.000Z"),
+        }),
+
+      (error) => {
+        assert.equal(error.code, "LOGIN_CHALLENGE_INVALID");
+
+        assert.equal(error.status, 400);
+
+        return true;
+      },
+    );
+
+    const transaction = databaseState.transactions[0];
+
+    assert.equal(transaction.commitCalls, 0);
+
+    assert.equal(transaction.rollbackCalls, 1);
+
+    assertQueryQueueEmpty();
+  });
+});
+
+==================================================
+FILE: test\repositories\sessionRepository.test.js
+==================================================
+import assert from "node:assert/strict";
+
+import { beforeEach, describe, it, mock } from "node:test";
+
+/*
+ * =========================================
+ * Database Mock State
+ * =========================================
+ */
+
+let databaseState;
+
+function resetDatabaseState() {
+  databaseState = {
+    requests: [],
+
+    queryHandler: async () => ({
+      recordset: [],
+      rowsAffected: [],
+    }),
+  };
+}
+
+resetDatabaseState();
+
+/*
+ * =========================================
+ * Mock SQL Data Types
+ * =========================================
+ */
+
+const sqlMock = {
+  UniqueIdentifier: "UniqueIdentifier",
+
+  Bit: "Bit",
+
+  Char(length) {
+    return `Char(${length})`;
+  },
+
+  NVarChar(length) {
+    return `NVarChar(${length})`;
+  },
+
+  DateTime2(precision) {
+    return `DateTime2(${precision})`;
+  },
+
+  Int: "Int",
+};
+
+/*
+ * =========================================
+ * Mock Request
+ * =========================================
+ */
+
+class MockRequest {
+  constructor() {
+    this.inputs = {};
+
+    databaseState.requests.push(this);
+  }
+
+  input(name, type, value) {
+    this.inputs[name] = {
+      type,
+      value,
+    };
+
+    return this;
+  }
+
+  async query(queryText) {
+    this.queryText = queryText;
+
+    return databaseState.queryHandler({
+      queryText,
+
+      inputs: this.inputs,
+
+      request: this,
+    });
+  }
+}
+
+/*
+ * =========================================
+ * Mock Database Pool
+ * =========================================
+ */
+
+const poolMock = {
+  request() {
+    return new MockRequest();
+  },
+};
+
+/*
+ * =========================================
+ * Database Module Mock
+ * =========================================
+ */
+
+mock.module("../../src/config/database.js", {
+  exports: {
+    async getDatabasePool() {
+      return poolMock;
+    },
+
+    sql: sqlMock,
+  },
+});
+
+/*
+ * =========================================
+ * Import Repository
+ * =========================================
+ */
+
+const {
+  createSession,
+  deleteExpiredSessions,
+  findActiveSessionByRefreshTokenHash,
+  findSessionById,
+  listActiveUserSessions,
+  revokeAllUserSessions,
+  revokeSession,
+  revokeSessionByRefreshTokenHash,
+  rotateSessionRefreshToken,
+} = await import("../../src/repositories/sessionRepository.js");
+
+/*
+ * =========================================
+ * Test Record Factory
+ * =========================================
+ */
+
+function createSessionRecord(overrides = {}) {
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+
+    user_id: "22222222-2222-4222-8222-222222222222",
+
+    refresh_token_hash: "a".repeat(64),
+
+    device_name: "Chrome on Windows",
+
+    user_agent: "SessionRepositoryTest/1.0",
+
+    ip_address_hash: "b".repeat(64),
+
+    created_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    last_used_at: new Date("2026-09-16T12:00:00.000Z"),
+
+    expires_at: new Date("2026-10-16T12:00:00.000Z"),
+
+    revoked_at: null,
+
+    revocation_reason: null,
+
+    ...overrides,
+  };
+}
+
+/*
+ * =========================================
+ * Tests
+ * =========================================
+ */
+
+describe("sessionRepository", () => {
+  beforeEach(() => {
+    resetDatabaseState();
+  });
+
+  /*
+   * =========================================
+   * Create Session
+   * =========================================
+   */
+
+  it("creates and maps a session", async () => {
+    const record = createSessionRecord();
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /INSERT INTO dbo\.sessions/);
+
+      assert.equal(inputs.userId.value, record.user_id);
+
+      assert.equal(inputs.refreshTokenHash.value, record.refresh_token_hash);
+
+      assert.equal(inputs.deviceName.value, "Chrome on Windows");
+
+      assert.equal(inputs.userAgent.value, "Test User Agent");
+
+      return {
+        recordset: [record],
+      };
+    };
+
+    const result = await createSession({
+      userId: record.user_id,
+
+      refreshTokenHash: record.refresh_token_hash,
+
+      deviceName: "Chrome on Windows",
+
+      userAgent: "Test User Agent",
+
+      ipAddressHash: record.ip_address_hash,
+
+      expiresAt: record.expires_at,
+    });
+
+    assert.equal(result.id, record.id);
+
+    assert.equal(result.userId, record.user_id);
+
+    assert.equal(result.refreshTokenHash, record.refresh_token_hash);
+
+    assert.equal(result.deviceName, record.device_name);
+
+    assert.equal(result.revokedAt, null);
+  });
+
+  /*
+   * =========================================
+   * Active Session Lookup
+   * =========================================
+   */
+
+  it("finds an active session with its user and unique roles", async () => {
+    const sessionRecord = createSessionRecord({
+      email: "jean@example.com",
+
+      normalized_email: "jean@example.com",
+
+      email_verified_at: new Date("2026-09-16T11:00:00.000Z"),
+
+      account_status: "active",
+
+      locked_until: null,
+    });
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /INNER JOIN dbo\.users/);
+
+      assert.match(queryText, /session_record\.revoked_at IS NULL/);
+
+      assert.equal(inputs.refreshTokenHash.value, "c".repeat(64));
+
+      return {
+        recordset: [
+          {
+            ...sessionRecord,
+
+            role_name: "user",
+          },
+
+          {
+            ...sessionRecord,
+
+            role_name: "user",
+          },
+
+          {
+            ...sessionRecord,
+
+            role_name: "admin",
+          },
+        ],
+      };
+    };
+
+    const result = await findActiveSessionByRefreshTokenHash("c".repeat(64));
+
+    assert.ok(result);
+
+    assert.equal(result.session.id, sessionRecord.id);
+
+    assert.equal(result.user.email, "jean@example.com");
+
+    assert.equal(result.user.accountStatus, "active");
+
+    assert.deepEqual(result.roles, ["user", "admin"]);
+  });
+
+  it("returns null when no active session matches the refresh-token hash", async () => {
+    databaseState.queryHandler = async () => ({
+      recordset: [],
+    });
+
+    const result = await findActiveSessionByRefreshTokenHash("d".repeat(64));
+
+    assert.equal(result, null);
+  });
+
+  /*
+   * =========================================
+   * Session ID Lookup
+   * =========================================
+   */
+
+  it("finds a session only for its owner", async () => {
+    const record = createSessionRecord();
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /id = @sessionId/);
+
+      assert.match(queryText, /user_id = @userId/);
+
+      assert.equal(inputs.sessionId.value, record.id);
+
+      assert.equal(inputs.userId.value, record.user_id);
+
+      return {
+        recordset: [record],
+      };
+    };
+
+    const result = await findSessionById({
+      sessionId: record.id,
+
+      userId: record.user_id,
+    });
+
+    assert.equal(result.id, record.id);
+
+    assert.equal(result.userId, record.user_id);
+  });
+
+  /*
+   * =========================================
+   * Refresh-Token Rotation
+   * =========================================
+   */
+
+  it("rotates an active session refresh token", async () => {
+    const currentHash = "e".repeat(64);
+
+    const newHash = "f".repeat(64);
+
+    const newExpiration = new Date("2026-11-16T12:00:00.000Z");
+
+    const rotatedRecord = createSessionRecord({
+      refresh_token_hash: newHash,
+
+      expires_at: newExpiration,
+
+      last_used_at: new Date("2026-09-16T13:00:00.000Z"),
+    });
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /UPDATE dbo\.sessions/);
+
+      assert.match(
+        queryText,
+        /refresh_token_hash =\s+@currentRefreshTokenHash/,
+      );
+
+      assert.match(queryText, /revoked_at IS NULL/);
+
+      assert.equal(inputs.currentRefreshTokenHash.value, currentHash);
+
+      assert.equal(inputs.newRefreshTokenHash.value, newHash);
+
+      assert.equal(inputs.newExpiresAt.value, newExpiration);
+
+      return {
+        recordset: [rotatedRecord],
+      };
+    };
+
+    const result = await rotateSessionRefreshToken({
+      sessionId: rotatedRecord.id,
+
+      currentRefreshTokenHash: currentHash,
+
+      newRefreshTokenHash: newHash,
+
+      newExpiresAt: newExpiration,
+
+      ipAddressHash: "1".repeat(64),
+
+      userAgent: "Updated User Agent",
+    });
+
+    assert.equal(result.refreshTokenHash, newHash);
+
+    assert.equal(result.expiresAt, newExpiration);
+  });
+
+  it("returns null when refresh-token rotation loses a concurrency race", async () => {
+    databaseState.queryHandler = async () => ({
+      recordset: [],
+    });
+
+    const result = await rotateSessionRefreshToken({
+      sessionId: "11111111-1111-4111-8111-111111111111",
+
+      currentRefreshTokenHash: "a".repeat(64),
+
+      newRefreshTokenHash: "b".repeat(64),
+
+      newExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    assert.equal(result, null);
+  });
+
+  /*
+   * =========================================
+   * List Sessions
+   * =========================================
+   */
+
+  it("lists active sessions in repository order", async () => {
+    const first = createSessionRecord({
+      id: "11111111-1111-4111-8111-111111111111",
+
+      device_name: "Chrome on Windows",
+    });
+
+    const second = createSessionRecord({
+      id: "33333333-3333-4333-8333-333333333333",
+
+      device_name: "Safari on iPhone",
+    });
+
+    databaseState.queryHandler = async ({ queryText }) => {
+      assert.match(queryText, /ORDER BY last_used_at DESC/);
+
+      return {
+        recordset: [first, second],
+      };
+    };
+
+    const result = await listActiveUserSessions(first.user_id);
+
+    assert.equal(result.length, 2);
+
+    assert.equal(result[0].deviceName, "Chrome on Windows");
+
+    assert.equal(result[1].deviceName, "Safari on iPhone");
+  });
+
+  /*
+   * =========================================
+   * Revoke Sessions
+   * =========================================
+   */
+
+  it("revokes one session owned by a user", async () => {
+    const revokedRecord = createSessionRecord({
+      revoked_at: new Date("2026-09-16T14:00:00.000Z"),
+
+      revocation_reason: "user_revoked",
+    });
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /UPDATE dbo\.sessions/);
+
+      assert.match(queryText, /user_id = @userId/);
+
+      assert.equal(inputs.reason.value, "user_revoked");
+
+      return {
+        recordset: [revokedRecord],
+      };
+    };
+
+    const result = await revokeSession({
+      sessionId: revokedRecord.id,
+
+      userId: revokedRecord.user_id,
+
+      reason: "user_revoked",
+    });
+
+    assert.equal(result.revocationReason, "user_revoked");
+
+    assert.ok(result.revokedAt);
+  });
+
+  it("revokes the session matching a refresh-token hash", async () => {
+    const tokenHash = "9".repeat(64);
+
+    const revokedRecord = createSessionRecord({
+      refresh_token_hash: tokenHash,
+
+      revoked_at: new Date(),
+
+      revocation_reason: "logout",
+    });
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /refresh_token_hash =\s+@refreshTokenHash/);
+
+      assert.equal(inputs.refreshTokenHash.value, tokenHash);
+
+      return {
+        recordset: [revokedRecord],
+      };
+    };
+
+    const result = await revokeSessionByRefreshTokenHash({
+      refreshTokenHash: tokenHash,
+
+      reason: "logout",
+    });
+
+    assert.equal(result.revocationReason, "logout");
+  });
+
+  it("revokes all user sessions except an optional current session", async () => {
+    const userId = "22222222-2222-4222-8222-222222222222";
+
+    const exceptSessionId = "11111111-1111-4111-8111-111111111111";
+
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /@exceptSessionId IS NULL/);
+
+      assert.equal(inputs.userId.value, userId);
+
+      assert.equal(inputs.exceptSessionId.value, exceptSessionId);
+
+      return {
+        recordset: [
+          {
+            revoked_count: 3,
+          },
+        ],
+      };
+    };
+
+    const result = await revokeAllUserSessions({
+      userId,
+
+      reason: "password_changed",
+
+      exceptSessionId,
+    });
+
+    assert.equal(result, 3);
+  });
+
+  /*
+   * =========================================
+   * Cleanup
+   * =========================================
+   */
+
+  it("deletes sessions beyond the retention period", async () => {
+    databaseState.queryHandler = async ({ queryText, inputs }) => {
+      assert.match(queryText, /DELETE FROM dbo\.sessions/);
+
+      assert.match(queryText, /DATEADD/);
+
+      assert.equal(inputs.retentionDays.value, 30);
+
+      return {
+        recordset: [
+          {
+            deleted_count: 7,
+          },
+        ],
+      };
+    };
+
+    const result = await deleteExpiredSessions({
+      retentionDays: 30,
+    });
+
+    assert.equal(result, 7);
+  });
+});
+
+==================================================
+FILE: test\services\projectService.test.js
+==================================================
+import test, { mock, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+const projectId = "project-550e8400-e29b-41d4-a716-446655440000";
+const userId = "550e8400-e29b-41d4-a716-446655440001";
+const version = Buffer.alloc(8, 1).toString("base64");
+
+const calls = [];
+let storedProject = null;
+let updateResult = undefined;
+let deleteResult = true;
+
+function validProject() {
+  return {
+    id: projectId,
+    title: "SmartSwitch Configurator",
+    role: "Full-stack Developer",
+    category: "web-application",
+    lifecycleStatus: "in-progress",
+    recordStatus: "active",
+    dates: {
+      startDate: "2026-10-01",
+      endDate: "",
+      isCurrent: true,
+    },
+    presentation: { isFeatured: false },
+  };
+}
+
+mock.module("../../src/repositories/projectRepository.js", {
+  namedExports: {
+    listProjectsByUser: async (owner) => {
+      calls.push(["list", owner]);
+      return storedProject ? [storedProject] : [];
+    },
+
+    findProjectById: async (owner, id) => {
+      calls.push(["find", owner, id]);
+      return storedProject;
+    },
+
+    createProject: async (owner, project) => {
+      calls.push(["create", owner, project]);
+      return project;
+    },
+
+    updateProject: async (owner, project, rowVersion) => {
+      calls.push(["update", owner, project, rowVersion]);
+      return updateResult === undefined ? project : updateResult;
+    },
+
+    deleteProject: async (owner, id, rowVersion) => {
+      calls.push(["delete", owner, id, rowVersion]);
+      return Boolean(storedProject) && deleteResult;
+    },
+  },
+});
+
+const {
+  createAuthenticatedProject,
+  updateAuthenticatedProject,
+  setAuthenticatedProjectArchiveStatus,
+  deleteAuthenticatedProject,
+} = await import("../../src/services/Service/projectService.js");
+
+beforeEach(() => {
+  calls.length = 0;
+  storedProject = null;
+  updateResult = undefined;
+  deleteResult = true;
+});
+
+test("create validates before calling repository", async () => {
+  const project = validProject();
+  project.title = "";
+
+  await assert.rejects(
+    createAuthenticatedProject({ userId, project }),
+    (error) => error.code === "PROJECT_VALIDATION_FAILED",
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("create passes a validated Project and authenticated owner", async () => {
+  const project = validProject();
+
+  await createAuthenticatedProject({ userId, project });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], "create");
+  assert.equal(calls[0][1], userId);
+  assert.equal(calls[0][2].id, projectId);
+});
+
+test("create rejects client-supplied timestamps", async () => {
+  const project = validProject();
+  project.createdAt = "2020-01-01T00:00:00.000Z";
+
+  await assert.rejects(
+    createAuthenticatedProject({ userId, project }),
+    (error) => error.code === "PROJECT_VALIDATION_FAILED",
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("update rejects mismatched body and URL IDs", async () => {
+  const project = validProject();
+
+  await assert.rejects(
+    updateAuthenticatedProject({
+      userId,
+      projectId: "project-other",
+      project,
+      rowVersion: version,
+    }),
+    (error) => error.code === "PROJECT_ID_MISMATCH",
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("update preserves the caller's row version", async () => {
+  storedProject = {
+    ...validProject(),
+    rowVersion: Buffer.alloc(8, 2).toString("base64"),
+  };
+
+  await updateAuthenticatedProject({
+    userId,
+    projectId,
+    project: validProject(),
+    rowVersion: version,
+  });
+
+  const updateCall = calls.find(([name]) => name === "update");
+
+  assert.ok(updateCall);
+  assert.equal(updateCall[1], userId);
+  assert.equal(updateCall[3], version);
+});
+
+test("update returns a conflict when repository rejects stale version", async () => {
+  storedProject = validProject();
+  updateResult = null;
+
+  await assert.rejects(
+    updateAuthenticatedProject({
+      userId,
+      projectId,
+      project: validProject(),
+      rowVersion: version,
+    }),
+    (error) =>
+      error.code === "PROJECT_VERSION_CONFLICT" &&
+      error.status === 409,
+  );
+});
+
+test("archive strips database-managed metadata", async () => {
+  storedProject = {
+    ...validProject(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    rowVersion: version,
+    userId,
+  };
+
+  await setAuthenticatedProjectArchiveStatus({
+    userId,
+    projectId,
+    rowVersion: version,
+    archived: true,
+  });
+
+  const updateCall = calls.find(([name]) => name === "update");
+
+  assert.ok(updateCall);
+
+  const saved = updateCall[2];
+
+  assert.equal(saved.recordStatus, "archived");
+  assert.equal(Object.hasOwn(saved, "createdAt"), false);
+  assert.equal(Object.hasOwn(saved, "updatedAt"), false);
+  assert.equal(Object.hasOwn(saved, "rowVersion"), false);
+  assert.equal(Object.hasOwn(saved, "userId"), false);
+  assert.equal(updateCall[3], version);
+});
+
+test("archive rejects a non-boolean status", async () => {
+  await assert.rejects(
+    setAuthenticatedProjectArchiveStatus({
+      userId,
+      projectId,
+      rowVersion: version,
+      archived: "yes",
+    }),
+    (error) => error.code === "PROJECT_ARCHIVE_STATUS_INVALID",
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("delete is scoped to authenticated user and row version", async () => {
+  storedProject = validProject();
+
+  const result = await deleteAuthenticatedProject({
+    userId,
+    projectId,
+    rowVersion: version,
+  });
+
+  assert.deepEqual(result, { deleted: true });
+
+  assert.deepEqual(
+    calls.find(([name]) => name === "delete"),
+    ["delete", userId, projectId, version],
+  );
+});
+
+test("delete returns not found when Project is inaccessible", async () => {
+  await assert.rejects(
+    deleteAuthenticatedProject({
+      userId,
+      projectId,
+      rowVersion: version,
+    }),
+    (error) => error.code === "PROJECT_NOT_FOUND",
+  );
+
+  assert.equal(
+    calls.some(([name]) => name === "delete"),
+    false,
+  );
+});
+
+test("delete rejects missing row version before database access", async () => {
+  await assert.rejects(
+    deleteAuthenticatedProject({ userId, projectId }),
+    (error) => error.code === "PROJECT_VALIDATION_FAILED",
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("delete returns conflict when row version is stale", async () => {
+  storedProject = validProject();
+  deleteResult = false;
+
+  await assert.rejects(
+    deleteAuthenticatedProject({
+      userId,
+      projectId,
+      rowVersion: version,
+    }),
+    (error) =>
+      error.code === "PROJECT_VERSION_CONFLICT" &&
+      error.status === 409,
+  );
+});
+
+
