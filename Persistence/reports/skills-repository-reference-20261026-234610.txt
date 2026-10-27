@@ -1,0 +1,1197 @@
+﻿
+==========================================================================================
+FILE: backend\src\repositories\experienceRepository.js
+==========================================================================================
+Size: 4589 bytes
+
+    1: import { getDatabasePool, sql } from "../config/database.js";
+    2: 
+    3: const EXPERIENCE_COLUMNS = `
+    4:   id,
+    5:   user_id,
+    6:   position_title,
+    7:   organization_name,
+    8:   category,
+    9:   record_status,
+   10:   experience_data,
+   11:   created_at,
+   12:   updated_at,
+   13:   row_version
+   14: `;
+   15: 
+   16: function mapExperienceRow(row) {
+   17:   if (!row) {
+   18:     return null;
+   19:   }
+   20: 
+   21:   const experienceData =
+   22:     typeof row.experience_data === "string"
+   23:       ? JSON.parse(row.experience_data)
+   24:       : row.experience_data;
+   25: 
+   26:   if (
+   27:     !experienceData ||
+   28:     typeof experienceData !== "object" ||
+   29:     Array.isArray(experienceData)
+   30:   ) {
+   31:     throw new Error("Stored Experience data is invalid.");
+   32:   }
+   33: 
+   34:   return {
+   35:     ...experienceData,
+   36: 
+   37:     // Database columns are authoritative.
+   38:     id: row.id,
+   39:     position: {
+   40:       ...(experienceData.position || {}),
+   41:       title: row.position_title,
+   42:     },
+   43:     organization: {
+   44:       ...(experienceData.organization || {}),
+   45:       name: row.organization_name,
+   46:     },
+   47:     category: row.category,
+   48:     status: row.record_status,
+   49: 
+   50:     createdAt: row.created_at,
+   51:     updatedAt: row.updated_at,
+   52:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+   53:   };
+   54: }
+   55: 
+   56: function bindExperienceParameters(request, userId, experience) {
+   57:   return request
+   58:     .input("id", sql.NVarChar(200), experience.id)
+   59:     .input("userId", sql.UniqueIdentifier, userId)
+   60:     .input(
+   61:       "positionTitle",
+   62:       sql.NVarChar(200),
+   63:       experience.position.title,
+   64:     )
+   65:     .input(
+   66:       "organizationName",
+   67:       sql.NVarChar(200),
+   68:       experience.organization.name,
+   69:     )
+   70:     .input("category", sql.NVarChar(50), experience.category)
+   71:     .input("recordStatus", sql.NVarChar(20), experience.status)
+   72:     .input(
+   73:       "experienceData",
+   74:       sql.NVarChar(sql.MAX),
+   75:       JSON.stringify(experience),
+   76:     );
+   77: }
+   78: 
+   79: export async function listExperiencesByUser(userId) {
+   80:   const pool = await getDatabasePool();
+   81: 
+   82:   const result = await pool
+   83:     .request()
+   84:     .input("userId", sql.UniqueIdentifier, userId)
+   85:     .query(`
+   86:       SELECT ${EXPERIENCE_COLUMNS}
+   87:       FROM dbo.experiences
+   88:       WHERE user_id = @userId
+   89:       ORDER BY updated_at DESC, id ASC;
+   90:     `);
+   91: 
+   92:   return result.recordset.map(mapExperienceRow);
+   93: }
+   94: 
+   95: export async function findExperienceById(userId, experienceId) {
+   96:   const pool = await getDatabasePool();
+   97: 
+   98:   const result = await pool
+   99:     .request()
+  100:     .input("userId", sql.UniqueIdentifier, userId)
+  101:     .input("id", sql.NVarChar(200), experienceId)
+  102:     .query(`
+  103:       SELECT ${EXPERIENCE_COLUMNS}
+  104:       FROM dbo.experiences
+  105:       WHERE user_id = @userId
+  106:         AND id = @id;
+  107:     `);
+  108: 
+  109:   return mapExperienceRow(result.recordset[0]);
+  110: }
+  111: 
+  112: export async function createExperience(userId, experience) {
+  113:   const pool = await getDatabasePool();
+  114: 
+  115:   await bindExperienceParameters(
+  116:     pool.request(),
+  117:     userId,
+  118:     experience,
+  119:   ).query(`
+  120:     INSERT INTO dbo.experiences (
+  121:       id,
+  122:       user_id,
+  123:       position_title,
+  124:       organization_name,
+  125:       category,
+  126:       record_status,
+  127:       experience_data
+  128:     )
+  129:     VALUES (
+  130:       @id,
+  131:       @userId,
+  132:       @positionTitle,
+  133:       @organizationName,
+  134:       @category,
+  135:       @recordStatus,
+  136:       @experienceData
+  137:     );
+  138:   `);
+  139: 
+  140:   return findExperienceById(userId, experience.id);
+  141: }
+  142: 
+  143: export async function updateExperience(
+  144:   userId,
+  145:   experience,
+  146:   expectedRowVersion,
+  147: ) {
+  148:   const pool = await getDatabasePool();
+  149: 
+  150:   const request = bindExperienceParameters(
+  151:     pool.request(),
+  152:     userId,
+  153:     experience,
+  154:   ).input(
+  155:     "expectedRowVersion",
+  156:     sql.Binary(8),
+  157:     Buffer.from(expectedRowVersion, "base64"),
+  158:   );
+  159: 
+  160:   const result = await request.query(`
+  161:     UPDATE dbo.experiences
+  162:     SET
+  163:       position_title = @positionTitle,
+  164:       organization_name = @organizationName,
+  165:       category = @category,
+  166:       record_status = @recordStatus,
+  167:       experience_data = @experienceData,
+  168:       updated_at = SYSUTCDATETIME()
+  169:     WHERE id = @id
+  170:       AND user_id = @userId
+  171:       AND row_version = @expectedRowVersion;
+  172:   `);
+  173: 
+  174:   if (result.rowsAffected[0] === 0) {
+  175:     return null;
+  176:   }
+  177: 
+  178:   return findExperienceById(userId, experience.id);
+  179: }
+  180: 
+  181: export async function deleteExperience(
+  182:   userId,
+  183:   experienceId,
+  184:   expectedRowVersion,
+  185: ) {
+  186:   const pool = await getDatabasePool();
+  187: 
+  188:   const result = await pool
+  189:     .request()
+  190:     .input("userId", sql.UniqueIdentifier, userId)
+  191:     .input("id", sql.NVarChar(200), experienceId)
+  192:     .input(
+  193:       "expectedRowVersion",
+  194:       sql.Binary(8),
+  195:       Buffer.from(expectedRowVersion, "base64"),
+  196:     )
+  197:     .query(`
+  198:       DELETE FROM dbo.experiences
+  199:       WHERE id = @id
+  200:         AND user_id = @userId
+  201:         AND row_version = @expectedRowVersion;
+  202:     `);
+  203: 
+  204:   return result.rowsAffected[0] > 0;
+  205: }
+
+==========================================================================================
+FILE: backend\src\repositories\skillRepository.js
+==========================================================================================
+Size: 0 bytes
+
+
+==========================================================================================
+FILE: backend\src\services\Service\experienceService.js
+==========================================================================================
+Size: 6508 bytes
+
+    1: import {
+    2:   listExperiencesByUser,
+    3:   findExperienceById,
+    4:   createExperience,
+    5:   updateExperience,
+    6:   deleteExperience,
+    7: } from "../../repositories/experienceRepository.js";
+    8: 
+    9: import {
+   10:   parseExperienceInput,
+   11:   parseExperienceRowVersion,
+   12: } from "../../schemas/experienceSchemas.js";
+   13: 
+   14: const SERVER_OWNED_FIELDS = [
+   15:   "userId",
+   16:   "user_id",
+   17:   "createdAt",
+   18:   "updatedAt",
+   19:   "rowVersion",
+   20:   "recordStatus",
+   21:   "record_status",
+   22: ];
+   23: 
+   24: function createExperienceError({
+   25:   message,
+   26:   code,
+   27:   status,
+   28:   publicMessage,
+   29: }) {
+   30:   const error = new Error(message);
+   31: 
+   32:   error.name = "ExperienceServiceError";
+   33:   error.code = code;
+   34:   error.status = status;
+   35:   error.publicMessage = publicMessage;
+   36: 
+   37:   return error;
+   38: }
+   39: 
+   40: function assertUserId(userId) {
+   41:   if (typeof userId !== "string" || !userId.trim()) {
+   42:     throw createExperienceError({
+   43:       message: "An authenticated user ID is required.",
+   44:       code: "EXPERIENCE_AUTHENTICATION_REQUIRED",
+   45:       status: 401,
+   46:       publicMessage:
+   47:         "You must sign in to access your Experiences.",
+   48:     });
+   49:   }
+   50: 
+   51:   return userId.trim();
+   52: }
+   53: 
+   54: function assertExperienceId(experienceId) {
+   55:   if (
+   56:     typeof experienceId !== "string" ||
+   57:     !experienceId.trim() ||
+   58:     experienceId.length > 200
+   59:   ) {
+   60:     throw createExperienceError({
+   61:       message: "A valid Experience ID is required.",
+   62:       code: "EXPERIENCE_ID_INVALID",
+   63:       status: 400,
+   64:       publicMessage: "The Experience identifier is invalid.",
+   65:     });
+   66:   }
+   67: 
+   68:   return experienceId.trim();
+   69: }
+   70: 
+   71: function experienceNotFound() {
+   72:   return createExperienceError({
+   73:     message: "Experience not found for authenticated user.",
+   74:     code: "EXPERIENCE_NOT_FOUND",
+   75:     status: 404,
+   76:     publicMessage:
+   77:       "The requested Experience could not be found.",
+   78:   });
+   79: }
+   80: 
+   81: function experienceVersionConflict() {
+   82:   return createExperienceError({
+   83:     message: "Experience version conflict.",
+   84:     code: "EXPERIENCE_VERSION_CONFLICT",
+   85:     status: 409,
+   86:     publicMessage:
+   87:       "This Experience was changed elsewhere. Reload it before saving.",
+   88:   });
+   89: }
+   90: 
+   91: function experienceIdMismatch() {
+   92:   return createExperienceError({
+   93:     message:
+   94:       "The Experience body ID does not match the requested Experience ID.",
+   95:     code: "EXPERIENCE_ID_MISMATCH",
+   96:     status: 400,
+   97:     publicMessage:
+   98:       "The Experience identifiers do not match.",
+   99:   });
+  100: }
+  101: 
+  102: function withoutServerFields(experience) {
+  103:   const result = { ...experience };
+  104: 
+  105:   for (const field of SERVER_OWNED_FIELDS) {
+  106:     delete result[field];
+  107:   }
+  108: 
+  109:   return result;
+  110: }
+  111: 
+  112: export async function getAuthenticatedExperiences({ userId }) {
+  113:   return listExperiencesByUser(assertUserId(userId));
+  114: }
+  115: 
+  116: export async function getAuthenticatedExperience({
+  117:   userId,
+  118:   experienceId,
+  119: }) {
+  120:   const experience = await findExperienceById(
+  121:     assertUserId(userId),
+  122:     assertExperienceId(experienceId),
+  123:   );
+  124: 
+  125:   if (!experience) {
+  126:     throw experienceNotFound();
+  127:   }
+  128: 
+  129:   return experience;
+  130: }
+  131: 
+  132: export async function createAuthenticatedExperience({
+  133:   userId,
+  134:   experience,
+  135: }) {
+  136:   const authenticatedUserId = assertUserId(userId);
+  137: 
+  138:   // Reject invalid client data before accessing the database.
+  139:   const validatedExperience = parseExperienceInput(experience);
+  140: 
+  141:   try {
+  142:     return await createExperience(
+  143:       authenticatedUserId,
+  144:       validatedExperience,
+  145:     );
+  146:   } catch (error) {
+  147:     if (error.number === 2627 || error.number === 2601) {
+  148:       throw createExperienceError({
+  149:         message: "Experience ID already exists.",
+  150:         code: "EXPERIENCE_ALREADY_EXISTS",
+  151:         status: 409,
+  152:         publicMessage:
+  153:           "An Experience with this identifier already exists.",
+  154:       });
+  155:     }
+  156: 
+  157:     throw error;
+  158:   }
+  159: }
+  160: 
+  161: export async function updateAuthenticatedExperience({
+  162:   userId,
+  163:   experienceId,
+  164:   experience,
+  165:   rowVersion,
+  166: }) {
+  167:   const authenticatedUserId = assertUserId(userId);
+  168:   const normalizedExperienceId = assertExperienceId(experienceId);
+  169: 
+  170:   const expectedRowVersion =
+  171:     parseExperienceRowVersion(rowVersion);
+  172: 
+  173:   const validatedExperience =
+  174:     parseExperienceInput(experience);
+  175: 
+  176:   if (validatedExperience.id !== normalizedExperienceId) {
+  177:     throw experienceIdMismatch();
+  178:   }
+  179: 
+  180:   const existingExperience = await findExperienceById(
+  181:     authenticatedUserId,
+  182:     normalizedExperienceId,
+  183:   );
+  184: 
+  185:   if (!existingExperience) {
+  186:     throw experienceNotFound();
+  187:   }
+  188: 
+  189:   const updatedExperience = await updateExperience(
+  190:     authenticatedUserId,
+  191:     validatedExperience,
+  192:     expectedRowVersion,
+  193:   );
+  194: 
+  195:   if (!updatedExperience) {
+  196:     throw experienceVersionConflict();
+  197:   }
+  198: 
+  199:   return updatedExperience;
+  200: }
+  201: 
+  202: export async function setAuthenticatedExperienceArchiveStatus({
+  203:   userId,
+  204:   experienceId,
+  205:   rowVersion,
+  206:   archived,
+  207: }) {
+  208:   const authenticatedUserId = assertUserId(userId);
+  209:   const normalizedExperienceId = assertExperienceId(experienceId);
+  210: 
+  211:   const expectedRowVersion =
+  212:     parseExperienceRowVersion(rowVersion);
+  213: 
+  214:   if (typeof archived !== "boolean") {
+  215:     throw createExperienceError({
+  216:       message: "Archive status must be a boolean.",
+  217:       code: "EXPERIENCE_ARCHIVE_STATUS_INVALID",
+  218:       status: 400,
+  219:       publicMessage: "A valid archive status is required.",
+  220:     });
+  221:   }
+  222: 
+  223:   const existingExperience = await findExperienceById(
+  224:     authenticatedUserId,
+  225:     normalizedExperienceId,
+  226:   );
+  227: 
+  228:   if (!existingExperience) {
+  229:     throw experienceNotFound();
+  230:   }
+  231: 
+  232:   // Preserve editable Experience content while removing
+  233:   // database-managed metadata.
+  234:   const editableExperience =
+  235:     withoutServerFields(existingExperience);
+  236: 
+  237:   const validatedExperience = parseExperienceInput({
+  238:     ...editableExperience,
+  239:     status: archived ? "archived" : "active",
+  240:   });
+  241: 
+  242:   // Always use the caller's version for concurrency checks.
+  243:   const updatedExperience = await updateExperience(
+  244:     authenticatedUserId,
+  245:     validatedExperience,
+  246:     expectedRowVersion,
+  247:   );
+  248: 
+  249:   if (!updatedExperience) {
+  250:     throw experienceVersionConflict();
+  251:   }
+  252: 
+  253:   return updatedExperience;
+  254: }
+  255: 
+  256: export async function deleteAuthenticatedExperience({
+  257:   userId,
+  258:   experienceId,
+  259:   rowVersion,
+  260: }) {
+  261:   const authenticatedUserId = assertUserId(userId);
+  262:   const normalizedExperienceId = assertExperienceId(experienceId);
+  263: 
+  264:   const expectedRowVersion =
+  265:     parseExperienceRowVersion(rowVersion);
+  266: 
+  267:   const existingExperience = await findExperienceById(
+  268:     authenticatedUserId,
+  269:     normalizedExperienceId,
+  270:   );
+  271: 
+  272:   if (!existingExperience) {
+  273:     throw experienceNotFound();
+  274:   }
+  275: 
+  276:   const deleted = await deleteExperience(
+  277:     authenticatedUserId,
+  278:     normalizedExperienceId,
+  279:     expectedRowVersion,
+  280:   );
+  281: 
+  282:   if (!deleted) {
+  283:     throw experienceVersionConflict();
+  284:   }
+  285: 
+  286:   return { deleted: true };
+  287: }
+
+==========================================================================================
+FILE: backend\src\schemas\skillSchemas.js
+==========================================================================================
+Size: 10657 bytes
+
+    1: import { z } from "zod";
+    2: 
+    3: /*
+    4:  * =========================================
+    5:  * Supported Values
+    6:  * =========================================
+    7:  */
+    8: 
+    9: export const SKILL_CATEGORY_VALUES = [
+   10:   "programming-languages",
+   11:   "software-development",
+   12:   "web-development",
+   13:   "mobile-development",
+   14:   "databases",
+   15:   "data-ai",
+   16:   "cloud-devops",
+   17:   "cybersecurity",
+   18:   "networking",
+   19:   "it-infrastructure",
+   20:   "hardware-electronics",
+   21:   "embedded-iot",
+   22:   "tools-platforms",
+   23:   "project-management",
+   24:   "leadership",
+   25:   "communication",
+   26:   "business",
+   27:   "design",
+   28:   "research-academic",
+   29:   "language",
+   30:   "industry-knowledge",
+   31:   "interpersonal",
+   32:   "other",
+   33: ];
+   34: 
+   35: export const SKILL_TYPE_VALUES = [
+   36:   "technical",
+   37:   "professional",
+   38:   "interpersonal",
+   39:   "leadership",
+   40:   "language",
+   41:   "domain",
+   42:   "tool",
+   43:   "other",
+   44: ];
+   45: 
+   46: export const SKILL_PROFICIENCY_VALUES = [
+   47:   "",
+   48:   "foundational",
+   49:   "intermediate",
+   50:   "advanced",
+   51:   "expert",
+   52: ];
+   53: 
+   54: export const LANGUAGE_PROFICIENCY_VALUES = [
+   55:   "",
+   56:   "basic",
+   57:   "conversational",
+   58:   "professional-working",
+   59:   "full-professional",
+   60:   "native-bilingual",
+   61: ];
+   62: 
+   63: export const SKILL_SOURCE_VALUES = [
+   64:   "manual",
+   65:   "ai-suggested",
+   66:   "imported",
+   67:   "migration",
+   68: ];
+   69: 
+   70: export const SKILL_STATUS_VALUES = ["active", "archived"];
+   71: 
+   72: /*
+   73:  * =========================================
+   74:  * Primitive Schemas
+   75:  * =========================================
+   76:  */
+   77: 
+   78: const skillIdSchema = z
+   79:   .string()
+   80:   .trim()
+   81:   .min(1, "A skill ID is required.")
+   82:   .max(200, "Skill ID cannot exceed 200 characters.");
+   83: 
+   84: const skillNameSchema = z
+   85:   .string()
+   86:   .trim()
+   87:   .min(2, "Skill name must contain at least two characters.")
+   88:   .max(150, "Skill name cannot exceed 150 characters.")
+   89:   .refine(
+   90:     (value) => /[\p{L}\p{N}]/u.test(value),
+   91:     "Skill name must contain letters or numbers.",
+   92:   );
+   93: 
+   94: const aliasSchema = z
+   95:   .string()
+   96:   .trim()
+   97:   .min(1, "Skill alias cannot be empty.")
+   98:   .max(150, "Skill alias cannot exceed 150 characters.");
+   99: 
+  100: const yearMonthSchema = z
+  101:   .string()
+  102:   .trim()
+  103:   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Enter a valid month and year.");
+  104: 
+  105: const optionalYearMonthSchema = z.union([z.literal(""), yearMonthSchema]);
+  106: 
+  107: const nullableYearsSchema = z
+  108:   .union([z.number(), z.string().trim(), z.null()])
+  109:   .transform((value, context) => {
+  110:     if (value === "" || value === null) {
+  111:       return null;
+  112:     }
+  113: 
+  114:     const numericValue = Number(value);
+  115: 
+  116:     if (!Number.isFinite(numericValue)) {
+  117:       context.addIssue({
+  118:         code: z.ZodIssueCode.custom,
+  119:         message: "Years of experience must be a number.",
+  120:       });
+  121: 
+  122:       return z.NEVER;
+  123:     }
+  124: 
+  125:     if (numericValue < 0 || numericValue > 80) {
+  126:       context.addIssue({
+  127:         code: z.ZodIssueCode.custom,
+  128:         message: "Years of experience must be between zero and 80.",
+  129:       });
+  130: 
+  131:       return z.NEVER;
+  132:     }
+  133: 
+  134:     if (Math.round(numericValue * 10) !== numericValue * 10) {
+  135:       context.addIssue({
+  136:         code: z.ZodIssueCode.custom,
+  137:         message:
+  138:           "Years of experience can contain no more than one decimal place.",
+  139:       });
+  140: 
+  141:       return z.NEVER;
+  142:     }
+  143: 
+  144:     return numericValue;
+  145:   });
+  146: 
+  147: /*
+  148:  * =========================================
+  149:  * Nested Skill Schemas
+  150:  * =========================================
+  151:  */
+  152: 
+  153: const aliasesSchema = z
+  154:   .array(aliasSchema)
+  155:   .max(20, "Add no more than 20 aliases.")
+  156:   .default([]);
+  157: 
+  158: const proficiencySchema = z
+  159:   .object({
+  160:     level: z.enum(SKILL_PROFICIENCY_VALUES).default(""),
+  161: 
+  162:     yearsOfExperience: nullableYearsSchema.default(null),
+  163: 
+  164:     lastUsedDate: optionalYearMonthSchema.default(""),
+  165:   })
+  166:   .default({
+  167:     level: "",
+  168:     yearsOfExperience: null,
+  169:     lastUsedDate: "",
+  170:   });
+  171: 
+  172: const proficiencyUpdateSchema = z.object({
+  173:   level: z.enum(SKILL_PROFICIENCY_VALUES).optional(),
+  174: 
+  175:   yearsOfExperience: nullableYearsSchema.optional(),
+  176: 
+  177:   lastUsedDate: optionalYearMonthSchema.optional(),
+  178: });
+  179: 
+  180: const languageSchema = z
+  181:   .object({
+  182:     proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).default(""),
+  183:   })
+  184:   .default({
+  185:     proficiency: "",
+  186:   });
+  187: 
+  188: const languageUpdateSchema = z.object({
+  189:   proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).optional(),
+  190: });
+  191: 
+  192: /*
+  193:  * =========================================
+  194:  * Cross-Field Validation
+  195:  * =========================================
+  196:  */
+  197: 
+  198: function validateSkillRelationships(skill, context) {
+  199:   const isLanguageType = skill.type === "language";
+  200: 
+  201:   const isLanguageCategory = skill.category === "language";
+  202: 
+  203:   const languageProficiency = skill.language?.proficiency || "";
+  204: 
+  205:   if (isLanguageType && !isLanguageCategory) {
+  206:     context.addIssue({
+  207:       code: z.ZodIssueCode.custom,
+  208:       path: ["category"],
+  209:       message: 'A language skill must use the "Languages" category.',
+  210:     });
+  211:   }
+  212: 
+  213:   if (isLanguageCategory && !isLanguageType) {
+  214:     context.addIssue({
+  215:       code: z.ZodIssueCode.custom,
+  216:       path: ["type"],
+  217:       message:
+  218:         'A skill in the "Languages" category must use the "Language Skill" type.',
+  219:     });
+  220:   }
+  221: 
+  222:   if (!isLanguageType && languageProficiency) {
+  223:     context.addIssue({
+  224:       code: z.ZodIssueCode.custom,
+  225:       path: ["language", "proficiency"],
+  226:       message: "Language proficiency can only be assigned to a language skill.",
+  227:     });
+  228:   }
+  229: 
+  230:   const normalizedName = skill.name
+  231:     .normalize("NFKC")
+  232:     .trim()
+  233:     .toLocaleLowerCase()
+  234:     .replace(/[._/\\-]+/g, " ")
+  235:     .replace(/\s+/g, " ");
+  236: 
+  237:   const seenAliases = new Set();
+  238: 
+  239:   skill.aliases.forEach((alias, index) => {
+  240:     const normalizedAlias = alias
+  241:       .normalize("NFKC")
+  242:       .trim()
+  243:       .toLocaleLowerCase()
+  244:       .replace(/[._/\\-]+/g, " ")
+  245:       .replace(/\s+/g, " ");
+  246: 
+  247:     if (normalizedAlias === normalizedName) {
+  248:       context.addIssue({
+  249:         code: z.ZodIssueCode.custom,
+  250:         path: ["aliases", index],
+  251:         message: "An alias cannot be the same as the primary skill name.",
+  252:       });
+  253:     }
+  254: 
+  255:     if (seenAliases.has(normalizedAlias)) {
+  256:       context.addIssue({
+  257:         code: z.ZodIssueCode.custom,
+  258:         path: ["aliases", index],
+  259:         message: "This skill alias has already been added.",
+  260:       });
+  261:     }
+  262: 
+  263:     seenAliases.add(normalizedAlias);
+  264:   });
+  265: }
+  266: 
+  267: /*
+  268:  * =========================================
+  269:  * Create Skill
+  270:  * =========================================
+  271:  */
+  272: 
+  273: const createSkillBaseSchema = z.object({
+  274:   name: skillNameSchema,
+  275: 
+  276:   category: z.enum(SKILL_CATEGORY_VALUES).default("other"),
+  277: 
+  278:   type: z.enum(SKILL_TYPE_VALUES).default("professional"),
+  279: 
+  280:   description: z.string().trim().max(1500).default(""),
+  281: 
+  282:   aliases: aliasesSchema,
+  283: 
+  284:   proficiency: proficiencySchema,
+  285: 
+  286:   language: languageSchema,
+  287: 
+  288:   source: z.enum(SKILL_SOURCE_VALUES).default("manual"),
+  289: 
+  290:   sourceContext: z.string().trim().max(100).default(""),
+  291: 
+  292:   notes: z.string().trim().max(2000).default(""),
+  293: 
+  294:   status: z.enum(SKILL_STATUS_VALUES).default("active"),
+  295: });
+  296: 
+  297: export const createSkillSchema = createSkillBaseSchema.superRefine(
+  298:   validateSkillRelationships,
+  299: );
+  300: 
+  301: /*
+  302:  * =========================================
+  303:  * Update Skill
+  304:  * =========================================
+  305:  */
+  306: 
+  307: const updateSkillBaseSchema = z.object({
+  308:   name: skillNameSchema.optional(),
+  309: 
+  310:   category: z.enum(SKILL_CATEGORY_VALUES).optional(),
+  311: 
+  312:   type: z.enum(SKILL_TYPE_VALUES).optional(),
+  313: 
+  314:   description: z.string().trim().max(1500).optional(),
+  315: 
+  316:   aliases: z.array(aliasSchema).max(20).optional(),
+  317: 
+  318:   proficiency: proficiencyUpdateSchema.optional(),
+  319: 
+  320:   language: languageUpdateSchema.optional(),
+  321: 
+  322:   source: z.enum(SKILL_SOURCE_VALUES).optional(),
+  323: 
+  324:   sourceContext: z.string().trim().max(100).optional(),
+  325: 
+  326:   notes: z.string().trim().max(2000).optional(),
+  327: 
+  328:   status: z.enum(SKILL_STATUS_VALUES).optional(),
+  329: });
+  330: 
+  331: export const updateSkillSchema = updateSkillBaseSchema.refine(
+  332:   (updates) => Object.keys(updates).length > 0,
+  333:   {
+  334:     message: "Provide at least one skill field to update.",
+  335:   },
+  336: );
+  337: 
+  338: /*
+  339:  * =========================================
+  340:  * Complete Merged Skill
+  341:  * =========================================
+  342:  *
+  343:  * The service uses this after merging an update
+  344:  * with the existing database record.
+  345:  */
+  346: 
+  347: export const completeSkillSchema = createSkillBaseSchema.superRefine(
+  348:   validateSkillRelationships,
+  349: );
+  350: 
+  351: /*
+  352:  * =========================================
+  353:  * Route Parameters
+  354:  * =========================================
+  355:  */
+  356: 
+  357: export const skillIdParamsSchema = z.object({
+  358:   skillId: skillIdSchema,
+  359: });
+  360: 
+  361: /*
+  362:  * =========================================
+  363:  * List Query
+  364:  * =========================================
+  365:  */
+  366: 
+  367: function parseBooleanQuery(value) {
+  368:   if (value === true || value === "true" || value === "1") {
+  369:     return true;
+  370:   }
+  371: 
+  372:   if (
+  373:     value === false ||
+  374:     value === "false" ||
+  375:     value === "0" ||
+  376:     value === undefined
+  377:   ) {
+  378:     return false;
+  379:   }
+  380: 
+  381:   return value;
+  382: }
+  383: 
+  384: export const skillListQuerySchema = z.object({
+  385:   includeArchived: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
+  386: 
+  387:   category: z
+  388:     .union([z.literal("all"), z.enum(SKILL_CATEGORY_VALUES)])
+  389:     .default("all"),
+  390: 
+  391:   type: z.union([z.literal("all"), z.enum(SKILL_TYPE_VALUES)]).default("all"),
+  392: 
+  393:   query: z.string().trim().max(200).default(""),
+  394: 
+  395:   sort: z
+  396:     .enum([
+  397:       "name-ascending",
+  398:       "name-descending",
+  399:       "recently-updated",
+  400:       "oldest-updated",
+  401:     ])
+  402:     .default("name-ascending"),
+  403: });
+  404: 
+  405: /*
+  406:  * =========================================
+  407:  * Skill Name Resolution
+  408:  * =========================================
+  409:  */
+  410: 
+  411: export const skillNameQuerySchema = z.object({
+  412:   name: skillNameSchema,
+  413: 
+  414:   excludeSkillId: z.string().trim().max(200).default(""),
+  415: });
+  416: 
+  417: /*
+  418:  * =========================================
+  419:  * Find or Create
+  420:  * =========================================
+  421:  */
+  422: 
+  423: export const findOrCreateSkillSchema = z.object({
+  424:   skill: createSkillBaseSchema,
+  425: 
+  426:   restoreArchived: z.boolean().default(true),
+  427: });
+  428: 
+  429: /*
+  430:  * =========================================
+  431:  * Collection Replacement
+  432:  * =========================================
+  433:  */
+  434: 
+  435: export const replaceSkillsSchema = z.object({
+  436:   skills: z
+  437:     .array(createSkillBaseSchema)
+  438:     .max(1000, "The Skill Library is too large."),
+  439: });
+  440: 
+  441: /*
+  442:  * =========================================
+  443:  * Validation Error Formatter
+  444:  * =========================================
+  445:  */
+  446: 
+  447: export function formatSkillSchemaErrors(error) {
+  448:   if (!error?.issues) {
+  449:     return [];
+  450:   }
+  451: 
+  452:   return error.issues.map((issue) => ({
+  453:     field: issue.path.join("."),
+  454:     message: issue.message,
+  455:     code: issue.code,
+  456:   }));
+  457: }
+
+==========================================================================================
+FILE: backend\src\config\database.js
+==========================================================================================
+Size: 4552 bytes
+
+    1: import sql from "mssql";
+    2: 
+    3: import { getEnvironment, isDatabaseConfigured } from "./environment.js";
+    4: 
+    5: /*
+    6:  * =========================================
+    7:  * Shared Connection State
+    8:  * =========================================
+    9:  */
+   10: 
+   11: let connectionPool = null;
+   12: 
+   13: let connectionPromise = null;
+   14: 
+   15: /*
+   16:  * =========================================
+   17:  * Database Configuration
+   18:  * =========================================
+   19:  */
+   20: 
+   21: function createDatabaseConfig() {
+   22:   const environment = getEnvironment();
+   23: 
+   24:   return {
+   25:     server: environment.DB_HOST,
+   26: 
+   27:     port: environment.DB_PORT,
+   28: 
+   29:     database: environment.DB_NAME,
+   30: 
+   31:     user: environment.DB_USER,
+   32: 
+   33:     password: environment.DB_PASSWORD,
+   34: 
+   35:     connectionTimeout: environment.DB_CONNECTION_TIMEOUT_MS,
+   36: 
+   37:     requestTimeout: environment.DB_REQUEST_TIMEOUT_MS,
+   38: 
+   39:     pool: {
+   40:       min: environment.DB_POOL_MIN,
+   41: 
+   42:       max: environment.DB_POOL_MAX,
+   43: 
+   44:       idleTimeoutMillis: environment.DB_POOL_IDLE_TIMEOUT_MS,
+   45:     },
+   46: 
+   47:     options: {
+   48:       encrypt: environment.DB_ENCRYPT,
+   49: 
+   50:       trustServerCertificate: environment.DB_TRUST_SERVER_CERTIFICATE,
+   51: 
+   52:       enableArithAbort: true,
+   53:     },
+   54:   };
+   55: }
+   56: 
+   57: /*
+   58:  * =========================================
+   59:  * Connect to Database
+   60:  * =========================================
+   61:  */
+   62: 
+   63: export async function connectDatabase() {
+   64:   const environment = getEnvironment();
+   65: 
+   66:   if (!isDatabaseConfigured(environment)) {
+   67:     const error = new Error("Database access has not been configured.");
+   68: 
+   69:     error.name = "DatabaseConfigurationError";
+   70: 
+   71:     error.code = "DATABASE_NOT_CONFIGURED";
+   72: 
+   73:     error.status = 503;
+   74: 
+   75:     error.publicMessage = "Database service is not configured.";
+   76: 
+   77:     throw error;
+   78:   }
+   79: 
+   80:   /*
+   81:    * Reuse an existing connected pool.
+   82:    */
+   83: 
+   84:   if (connectionPool?.connected) {
+   85:     return connectionPool;
+   86:   }
+   87: 
+   88:   /*
+   89:    * Reuse an in-progress connection attempt.
+   90:    * This prevents multiple pools from being
+   91:    * created simultaneously.
+   92:    */
+   93: 
+   94:   if (connectionPromise) {
+   95:     return connectionPromise;
+   96:   }
+   97: 
+   98:   const nextPool = new sql.ConnectionPool(createDatabaseConfig());
+   99: 
+  100:   nextPool.on("error", (error) => {
+  101:     console.error("MSSQL connection pool error:", error.message);
+  102:   });
+  103: 
+  104:   connectionPromise = nextPool
+  105:     .connect()
+  106:     .then((connectedPool) => {
+  107:       connectionPool = connectedPool;
+  108: 
+  109:       console.log(
+  110:         `Connected to SQL Server database "${environment.DB_NAME}" on ${environment.DB_HOST}.`,
+  111:       );
+  112: 
+  113:       return connectedPool;
+  114:     })
+  115:     .catch((error) => {
+  116:       connectionPool = null;
+  117: 
+  118:       throw error;
+  119:     })
+  120:     .finally(() => {
+  121:       connectionPromise = null;
+  122:     });
+  123: 
+  124:   return connectionPromise;
+  125: }
+  126: 
+  127: /*
+  128:  * =========================================
+  129:  * Get Database Pool
+  130:  * =========================================
+  131:  */
+  132: 
+  133: export async function getDatabasePool() {
+  134:   return connectDatabase();
+  135: }
+  136: 
+  137: /*
+  138:  * =========================================
+  139:  * Database Health Check
+  140:  * =========================================
+  141:  */
+  142: 
+  143: export async function checkDatabaseHealth() {
+  144:   const startedAt = Date.now();
+  145: 
+  146:   try {
+  147:     const pool = await getDatabasePool();
+  148: 
+  149:     await pool.request().query("SELECT 1 AS healthy;");
+  150: 
+  151:     return {
+  152:       status: "ok",
+  153: 
+  154:       configured: true,
+  155: 
+  156:       responseTimeMs: Date.now() - startedAt,
+  157:     };
+  158:   } catch (error) {
+  159:     const isNotConfigured = error.code === "DATABASE_NOT_CONFIGURED";
+  160: 
+  161:     return {
+  162:       status: isNotConfigured ? "not-configured" : "error",
+  163: 
+  164:       configured: !isNotConfigured,
+  165: 
+  166:       responseTimeMs: Date.now() - startedAt,
+  167: 
+  168:       error,
+  169:     };
+  170:   }
+  171: }
+  172: 
+  173: /*
+  174:  * =========================================
+  175:  * Close Database Pool
+  176:  * =========================================
+  177:  */
+  178: 
+  179: export async function closeDatabase() {
+  180:   /*
+  181:    * If a connection attempt is still running,
+  182:    * wait for it before closing the pool.
+  183:    */
+  184: 
+  185:   if (connectionPromise) {
+  186:     try {
+  187:       await connectionPromise;
+  188:     } catch {
+  189:       /*
+  190:        * A failed connection does not leave
+  191:        * an active pool to close.
+  192:        */
+  193:     }
+  194:   }
+  195: 
+  196:   if (!connectionPool) {
+  197:     return;
+  198:   }
+  199: 
+  200:   const poolToClose = connectionPool;
+  201: 
+  202:   connectionPool = null;
+  203: 
+  204:   await poolToClose.close();
+  205: 
+  206:   console.log("SQL Server connection pool closed.");
+  207: }
+  208: 
+  209: /*
+  210:  * =========================================
+  211:  * SQL Types
+  212:  * =========================================
+  213:  *
+  214:  * Repositories can import sql from this module
+  215:  * when creating parameterized requests.
+  216:  */
+  217: 
+  218: export { sql };

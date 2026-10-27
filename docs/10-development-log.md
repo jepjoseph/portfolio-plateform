@@ -160,19 +160,33 @@ No database or API calls have been introduced yet.
 Build the Professional Summary component as a separate reusable
 portfolio component.
 
-
 ## Experience Page Migration Process
+
 Our next implementation sequence
-Step	Component	Action
-8A	Experience model	Finalize SQL field mapping
-8B	Migration 009	Create Experience table
-8C	Experience repository	Implement SQL operations
-8D	Experience service	Implement business logic
-8E	Experience controller	Implement request handling
-8F	Experience routes	Register authenticated endpoints
-8G	Backend tests	Verify CRUD, ownership, and concurrency
-8H	Frontend integration	Replace localStorage persistence with API
-8I	Existing record	Import safely into Azure SQL
-8J	Migration 010	Create document metadata table
-8K	Document API	Implement secure upload and retrieval
-8L	Experience UI	Add document management
+Step Component Action
+8A Experience model Finalize SQL field mapping
+8B Migration 009 Create Experience table
+8C Experience repository Implement SQL operations
+8D Experience service Implement business logic
+8E Experience controller Implement request handling
+8F Experience routes Register authenticated endpoints
+8G Backend tests Verify CRUD, ownership, and concurrency
+8H Frontend integration Replace localStorage persistence with API
+8I Existing record Import safely into Azure SQL
+8J Migration 010 Create document metadata table
+8K Document API Implement secure upload and retrieval
+8L Experience UI Add document management
+
+## Skills Page Migration Process
+
+| Phase | Task                                                  | Status     |
+| ----- | ----------------------------------------------------- | ---------- |
+| 7E.1  | Inspect Skills frontend and backend                   | ⏳ Next    |
+| 7E.2  | Inspect completed Experience implementation           | ⏳ Pending |
+| 7E.3  | Compare Skills against Experience architecture        | ⏳ Pending |
+| 7E.4  | Identify existing Skills data and backup requirements | ⏳ Pending |
+| 7E.5  | Implement missing backend components                  | ⏳ Pending |
+| 7E.6  | Implement frontend API integration                    | ⏳ Pending |
+| 7E.7  | Migrate existing Skills data safely                   | ⏳ Pending |
+| 7E.8  | Test CRUD and cross-browser persistence               | ⏳ Pending |
+| 7E.9  | Verify production readiness                           | ⏳ Pending |

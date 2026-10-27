@@ -1,0 +1,1252 @@
+STEP 7E.1
+Skills + Experience Architecture Inspection
+Generated: 10/26/2026 23:33:46
+Mode: READ ONLY
+Project: D:\Documents\Project\Portfolio\portfolio-plateform
+
+================================================================================
+PROJECT DIRECTORY STATUS
+================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend : True
+D:\Documents\Project\Portfolio\portfolio-plateform\backend : True
+
+================================================================================
+SKILLS FILE INVENTORY
+================================================================================
+backend\src\controllers\experienceSkillController.js
+backend\src\controllers\skillController.js
+backend\src\middleware\skills\skillOwnershipMiddleware.js
+backend\src\repositories\skillRepository.js
+backend\src\routes\skillRoutes.js
+backend\src\schemas\experienceSkillSchemas.js
+backend\src\schemas\skillSchemas.js
+backend\src\services\Prompt\experienceSkillPrompt.js
+backend\src\services\providers\groqExperienceSkillProvider.js
+backend\src\services\Service\experienceSkillService.js
+backend\src\services\Service\skillService.js
+frontend\src\config\skillConfig.js
+frontend\src\context\SkillDataContext.jsx
+frontend\src\models\skillModel.js
+frontend\src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx
+frontend\src\pages\Portfolio\components\Skills\Skills.jsx
+frontend\src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx
+frontend\src\pages\skills\components\SkillForm\SkillForm.jsx
+frontend\src\pages\skills\components\SkillItem\SkillItem.jsx
+frontend\src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx
+frontend\src\pages\skills\components\SkillSelector\SkillSelector.jsx
+frontend\src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx
+frontend\src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx
+frontend\src\pages\skills\Skills.jsx
+frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx
+frontend\src\services\Skill\skillService.js
+frontend\src\services\Skill\skillStorage.js
+frontend\src\services\Skill\skillUtils.js
+frontend\src\services\Skill\skillValidation.js
+
+================================================================================
+EXPERIENCE FILE INVENTORY
+================================================================================
+backend\src\controllers\experienceController.js
+backend\src\controllers\experienceOverviewController.js
+backend\src\controllers\experienceSkillController.js
+backend\src\database\migrations\009_experiences.sql
+backend\src\repositories\experienceRepository.js
+backend\src\routes\experienceRoutes.js
+backend\src\schemas\experienceOverviewSchemas.js
+backend\src\schemas\experienceSchemas.js
+backend\src\schemas\experienceSkillSchemas.js
+backend\src\services\groqExperienceOverviewProviderOld.js
+backend\src\services\Prompt\experienceOverviewPrompt.js
+backend\src\services\Prompt\experienceSkillPrompt.js
+backend\src\services\providers\groqExperienceOverviewProvider.js
+backend\src\services\providers\groqExperienceSkillProvider.js
+backend\src\services\Service\experienceOverviewService.js
+backend\src\services\Service\experienceService.js
+backend\src\services\Service\experienceSkillService.js
+backend\test\api\experienceApi.test.js
+backend\test\repositories\experienceRepository.test.js
+backend\test\schemas\experienceSchemas.test.js
+backend\test\schemas\experienceSchemasHardening.test.js
+backend\test\services\experienceService.test.js
+frontend\src\config\experienceConfig.js
+frontend\src\context\ExperienceDataContext.jsx
+frontend\src\models\experienceModel.js
+frontend\src\pages\Experience\components\AchievementEditor\AchievementEditor.jsx
+frontend\src\pages\Experience\components\ExperienceBuilder\ExperienceBuilder.jsx
+frontend\src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx
+frontend\src\pages\Experience\components\ExperienceDashboard\ExperienceDashboard.jsx
+frontend\src\pages\Experience\components\ExperienceFilters\ExperienceFilters.jsx
+frontend\src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx
+frontend\src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx
+frontend\src\pages\Experience\components\ExperienceList\ExperienceList.jsx
+frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx
+frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewReadiness\ExperienceOverviewReadiness.jsx
+frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewSuggestions\ExperienceOverviewSuggestions.jsx
+frontend\src\pages\Experience\components\ExperiencePageHeader\ExperiencePageHeader.jsx
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx
+frontend\src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx
+frontend\src\pages\Experience\components\ResponsibilityEditor\ResponsibilityEditor.jsx
+frontend\src\pages\Experience\Experience.jsx
+frontend\src\pages\Portfolio\components\Experience\Experience.jsx
+frontend\src\pages\Portfolio\components\Experience\ExperienceItem\ExperienceItem.jsx
+frontend\src\services\Experience\experienceApiAdapter.js
+frontend\src\services\Experience\experienceApiService.js
+frontend\src\services\Experience\experienceContextCompatibility.js
+frontend\src\services\Experience\experienceDatabaseService.js
+frontend\src\services\Experience\experienceService.js
+frontend\src\services\Experience\experienceStorage.js
+frontend\src\services\Experience\experienceUtils.js
+frontend\src\services\Experience\experienceValidation.js
+frontend\tests\Experience\experienceApiAdapter.test.mjs
+frontend\tests\Experience\experienceApiService.test.mjs
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs
+frontend\tests\Experience\experienceContextCompatibility.test.mjs
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs
+frontend\tests\Experience\experienceDatabaseService.test.mjs
+frontend\tests\Experience\experienceModelRowVersion.test.mjs
+
+================================================================================
+SHARED INFRASTRUCTURE FILE INVENTORY
+================================================================================
+backend\migration005-checksum-test.mjs
+backend\src\app.js
+backend\src\config\database.js
+backend\src\database\migrations\001_authentication_foundation.sql
+backend\src\database\migrations\002_user_profiles.sql
+backend\src\database\migrations\003_user_settings.sql
+backend\src\database\migrations\004_support_contact_requests.sql
+backend\src\database\migrations\005_profile_details.sql
+backend\src\database\migrations\006_projects.sql
+backend\src\database\migrations\007_project_media.sql
+backend\src\database\migrations\008_project_documents.sql
+backend\src\database\migrations\009_experiences.sql
+backend\src\database\runMigrations.js
+backend\src\middleware\authenticationMiddleware.js
+backend\src\middleware\profile\authorizationMiddleware.js
+backend\src\repositories\authRepository.js
+backend\src\routes\authRoutes.js
+backend\src\server.js
+backend\test\middleware\authenticationMiddleware.test.js
+backend\test\project\verifyProjectMediaMigration.js
+backend\test-local-sql.mjs
+frontend\public\staticwebapp.config.json
+frontend\src\App.jsx
+frontend\src\context\AuthContext.jsx
+frontend\src\layouts\AuthLayout\AuthLayout.jsx
+frontend\src\pages\Auth\Login\Login.jsx
+frontend\src\pages\Auth\LoginVerify\LoginVerify.jsx
+frontend\src\pages\Auth\Register\Register.jsx
+frontend\src\pages\Auth\RegisterVerify\RegisterVerify.jsx
+frontend\src\pages\Auth\SetPassword\SetPassword.jsx
+frontend\src\services\apiClient.js
+frontend\src\services\Auth\authService.js
+frontend\src\services\Certification\certificationTrainingMigrationService.js
+frontend\src\services\Experience\experienceDatabaseService.js
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs
+frontend\tests\Experience\experienceDatabaseService.test.mjs
+
+================================================================================
+RELEVANT ROUTE / DATABASE REFERENCES
+================================================================================
+backend\src\app.js:15: import experienceRoutes from "./routes/experienceRoutes.js";
+backend\src\app.js:212: app.use("/api/experiences", experienceRoutes);
+backend\src\app.js:221: * app.use("/api/skills", skillRoutes);
+backend\src\controllers\experienceController.js:112: "rowVersion",
+backend\src\controllers\experienceController.js:119: rowVersion: body.rowVersion,
+backend\src\controllers\experienceController.js:141: "rowVersion",
+backend\src\controllers\experienceController.js:149: rowVersion: body.rowVersion,
+backend\src\controllers\experienceController.js:167: const body = requireFields(request.body, ["rowVersion"]);
+backend\src\controllers\experienceController.js:172: rowVersion: body.rowVersion,
+backend\src\controllers\projectController.js:109: const body = requireFields(request.body, ["project", "rowVersion"]);
+backend\src\controllers\projectController.js:115: rowVersion: body.rowVersion,
+backend\src\controllers\projectController.js:132: const body = requireFields(request.body, ["archived", "rowVersion"]);
+backend\src\controllers\projectController.js:138: rowVersion: body.rowVersion,
+backend\src\controllers\projectController.js:157: const body = requireFields(request.body, ["rowVersion"]);
+backend\src\controllers\projectController.js:162: rowVersion: body.rowVersion,
+backend\src\database\migrations\001_authentication_foundation.sql:44: row_version ROWVERSION NOT NULL,
+backend\src\database\migrations\002_user_profiles.sql:129: row_version ROWVERSION NOT NULL,
+backend\src\database\migrations\003_user_settings.sql:112: row_version ROWVERSION NOT NULL,
+backend\src\database\migrations\004_support_contact_requests.sql:91: row_version ROWVERSION NOT NULL,
+backend\src\database\migrations\006_projects.sql:36: row_version ROWVERSION NOT NULL,
+backend\src\database\migrations\009_experiences.sql:38: row_version ROWVERSION NOT NULL,
+backend\src\repositories\experienceRepository.js:52: rowVersion: Buffer.from(row.row_version).toString("base64"),
+backend\src\repositories\experienceRepository.js:146: expectedRowVersion,
+backend\src\repositories\experienceRepository.js:155: "expectedRowVersion",
+backend\src\repositories\experienceRepository.js:157: Buffer.from(expectedRowVersion, "base64"),
+backend\src\repositories\experienceRepository.js:171: AND row_version = @expectedRowVersion;
+backend\src\repositories\experienceRepository.js:184: expectedRowVersion,
+backend\src\repositories\experienceRepository.js:193: "expectedRowVersion",
+backend\src\repositories\experienceRepository.js:195: Buffer.from(expectedRowVersion, "base64"),
+backend\src\repositories\experienceRepository.js:201: AND row_version = @expectedRowVersion;
+backend\src\repositories\projectRepository.js:40: rowVersion: Buffer.from(row.row_version).toString("base64"),
+backend\src\repositories\projectRepository.js:116: export async function updateProject(userId, project, expectedRowVersion) {
+backend\src\repositories\projectRepository.js:120: "expectedRowVersion",
+backend\src\repositories\projectRepository.js:122: Buffer.from(expectedRowVersion, "base64"),
+backend\src\repositories\projectRepository.js:137: AND row_version = @expectedRowVersion;
+backend\src\repositories\projectRepository.js:147: export async function deleteProject(userId, projectId, expectedRowVersion) {
+backend\src\repositories\projectRepository.js:155: "expectedRowVersion",
+backend\src\repositories\projectRepository.js:157: Buffer.from(expectedRowVersion, "base64"),
+backend\src\repositories\projectRepository.js:162: AND row_version = @expectedRowVersion;
+backend\src\schemas\experienceSchemas.js:63: "rowVersion", "recordStatus", "record_status",
+backend\src\schemas\experienceSchemas.js:481: export function parseExperienceRowVersion(value) {
+backend\src\schemas\experienceSchemas.js:486: field: "rowVersion",
+backend\src\schemas\projectSchemas.js:43: "rowVersion",
+backend\src\schemas\projectSchemas.js:364: export function parseProjectRowVersion(value) {
+backend\src\schemas\projectSchemas.js:368: field: "rowVersion",
+backend\src\services\Service\experienceService.js:11: parseExperienceRowVersion,
+backend\src\services\Service\experienceService.js:19: "rowVersion",
+backend\src\services\Service\experienceService.js:165: rowVersion,
+backend\src\services\Service\experienceService.js:170: const expectedRowVersion =
+backend\src\services\Service\experienceService.js:171: parseExperienceRowVersion(rowVersion);
+backend\src\services\Service\experienceService.js:192: expectedRowVersion,
+backend\src\services\Service\experienceService.js:205: rowVersion,
+backend\src\services\Service\experienceService.js:211: const expectedRowVersion =
+backend\src\services\Service\experienceService.js:212: parseExperienceRowVersion(rowVersion);
+backend\src\services\Service\experienceService.js:246: expectedRowVersion,
+backend\src\services\Service\experienceService.js:259: rowVersion,
+backend\src\services\Service\experienceService.js:264: const expectedRowVersion =
+backend\src\services\Service\experienceService.js:265: parseExperienceRowVersion(rowVersion);
+backend\src\services\Service\experienceService.js:279: expectedRowVersion,
+backend\src\services\Service\projectService.js:11: parseProjectRowVersion,
+backend\src\services\Service\projectService.js:19: "rowVersion",
+backend\src\services\Service\projectService.js:143: rowVersion,
+backend\src\services\Service\projectService.js:149: const expectedRowVersion = parseProjectRowVersion(rowVersion);
+backend\src\services\Service\projectService.js:168: expectedRowVersion,
+backend\src\services\Service\projectService.js:181: rowVersion,
+backend\src\services\Service\projectService.js:186: const expectedRowVersion = parseProjectRowVersion(rowVersion);
+backend\src\services\Service\projectService.js:219: expectedRowVersion,
+backend\src\services\Service\projectService.js:232: rowVersion,
+backend\src\services\Service\projectService.js:236: const expectedRowVersion = parseProjectRowVersion(rowVersion);
+backend\src\services\Service\projectService.js:250: expectedRowVersion,
+backend\test\api\experienceApi.test.js:51: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:135: const { default: experienceRoutes } =
+backend\test\api\experienceApi.test.js:136: await import("../../src/routes/experienceRoutes.js");
+backend\test\api\experienceApi.test.js:144: app.use("/api/experiences", experienceRoutes);
+backend\test\api\experienceApi.test.js:162: const { userId, rowVersion, ...experience } =
+backend\test\api\experienceApi.test.js:172: await api.get("/api/experiences").expect(401);
+backend\test\api\experienceApi.test.js:179: api.get("/api/experiences"),
+backend\test\api\experienceApi.test.js:195: api.get(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:213: api.post("/api/experiences"),
+backend\test\api\experienceApi.test.js:229: it("updates an Experience using rowVersion", async () => {
+backend\test\api\experienceApi.test.js:233: api.put(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:237: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:247: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:254: api.put(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:258: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:269: api.patch(`/api/experiences/${EXPERIENCE_ID}/archive`),
+backend\test\api\experienceApi.test.js:273: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:285: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:292: api.patch(`/api/experiences/${EXPERIENCE_ID}/archive`),
+backend\test\api\experienceApi.test.js:296: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:309: api.patch(`/api/experiences/${EXPERIENCE_ID}/archive`),
+backend\test\api\experienceApi.test.js:313: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:322: it("deletes an Experience using rowVersion", async () => {
+backend\test\api\experienceApi.test.js:324: api.delete(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:326: .send({ rowVersion: ROW_VERSION })
+backend\test\api\experienceApi.test.js:336: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:343: api.delete(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:346: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:364: api.get(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:379: api.put(`/api/experiences/${EXPERIENCE_ID}`),
+backend\test\api\experienceApi.test.js:383: rowVersion: ROW_VERSION,
+backend\test\api\experienceApi.test.js:395: .delete(`/api/experiences/${EXPERIENCE_ID}`)
+backend\test\api\experienceApi.test.js:396: .send({ rowVersion: ROW_VERSION })
+backend\test\api\projectApi.test.js:28: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:200: it("updates a project with its rowVersion", async () => {
+backend\test\api\projectApi.test.js:210: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:220: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:231: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:240: it("archives a project with its rowVersion", async () => {
+backend\test\api\projectApi.test.js:246: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:258: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:269: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:277: it("deletes a project using its rowVersion", async () => {
+backend\test\api\projectApi.test.js:281: .send({ rowVersion: ROW_VERSION })
+backend\test\api\projectApi.test.js:291: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:301: rowVersion: ROW_VERSION,
+backend\test\api\projectApi.test.js:328: .send({ rowVersion: ROW_VERSION })
+backend\test\repositories\experienceRepository.test.js:260: assert.equal(result.rowVersion, VERSION_BASE64);
+backend\test\repositories\experienceRepository.test.js:361: assert.match(update.queryText, /row_version = @expectedRowVersion/);
+backend\test\repositories\experienceRepository.test.js:365: assert.equal(update.inputs.expectedRowVersion.type, "Binary(8)");
+backend\test\repositories\experienceRepository.test.js:368: update.inputs.expectedRowVersion.value,
+backend\test\repositories\experienceRepository.test.js:410: /row_version = @expectedRowVersion/,
+backend\test\repositories\experienceRepository.test.js:416: deletion.inputs.expectedRowVersion.type,
+backend\test\repositories\experienceRepository.test.js:421: deletion.inputs.expectedRowVersion.value,
+backend\test\schemas\experienceSchemas.test.js:6: parseExperienceRowVersion,
+backend\test\schemas\experienceSchemas.test.js:164: test("rejects client-supplied rowVersion", () => {
+backend\test\schemas\experienceSchemas.test.js:166: value.rowVersion = Buffer.alloc(8, 1).toString("base64");
+backend\test\schemas\experienceSchemas.test.js:167: expectError(value, "rowVersion");
+backend\test\schemas\experienceSchemas.test.js:170: test("accepts SQL Server rowVersion", () => {
+backend\test\schemas\experienceSchemas.test.js:172: assert.equal(parseExperienceRowVersion(version), version);
+backend\test\schemas\experienceSchemas.test.js:175: test("rejects malformed SQL Server rowVersion", () => {
+backend\test\schemas\experienceSchemas.test.js:177: () => parseExperienceRowVersion("invalid"),
+backend\test\schemas\projectSchemas.test.js:6: parseProjectRowVersion,
+backend\test\schemas\projectSchemas.test.js:121: project.rowVersion = "AQEBAQEBAQE=";
+backend\test\schemas\projectSchemas.test.js:123: expectValidationError(project, "rowVersion");
+backend\test\schemas\projectSchemas.test.js:170: const rowVersion = Buffer.alloc(8, 1).toString("base64");
+backend\test\schemas\projectSchemas.test.js:172: assert.equal(parseProjectRowVersion(rowVersion), rowVersion);
+backend\test\schemas\projectSchemas.test.js:177: () => parseProjectRowVersion("invalid"),
+backend\test\services\experienceService.test.js:245: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:258: rowVersion: NEW_VERSION,
+backend\test\services\experienceService.test.js:265: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:283: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:305: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:318: rowVersion: NEW_VERSION,
+backend\test\services\experienceService.test.js:325: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:347: "rowVersion",
+backend\test\services\experienceService.test.js:360: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:366: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:382: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:412: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:428: rowVersion: VERSION,
+backend\test\services\experienceService.test.js:449: rowVersion: VERSION,
+backend\test\services\projectService.test.js:47: updateProject: async (owner, project, rowVersion) => {
+backend\test\services\projectService.test.js:48: calls.push(["update", owner, project, rowVersion]);
+backend\test\services\projectService.test.js:52: deleteProject: async (owner, id, rowVersion) => {
+backend\test\services\projectService.test.js:53: calls.push(["delete", owner, id, rowVersion]);
+backend\test\services\projectService.test.js:116: rowVersion: version,
+backend\test\services\projectService.test.js:127: rowVersion: Buffer.alloc(8, 2).toString("base64"),
+backend\test\services\projectService.test.js:134: rowVersion: version,
+backend\test\services\projectService.test.js:153: rowVersion: version,
+backend\test\services\projectService.test.js:166: rowVersion: version,
+backend\test\services\projectService.test.js:173: rowVersion: version,
+backend\test\services\projectService.test.js:186: assert.equal(Object.hasOwn(saved, "rowVersion"), false);
+backend\test\services\projectService.test.js:196: rowVersion: version,
+backend\test\services\projectService.test.js:211: rowVersion: version,
+backend\test\services\projectService.test.js:227: rowVersion: version,
+backend\test\services\projectService.test.js:255: rowVersion: version,
+frontend\src\App.jsx:36: import Skills from "./pages/skills/Skills";
+frontend\src\App.jsx:42: import { useSkillData } from "./context/SkillDataContext.jsx";
+frontend\src\config\navigationConfig.js:82: path: "/skills",
+frontend\src\context\CertificationDataContext.jsx:179: event.storageArea !== window.localStorage ||
+frontend\src\context\EducationDataContext.jsx:239: event.storageArea !== window.localStorage ||
+frontend\src\context\ProfileDataContext.localStorage.backup.jsx:369: event.storageArea !== window.localStorage ||
+frontend\src\context\ProjectDataContext.jsx:240: event.storageArea !== window.localStorage ||
+frontend\src\context\ResumeDataContext.jsx:127: const storedValue = window.localStorage.getItem(RESUME_STORAGE_KEY);
+frontend\src\context\ResumeDataContext.jsx:160: window.localStorage.setItem(
+frontend\src\context\SkillDataContext.jsx:23: } from "../services/Skill/skillService.js";
+frontend\src\context\SkillDataContext.jsx:25: import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
+frontend\src\context\SkillDataContext.jsx:27: const SkillDataContext = createContext(null);
+frontend\src\context\SkillDataContext.jsx:217: event.storageArea !== window.localStorage ||
+frontend\src\context\SkillDataContext.jsx:699: <SkillDataContext.Provider value={contextValue}>
+frontend\src\context\SkillDataContext.jsx:701: </SkillDataContext.Provider>
+frontend\src\context\SkillDataContext.jsx:706: const context = useContext(SkillDataContext);
+frontend\src\context\TrainingDataContext.jsx:278: event.storageArea !== window.localStorage ||
+frontend\src\main.jsx:19: import { SkillDataProvider } from "./context/SkillDataContext.jsx";
+frontend\src\models\experienceModel.js:773: ...(typeof source.rowVersion === "string" &&
+frontend\src\models\experienceModel.js:774: /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+frontend\src\models\experienceModel.js:775: ? { rowVersion: source.rowVersion }
+frontend\src\models\projectModel.js:829: ...(typeof source.rowVersion === "string" &&
+frontend\src\models\projectModel.js:830: /^[A-Za-z0-9+/]{11}=$/.test(source.rowVersion)
+frontend\src\models\projectModel.js:831: ? { rowVersion: source.rowVersion }
+frontend\src\pages\Certifications\Certifications.jsx:5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+frontend\src\pages\Dashboard\Dashboard.jsx:7: import { useSkillData } from "../../context/SkillDataContext.jsx";
+frontend\src\pages\Dashboard\Dashboard.jsx:345: href: "/skills",
+frontend\src\pages\Dashboard\Dashboard.jsx:453: href: "/skills",
+frontend\src\pages\Dashboard\Dashboard.jsx:538: path: "/skills",
+frontend\src\pages\Dashboard\Dashboard.jsx:623: path: "/skills",
+frontend\src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:8: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:7: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:11: import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
+frontend\src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:10: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:7: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:11: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:15: import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
+frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:5: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:10: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:14: import SkillSelector from "../../../../Skills/components/SkillSelector/SkillSelector.jsx";
+frontend\src\pages\Experience\Experience.jsx:111: rowVersion: _rowVersion,
+frontend\src\pages\Portfolio\components\Skills\Skills.jsx:1: import SkillsItem from "./SkillsItem/SkillsItem";
+frontend\src\pages\Portfolio\components\Skills\Skills.jsx:3: import "./Skills.css";
+frontend\src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:1: import "./SkillsItem.css";
+frontend\src\pages\Portfolio\Portfolio.jsx:23: import Skills from "./components/Skills/Skills";
+frontend\src\pages\Portfolio\PortfolioPublic\PortfolioPublic.jsx:97: * different browser tab changes localStorage.
+frontend\src\pages\Portfolio\PortfolioPublic\PortfolioPublic.jsx:106: event.storageArea !== window.localStorage ||
+frontend\src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:1: import "./SkillsDashboard.css";
+frontend\src\pages\skills\components\SkillSelector\SkillSelector.jsx:17: import "./SkillSelector.css";
+frontend\src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:13: import "./SkillsLibrary.css";
+frontend\src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:1: import "./SkillsPageHeader.css";
+frontend\src\pages\skills\Skills.jsx:5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+frontend\src\pages\skills\Skills.jsx:15: import SkillsDashboard from "./components/SkillsDashboard/SkillsDashboard.jsx";
+frontend\src\pages\skills\Skills.jsx:16: import SkillsLibrary from "./components/SkillsLibrary/SkillsLibrary.jsx";
+frontend\src\pages\skills\Skills.jsx:17: import SkillsPageHeader from "./components/SkillsPageHeader/SkillsPageHeader.jsx";
+frontend\src\pages\skills\Skills.jsx:19: import "./Skills.css";
+frontend\src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:10: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:6: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:10: import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
+frontend\src\services\Certification\certificationStorage.js:37: if (typeof window === "undefined" || !window.localStorage) {
+frontend\src\services\Certification\certificationStorage.js:44: return window.localStorage;
+frontend\src\services\Certification\certificationStorage.js:175: * keys are written to localStorage.
+frontend\src\services\Certification\certificationTrainingMigrationService.js:75: if (typeof window === "undefined" || !window.localStorage) {
+frontend\src\services\Certification\certificationTrainingMigrationService.js:88: return window.localStorage;
+frontend\src\services\Certification\certificationValidation.js:596: * localStorage with the actual Blob in IndexedDB.
+frontend\src\services\Education\educationService.js:445: * IndexedDB and localStorage cannot share one
+frontend\src\services\Education\educationService.js:455: "deleted, but its localStorage metadata could not be removed.",
+frontend\src\services\Education\educationStorage.js:52: if (!window.localStorage) {
+frontend\src\services\Education\educationStorage.js:59: return window.localStorage;
+frontend\src\services\Experience\experienceApiAdapter.js:6: "rowVersion",
+frontend\src\services\Experience\experienceApiAdapter.js:29: export function getExperienceRowVersion(experience) {
+frontend\src\services\Experience\experienceApiAdapter.js:30: const rowVersion = experience?.rowVersion;
+frontend\src\services\Experience\experienceApiAdapter.js:33: typeof rowVersion !== "string" ||
+frontend\src\services\Experience\experienceApiAdapter.js:34: !/^[A-Za-z0-9+/]{10}[AEIMQUYcgkosw048]=$/.test(rowVersion)
+frontend\src\services\Experience\experienceApiAdapter.js:37: "A valid Experience rowVersion is required.",
+frontend\src\services\Experience\experienceApiAdapter.js:41: return rowVersion;
+frontend\src\services\Experience\experienceApiService.js:11: getExperienceRowVersion,
+frontend\src\services\Experience\experienceApiService.js:30: function requireRowVersion(rowVersion) {
+frontend\src\services\Experience\experienceApiService.js:31: return getExperienceRowVersion({ rowVersion });
+frontend\src\services\Experience\experienceApiService.js:68: rowVersion,
+frontend\src\services\Experience\experienceApiService.js:75: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Experience\experienceApiService.js:86: rowVersion,
+frontend\src\services\Experience\experienceApiService.js:97: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Experience\experienceApiService.js:107: rowVersion,
+frontend\src\services\Experience\experienceApiService.js:115: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Experience\experienceContextCompatibility.js:3: import { getExperienceRowVersion } from "./experienceApiAdapter.js";
+frontend\src\services\Experience\experienceContextCompatibility.js:11: * Does not access localStorage.
+frontend\src\services\Experience\experienceContextCompatibility.js:14: * Its rowVersion is deliberately used without refreshing it first,
+frontend\src\services\Experience\experienceContextCompatibility.js:43: getExperienceRowVersion(experience);
+frontend\src\services\Experience\experienceContextCompatibility.js:59: Object.hasOwn(updates, "rowVersion") ||
+frontend\src\services\Experience\experienceDatabaseService.js:15: getExperienceRowVersion,
+frontend\src\services\Experience\experienceDatabaseService.js:22: * Never reads or writes browser localStorage.
+frontend\src\services\Experience\experienceDatabaseService.js:38: return getExperienceRowVersion(requireExperience(experience));
+frontend\src\services\Experience\experienceDatabaseService.js:75: * rowVersion originally loaded by the client.
+frontend\src\services\Experience\experienceDatabaseService.js:85: const rowVersion = requireVersion(experience);
+frontend\src\services\Experience\experienceDatabaseService.js:90: rowVersion,
+frontend\src\services\Experience\experienceStorage.js:50: if (!window.localStorage) {
+frontend\src\services\Experience\experienceStorage.js:57: return window.localStorage;
+frontend\src\services\Portfolio\portfolioService.js:57: function requireLocalStorage() {
+frontend\src\services\Portfolio\portfolioService.js:58: if (typeof window === "undefined" || !window.localStorage) {
+frontend\src\services\Portfolio\portfolioService.js:61: "Browser localStorage is unavailable.",
+frontend\src\services\Portfolio\portfolioService.js:66: return window.localStorage;
+frontend\src\services\Portfolio\portfolioService.js:304: const storage = requireLocalStorage();
+frontend\src\services\Portfolio\portfolioService.js:333: const storage = requireLocalStorage();
+frontend\src\services\Profile\profileStorage.js:59: function getLocalStorage() {
+frontend\src\services\Profile\profileStorage.js:60: if (typeof window === "undefined" || !window.localStorage) {
+frontend\src\services\Profile\profileStorage.js:68: return window.localStorage;
+frontend\src\services\Profile\profileStorage.js:94: "The browser does not have enough localStorage capacity to save the Profile.",
+frontend\src\services\Profile\profileStorage.js:273: const storage = getLocalStorage();
+frontend\src\services\Profile\profileStorage.js:304: storage = getLocalStorage();
+frontend\src\services\Profile\profileStorage.js:406: const storage = getLocalStorage();
+frontend\src\services\Profile\profileStorage.js:449: const storage = getLocalStorage();
+frontend\src\services\Profile\profileStorage.js:465: const storage = getLocalStorage();
+frontend\src\services\Project\projectApiAdapter.js:7: "rowVersion",
+frontend\src\services\Project\projectApiAdapter.js:28: export function getProjectRowVersion(project) {
+frontend\src\services\Project\projectApiAdapter.js:29: const rowVersion = project?.rowVersion;
+frontend\src\services\Project\projectApiAdapter.js:32: typeof rowVersion !== "string" ||
+frontend\src\services\Project\projectApiAdapter.js:33: !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+frontend\src\services\Project\projectApiAdapter.js:36: "A valid Project rowVersion is required.",
+frontend\src\services\Project\projectApiAdapter.js:40: return rowVersion;
+frontend\src\services\Project\projectApiService.js:22: function requireRowVersion(rowVersion) {
+frontend\src\services\Project\projectApiService.js:23: if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+frontend\src\services\Project\projectApiService.js:24: throw new TypeError("A Project rowVersion is required.");
+frontend\src\services\Project\projectApiService.js:27: return rowVersion.trim();
+frontend\src\services\Project\projectApiService.js:48: rowVersion,
+frontend\src\services\Project\projectApiService.js:55: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Project\projectApiService.js:66: rowVersion,
+frontend\src\services\Project\projectApiService.js:77: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Project\projectApiService.js:87: rowVersion,
+frontend\src\services\Project\projectApiService.js:93: rowVersion: requireRowVersion(rowVersion),
+frontend\src\services\Project\projectService.js:225: * in localStorage metadata.
+frontend\src\services\Project\projectService.js:707: * Delete metadata first. If localStorage
+frontend\src\services\Project\projectStorage.js:61: if (!window.localStorage) {
+frontend\src\services\Project\projectStorage.js:62: throw new Error("localStorage is unavailable.");
+frontend\src\services\Project\projectStorage.js:65: return window.localStorage;
+frontend\src\services\Project\projectStorage.js:69: "Browser localStorage could not be accessed.",
+frontend\src\services\Project\projectStorage.js:346: ? "Project localStorage quota was exceeded."
+frontend\src\services\Skill\skillService.js:25: import { readStoredSkills, replaceStoredSkills } from "./skillStorage.js";
+frontend\src\services\Skill\skillStorage.js:50: if (!window.localStorage) {
+frontend\src\services\Skill\skillStorage.js:57: return window.localStorage;
+frontend\src\services\Training\trainingStorage.js:25: if (typeof window === "undefined" || !window.localStorage) {
+frontend\src\services\Training\trainingStorage.js:32: return window.localStorage;
+frontend\tests\Experience\experienceApiAdapter.test.mjs:6: getExperienceRowVersion,
+frontend\tests\Experience\experienceApiAdapter.test.mjs:20: rowVersion: "AAAAAAAAAAE=",
+frontend\tests\Experience\experienceApiAdapter.test.mjs:35: "rowVersion",
+frontend\tests\Experience\experienceApiAdapter.test.mjs:75: test("accepts a valid SQL Server rowVersion", () => {
+frontend\tests\Experience\experienceApiAdapter.test.mjs:76: const result = getExperienceRowVersion({
+frontend\tests\Experience\experienceApiAdapter.test.mjs:77: rowVersion: "AAAAAAAAAAE=",
+frontend\tests\Experience\experienceApiAdapter.test.mjs:83: test("rejects invalid rowVersion values", () => {
+frontend\tests\Experience\experienceApiAdapter.test.mjs:84: for (const rowVersion of [
+frontend\tests\Experience\experienceApiAdapter.test.mjs:93: () => getExperienceRowVersion({ rowVersion }),
+frontend\tests\Experience\experienceApiAdapter.test.mjs:100: test("rejects noncanonical SQL Server rowVersion padding bits", () => {
+frontend\tests\Experience\experienceApiAdapter.test.mjs:104: () => getExperienceRowVersion({ rowVersion: invalidVersion }),
+frontend\tests\Experience\experienceApiService.test.mjs:27: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceApiService.test.mjs:167: Object.hasOwn(body, "rowVersion"),
+frontend\tests\Experience\experienceApiService.test.mjs:173: EXPERIENCE.rowVersion,
+frontend\tests\Experience\experienceApiService.test.mjs:180: test("PUT updates an Experience with rowVersion", async () => {
+frontend\tests\Experience\experienceApiService.test.mjs:205: assert.equal(body.rowVersion, ROW_VERSION);
+frontend\tests\Experience\experienceApiService.test.mjs:215: "rowVersion",
+frontend\tests\Experience\experienceApiService.test.mjs:223: test("PATCH archives an Experience with rowVersion", async () => {
+frontend\tests\Experience\experienceApiService.test.mjs:253: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceApiService.test.mjs:281: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceApiService.test.mjs:288: test("DELETE sends rowVersion in the request body", async () => {
+frontend\tests\Experience\experienceApiService.test.mjs:315: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceApiService.test.mjs:322: test("rejects invalid rowVersion before sending a request", async () => {
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:24: rowVersion: VERSION,
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:76: test("partial update preserves nested fields and original rowVersion", async () => {
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:82: assert.equal(request.body.rowVersion, VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:107: Object.hasOwn(updated, "rowVersion"),
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:117: rowVersion: NEXT_VERSION,
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:134: assert.equal(result.rowVersion, NEXT_VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:140: assert.equal(current.rowVersion, VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:143: test("archive sends the loaded rowVersion", async () => {
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:150: assert.equal(request.body.rowVersion, VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:158: rowVersion: NEXT_VERSION,
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:171: assert.equal(result.rowVersion, NEXT_VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:177: test("restore sends the loaded rowVersion", async () => {
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:187: assert.equal(request.body.rowVersion, VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:195: rowVersion: NEXT_VERSION,
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:208: assert.equal(result.rowVersion, NEXT_VERSION);
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:214: test("delete sends the loaded rowVersion", async () => {
+frontend\tests\Experience\experienceCompatibilityPositive.test.mjs:220: assert.equal(request.body.rowVersion, VERSION);
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:35: test("update rejects a record without rowVersion", async () => {
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:42: /rowVersion/,
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:49: [{ id: "experience-1", rowVersion: "AAAAAAAAAAA=" }],
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:51: { rowVersion: "AAAAAAAAAAA=" },
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:64: test("restore rejects a record without rowVersion", async () => {
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:70: /rowVersion/,
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:74: test("delete rejects a record without rowVersion", async () => {
+frontend\tests\Experience\experienceContextCompatibility.test.mjs:80: /rowVersion/,
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:17: const rowVersion = "AAAAAAAAAAA=";
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:45: rowVersion,
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:120: test("updates an experience using rowVersion", async () => {
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:135: assert.equal(requestBody.rowVersion, rowVersion);
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:139: test("archives an experience using rowVersion", async () => {
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:155: assert.equal(requestBody.rowVersion, rowVersion);
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:159: test("restores an experience using rowVersion", async () => {
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:175: assert.equal(requestBody.rowVersion, rowVersion);
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:179: test("deletes an experience using rowVersion", async () => {
+frontend\tests\Experience\experienceDatabaseDelegation.test.mjs:192: assert.equal(requestBody.rowVersion, rowVersion);
+frontend\tests\Experience\experienceDatabaseService.test.mjs:34: rowVersion: "AAAAAAAAAAA=",
+frontend\tests\Experience\experienceDatabaseService.test.mjs:40: test("database service rejects archive without rowVersion", async () => {
+frontend\tests\Experience\experienceDatabaseService.test.mjs:48: test("database service rejects delete without rowVersion", async () => {
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:12: test("preserves a valid backend rowVersion", () => {
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:15: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:18: assert.equal(result.rowVersion, ROW_VERSION);
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:21: test("does not add rowVersion to legacy records", () => {
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:27: Object.hasOwn(result, "rowVersion"),
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:32: test("does not preserve an invalid rowVersion", () => {
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:35: rowVersion: "invalid",
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:39: Object.hasOwn(result, "rowVersion"),
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:44: test("preserves rowVersion during collection normalization", () => {
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:48: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:52: assert.equal(result[0].rowVersion, ROW_VERSION);
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:55: test("preserves rowVersion during model updates", () => {
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:58: rowVersion: ROW_VERSION,
+frontend\tests\Experience\experienceModelRowVersion.test.mjs:67: assert.equal(updated.rowVersion, ROW_VERSION);
+frontend\tests\Project\projectApiAdapter.test.js:6: getProjectRowVersion,
+frontend\tests\Project\projectApiAdapter.test.js:17: rowVersion: "AAAAAAAAAAE=",
+frontend\tests\Project\projectApiAdapter.test.js:30: "rowVersion",
+frontend\tests\Project\projectApiAdapter.test.js:66: test("accepts a valid Base64 rowVersion", () => {
+frontend\tests\Project\projectApiAdapter.test.js:68: getProjectRowVersion({
+frontend\tests\Project\projectApiAdapter.test.js:69: rowVersion: "AAAAAAAAAAE=",
+frontend\tests\Project\projectApiAdapter.test.js:75: test("rejects missing or invalid rowVersions", () => {
+frontend\tests\Project\projectApiAdapter.test.js:83: () => getProjectRowVersion({ rowVersion: value }),
+frontend\tests\Project\projectApiService.test.js:20: rowVersion: ROW_VERSION,
+frontend\tests\Project\projectApiService.test.js:98: assert.equal(Object.hasOwn(body, "rowVersion"), false);
+frontend\tests\Project\projectApiService.test.js:107: test("updateProjectApi sends Project and rowVersion separately", async () => {
+frontend\tests\Project\projectApiService.test.js:121: assert.equal(body.rowVersion, ROW_VERSION);
+frontend\tests\Project\projectApiService.test.js:124: assert.equal(Object.hasOwn(body.project, "rowVersion"), false);
+frontend\tests\Project\projectApiService.test.js:130: test("setProjectArchivedApi sends PATCH with rowVersion", async () => {
+frontend\tests\Project\projectApiService.test.js:146: rowVersion: ROW_VERSION,
+frontend\tests\Project\projectApiService.test.js:153: test("deleteProjectApi sends DELETE with rowVersion", async () => {
+frontend\tests\Project\projectApiService.test.js:166: rowVersion: ROW_VERSION,
+frontend\tests\Project\projectModelRowVersion.test.js:12: test("normalizeProject preserves a backend rowVersion", () => {
+frontend\tests\Project\projectModelRowVersion.test.js:16: rowVersion: ROW_VERSION,
+frontend\tests\Project\projectModelRowVersion.test.js:19: assert.equal(project.rowVersion, ROW_VERSION);
+frontend\tests\Project\projectModelRowVersion.test.js:22: test("normalizeProject does not invent a rowVersion", () => {
+frontend\tests\Project\projectModelRowVersion.test.js:29: Object.hasOwn(project, "rowVersion"),
+frontend\tests\Project\projectModelRowVersion.test.js:34: test("normalizeProjectCollection preserves rowVersion", () => {
+frontend\tests\Project\projectModelRowVersion.test.js:39: rowVersion: ROW_VERSION,
+frontend\tests\Project\projectModelRowVersion.test.js:43: assert.equal(projects[0].rowVersion, ROW_VERSION);
+frontend\tests\Project\projectModelRowVersion.test.js:46: test("updateProjectModel preserves the current rowVersion", () => {
+frontend\tests\Project\projectModelRowVersion.test.js:51: rowVersion: ROW_VERSION,
+frontend\tests\Project\projectModelRowVersion.test.js:58: assert.equal(updated.rowVersion, ROW_VERSION);
+
+================================================================================
+SELECTED FILE CONTENTS
+================================================================================
+
+--------------------------------------------------------------------------------
+FILE: backend\migration005-checksum-test.mjs
+--------------------------------------------------------------------------------
+Total lines: 22
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\app.js
+--------------------------------------------------------------------------------
+Total lines: 240
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\config\database.js
+--------------------------------------------------------------------------------
+Total lines: 218
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\controllers\experienceController.js
+--------------------------------------------------------------------------------
+Total lines: 184
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\controllers\experienceOverviewController.js
+--------------------------------------------------------------------------------
+Total lines: 63
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\controllers\experienceSkillController.js
+--------------------------------------------------------------------------------
+Total lines: 82
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\controllers\skillController.js
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\001_authentication_foundation.sql
+--------------------------------------------------------------------------------
+Total lines: 540
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\002_user_profiles.sql
+--------------------------------------------------------------------------------
+Total lines: 291
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\003_user_settings.sql
+--------------------------------------------------------------------------------
+Total lines: 204
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\004_support_contact_requests.sql
+--------------------------------------------------------------------------------
+Total lines: 181
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\005_profile_details.sql
+--------------------------------------------------------------------------------
+Total lines: 147
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\006_projects.sql
+--------------------------------------------------------------------------------
+Total lines: 66
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\007_project_media.sql
+--------------------------------------------------------------------------------
+Total lines: 91
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\008_project_documents.sql
+--------------------------------------------------------------------------------
+Total lines: 80
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\migrations\009_experiences.sql
+--------------------------------------------------------------------------------
+Total lines: 119
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\database\runMigrations.js
+--------------------------------------------------------------------------------
+Total lines: 316
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\middleware\authenticationMiddleware.js
+--------------------------------------------------------------------------------
+Total lines: 185
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\middleware\profile\authorizationMiddleware.js
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: backend\src\middleware\skills\skillOwnershipMiddleware.js
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: backend\src\repositories\authRepository.js
+--------------------------------------------------------------------------------
+Total lines: 618
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\repositories\experienceRepository.js
+--------------------------------------------------------------------------------
+Total lines: 205
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\repositories\skillRepository.js
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: backend\src\routes\authRoutes.js
+--------------------------------------------------------------------------------
+Total lines: 374
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\routes\experienceRoutes.js
+--------------------------------------------------------------------------------
+Total lines: 32
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\routes\skillRoutes.js
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: backend\src\schemas\experienceOverviewSchemas.js
+--------------------------------------------------------------------------------
+Total lines: 201
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\schemas\experienceSchemas.js
+--------------------------------------------------------------------------------
+Total lines: 493
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\schemas\experienceSkillSchemas.js
+--------------------------------------------------------------------------------
+Total lines: 268
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\schemas\skillSchemas.js
+--------------------------------------------------------------------------------
+Total lines: 457
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\server.js
+--------------------------------------------------------------------------------
+Total lines: 157
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\groqExperienceOverviewProviderOld.js
+--------------------------------------------------------------------------------
+Total lines: 189
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\Prompt\experienceOverviewPrompt.js
+--------------------------------------------------------------------------------
+Total lines: 214
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\Prompt\experienceSkillPrompt.js
+--------------------------------------------------------------------------------
+Total lines: 185
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\providers\groqExperienceOverviewProvider.js
+--------------------------------------------------------------------------------
+Total lines: 202
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\providers\groqExperienceSkillProvider.js
+--------------------------------------------------------------------------------
+Total lines: 202
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\Service\experienceOverviewService.js
+--------------------------------------------------------------------------------
+Total lines: 32
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\Service\experienceService.js
+--------------------------------------------------------------------------------
+Total lines: 287
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\Service\experienceSkillService.js
+--------------------------------------------------------------------------------
+Total lines: 49
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\src\services\Service\skillService.js
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: backend\test\api\experienceApi.test.js
+--------------------------------------------------------------------------------
+Total lines: 401
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test\middleware\authenticationMiddleware.test.js
+--------------------------------------------------------------------------------
+Total lines: 552
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test\project\verifyProjectMediaMigration.js
+--------------------------------------------------------------------------------
+Total lines: 77
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test\repositories\experienceRepository.test.js
+--------------------------------------------------------------------------------
+Total lines: 464
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test\schemas\experienceSchemas.test.js
+--------------------------------------------------------------------------------
+Total lines: 180
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test\schemas\experienceSchemasHardening.test.js
+--------------------------------------------------------------------------------
+Total lines: 274
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test\services\experienceService.test.js
+--------------------------------------------------------------------------------
+Total lines: 455
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: backend\test-local-sql.mjs
+--------------------------------------------------------------------------------
+Total lines: 43
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\public\staticwebapp.config.json
+--------------------------------------------------------------------------------
+Total lines: 10
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\App.jsx
+--------------------------------------------------------------------------------
+Total lines: 324
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\config\experienceConfig.js
+--------------------------------------------------------------------------------
+Total lines: 381
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\config\skillConfig.js
+--------------------------------------------------------------------------------
+Total lines: 440
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\context\AuthContext.jsx
+--------------------------------------------------------------------------------
+Total lines: 827
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\context\ExperienceDataContext.jsx
+--------------------------------------------------------------------------------
+Total lines: 660
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\context\SkillDataContext.jsx
+--------------------------------------------------------------------------------
+Total lines: 713
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\layouts\AuthLayout\AuthLayout.jsx
+--------------------------------------------------------------------------------
+Total lines: 298
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\models\experienceModel.js
+--------------------------------------------------------------------------------
+Total lines: 898
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\models\skillModel.js
+--------------------------------------------------------------------------------
+Total lines: 452
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Auth\Login\Login.jsx
+--------------------------------------------------------------------------------
+Total lines: 363
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Auth\LoginVerify\LoginVerify.jsx
+--------------------------------------------------------------------------------
+Total lines: 645
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Auth\Register\Register.jsx
+--------------------------------------------------------------------------------
+Total lines: 275
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Auth\RegisterVerify\RegisterVerify.jsx
+--------------------------------------------------------------------------------
+Total lines: 468
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Auth\SetPassword\SetPassword.jsx
+--------------------------------------------------------------------------------
+Total lines: 427
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 273
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\AchievementEditor\AchievementEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 520
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceBuilder\ExperienceBuilder.jsx
+--------------------------------------------------------------------------------
+Total lines: 0
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx
+--------------------------------------------------------------------------------
+Total lines: 411
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceDashboard\ExperienceDashboard.jsx
+--------------------------------------------------------------------------------
+Total lines: 96
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceFilters\ExperienceFilters.jsx
+--------------------------------------------------------------------------------
+Total lines: 163
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx
+--------------------------------------------------------------------------------
+Total lines: 1122
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 819
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceList\ExperienceList.jsx
+--------------------------------------------------------------------------------
+Total lines: 150
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx
+--------------------------------------------------------------------------------
+Total lines: 662
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewReadiness\ExperienceOverviewReadiness.jsx
+--------------------------------------------------------------------------------
+Total lines: 65
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewSuggestions\ExperienceOverviewSuggestions.jsx
+--------------------------------------------------------------------------------
+Total lines: 70
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperiencePageHeader\ExperiencePageHeader.jsx
+--------------------------------------------------------------------------------
+Total lines: 76
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 483
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx
+--------------------------------------------------------------------------------
+Total lines: 700
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 464
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\components\ResponsibilityEditor\ResponsibilityEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 424
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Experience\Experience.jsx
+--------------------------------------------------------------------------------
+Total lines: 450
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Portfolio\components\Experience\Experience.jsx
+--------------------------------------------------------------------------------
+Total lines: 61
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Portfolio\components\Experience\ExperienceItem\ExperienceItem.jsx
+--------------------------------------------------------------------------------
+Total lines: 55
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Portfolio\components\Skills\Skills.jsx
+--------------------------------------------------------------------------------
+Total lines: 38
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx
+--------------------------------------------------------------------------------
+Total lines: 21
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\components\SkillForm\SkillForm.jsx
+--------------------------------------------------------------------------------
+Total lines: 882
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\components\SkillItem\SkillItem.jsx
+--------------------------------------------------------------------------------
+Total lines: 546
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx
+--------------------------------------------------------------------------------
+Total lines: 143
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\components\SkillSelector\SkillSelector.jsx
+--------------------------------------------------------------------------------
+Total lines: 614
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx
+--------------------------------------------------------------------------------
+Total lines: 368
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx
+--------------------------------------------------------------------------------
+Total lines: 82
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\skills\Skills.jsx
+--------------------------------------------------------------------------------
+Total lines: 324
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx
+--------------------------------------------------------------------------------
+Total lines: 354
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\apiClient.js
+--------------------------------------------------------------------------------
+Total lines: 534
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Auth\authService.js
+--------------------------------------------------------------------------------
+Total lines: 330
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Certification\certificationTrainingMigrationService.js
+--------------------------------------------------------------------------------
+Total lines: 887
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceApiAdapter.js
+--------------------------------------------------------------------------------
+Total lines: 42
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceApiService.js
+--------------------------------------------------------------------------------
+Total lines: 121
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceContextCompatibility.js
+--------------------------------------------------------------------------------
+Total lines: 121
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceDatabaseService.js
+--------------------------------------------------------------------------------
+Total lines: 134
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceService.js
+--------------------------------------------------------------------------------
+Total lines: 321
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceStorage.js
+--------------------------------------------------------------------------------
+Total lines: 458
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceUtils.js
+--------------------------------------------------------------------------------
+Total lines: 741
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Experience\experienceValidation.js
+--------------------------------------------------------------------------------
+Total lines: 1267
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Skill\skillService.js
+--------------------------------------------------------------------------------
+Total lines: 736
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Skill\skillStorage.js
+--------------------------------------------------------------------------------
+Total lines: 284
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Skill\skillUtils.js
+--------------------------------------------------------------------------------
+Total lines: 945
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\src\services\Skill\skillValidation.js
+--------------------------------------------------------------------------------
+Total lines: 735
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceApiAdapter.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 106
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceApiService.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 464
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceCompatibilityPositive.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 266
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceContextCompatibility.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 82
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceDatabaseDelegation.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 211
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceDatabaseService.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 54
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+
+--------------------------------------------------------------------------------
+FILE: frontend\tests\Experience\experienceModelRowVersion.test.mjs
+--------------------------------------------------------------------------------
+Total lines: 69
+READ ERROR: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
