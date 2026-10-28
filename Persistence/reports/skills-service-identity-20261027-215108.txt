@@ -1,0 +1,1212 @@
+﻿
+==========================================================================================
+FILE: frontend\src\models\skillModel.js
+LINES: 1-145
+==========================================================================================
+    1: import {
+    2:   DEFAULT_SKILL_VALUES,
+    3:   isValidLanguageProficiency,
+    4:   isValidSkillCategory,
+    5:   isValidSkillProficiency,
+    6:   isValidSkillSource,
+    7:   isValidSkillStatus,
+    8:   isValidSkillType,
+    9:   SKILL_FIELD_LIMITS,
+   10: } from "../config/skillConfig.js";
+   11: 
+   12: /*
+   13:  * =========================================
+   14:  * Model Version
+   15:  * =========================================
+   16:  */
+   17: 
+   18: export const SKILL_MODEL_VERSION = 1;
+   19: 
+   20: /*
+   21:  * =========================================
+   22:  * ID Creation
+   23:  * =========================================
+   24:  */
+   25: 
+   26: export function createSkillId(prefix = "skill") {
+   27:   if (
+   28:     typeof crypto !== "undefined" &&
+   29:     typeof crypto.randomUUID === "function"
+   30:   ) {
+   31:     return `${prefix}-${crypto.randomUUID()}`;
+   32:   }
+   33: 
+   34:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+   35: }
+   36: 
+   37: /*
+   38:  * =========================================
+   39:  * Primitive Normalization
+   40:  * =========================================
+   41:  */
+   42: 
+   43: function normalizeText(value, maximumLength = Infinity) {
+   44:   if (typeof value !== "string") {
+   45:     return "";
+   46:   }
+   47: 
+   48:   return value.trim().slice(0, maximumLength);
+   49: }
+   50: 
+   51: function normalizeNullableNumber(value) {
+   52:   if (value === "" || value === null || value === undefined) {
+   53:     return null;
+   54:   }
+   55: 
+   56:   const numberValue = Number(value);
+   57: 
+   58:   if (!Number.isFinite(numberValue) || numberValue < 0) {
+   59:     return null;
+   60:   }
+   61: 
+   62:   return Number(numberValue.toFixed(1));
+   63: }
+   64: 
+   65: function normalizeYearMonth(value) {
+   66:   const text = normalizeText(value, 10);
+   67: 
+   68:   if (!text) {
+   69:     return "";
+   70:   }
+   71: 
+   72:   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(text)) {
+   73:     return "";
+   74:   }
+   75: 
+   76:   return text;
+   77: }
+   78: 
+   79: /*
+   80:  * =========================================
+   81:  * Search Name Normalization
+   82:  * =========================================
+   83:  *
+   84:  * normalizedName is used for searching and
+   85:  * duplicate prevention. It is not intended as
+   86:  * the user-facing display name.
+   87:  */
+   88: 
+   89: export function normalizeSkillNameForComparison(value) {
+   90:   return normalizeText(value)
+   91:     .normalize("NFKC")
+   92:     .toLocaleLowerCase()
+   93:     .replace(/[._/\\-]+/g, " ")
+   94:     .replace(/\s+/g, " ")
+   95:     .trim();
+   96: }
+   97: 
+   98: /*
+   99:  * =========================================
+  100:  * Alias Normalization
+  101:  * =========================================
+  102:  */
+  103: 
+  104: function normalizeAliases(aliases, skillName = "") {
+  105:   if (!Array.isArray(aliases)) {
+  106:     return [];
+  107:   }
+  108: 
+  109:   const normalizedSkillName = normalizeSkillNameForComparison(skillName);
+  110: 
+  111:   const normalizedAliases = aliases
+  112:     .map((alias) => {
+  113:       if (typeof alias === "string") {
+  114:         return normalizeText(alias, SKILL_FIELD_LIMITS.alias);
+  115:       }
+  116: 
+  117:       return normalizeText(
+  118:         alias?.name || alias?.value || alias?.label,
+  119:         SKILL_FIELD_LIMITS.alias,
+  120:       );
+  121:     })
+  122:     .filter(Boolean);
+  123: 
+  124:   return normalizedAliases
+  125:     .filter((alias, index, collection) => {
+  126:       const comparisonName = normalizeSkillNameForComparison(alias);
+  127: 
+  128:       if (comparisonName === normalizedSkillName) {
+  129:         return false;
+  130:       }
+  131: 
+  132:       return (
+  133:         collection.findIndex(
+  134:           (candidate) =>
+  135:             normalizeSkillNameForComparison(candidate) === comparisonName,
+  136:         ) === index
+  137:       );
+  138:     })
+  139:     .slice(0, SKILL_FIELD_LIMITS.maximumAliases);
+  140: }
+  141: 
+  142: /*
+  143:  * =========================================
+  144:  * Empty Skill
+  145:  * =========================================
+
+==========================================================================================
+FILE: frontend\src\models\skillModel.js
+LINES: 145-345
+==========================================================================================
+  145:  * =========================================
+  146:  */
+  147: 
+  148: export function createEmptySkill() {
+  149:   const timestamp = new Date().toISOString();
+  150: 
+  151:   return {
+  152:     modelVersion: SKILL_MODEL_VERSION,
+  153: 
+  154:     id: createSkillId(),
+  155: 
+  156:     name: "",
+  157: 
+  158:     normalizedName: "",
+  159: 
+  160:     category: DEFAULT_SKILL_VALUES.category,
+  161: 
+  162:     type: DEFAULT_SKILL_VALUES.type,
+  163: 
+  164:     description: "",
+  165: 
+  166:     aliases: [],
+  167: 
+  168:     proficiency: {
+  169:       level: DEFAULT_SKILL_VALUES.proficiency,
+  170: 
+  171:       yearsOfExperience: null,
+  172: 
+  173:       lastUsedDate: "",
+  174:     },
+  175: 
+  176:     language: {
+  177:       proficiency: DEFAULT_SKILL_VALUES.languageProficiency,
+  178:     },
+  179: 
+  180:     source: DEFAULT_SKILL_VALUES.source,
+  181: 
+  182:     /*
+  183:      * sourceContext describes where a skill was
+  184:      * created. Examples:
+  185:      *
+  186:      * skill-page
+  187:      * experience
+  188:      * resume
+  189:      * portfolio
+  190:      * ai-experience-suggestion
+  191:      */
+  192: 
+  193:     sourceContext: "",
+  194: 
+  195:     notes: "",
+  196: 
+  197:     status: DEFAULT_SKILL_VALUES.status,
+  198: 
+  199:     createdAt: timestamp,
+  200:     updatedAt: timestamp,
+  201:   };
+  202: }
+  203: 
+  204: /*
+  205:  * =========================================
+  206:  * Normalize Skill
+  207:  * =========================================
+  208:  */
+  209: 
+  210: export function normalizeSkill(value = {}) {
+  211:   const defaults = createEmptySkill();
+  212: 
+  213:   /*
+  214:    * Permit a simple string during migration.
+  215:    */
+  216: 
+  217:   const source =
+  218:     typeof value === "string"
+  219:       ? {
+  220:           name: value,
+  221:         }
+  222:       : value && typeof value === "object"
+  223:         ? value
+  224:         : {};
+  225: 
+  226:   const proficiency =
+  227:     source.proficiency && typeof source.proficiency === "object"
+  228:       ? source.proficiency
+  229:       : {};
+  230: 
+  231:   const language =
+  232:     source.language && typeof source.language === "object"
+  233:       ? source.language
+  234:       : {};
+  235: 
+  236:   const name = normalizeText(
+  237:     source.name || source.label || source.value,
+  238:     SKILL_FIELD_LIMITS.name,
+  239:   );
+  240: 
+  241:   const category = isValidSkillCategory(source.category)
+  242:     ? source.category
+  243:     : defaults.category;
+  244: 
+  245:   const type = isValidSkillType(source.type) ? source.type : defaults.type;
+  246: 
+  247:   const proficiencyLevel = isValidSkillProficiency(proficiency.level)
+  248:     ? proficiency.level
+  249:     : defaults.proficiency.level;
+  250: 
+  251:   const languageProficiency = isValidLanguageProficiency(language.proficiency)
+  252:     ? language.proficiency
+  253:     : defaults.language.proficiency;
+  254: 
+  255:   const skillSource = isValidSkillSource(source.source)
+  256:     ? source.source
+  257:     : defaults.source;
+  258: 
+  259:   const status = isValidSkillStatus(source.status)
+  260:     ? source.status
+  261:     : defaults.status;
+  262: 
+  263:   return {
+  264:     modelVersion: SKILL_MODEL_VERSION,
+  265: 
+  266:     id: normalizeText(source.id, 200) || defaults.id,
+  267: 
+  268:     name,
+  269: 
+  270:     normalizedName: normalizeSkillNameForComparison(name),
+  271: 
+  272:     category,
+  273: 
+  274:     type,
+  275: 
+  276:     description: normalizeText(
+  277:       source.description,
+  278:       SKILL_FIELD_LIMITS.description,
+  279:     ),
+  280: 
+  281:     aliases: normalizeAliases(source.aliases, name),
+  282: 
+  283:     proficiency: {
+  284:       level: proficiencyLevel,
+  285: 
+  286:       yearsOfExperience: normalizeNullableNumber(
+  287:         proficiency.yearsOfExperience ?? source.yearsOfExperience,
+  288:       ),
+  289: 
+  290:       lastUsedDate: normalizeYearMonth(
+  291:         proficiency.lastUsedDate || source.lastUsedDate,
+  292:       ),
+  293:     },
+  294: 
+  295:     language: {
+  296:       proficiency: languageProficiency,
+  297:     },
+  298: 
+  299:     source: skillSource,
+  300: 
+  301:     sourceContext: normalizeText(source.sourceContext, 100),
+  302: 
+  303:     notes: normalizeText(source.notes, SKILL_FIELD_LIMITS.notes),
+  304: 
+  305:     status,
+  306: 
+  307:     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+  308: 
+  309:     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  310:   };
+  311: }
+  312: 
+  313: /*
+  314:  * =========================================
+  315:  * Create Skill
+  316:  * =========================================
+  317:  */
+  318: 
+  319: export function createSkill(values = {}) {
+  320:   const timestamp = new Date().toISOString();
+  321: 
+  322:   return normalizeSkill({
+  323:     ...values,
+  324: 
+  325:     id: normalizeText(values?.id, 200) || createSkillId(),
+  326: 
+  327:     createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+  328: 
+  329:     updatedAt: timestamp,
+  330:   });
+  331: }
+  332: 
+  333: /*
+  334:  * =========================================
+  335:  * Update Skill
+  336:  * =========================================
+  337:  */
+  338: 
+  339: export function updateSkillModel(currentSkill, updates = {}) {
+  340:   return normalizeSkill({
+  341:     ...currentSkill,
+  342:     ...updates,
+  343: 
+  344:     proficiency: {
+  345:       ...currentSkill?.proficiency,
+
+==========================================================================================
+FILE: frontend\src\models\skillModel.js
+LINES: 365-452
+==========================================================================================
+  365:  * =========================================
+  366:  */
+  367: 
+  368: export function normalizeSkillCollection(values) {
+  369:   if (!Array.isArray(values)) {
+  370:     return [];
+  371:   }
+  372: 
+  373:   const normalizedSkills = values.map(normalizeSkill);
+  374: 
+  375:   /*
+  376:    * Remove duplicate IDs and duplicate skill names.
+  377:    */
+  378: 
+  379:   return normalizedSkills.filter((skill, index, collection) => {
+  380:     const duplicateIdIndex = collection.findIndex(
+  381:       (candidate) => candidate.id === skill.id,
+  382:     );
+  383: 
+  384:     const duplicateNameIndex = collection.findIndex(
+  385:       (candidate) =>
+  386:         candidate.normalizedName &&
+  387:         candidate.normalizedName === skill.normalizedName,
+  388:     );
+  389: 
+  390:     return (
+  391:       duplicateIdIndex === index &&
+  392:       (!skill.normalizedName || duplicateNameIndex === index)
+  393:     );
+  394:   });
+  395: }
+  396: 
+  397: /*
+  398:  * =========================================
+  399:  * Find Matching Skill
+  400:  * =========================================
+  401:  */
+  402: 
+  403: export function findMatchingSkill(skills, name) {
+  404:   if (!Array.isArray(skills)) {
+  405:     return null;
+  406:   }
+  407: 
+  408:   const normalizedName = normalizeSkillNameForComparison(name);
+  409: 
+  410:   if (!normalizedName) {
+  411:     return null;
+  412:   }
+  413: 
+  414:   return (
+  415:     skills.find((skill) => {
+  416:       if (normalizeSkillNameForComparison(skill.name) === normalizedName) {
+  417:         return true;
+  418:       }
+  419: 
+  420:       return (skill.aliases || []).some(
+  421:         (alias) => normalizeSkillNameForComparison(alias) === normalizedName,
+  422:       );
+  423:     }) || null
+  424:   );
+  425: }
+  426: 
+  427: /*
+  428:  * =========================================
+  429:  * Skill Display Information
+  430:  * =========================================
+  431:  */
+  432: 
+  433: export function getSkillDisplayName(skill) {
+  434:   return normalizeText(skill?.name) || "Unnamed Skill";
+  435: }
+  436: 
+  437: /*
+  438:  * =========================================
+  439:  * Public Skill
+  440:  * =========================================
+  441:  *
+  442:  * Private notes and internal source context are
+  443:  * excluded before public presentation.
+  444:  */
+  445: 
+  446: export function createPublicSkill(value) {
+  447:   const skill = normalizeSkill(value);
+  448: 
+  449:   const { notes, sourceContext, ...publicSkill } = skill;
+  450: 
+  451:   return publicSkill;
+  452: }
+
+==========================================================================================
+FILE: frontend\src\services\Skill\skillService.js
+LINES: 1-185
+==========================================================================================
+    1: import {
+    2:   createEmptySkill,
+    3:   createSkill as createSkillModel,
+    4:   findMatchingSkill,
+    5:   normalizeSkill,
+    6:   normalizeSkillCollection,
+    7:   normalizeSkillNameForComparison,
+    8:   updateSkillModel,
+    9: } from "../../models/skillModel.js";
+   10: 
+   11: import { readStoredExperiences } from "../Experience/experienceStorage.js";
+   12: 
+   13: import { readStoredEducation } from "../Education/educationStorage.js";
+   14: 
+   15: import { readStoredTraining } from "../Training/trainingStorage.js";
+   16: 
+   17: import { getSkillUsage } from "./skillUtils.js";
+   18: 
+   19: import {
+   20:   assertValidSkill,
+   21:   validateSkill,
+   22:   validateSkillNameAvailability,
+   23: } from "./skillValidation.js";
+   24: 
+   25: import { readStoredSkills, replaceStoredSkills } from "./skillStorage.js";
+   26: 
+   27: /*
+   28:  * =========================================
+   29:  * Service Error
+   30:  * =========================================
+   31:  */
+   32: 
+   33: function createSkillServiceError({
+   34:   message,
+   35:   publicMessage,
+   36:   code,
+   37:   status = 500,
+   38:   details = null,
+   39:   conflicts = [],
+   40:   usage = null,
+   41: }) {
+   42:   const error = new Error(message);
+   43: 
+   44:   error.name = "SkillServiceError";
+   45:   error.code = code;
+   46:   error.status = status;
+   47:   error.publicMessage = publicMessage;
+   48:   error.details = details;
+   49: 
+   50:   error.conflicts = Array.isArray(conflicts) ? conflicts : [];
+   51: 
+   52:   error.usage = usage && typeof usage === "object" ? usage : null;
+   53: 
+   54:   return error;
+   55: }
+   56: 
+   57: function createSkillNotFoundError(skillId) {
+   58:   return createSkillServiceError({
+   59:     message: `Skill "${skillId}" was not found.`,
+   60: 
+   61:     publicMessage: "The requested skill could not be found.",
+   62: 
+   63:     code: "SKILL_NOT_FOUND",
+   64: 
+   65:     status: 404,
+   66:   });
+   67: }
+   68: 
+   69: /*
+   70:  * =========================================
+   71:  * Skill Usage Conflict
+   72:  * =========================================
+   73:  */
+   74: 
+   75: function createSkillUsageConflict(skill, usage) {
+   76:   const experienceCount = Number(usage?.experienceCount) || 0;
+   77: 
+   78:   const educationCount = Number(usage?.educationCount) || 0;
+   79: 
+   80:   const trainingCount = Number(usage?.trainingCount) || 0;
+   81: 
+   82:   const resumeCount = Number(usage?.resumeCount) || 0;
+   83: 
+   84:   const portfolioCount = Number(usage?.portfolioCount) || 0;
+   85: 
+   86:   const experienceSkillCount = Number(usage?.experienceSkillCount) || 0;
+   87: 
+   88:   const experienceTechnologyCount =
+   89:     Number(usage?.experienceTechnologyCount) || 0;
+   90: 
+   91:   const educationSkillCount = Number(usage?.educationSkillCount) || 0;
+   92: 
+   93:   const trainingSkillCount = Number(usage?.trainingSkillCount) || 0;
+   94: 
+   95:   const relationshipCount =
+   96:     experienceSkillCount +
+   97:     experienceTechnologyCount +
+   98:     educationSkillCount +
+   99:     trainingSkillCount;
+  100: 
+  101:   const recordCount =
+  102:     experienceCount +
+  103:     educationCount +
+  104:     trainingCount +
+  105:     resumeCount +
+  106:     portfolioCount;
+  107: 
+  108:   const publicMessage =
+  109:     `"${skill.name}" cannot be permanently deleted because it is still ` +
+  110:     `referenced by ${recordCount} ${
+  111:       recordCount === 1 ? "saved record" : "saved records"
+  112:     }. Archive it instead.`;
+  113: 
+  114:   const experienceConflicts = Array.isArray(usage?.experiences)
+  115:     ? usage.experiences.map((experience) => ({
+  116:         type: "experience",
+  117: 
+  118:         recordId: experience.id,
+  119: 
+  120:         recordName:
+  121:           `${experience.positionTitle} at ` + experience.organizationName,
+  122: 
+  123:         positionTitle: experience.positionTitle,
+  124: 
+  125:         organizationName: experience.organizationName,
+  126: 
+  127:         usedAsSkill: experience.usedAsSkill === true,
+  128: 
+  129:         usedAsTechnology: experience.usedAsTechnology === true,
+  130:       }))
+  131:     : [];
+  132: 
+  133:   const educationConflicts = Array.isArray(usage?.educationRecords)
+  134:     ? usage.educationRecords.map((education) => ({
+  135:         type: "education",
+  136: 
+  137:         recordId: education.id,
+  138: 
+  139:         recordName:
+  140:           `${education.credentialName} at ` + education.institutionName,
+  141: 
+  142:         credentialName: education.credentialName,
+  143: 
+  144:         institutionName: education.institutionName,
+  145:       }))
+  146:     : [];
+  147: 
+  148:   const trainingConflicts = Array.isArray(usage?.trainingRecords)
+  149:     ? usage.trainingRecords.map((training) => ({
+  150:         type: "training",
+  151: 
+  152:         recordId: training.id,
+  153: 
+  154:         recordName: `${training.title} from ` + training.providerName,
+  155: 
+  156:         title: training.title,
+  157: 
+  158:         providerName: training.providerName,
+  159:       }))
+  160:     : [];
+  161: 
+  162:   return createSkillServiceError({
+  163:     message:
+  164:       `Skill "${skill.id}" has stored relationships ` +
+  165:       "and cannot be deleted.",
+  166: 
+  167:     publicMessage,
+  168: 
+  169:     code: "SKILL_IN_USE",
+  170: 
+  171:     status: 409,
+  172: 
+  173:     details: {
+  174:       skillId: skill.id,
+  175:       skillName: skill.name,
+  176: 
+  177:       recordCount,
+  178:       relationshipCount,
+  179: 
+  180:       experienceCount,
+  181:       educationCount,
+  182:       trainingCount,
+  183:       resumeCount,
+  184:       portfolioCount,
+  185: 
+
+==========================================================================================
+FILE: frontend\src\services\Skill\skillService.js
+LINES: 305-370
+==========================================================================================
+  305:   if (!skill) {
+  306:     throw createSkillNotFoundError(skillId);
+  307:   }
+  308: 
+  309:   return skill;
+  310: }
+  311: 
+  312: /*
+  313:  * =========================================
+  314:  * Find Skill By Name or Alias
+  315:  * =========================================
+  316:  */
+  317: 
+  318: export async function findSkillByName(name) {
+  319:   if (!normalizeSkillNameForComparison(name)) {
+  320:     return null;
+  321:   }
+  322: 
+  323:   return findMatchingSkill(readStoredSkills(), name);
+  324: }
+  325: 
+  326: /*
+  327:  * =========================================
+  328:  * Create Skill
+  329:  * =========================================
+  330:  */
+  331: 
+  332: export async function createSkill(skillData) {
+  333:   const skills = readStoredSkills();
+  334: 
+  335:   const candidate = createSkillCandidate(skillData);
+  336: 
+  337:   assertValidSkill(candidate, {
+  338:     existingSkills: skills,
+  339:   });
+  340: 
+  341:   const skill = createSkillModel(candidate);
+  342: 
+  343:   const duplicateId = skills.some(
+  344:     (existingSkill) => existingSkill.id === skill.id,
+  345:   );
+  346: 
+  347:   if (duplicateId) {
+  348:     throw createSkillServiceError({
+  349:       message: `Skill ID "${skill.id}" already exists.`,
+  350: 
+  351:       publicMessage:
+  352:         "This skill could not be created because its identifier already exists.",
+  353: 
+  354:       code: "SKILL_ID_CONFLICT",
+  355: 
+  356:       status: 409,
+  357:     });
+  358:   }
+  359: 
+  360:   replaceStoredSkills([skill, ...skills]);
+  361: 
+  362:   return skill;
+  363: }
+  364: 
+  365: /*
+  366:  * =========================================
+  367:  * Update Skill
+  368:  * =========================================
+  369:  */
+  370: 
+
+==========================================================================================
+FILE: frontend\src\services\Skill\skillService.js
+LINES: 465-665
+==========================================================================================
+  465:  */
+  466: 
+  467: function resolveStoredSkillUsage(skillId) {
+  468:   /*
+  469:    * Active and archived parent records are checked.
+  470:    * Archiving a parent record does not remove its
+  471:    * central Skill Library relationships.
+  472:    */
+  473: 
+  474:   const experiences = readStoredExperiences();
+  475: 
+  476:   const educationRecords = readStoredEducation();
+  477: 
+  478:   const trainingRecords = readStoredTraining();
+  479: 
+  480:   return getSkillUsage(skillId, {
+  481:     experiences,
+  482:     educationRecords,
+  483:     trainingRecords,
+  484:   });
+  485: }
+  486: 
+  487: /*
+  488:  * =========================================
+  489:  * Delete Skill
+  490:  * =========================================
+  491:  */
+  492: 
+  493: export async function deleteSkill(skillId) {
+  494:   if (!skillId) {
+  495:     throw createSkillServiceError({
+  496:       message: "A skill ID is required to delete a skill.",
+  497: 
+  498:       publicMessage: "The skill could not be identified.",
+  499: 
+  500:       code: "SKILL_ID_REQUIRED",
+  501: 
+  502:       status: 400,
+  503:     });
+  504:   }
+  505: 
+  506:   const skills = readStoredSkills();
+  507: 
+  508:   const skillToDelete = skills.find((skill) => skill.id === skillId);
+  509: 
+  510:   if (!skillToDelete) {
+  511:     throw createSkillNotFoundError(skillId);
+  512:   }
+  513: 
+  514:   /*
+  515:  * The service independently reads Experience,
+  516:  * Education, and Training storage. Deletion
+  517:  * protection cannot be bypassed by calling
+  518:  * skillService directly.
+  519:  */
+  520: 
+  521:   const usage = resolveStoredSkillUsage(skillId);
+  522: 
+  523:   if (Number(usage.total ?? usage.totalUsage) > 0) {
+  524:     throw createSkillUsageConflict(skillToDelete, usage);
+  525:   }
+  526: 
+  527:   const remainingSkills = skills.filter((skill) => skill.id !== skillId);
+  528: 
+  529:   replaceStoredSkills(remainingSkills);
+  530: 
+  531:   return {
+  532:     id: skillId,
+  533: 
+  534:     name: skillToDelete.name,
+  535: 
+  536:     deleted: true,
+  537:   };
+  538: }
+  539: 
+  540: /*
+  541:  * =========================================
+  542:  * Resolve Skill Match
+  543:  * =========================================
+  544:  */
+  545: 
+  546: export async function resolveSkillMatch(name) {
+  547:   const skills = readStoredSkills();
+  548: 
+  549:   const availability = validateSkillNameAvailability(name, skills);
+  550: 
+  551:   if (availability.isAvailable || !availability.matchingSkill) {
+  552:     return {
+  553:       matched: false,
+  554:       matchedBy: "",
+  555:       skill: null,
+  556:     };
+  557:   }
+  558: 
+  559:   const matchingSkill = availability.matchingSkill;
+  560: 
+  561:   const normalizedRequestedName = normalizeSkillNameForComparison(name);
+  562: 
+  563:   const normalizedPrimaryName = normalizeSkillNameForComparison(
+  564:     matchingSkill.name,
+  565:   );
+  566: 
+  567:   return {
+  568:     matched: true,
+  569: 
+  570:     matchedBy:
+  571:       normalizedRequestedName === normalizedPrimaryName ? "name" : "alias",
+  572: 
+  573:     skill: matchingSkill,
+  574:   };
+  575: }
+  576: 
+  577: /*
+  578:  * =========================================
+  579:  * Find or Create Skill
+  580:  * =========================================
+  581:  */
+  582: 
+  583: export async function findOrCreateSkill(
+  584:   skillData,
+  585:   { restoreArchived = true } = {},
+  586: ) {
+  587:   const candidateData =
+  588:     typeof skillData === "string"
+  589:       ? {
+  590:           name: skillData,
+  591:         }
+  592:       : skillData && typeof skillData === "object"
+  593:         ? skillData
+  594:         : {};
+  595: 
+  596:   const name =
+  597:     typeof candidateData.name === "string" ? candidateData.name.trim() : "";
+  598: 
+  599:   if (!name) {
+  600:     throw createSkillServiceError({
+  601:       message: "A skill name is required for find-or-create.",
+  602: 
+  603:       publicMessage: "Enter a skill name before adding it.",
+  604: 
+  605:       code: "SKILL_NAME_REQUIRED",
+  606: 
+  607:       status: 400,
+  608:     });
+  609:   }
+  610: 
+  611:   const matchResult = await resolveSkillMatch(name);
+  612: 
+  613:   if (matchResult.matched) {
+  614:     let matchedSkill = matchResult.skill;
+  615: 
+  616:     let restored = false;
+  617: 
+  618:     if (restoreArchived && matchedSkill.status === "archived") {
+  619:       matchedSkill = await restoreSkill(matchedSkill.id);
+  620: 
+  621:       restored = true;
+  622:     }
+  623: 
+  624:     return {
+  625:       skill: matchedSkill,
+  626: 
+  627:       created: false,
+  628: 
+  629:       restored,
+  630: 
+  631:       matched: true,
+  632: 
+  633:       matchedBy: matchResult.matchedBy,
+  634:     };
+  635:   }
+  636: 
+  637:   const createdSkill = await createSkill({
+  638:     ...candidateData,
+  639: 
+  640:     name,
+  641: 
+  642:     source: candidateData.source || "manual",
+  643: 
+  644:     sourceContext: candidateData.sourceContext || "experience",
+  645:   });
+  646: 
+  647:   return {
+  648:     skill: createdSkill,
+  649: 
+  650:     created: true,
+  651: 
+  652:     restored: false,
+  653: 
+  654:     matched: false,
+  655: 
+  656:     matchedBy: "",
+  657:   };
+  658: }
+  659: 
+  660: /*
+  661:  * =========================================
+  662:  * Validate Skill Draft
+  663:  * =========================================
+  664:  */
+  665: 
+
+==========================================================================================
+FILE: frontend\src\services\Skill\skillUtils.js
+LINES: 450-740
+==========================================================================================
+  450:  */
+  451: 
+  452: function getRelationshipSkillId(relationship) {
+  453:   if (typeof relationship === "string") {
+  454:     return relationship.trim();
+  455:   }
+  456: 
+  457:   if (!relationship || typeof relationship !== "object") {
+  458:     return "";
+  459:   }
+  460: 
+  461:   return String(
+  462:     relationship.skillId || relationship.profileSkillId || "",
+  463:   ).trim();
+  464: }
+  465: 
+  466: function countSkillRelationships(relationships, skillId) {
+  467:   if (!skillId) {
+  468:     return 0;
+  469:   }
+  470: 
+  471:   return getArray(relationships).filter(
+  472:     (relationship) => getRelationshipSkillId(relationship) === skillId,
+  473:   ).length;
+  474: }
+  475: 
+  476: function getExperienceLabels(experience) {
+  477:   return {
+  478:     positionTitle: getText(experience?.position?.title) || "Untitled Position",
+  479: 
+  480:     organizationName:
+  481:       getText(experience?.organization?.name) || "Organization not provided",
+  482:   };
+  483: }
+  484: 
+  485: function getEducationLabels(education) {
+  486:   return {
+  487:     credentialName:
+  488:       getText(education?.credential?.name) || "Unnamed Credential",
+  489: 
+  490:     institutionName:
+  491:       getText(education?.institution?.name) || "Institution not provided",
+  492:   };
+  493: }
+  494: 
+  495: function getTrainingLabels(training) {
+  496:   return {
+  497:     title: getText(training?.title) || "Untitled Training",
+  498: 
+  499:     providerName:
+  500:       getText(training?.provider?.name) || "Training provider not provided",
+  501:   };
+  502: }
+  503: 
+  504: /*
+  505:  * =========================================
+  506:  * Empty Usage
+  507:  * =========================================
+  508:  */
+  509: 
+  510: export function createEmptySkillUsage(skillId = "") {
+  511:   return {
+  512:     skillId,
+  513: 
+  514:     /*
+  515:      * Unique parent records using this skill.
+  516:      */
+  517: 
+  518:     total: 0,
+  519:     totalUsage: 0,
+  520: 
+  521:     /*
+  522:      * Unique parent-record totals.
+  523:      */
+  524: 
+  525:     experienceCount: 0,
+  526:     educationCount: 0,
+  527:     trainingCount: 0,
+  528:     resumeCount: 0,
+  529:     portfolioCount: 0,
+  530: 
+  531:     /*
+  532:      * Relationship totals.
+  533:      */
+  534: 
+  535:     experienceSkillCount: 0,
+  536:     experienceTechnologyCount: 0,
+  537:     educationSkillCount: 0,
+  538:     trainingSkillCount: 0,
+  539: 
+  540:     /*
+  541:      * Referencing records.
+  542:      */
+  543: 
+  544:     experiences: [],
+  545:     educationRecords: [],
+  546:     trainingRecords: [],
+  547:     resumes: [],
+  548:     portfolios: [],
+  549: 
+  550:     isUsed: false,
+  551:   };
+  552: }
+  553: 
+  554: /*
+  555:  * =========================================
+  556:  * Experience Usage
+  557:  * =========================================
+  558:  */
+  559: 
+  560: export function getSkillExperienceUsage(skillId, experiences = []) {
+  561:   const result = {
+  562:     experienceCount: 0,
+  563:     experienceSkillCount: 0,
+  564:     experienceTechnologyCount: 0,
+  565:     experiences: [],
+  566:   };
+  567: 
+  568:   if (!skillId) {
+  569:     return result;
+  570:   }
+  571: 
+  572:   getArray(experiences).forEach((experience) => {
+  573:     const skillRelationshipCount = countSkillRelationships(
+  574:       experience?.skills,
+  575:       skillId,
+  576:     );
+  577: 
+  578:     const technologyRelationshipCount = countSkillRelationships(
+  579:       experience?.technologies,
+  580:       skillId,
+  581:     );
+  582: 
+  583:     const usedAsSkill = skillRelationshipCount > 0;
+  584:     const usedAsTechnology = technologyRelationshipCount > 0;
+  585: 
+  586:     if (!usedAsSkill && !usedAsTechnology) {
+  587:       return;
+  588:     }
+  589: 
+  590:     const labels = getExperienceLabels(experience);
+  591: 
+  592:     result.experienceSkillCount += skillRelationshipCount;
+  593:     result.experienceTechnologyCount += technologyRelationshipCount;
+  594: 
+  595:     result.experiences.push({
+  596:       id: getText(experience?.id),
+  597: 
+  598:       positionTitle: labels.positionTitle,
+  599:       organizationName: labels.organizationName,
+  600: 
+  601:       usedAsSkill,
+  602:       usedAsTechnology,
+  603:     });
+  604:   });
+  605: 
+  606:   result.experienceCount = result.experiences.length;
+  607: 
+  608:   return result;
+  609: }
+  610: 
+  611: /*
+  612:  * =========================================
+  613:  * Education Usage
+  614:  * =========================================
+  615:  */
+  616: 
+  617: export function getSkillEducationUsage(skillId, educationRecords = []) {
+  618:   const result = {
+  619:     educationCount: 0,
+  620:     educationSkillCount: 0,
+  621:     educationRecords: [],
+  622:   };
+  623: 
+  624:   if (!skillId) {
+  625:     return result;
+  626:   }
+  627: 
+  628:   getArray(educationRecords).forEach((education) => {
+  629:     const relationshipCount = countSkillRelationships(
+  630:       education?.skillRelationships,
+  631:       skillId,
+  632:     );
+  633: 
+  634:     if (relationshipCount === 0) {
+  635:       return;
+  636:     }
+  637: 
+  638:     const labels = getEducationLabels(education);
+  639: 
+  640:     result.educationSkillCount += relationshipCount;
+  641: 
+  642:     result.educationRecords.push({
+  643:       id: getText(education?.id),
+  644: 
+  645:       credentialName: labels.credentialName,
+  646:       institutionName: labels.institutionName,
+  647: 
+  648:       relationshipCount,
+  649:     });
+  650:   });
+  651: 
+  652:   result.educationCount = result.educationRecords.length;
+  653: 
+  654:   return result;
+  655: }
+  656: 
+  657: /*
+  658:  * =========================================
+  659:  * Training Usage
+  660:  * =========================================
+  661:  */
+  662: 
+  663: export function getSkillTrainingUsage(skillId, trainingRecords = []) {
+  664:   const result = {
+  665:     trainingCount: 0,
+  666:     trainingSkillCount: 0,
+  667:     trainingRecords: [],
+  668:   };
+  669: 
+  670:   if (!skillId) {
+  671:     return result;
+  672:   }
+  673: 
+  674:   getArray(trainingRecords).forEach((training) => {
+  675:     const relationshipCount = countSkillRelationships(
+  676:       training?.skillRelationships,
+  677:       skillId,
+  678:     );
+  679: 
+  680:     if (relationshipCount === 0) {
+  681:       return;
+  682:     }
+  683: 
+  684:     const labels = getTrainingLabels(training);
+  685: 
+  686:     result.trainingSkillCount += relationshipCount;
+  687: 
+  688:     result.trainingRecords.push({
+  689:       id: getText(training?.id),
+  690: 
+  691:       title: labels.title,
+  692: 
+  693:       providerName: labels.providerName,
+  694: 
+  695:       relationshipCount,
+  696:     });
+  697:   });
+  698: 
+  699:   result.trainingCount = result.trainingRecords.length;
+  700: 
+  701:   return result;
+  702: }
+  703: 
+  704: /*
+  705:  * =========================================
+  706:  * Complete Skill Usage
+  707:  * =========================================
+  708:  */
+  709: 
+  710: export function getSkillUsage(
+  711:   skillId,
+  712:   {
+  713:     experiences = [],
+  714:     educationRecords = [],
+  715:     trainingRecords = [],
+  716:     portfolios = [],
+  717:     resumes = [],
+  718:   } = {},
+  719: ) {
+  720:   const usage = createEmptySkillUsage(skillId);
+  721: 
+  722:   const experienceUsage = getSkillExperienceUsage(skillId, experiences);
+  723: 
+  724:   const educationUsage = getSkillEducationUsage(skillId, educationRecords);
+  725: 
+  726:   const trainingUsage = getSkillTrainingUsage(skillId, trainingRecords);
+  727: 
+  728:   usage.experienceCount = experienceUsage.experienceCount;
+  729: 
+  730:   usage.experienceSkillCount = experienceUsage.experienceSkillCount;
+  731: 
+  732:   usage.experienceTechnologyCount = experienceUsage.experienceTechnologyCount;
+  733: 
+  734:   usage.experiences = experienceUsage.experiences;
+  735: 
+  736:   usage.educationCount = educationUsage.educationCount;
+  737: 
+  738:   usage.educationSkillCount = educationUsage.educationSkillCount;
+  739: 
+  740:   usage.educationRecords = educationUsage.educationRecords;

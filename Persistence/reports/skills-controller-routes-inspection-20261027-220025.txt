@@ -1,0 +1,1485 @@
+﻿SKILLS CONTROLLER AND ROUTES INSPECTION
+Generated: 2026-10-27 22:00:25
+Project: D:\Documents\Project\Portfolio\portfolio-plateform
+
+====================================================================================================
+FILE: backend\src\controllers\experienceController.js
+====================================================================================================
+Size: 4112 bytes
+
+    1: import {
+    2:   getAuthenticatedExperiences,
+    3:   getAuthenticatedExperience,
+    4:   createAuthenticatedExperience,
+    5:   updateAuthenticatedExperience,
+    6:   setAuthenticatedExperienceArchiveStatus,
+    7:   deleteAuthenticatedExperience,
+    8: } from "../services/Service/experienceService.js";
+    9: 
+   10: function requestError(message) {
+   11:   const error = new Error(message);
+   12:   error.name = "ExperienceRequestError";
+   13:   error.code = "EXPERIENCE_REQUEST_INVALID";
+   14:   error.status = 400;
+   15:   error.publicMessage = message;
+   16:   return error;
+   17: }
+   18: 
+   19: function requireFields(value, allowedFields) {
+   20:   if (
+   21:     value === null ||
+   22:     typeof value !== "object" ||
+   23:     Array.isArray(value)
+   24:   ) {
+   25:     throw requestError("Request body must be a JSON object.");
+   26:   }
+   27: 
+   28:   const unexpected = Object.keys(value).filter(
+   29:     (field) => !allowedFields.includes(field),
+   30:   );
+   31: 
+   32:   if (unexpected.length > 0) {
+   33:     throw requestError(
+   34:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+   35:     );
+   36:   }
+   37: 
+   38:   return value;
+   39: }
+   40: 
+   41: function sendSuccess(response, status, message, data) {
+   42:   response.set({
+   43:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+   44:     Pragma: "no-cache",
+   45:     Expires: "0",
+   46:   });
+   47: 
+   48:   return response.status(status).json({
+   49:     status: "success",
+   50:     message,
+   51:     data,
+   52:   });
+   53: }
+   54: 
+   55: export async function listMyExperiences(request, response, next) {
+   56:   try {
+   57:     const experiences = await getAuthenticatedExperiences({
+   58:       userId: request.auth.userId,
+   59:     });
+   60: 
+   61:     return sendSuccess(
+   62:       response,
+   63:       200,
+   64:       "Experiences retrieved successfully.",
+   65:       { experiences },
+   66:     );
+   67:   } catch (error) {
+   68:     return next(error);
+   69:   }
+   70: }
+   71: 
+   72: export async function getMyExperience(request, response, next) {
+   73:   try {
+   74:     const experience = await getAuthenticatedExperience({
+   75:       userId: request.auth.userId,
+   76:       experienceId: request.params.experienceId,
+   77:     });
+   78: 
+   79:     return sendSuccess(
+   80:       response,
+   81:       200,
+   82:       "Experience retrieved successfully.",
+   83:       { experience },
+   84:     );
+   85:   } catch (error) {
+   86:     return next(error);
+   87:   }
+   88: }
+   89: 
+   90: export async function createMyExperience(request, response, next) {
+   91:   try {
+   92:     const experience = await createAuthenticatedExperience({
+   93:       userId: request.auth.userId,
+   94:       experience: request.body,
+   95:     });
+   96: 
+   97:     return sendSuccess(
+   98:       response,
+   99:       201,
+  100:       "Experience created successfully.",
+  101:       { experience },
+  102:     );
+  103:   } catch (error) {
+  104:     return next(error);
+  105:   }
+  106: }
+  107: 
+  108: export async function updateMyExperience(request, response, next) {
+  109:   try {
+  110:     const body = requireFields(request.body, [
+  111:       "experience",
+  112:       "rowVersion",
+  113:     ]);
+  114: 
+  115:     const experience = await updateAuthenticatedExperience({
+  116:       userId: request.auth.userId,
+  117:       experienceId: request.params.experienceId,
+  118:       experience: body.experience,
+  119:       rowVersion: body.rowVersion,
+  120:     });
+  121: 
+  122:     return sendSuccess(
+  123:       response,
+  124:       200,
+  125:       "Experience updated successfully.",
+  126:       { experience },
+  127:     );
+  128:   } catch (error) {
+  129:     return next(error);
+  130:   }
+  131: }
+  132: 
+  133: export async function setMyExperienceArchiveStatus(
+  134:   request,
+  135:   response,
+  136:   next,
+  137: ) {
+  138:   try {
+  139:     const body = requireFields(request.body, [
+  140:       "archived",
+  141:       "rowVersion",
+  142:     ]);
+  143: 
+  144:     const experience =
+  145:       await setAuthenticatedExperienceArchiveStatus({
+  146:         userId: request.auth.userId,
+  147:         experienceId: request.params.experienceId,
+  148:         archived: body.archived,
+  149:         rowVersion: body.rowVersion,
+  150:       });
+  151: 
+  152:     return sendSuccess(
+  153:       response,
+  154:       200,
+  155:       body.archived
+  156:         ? "Experience archived successfully."
+  157:         : "Experience restored successfully.",
+  158:       { experience },
+  159:     );
+  160:   } catch (error) {
+  161:     return next(error);
+  162:   }
+  163: }
+  164: 
+  165: export async function deleteMyExperience(request, response, next) {
+  166:   try {
+  167:     const body = requireFields(request.body, ["rowVersion"]);
+  168: 
+  169:     const result = await deleteAuthenticatedExperience({
+  170:       userId: request.auth.userId,
+  171:       experienceId: request.params.experienceId,
+  172:       rowVersion: body.rowVersion,
+  173:     });
+  174: 
+  175:     return sendSuccess(
+  176:       response,
+  177:       200,
+  178:       "Experience deleted successfully.",
+  179:       result,
+  180:     );
+  181:   } catch (error) {
+  182:     return next(error);
+  183:   }
+  184: }
+
+====================================================================================================
+FILE: backend\src\routes\experienceRoutes.js
+====================================================================================================
+Size: 757 bytes
+
+    1: import { Router } from "express";
+    2: 
+    3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+    4: 
+    5: import {
+    6:   listMyExperiences,
+    7:   getMyExperience,
+    8:   createMyExperience,
+    9:   updateMyExperience,
+   10:   setMyExperienceArchiveStatus,
+   11:   deleteMyExperience,
+   12: } from "../controllers/experienceController.js";
+   13: 
+   14: const router = Router();
+   15: 
+   16: // All Experience endpoints require authentication.
+   17: router.use(requireAuthentication);
+   18: 
+   19: router.get("/", listMyExperiences);
+   20: router.post("/", createMyExperience);
+   21: 
+   22: router.get("/:experienceId", getMyExperience);
+   23: router.put("/:experienceId", updateMyExperience);
+   24: 
+   25: router.patch(
+   26:   "/:experienceId/archive",
+   27:   setMyExperienceArchiveStatus,
+   28: );
+   29: 
+   30: router.delete("/:experienceId", deleteMyExperience);
+   31: 
+   32: export default router;
+
+====================================================================================================
+FILE: backend\src\middleware\authenticationMiddleware.js
+====================================================================================================
+Size: 4065 bytes
+
+    1: import { getAuthenticatedSession } from "../services/Service/sessionService.js";
+    2: 
+    3: import {
+    4:   clearRefreshTokenCookie,
+    5:   getRefreshTokenFromRequest,
+    6: } from "../security/sessionCookieSecurity.js";
+    7: 
+    8: /*
+    9:  * =========================================
+   10:  * Authentication Error
+   11:  * =========================================
+   12:  */
+   13: 
+   14: function createAuthenticationError({
+   15:   message,
+   16:   code = "AUTHENTICATION_REQUIRED",
+   17:   status = 401,
+   18:   publicMessage = "You must sign in to access this resource.",
+   19: }) {
+   20:   const error = new Error(message);
+   21: 
+   22:   error.name = "AuthenticationError";
+   23: 
+   24:   error.code = code;
+   25: 
+   26:   error.status = status;
+   27: 
+   28:   error.publicMessage = publicMessage;
+   29: 
+   30:   return error;
+   31: }
+   32: 
+   33: /*
+   34:  * =========================================
+   35:  * Invalid Session Errors
+   36:  * =========================================
+   37:  */
+   38: 
+   39: function shouldClearSessionCookie(error) {
+   40:   const invalidSessionCodes = new Set([
+   41:     "SESSION_REFRESH_TOKEN_INVALID",
+   42:     "SESSION_NOT_FOUND",
+   43:     "SESSION_REFRESH_CONFLICT",
+   44:   ]);
+   45: 
+   46:   return invalidSessionCodes.has(error?.code);
+   47: }
+   48: 
+   49: /*
+   50:  * =========================================
+   51:  * Safely Clear Refresh Cookie
+   52:  * =========================================
+   53:  */
+   54: 
+   55: function safelyClearRefreshTokenCookie(response) {
+   56:   try {
+   57:     clearRefreshTokenCookie(response);
+   58:   } catch (error) {
+   59:     console.error(
+   60:       "Unable to clear refresh-token cookie during authentication:",
+   61:       error,
+   62:     );
+   63:   }
+   64: }
+   65: 
+   66: /*
+   67:  * =========================================
+   68:  * Normalize Roles
+   69:  * =========================================
+   70:  */
+   71: 
+   72: function normalizeRoles(roles) {
+   73:   if (!Array.isArray(roles)) {
+   74:     return [];
+   75:   }
+   76: 
+   77:   return [
+   78:     ...new Set(
+   79:       roles
+   80:         .map((role) =>
+   81:           typeof role === "string" ? role.trim().toLowerCase() : "",
+   82:         )
+   83:         .filter(Boolean),
+   84:     ),
+   85:   ];
+   86: }
+   87: 
+   88: /*
+   89:  * =========================================
+   90:  * Create Request Authentication
+   91:  * =========================================
+   92:  */
+   93: 
+   94: function createRequestAuthentication({ user, roles, session }) {
+   95:   if (!user?.id || !session?.id) {
+   96:     throw createAuthenticationError({
+   97:       message:
+   98:         "The resolved session does not contain a valid user and session.",
+   99: 
+  100:       code: "AUTHENTICATION_CONTEXT_INVALID",
+  101: 
+  102:       status: 500,
+  103: 
+  104:       publicMessage: "Your session could not be verified.",
+  105:     });
+  106:   }
+  107: 
+  108:   const normalizedRoles = Object.freeze(normalizeRoles(roles));
+  109: 
+  110:   return Object.freeze({
+  111:     isAuthenticated: true,
+  112: 
+  113:     userId: user.id,
+  114: 
+  115:     sessionId: session.id,
+  116: 
+  117:     user,
+  118: 
+  119:     roles: normalizedRoles,
+  120: 
+  121:     session,
+  122:   });
+  123: }
+  124: 
+  125: /*
+  126:  * =========================================
+  127:  * Require Authentication
+  128:  * =========================================
+  129:  *
+  130:  * Resolves the HttpOnly refresh-token cookie,
+  131:  * validates the database session and places
+  132:  * public-safe identity information on:
+  133:  *
+  134:  * request.auth
+  135:  *
+  136:  * This middleware validates the session but
+  137:  * does not rotate its refresh token.
+  138:  */
+  139: 
+  140: export async function requireAuthentication(request, response, next) {
+  141:   /*
+  142:    * Protected responses must not be cached
+  143:    * or shared between authenticated users.
+  144:    */
+  145: 
+  146:   response.set({
+  147:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  148: 
+  149:     Pragma: "no-cache",
+  150: 
+  151:     Expires: "0",
+  152:   });
+  153: 
+  154:   response.vary("Cookie");
+  155: 
+  156:   try {
+  157:     const refreshToken = getRefreshTokenFromRequest(request);
+  158: 
+  159:     if (!refreshToken) {
+  160:       throw createAuthenticationError({
+  161:         message: "The request does not contain a refresh-token cookie.",
+  162: 
+  163:         code: "AUTHENTICATION_REQUIRED",
+  164: 
+  165:         status: 401,
+  166: 
+  167:         publicMessage: "You must sign in to access this resource.",
+  168:       });
+  169:     }
+  170: 
+  171:     const authentication = await getAuthenticatedSession({
+  172:       refreshToken,
+  173:     });
+  174: 
+  175:     request.auth = createRequestAuthentication(authentication);
+  176: 
+  177:     return next();
+  178:   } catch (error) {
+  179:     if (shouldClearSessionCookie(error)) {
+  180:       safelyClearRefreshTokenCookie(response);
+  181:     }
+  182: 
+  183:     return next(error);
+  184:   }
+  185: }
+
+====================================================================================================
+FILE: backend\src\middleware\errorMiddleware.js
+====================================================================================================
+Size: 6916 bytes
+
+    1: /*
+    2:  * =========================================
+    3:  * Route Not Found
+    4:  * =========================================
+    5:  */
+    6: 
+    7: export function notFoundHandler(request, response) {
+    8:   response.set({
+    9:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+   10: 
+   11:     Pragma: "no-cache",
+   12: 
+   13:     Expires: "0",
+   14:   });
+   15: 
+   16:   return response.status(404).json({
+   17:     status: "error",
+   18: 
+   19:     code: "ROUTE_NOT_FOUND",
+   20: 
+   21:     message: `Route not found: ${request.method} ${request.originalUrl}`,
+   22:   });
+   23: }
+   24: 
+   25: /*
+   26:  * =========================================
+   27:  * Global Error Handler
+   28:  * =========================================
+   29:  */
+   30: 
+   31: export function globalErrorHandler(error, request, response, next) {
+   32:   /*
+   33:    * Express delegates to its default handler
+   34:    * if a response has already started.
+   35:    */
+   36: 
+   37:   if (response.headersSent) {
+   38:     return next(error);
+   39:   }
+   40: 
+   41:   const isMalformedJson =
+   42:     error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+   43: 
+   44:   const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+   45: 
+   46:   const code = isMalformedJson
+   47:     ? "INVALID_JSON"
+   48:     : normalizePublicCode(error, status);
+   49: 
+   50:   const message = isMalformedJson
+   51:     ? "The request body contains invalid JSON."
+   52:     : getPublicMessage(error, status);
+   53: 
+   54:   /*
+   55:    * Log complete technical information only
+   56:    * on the server.
+   57:    */
+   58: 
+   59:   console.error("Unhandled API error:", {
+   60:     method: request.method,
+   61: 
+   62:     url: request.originalUrl,
+   63: 
+   64:     name: error?.name,
+   65: 
+   66:     code: error?.code,
+   67: 
+   68:     message: error?.message,
+   69: 
+   70:     status,
+   71: 
+   72:     provider: error?.provider,
+   73: 
+   74:     stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+   75:   });
+   76: 
+   77:   response.set({
+   78:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+   79: 
+   80:     Pragma: "no-cache",
+   81: 
+   82:     Expires: "0",
+   83:   });
+   84: 
+   85:   const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+   86: 
+   87:   const validationErrors = normalizeValidationErrors(
+   88:     error?.errors || error?.validationErrors,
+   89:   );
+   90: 
+   91:   return response.status(status).json({
+   92:     status: "error",
+   93: 
+   94:     code,
+   95: 
+   96:     message,
+   97: 
+   98:     ...(Object.keys(fieldErrors).length > 0
+   99:       ? {
+  100:           fieldErrors,
+  101:         }
+  102:       : {}),
+  103: 
+  104:     ...(validationErrors.length > 0
+  105:       ? {
+  106:           errors: validationErrors,
+  107:         }
+  108:       : {}),
+  109: 
+  110:     /*
+  111:      * Development details are useful while
+  112:      * building the API but are excluded from
+  113:      * production responses.
+  114:      */
+  115: 
+  116:     ...(process.env.NODE_ENV === "development"
+  117:       ? {
+  118:           debug: {
+  119:             name: error?.name || "Error",
+  120: 
+  121:             technicalMessage: error?.message || "Unknown error",
+  122: 
+  123:             provider: error?.provider || null,
+  124:           },
+  125:         }
+  126:       : {}),
+  127:   });
+  128: }
+  129: 
+  130: /*
+  131:  * =========================================
+  132:  * Status Normalization
+  133:  * =========================================
+  134:  */
+  135: 
+  136: function normalizeStatus(status) {
+  137:   const numericStatus = Number(status);
+  138: 
+  139:   if (
+  140:     Number.isInteger(numericStatus) &&
+  141:     numericStatus >= 400 &&
+  142:     numericStatus <= 599
+  143:   ) {
+  144:     return numericStatus;
+  145:   }
+  146: 
+  147:   return 500;
+  148: }
+  149: 
+  150: /*
+  151:  * =========================================
+  152:  * Public Error Code
+  153:  * =========================================
+  154:  *
+  155:  * Internal database and provider codes should
+  156:  * not automatically be returned to clients.
+  157:  * Application errors are public only when
+  158:  * they also provide a publicMessage.
+  159:  */
+  160: 
+  161: function normalizePublicCode(error, status) {
+  162:   const code = typeof error?.code === "string" ? error.code.trim() : "";
+  163: 
+  164:   const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+  165: 
+  166:   if (error?.publicMessage && isSafeCode) {
+  167:     return code;
+  168:   }
+  169: 
+  170:   if (status === 400) {
+  171:     return "BAD_REQUEST";
+  172:   }
+  173: 
+  174:   if (status === 401) {
+  175:     return "AUTHENTICATION_REQUIRED";
+  176:   }
+  177: 
+  178:   if (status === 403) {
+  179:     return "ACCESS_FORBIDDEN";
+  180:   }
+  181: 
+  182:   if (status === 404) {
+  183:     return "RESOURCE_NOT_FOUND";
+  184:   }
+  185: 
+  186:   if (status === 409) {
+  187:     return "RESOURCE_CONFLICT";
+  188:   }
+  189: 
+  190:   if (status === 429) {
+  191:     return "RATE_LIMIT_EXCEEDED";
+  192:   }
+  193: 
+  194:   if (status === 503) {
+  195:     return "SERVICE_UNAVAILABLE";
+  196:   }
+  197: 
+  198:   return "INTERNAL_SERVER_ERROR";
+  199: }
+  200: 
+  201: /*
+  202:  * =========================================
+  203:  * Public Error Message
+  204:  * =========================================
+  205:  */
+  206: 
+  207: function getPublicMessage(error, status) {
+  208:   if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+  209:     return error.publicMessage.trim();
+  210:   }
+  211: 
+  212:   if (status === 400) {
+  213:     return "The request could not be processed.";
+  214:   }
+  215: 
+  216:   if (status === 401) {
+  217:     return "Authentication is required.";
+  218:   }
+  219: 
+  220:   if (status === 403) {
+  221:     return "You do not have permission to perform this operation.";
+  222:   }
+  223: 
+  224:   if (status === 404) {
+  225:     return "The requested resource was not found.";
+  226:   }
+  227: 
+  228:   if (status === 409) {
+  229:     return "The request conflicts with the current resource state.";
+  230:   }
+  231: 
+  232:   if (status === 429) {
+  233:     return "Too many requests were submitted. Please try again later.";
+  234:   }
+  235: 
+  236:   if (status === 503) {
+  237:     return "The service is temporarily unavailable.";
+  238:   }
+  239: 
+  240:   return "An unexpected server error occurred.";
+  241: }
+  242: 
+  243: /*
+  244:  * =========================================
+  245:  * Field Error Normalization
+  246:  * =========================================
+  247:  */
+  248: 
+  249: function normalizeFieldErrors(fieldErrors) {
+  250:   if (
+  251:     !fieldErrors ||
+  252:     typeof fieldErrors !== "object" ||
+  253:     Array.isArray(fieldErrors)
+  254:   ) {
+  255:     return {};
+  256:   }
+  257: 
+  258:   const normalized = {};
+  259: 
+  260:   for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+  261:     const safeFieldName = String(fieldName).slice(0, 100);
+  262: 
+  263:     const messageValues = Array.isArray(messages) ? messages : [messages];
+  264: 
+  265:     const safeMessages = messageValues
+  266:       .filter((message) => typeof message === "string")
+  267:       .map((message) => message.trim().slice(0, 500))
+  268:       .filter(Boolean);
+  269: 
+  270:     if (safeMessages.length > 0) {
+  271:       normalized[safeFieldName] = safeMessages;
+  272:     }
+  273:   }
+  274: 
+  275:   return normalized;
+  276: }
+  277: 
+  278: /*
+  279:  * =========================================
+  280:  * Validation Error Normalization
+  281:  * =========================================
+  282:  */
+  283: 
+  284: function normalizeValidationErrors(errors) {
+  285:   if (!Array.isArray(errors)) {
+  286:     return [];
+  287:   }
+  288: 
+  289:   return errors
+  290:     .slice(0, 50)
+  291:     .map((validationError) => {
+  292:       if (typeof validationError === "string") {
+  293:         return {
+  294:           field: "",
+  295: 
+  296:           code: "VALIDATION_ERROR",
+  297: 
+  298:           message: validationError.trim().slice(0, 500),
+  299:         };
+  300:       }
+  301: 
+  302:       if (!validationError || typeof validationError !== "object") {
+  303:         return null;
+  304:       }
+  305: 
+  306:       const message =
+  307:         typeof validationError.message === "string"
+  308:           ? validationError.message.trim().slice(0, 500)
+  309:           : "";
+  310: 
+  311:       if (!message) {
+  312:         return null;
+  313:       }
+  314: 
+  315:       return {
+  316:         field:
+  317:           typeof validationError.field === "string"
+  318:             ? validationError.field.trim().slice(0, 100)
+  319:             : "",
+  320: 
+  321:         code:
+  322:           typeof validationError.code === "string"
+  323:             ? validationError.code.trim().slice(0, 100)
+  324:             : "VALIDATION_ERROR",
+  325: 
+  326:         message,
+  327:       };
+  328:     })
+  329:     .filter(Boolean);
+  330: }
+
+====================================================================================================
+FILE: backend\src\middleware\skills\skillOwnershipMiddleware.js
+====================================================================================================
+Size: 0 bytes
+
+
+====================================================================================================
+FILE: backend\src\controllers\skillController.js
+====================================================================================================
+Size: 0 bytes
+
+
+====================================================================================================
+FILE: backend\src\routes\skillRoutes.js
+====================================================================================================
+Size: 0 bytes
+
+
+====================================================================================================
+FILE: backend\src\app.js
+====================================================================================================
+Size: 5269 bytes
+
+    1: import cors from "cors";
+    2: import express from "express";
+    3: import helmet from "helmet";
+    4: 
+    5: import userRoutes from "./routes/userRoutes.js";
+    6: 
+    7: import { checkDatabaseHealth } from "./config/database.js";
+    8: 
+    9: import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+   10: 
+   11: import aiRoutes from "./routes/aiRoutes.js";
+   12: import authRoutes from "./routes/authRoutes.js";
+   13: import profileRoutes from "./routes/profileRoutes.js";
+   14: import projectRoutes from "./routes/projectRoutes.js";
+   15: import experienceRoutes from "./routes/experienceRoutes.js";
+   16: 
+   17: import {
+   18:   globalErrorHandler,
+   19:   notFoundHandler,
+   20: } from "./middleware/errorMiddleware.js";
+   21: 
+   22: import supportRoutes from "./routes/supportRoutes.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Environment and Application
+   27:  * =========================================
+   28:  */
+   29: 
+   30: const environment = getEnvironment();
+   31: 
+   32: const app = express();
+   33: 
+   34: /*
+   35:  * =========================================
+   36:  * Express Information Header
+   37:  * =========================================
+   38:  */
+   39: 
+   40: app.disable("x-powered-by");
+   41: 
+   42: /*
+   43:  * =========================================
+   44:  * Security Headers
+   45:  * =========================================
+   46:  */
+   47: 
+   48: app.use(helmet());
+   49: 
+   50: /*
+   51:  * =========================================
+   52:  * Allowed Frontend Origins
+   53:  * =========================================
+   54:  */
+   55: 
+   56: const allowedOrigins = environment.FRONTEND_URL.split(",")
+   57:   .map((origin) => origin.trim())
+   58:   .filter(Boolean);
+   59: 
+   60: /*
+   61:  * =========================================
+   62:  * CORS
+   63:  * =========================================
+   64:  */
+   65: 
+   66: app.use(
+   67:   cors({
+   68:     origin(origin, callback) {
+   69:       /*
+   70:        * Postman, curl and server-to-server
+   71:        * requests may not include Origin.
+   72:        */
+   73: 
+   74:       if (!origin) {
+   75:         return callback(null, true);
+   76:       }
+   77: 
+   78:       if (allowedOrigins.includes(origin)) {
+   79:         return callback(null, true);
+   80:       }
+   81: 
+   82:       const error = new Error(`Origin not allowed by CORS: ${origin}`);
+   83: 
+   84:       error.name = "CorsOriginError";
+   85: 
+   86:       error.code = "CORS_ORIGIN_DENIED";
+   87: 
+   88:       error.status = 403;
+   89: 
+   90:       error.publicMessage = "This website is not allowed to access the API.";
+   91: 
+   92:       return callback(error);
+   93:     },
+   94: 
+   95:     credentials: true,
+   96: 
+   97:     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+   98: 
+   99:     allowedHeaders: ["Content-Type", "Authorization"],
+  100:   }),
+  101: );
+  102: 
+  103: /*
+  104:  * =========================================
+  105:  * Public Profile Pictures
+  106:  * =========================================
+  107:  */
+  108: 
+  109: if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+  110:   app.use(
+  111:     "/uploads/profile-pictures",
+  112:     (request, response, next) => {
+  113:       /*
+  114:        * Profile pictures are intentionally public assets.
+  115:        * Allow the portfolio frontend to display them even
+  116:        * though the frontend and API use different origins.
+  117:        */
+  118: 
+  119:       response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  120: 
+  121:       next();
+  122:     },
+  123:     express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+  124:       fallthrough: true,
+  125:       index: false,
+  126:       dotfiles: "deny",
+  127:     }),
+  128:   );
+  129: }
+  130: 
+  131: /*
+  132:  * =========================================
+  133:  * Request Body
+  134:  * =========================================
+  135:  */
+  136: 
+  137: app.use(
+  138:   express.json({
+  139:     limit: "1mb",
+  140:   }),
+  141: );
+  142: 
+  143: /*
+  144:  * =========================================
+  145:  * API Health Check
+  146:  * =========================================
+  147:  */
+  148: 
+  149: app.get("/api/health", (req, res) => {
+  150:   return res.status(200).json({
+  151:     status: "ok",
+  152: 
+  153:     service: "portfolio-platform-api",
+  154: 
+  155:     environment: environment.NODE_ENV,
+  156: 
+  157:     databaseConfigured: isDatabaseConfigured(environment),
+  158: 
+  159:     timestamp: new Date().toISOString(),
+  160:   });
+  161: });
+  162: 
+  163: /*
+  164:  * =========================================
+  165:  * Database Health Check
+  166:  * =========================================
+  167:  */
+  168: 
+  169: app.get("/api/health/database", async (req, res) => {
+  170:   const health = await checkDatabaseHealth();
+  171: 
+  172:   const isHealthy = health.status === "ok";
+  173: 
+  174:   let message = "Database connection is unavailable.";
+  175: 
+  176:   if (isHealthy) {
+  177:     message = "Database connection is healthy.";
+  178:   } else if (health.status === "not-configured") {
+  179:     message = "Database service is not configured.";
+  180:   }
+  181: 
+  182:   return res.status(isHealthy ? 200 : 503).json({
+  183:     status: health.status,
+  184: 
+  185:     service: "portfolio-platform-database",
+  186: 
+  187:     configured: health.configured,
+  188: 
+  189:     responseTimeMs: health.responseTimeMs,
+  190: 
+  191:     message,
+  192: 
+  193:     timestamp: new Date().toISOString(),
+  194:   });
+  195: });
+  196: 
+  197: /*
+  198:  * =========================================
+  199:  * Application Routes
+  200:  * =========================================
+  201:  */
+  202: app.use("/api/auth", authRoutes);
+  203: 
+  204: app.use("/api/ai", aiRoutes);
+  205: 
+  206: app.use("/api/users", userRoutes);
+  207: 
+  208: app.use("/api/support", supportRoutes);
+  209: 
+  210: app.use("/api/profile", profileRoutes);
+  211: app.use("/api/projects", projectRoutes);
+  212: app.use("/api/experiences", experienceRoutes);
+  213: /*
+  214:  * The Profile and Skill routes remain disabled
+  215:  * until their repositories and authentication
+  216:  * middleware are implemented.
+  217:  *
+  218:  * Later:
+  219:  *
+  220:  * app.use("/api/profile", profileRoutes);
+  221:  * app.use("/api/skills", skillRoutes);
+  222:  */
+  223: 
+  224: /*
+  225:  * =========================================
+  226:  * Route Not Found
+  227:  * =========================================
+  228:  */
+  229: 
+  230: app.use(notFoundHandler);
+  231: 
+  232: /*
+  233:  * =========================================
+  234:  * Global Error Handler
+  235:  * =========================================
+  236:  */
+  237: 
+  238: app.use(globalErrorHandler);
+  239: 
+  240: export default app;
+
+====================================================================================================
+FILE: backend\src\schemas\skillSchemas.js
+====================================================================================================
+Size: 10657 bytes
+
+    1: import { z } from "zod";
+    2: 
+    3: /*
+    4:  * =========================================
+    5:  * Supported Values
+    6:  * =========================================
+    7:  */
+    8: 
+    9: export const SKILL_CATEGORY_VALUES = [
+   10:   "programming-languages",
+   11:   "software-development",
+   12:   "web-development",
+   13:   "mobile-development",
+   14:   "databases",
+   15:   "data-ai",
+   16:   "cloud-devops",
+   17:   "cybersecurity",
+   18:   "networking",
+   19:   "it-infrastructure",
+   20:   "hardware-electronics",
+   21:   "embedded-iot",
+   22:   "tools-platforms",
+   23:   "project-management",
+   24:   "leadership",
+   25:   "communication",
+   26:   "business",
+   27:   "design",
+   28:   "research-academic",
+   29:   "language",
+   30:   "industry-knowledge",
+   31:   "interpersonal",
+   32:   "other",
+   33: ];
+   34: 
+   35: export const SKILL_TYPE_VALUES = [
+   36:   "technical",
+   37:   "professional",
+   38:   "interpersonal",
+   39:   "leadership",
+   40:   "language",
+   41:   "domain",
+   42:   "tool",
+   43:   "other",
+   44: ];
+   45: 
+   46: export const SKILL_PROFICIENCY_VALUES = [
+   47:   "",
+   48:   "foundational",
+   49:   "intermediate",
+   50:   "advanced",
+   51:   "expert",
+   52: ];
+   53: 
+   54: export const LANGUAGE_PROFICIENCY_VALUES = [
+   55:   "",
+   56:   "basic",
+   57:   "conversational",
+   58:   "professional-working",
+   59:   "full-professional",
+   60:   "native-bilingual",
+   61: ];
+   62: 
+   63: export const SKILL_SOURCE_VALUES = [
+   64:   "manual",
+   65:   "ai-suggested",
+   66:   "imported",
+   67:   "migration",
+   68: ];
+   69: 
+   70: export const SKILL_STATUS_VALUES = ["active", "archived"];
+   71: 
+   72: /*
+   73:  * =========================================
+   74:  * Primitive Schemas
+   75:  * =========================================
+   76:  */
+   77: 
+   78: const skillIdSchema = z
+   79:   .string()
+   80:   .trim()
+   81:   .min(1, "A skill ID is required.")
+   82:   .max(200, "Skill ID cannot exceed 200 characters.");
+   83: 
+   84: const skillNameSchema = z
+   85:   .string()
+   86:   .trim()
+   87:   .min(2, "Skill name must contain at least two characters.")
+   88:   .max(150, "Skill name cannot exceed 150 characters.")
+   89:   .refine(
+   90:     (value) => /[\p{L}\p{N}]/u.test(value),
+   91:     "Skill name must contain letters or numbers.",
+   92:   );
+   93: 
+   94: const aliasSchema = z
+   95:   .string()
+   96:   .trim()
+   97:   .min(1, "Skill alias cannot be empty.")
+   98:   .max(150, "Skill alias cannot exceed 150 characters.");
+   99: 
+  100: const yearMonthSchema = z
+  101:   .string()
+  102:   .trim()
+  103:   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Enter a valid month and year.");
+  104: 
+  105: const optionalYearMonthSchema = z.union([z.literal(""), yearMonthSchema]);
+  106: 
+  107: const nullableYearsSchema = z
+  108:   .union([z.number(), z.string().trim(), z.null()])
+  109:   .transform((value, context) => {
+  110:     if (value === "" || value === null) {
+  111:       return null;
+  112:     }
+  113: 
+  114:     const numericValue = Number(value);
+  115: 
+  116:     if (!Number.isFinite(numericValue)) {
+  117:       context.addIssue({
+  118:         code: z.ZodIssueCode.custom,
+  119:         message: "Years of experience must be a number.",
+  120:       });
+  121: 
+  122:       return z.NEVER;
+  123:     }
+  124: 
+  125:     if (numericValue < 0 || numericValue > 80) {
+  126:       context.addIssue({
+  127:         code: z.ZodIssueCode.custom,
+  128:         message: "Years of experience must be between zero and 80.",
+  129:       });
+  130: 
+  131:       return z.NEVER;
+  132:     }
+  133: 
+  134:     if (Math.round(numericValue * 10) !== numericValue * 10) {
+  135:       context.addIssue({
+  136:         code: z.ZodIssueCode.custom,
+  137:         message:
+  138:           "Years of experience can contain no more than one decimal place.",
+  139:       });
+  140: 
+  141:       return z.NEVER;
+  142:     }
+  143: 
+  144:     return numericValue;
+  145:   });
+  146: 
+  147: /*
+  148:  * =========================================
+  149:  * Nested Skill Schemas
+  150:  * =========================================
+  151:  */
+  152: 
+  153: const aliasesSchema = z
+  154:   .array(aliasSchema)
+  155:   .max(20, "Add no more than 20 aliases.")
+  156:   .default([]);
+  157: 
+  158: const proficiencySchema = z
+  159:   .object({
+  160:     level: z.enum(SKILL_PROFICIENCY_VALUES).default(""),
+  161: 
+  162:     yearsOfExperience: nullableYearsSchema.default(null),
+  163: 
+  164:     lastUsedDate: optionalYearMonthSchema.default(""),
+  165:   })
+  166:   .default({
+  167:     level: "",
+  168:     yearsOfExperience: null,
+  169:     lastUsedDate: "",
+  170:   });
+  171: 
+  172: const proficiencyUpdateSchema = z.object({
+  173:   level: z.enum(SKILL_PROFICIENCY_VALUES).optional(),
+  174: 
+  175:   yearsOfExperience: nullableYearsSchema.optional(),
+  176: 
+  177:   lastUsedDate: optionalYearMonthSchema.optional(),
+  178: });
+  179: 
+  180: const languageSchema = z
+  181:   .object({
+  182:     proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).default(""),
+  183:   })
+  184:   .default({
+  185:     proficiency: "",
+  186:   });
+  187: 
+  188: const languageUpdateSchema = z.object({
+  189:   proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).optional(),
+  190: });
+  191: 
+  192: /*
+  193:  * =========================================
+  194:  * Cross-Field Validation
+  195:  * =========================================
+  196:  */
+  197: 
+  198: function validateSkillRelationships(skill, context) {
+  199:   const isLanguageType = skill.type === "language";
+  200: 
+  201:   const isLanguageCategory = skill.category === "language";
+  202: 
+  203:   const languageProficiency = skill.language?.proficiency || "";
+  204: 
+  205:   if (isLanguageType && !isLanguageCategory) {
+  206:     context.addIssue({
+  207:       code: z.ZodIssueCode.custom,
+  208:       path: ["category"],
+  209:       message: 'A language skill must use the "Languages" category.',
+  210:     });
+  211:   }
+  212: 
+  213:   if (isLanguageCategory && !isLanguageType) {
+  214:     context.addIssue({
+  215:       code: z.ZodIssueCode.custom,
+  216:       path: ["type"],
+  217:       message:
+  218:         'A skill in the "Languages" category must use the "Language Skill" type.',
+  219:     });
+  220:   }
+  221: 
+  222:   if (!isLanguageType && languageProficiency) {
+  223:     context.addIssue({
+  224:       code: z.ZodIssueCode.custom,
+  225:       path: ["language", "proficiency"],
+  226:       message: "Language proficiency can only be assigned to a language skill.",
+  227:     });
+  228:   }
+  229: 
+  230:   const normalizedName = skill.name
+  231:     .normalize("NFKC")
+  232:     .trim()
+  233:     .toLocaleLowerCase()
+  234:     .replace(/[._/\\-]+/g, " ")
+  235:     .replace(/\s+/g, " ");
+  236: 
+  237:   const seenAliases = new Set();
+  238: 
+  239:   skill.aliases.forEach((alias, index) => {
+  240:     const normalizedAlias = alias
+  241:       .normalize("NFKC")
+  242:       .trim()
+  243:       .toLocaleLowerCase()
+  244:       .replace(/[._/\\-]+/g, " ")
+  245:       .replace(/\s+/g, " ");
+  246: 
+  247:     if (normalizedAlias === normalizedName) {
+  248:       context.addIssue({
+  249:         code: z.ZodIssueCode.custom,
+  250:         path: ["aliases", index],
+  251:         message: "An alias cannot be the same as the primary skill name.",
+  252:       });
+  253:     }
+  254: 
+  255:     if (seenAliases.has(normalizedAlias)) {
+  256:       context.addIssue({
+  257:         code: z.ZodIssueCode.custom,
+  258:         path: ["aliases", index],
+  259:         message: "This skill alias has already been added.",
+  260:       });
+  261:     }
+  262: 
+  263:     seenAliases.add(normalizedAlias);
+  264:   });
+  265: }
+  266: 
+  267: /*
+  268:  * =========================================
+  269:  * Create Skill
+  270:  * =========================================
+  271:  */
+  272: 
+  273: const createSkillBaseSchema = z.object({
+  274:   name: skillNameSchema,
+  275: 
+  276:   category: z.enum(SKILL_CATEGORY_VALUES).default("other"),
+  277: 
+  278:   type: z.enum(SKILL_TYPE_VALUES).default("professional"),
+  279: 
+  280:   description: z.string().trim().max(1500).default(""),
+  281: 
+  282:   aliases: aliasesSchema,
+  283: 
+  284:   proficiency: proficiencySchema,
+  285: 
+  286:   language: languageSchema,
+  287: 
+  288:   source: z.enum(SKILL_SOURCE_VALUES).default("manual"),
+  289: 
+  290:   sourceContext: z.string().trim().max(100).default(""),
+  291: 
+  292:   notes: z.string().trim().max(2000).default(""),
+  293: 
+  294:   status: z.enum(SKILL_STATUS_VALUES).default("active"),
+  295: });
+  296: 
+  297: export const createSkillSchema = createSkillBaseSchema.superRefine(
+  298:   validateSkillRelationships,
+  299: );
+  300: 
+  301: /*
+  302:  * =========================================
+  303:  * Update Skill
+  304:  * =========================================
+  305:  */
+  306: 
+  307: const updateSkillBaseSchema = z.object({
+  308:   name: skillNameSchema.optional(),
+  309: 
+  310:   category: z.enum(SKILL_CATEGORY_VALUES).optional(),
+  311: 
+  312:   type: z.enum(SKILL_TYPE_VALUES).optional(),
+  313: 
+  314:   description: z.string().trim().max(1500).optional(),
+  315: 
+  316:   aliases: z.array(aliasSchema).max(20).optional(),
+  317: 
+  318:   proficiency: proficiencyUpdateSchema.optional(),
+  319: 
+  320:   language: languageUpdateSchema.optional(),
+  321: 
+  322:   source: z.enum(SKILL_SOURCE_VALUES).optional(),
+  323: 
+  324:   sourceContext: z.string().trim().max(100).optional(),
+  325: 
+  326:   notes: z.string().trim().max(2000).optional(),
+  327: 
+  328:   status: z.enum(SKILL_STATUS_VALUES).optional(),
+  329: });
+  330: 
+  331: export const updateSkillSchema = updateSkillBaseSchema.refine(
+  332:   (updates) => Object.keys(updates).length > 0,
+  333:   {
+  334:     message: "Provide at least one skill field to update.",
+  335:   },
+  336: );
+  337: 
+  338: /*
+  339:  * =========================================
+  340:  * Complete Merged Skill
+  341:  * =========================================
+  342:  *
+  343:  * The service uses this after merging an update
+  344:  * with the existing database record.
+  345:  */
+  346: 
+  347: export const completeSkillSchema = createSkillBaseSchema.superRefine(
+  348:   validateSkillRelationships,
+  349: );
+  350: 
+  351: /*
+  352:  * =========================================
+  353:  * Route Parameters
+  354:  * =========================================
+  355:  */
+  356: 
+  357: export const skillIdParamsSchema = z.object({
+  358:   skillId: skillIdSchema,
+  359: });
+  360: 
+  361: /*
+  362:  * =========================================
+  363:  * List Query
+  364:  * =========================================
+  365:  */
+  366: 
+  367: function parseBooleanQuery(value) {
+  368:   if (value === true || value === "true" || value === "1") {
+  369:     return true;
+  370:   }
+  371: 
+  372:   if (
+  373:     value === false ||
+  374:     value === "false" ||
+  375:     value === "0" ||
+  376:     value === undefined
+  377:   ) {
+  378:     return false;
+  379:   }
+  380: 
+  381:   return value;
+  382: }
+  383: 
+  384: export const skillListQuerySchema = z.object({
+  385:   includeArchived: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
+  386: 
+  387:   category: z
+  388:     .union([z.literal("all"), z.enum(SKILL_CATEGORY_VALUES)])
+  389:     .default("all"),
+  390: 
+  391:   type: z.union([z.literal("all"), z.enum(SKILL_TYPE_VALUES)]).default("all"),
+  392: 
+  393:   query: z.string().trim().max(200).default(""),
+  394: 
+  395:   sort: z
+  396:     .enum([
+  397:       "name-ascending",
+  398:       "name-descending",
+  399:       "recently-updated",
+  400:       "oldest-updated",
+  401:     ])
+  402:     .default("name-ascending"),
+  403: });
+  404: 
+  405: /*
+  406:  * =========================================
+  407:  * Skill Name Resolution
+  408:  * =========================================
+  409:  */
+  410: 
+  411: export const skillNameQuerySchema = z.object({
+  412:   name: skillNameSchema,
+  413: 
+  414:   excludeSkillId: z.string().trim().max(200).default(""),
+  415: });
+  416: 
+  417: /*
+  418:  * =========================================
+  419:  * Find or Create
+  420:  * =========================================
+  421:  */
+  422: 
+  423: export const findOrCreateSkillSchema = z.object({
+  424:   skill: createSkillBaseSchema,
+  425: 
+  426:   restoreArchived: z.boolean().default(true),
+  427: });
+  428: 
+  429: /*
+  430:  * =========================================
+  431:  * Collection Replacement
+  432:  * =========================================
+  433:  */
+  434: 
+  435: export const replaceSkillsSchema = z.object({
+  436:   skills: z
+  437:     .array(createSkillBaseSchema)
+  438:     .max(1000, "The Skill Library is too large."),
+  439: });
+  440: 
+  441: /*
+  442:  * =========================================
+  443:  * Validation Error Formatter
+  444:  * =========================================
+  445:  */
+  446: 
+  447: export function formatSkillSchemaErrors(error) {
+  448:   if (!error?.issues) {
+  449:     return [];
+  450:   }
+  451: 
+  452:   return error.issues.map((issue) => ({
+  453:     field: issue.path.join("."),
+  454:     message: issue.message,
+  455:     code: issue.code,
+  456:   }));
+  457: }

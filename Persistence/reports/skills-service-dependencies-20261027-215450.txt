@@ -1,0 +1,1275 @@
+﻿
+==========================================================================================
+FILE: backend\src\services\Service\experienceService.js
+==========================================================================================
+Size: 6508 bytes
+    1: import {
+    2:   listExperiencesByUser,
+    3:   findExperienceById,
+    4:   createExperience,
+    5:   updateExperience,
+    6:   deleteExperience,
+    7: } from "../../repositories/experienceRepository.js";
+    8: 
+    9: import {
+   10:   parseExperienceInput,
+   11:   parseExperienceRowVersion,
+   12: } from "../../schemas/experienceSchemas.js";
+   13: 
+   14: const SERVER_OWNED_FIELDS = [
+   15:   "userId",
+   16:   "user_id",
+   17:   "createdAt",
+   18:   "updatedAt",
+   19:   "rowVersion",
+   20:   "recordStatus",
+   21:   "record_status",
+   22: ];
+   23: 
+   24: function createExperienceError({
+   25:   message,
+   26:   code,
+   27:   status,
+   28:   publicMessage,
+   29: }) {
+   30:   const error = new Error(message);
+   31: 
+   32:   error.name = "ExperienceServiceError";
+   33:   error.code = code;
+   34:   error.status = status;
+   35:   error.publicMessage = publicMessage;
+   36: 
+   37:   return error;
+   38: }
+   39: 
+   40: function assertUserId(userId) {
+   41:   if (typeof userId !== "string" || !userId.trim()) {
+   42:     throw createExperienceError({
+   43:       message: "An authenticated user ID is required.",
+   44:       code: "EXPERIENCE_AUTHENTICATION_REQUIRED",
+   45:       status: 401,
+   46:       publicMessage:
+   47:         "You must sign in to access your Experiences.",
+   48:     });
+   49:   }
+   50: 
+   51:   return userId.trim();
+   52: }
+   53: 
+   54: function assertExperienceId(experienceId) {
+   55:   if (
+   56:     typeof experienceId !== "string" ||
+   57:     !experienceId.trim() ||
+   58:     experienceId.length > 200
+   59:   ) {
+   60:     throw createExperienceError({
+   61:       message: "A valid Experience ID is required.",
+   62:       code: "EXPERIENCE_ID_INVALID",
+   63:       status: 400,
+   64:       publicMessage: "The Experience identifier is invalid.",
+   65:     });
+   66:   }
+   67: 
+   68:   return experienceId.trim();
+   69: }
+   70: 
+   71: function experienceNotFound() {
+   72:   return createExperienceError({
+   73:     message: "Experience not found for authenticated user.",
+   74:     code: "EXPERIENCE_NOT_FOUND",
+   75:     status: 404,
+   76:     publicMessage:
+   77:       "The requested Experience could not be found.",
+   78:   });
+   79: }
+   80: 
+   81: function experienceVersionConflict() {
+   82:   return createExperienceError({
+   83:     message: "Experience version conflict.",
+   84:     code: "EXPERIENCE_VERSION_CONFLICT",
+   85:     status: 409,
+   86:     publicMessage:
+   87:       "This Experience was changed elsewhere. Reload it before saving.",
+   88:   });
+   89: }
+   90: 
+   91: function experienceIdMismatch() {
+   92:   return createExperienceError({
+   93:     message:
+   94:       "The Experience body ID does not match the requested Experience ID.",
+   95:     code: "EXPERIENCE_ID_MISMATCH",
+   96:     status: 400,
+   97:     publicMessage:
+   98:       "The Experience identifiers do not match.",
+   99:   });
+  100: }
+  101: 
+  102: function withoutServerFields(experience) {
+  103:   const result = { ...experience };
+  104: 
+  105:   for (const field of SERVER_OWNED_FIELDS) {
+  106:     delete result[field];
+  107:   }
+  108: 
+  109:   return result;
+  110: }
+  111: 
+  112: export async function getAuthenticatedExperiences({ userId }) {
+  113:   return listExperiencesByUser(assertUserId(userId));
+  114: }
+  115: 
+  116: export async function getAuthenticatedExperience({
+  117:   userId,
+  118:   experienceId,
+  119: }) {
+  120:   const experience = await findExperienceById(
+  121:     assertUserId(userId),
+  122:     assertExperienceId(experienceId),
+  123:   );
+  124: 
+  125:   if (!experience) {
+  126:     throw experienceNotFound();
+  127:   }
+  128: 
+  129:   return experience;
+  130: }
+  131: 
+  132: export async function createAuthenticatedExperience({
+  133:   userId,
+  134:   experience,
+  135: }) {
+  136:   const authenticatedUserId = assertUserId(userId);
+  137: 
+  138:   // Reject invalid client data before accessing the database.
+  139:   const validatedExperience = parseExperienceInput(experience);
+  140: 
+  141:   try {
+  142:     return await createExperience(
+  143:       authenticatedUserId,
+  144:       validatedExperience,
+  145:     );
+  146:   } catch (error) {
+  147:     if (error.number === 2627 || error.number === 2601) {
+  148:       throw createExperienceError({
+  149:         message: "Experience ID already exists.",
+  150:         code: "EXPERIENCE_ALREADY_EXISTS",
+  151:         status: 409,
+  152:         publicMessage:
+  153:           "An Experience with this identifier already exists.",
+  154:       });
+  155:     }
+  156: 
+  157:     throw error;
+  158:   }
+  159: }
+  160: 
+  161: export async function updateAuthenticatedExperience({
+  162:   userId,
+  163:   experienceId,
+  164:   experience,
+  165:   rowVersion,
+  166: }) {
+  167:   const authenticatedUserId = assertUserId(userId);
+  168:   const normalizedExperienceId = assertExperienceId(experienceId);
+  169: 
+  170:   const expectedRowVersion =
+  171:     parseExperienceRowVersion(rowVersion);
+  172: 
+  173:   const validatedExperience =
+  174:     parseExperienceInput(experience);
+  175: 
+  176:   if (validatedExperience.id !== normalizedExperienceId) {
+  177:     throw experienceIdMismatch();
+  178:   }
+  179: 
+  180:   const existingExperience = await findExperienceById(
+  181:     authenticatedUserId,
+  182:     normalizedExperienceId,
+  183:   );
+  184: 
+  185:   if (!existingExperience) {
+  186:     throw experienceNotFound();
+  187:   }
+  188: 
+  189:   const updatedExperience = await updateExperience(
+  190:     authenticatedUserId,
+  191:     validatedExperience,
+  192:     expectedRowVersion,
+  193:   );
+  194: 
+  195:   if (!updatedExperience) {
+  196:     throw experienceVersionConflict();
+  197:   }
+  198: 
+  199:   return updatedExperience;
+  200: }
+  201: 
+  202: export async function setAuthenticatedExperienceArchiveStatus({
+  203:   userId,
+  204:   experienceId,
+  205:   rowVersion,
+  206:   archived,
+  207: }) {
+  208:   const authenticatedUserId = assertUserId(userId);
+  209:   const normalizedExperienceId = assertExperienceId(experienceId);
+  210: 
+  211:   const expectedRowVersion =
+  212:     parseExperienceRowVersion(rowVersion);
+  213: 
+  214:   if (typeof archived !== "boolean") {
+  215:     throw createExperienceError({
+  216:       message: "Archive status must be a boolean.",
+  217:       code: "EXPERIENCE_ARCHIVE_STATUS_INVALID",
+  218:       status: 400,
+  219:       publicMessage: "A valid archive status is required.",
+  220:     });
+  221:   }
+  222: 
+  223:   const existingExperience = await findExperienceById(
+  224:     authenticatedUserId,
+  225:     normalizedExperienceId,
+  226:   );
+  227: 
+  228:   if (!existingExperience) {
+  229:     throw experienceNotFound();
+  230:   }
+  231: 
+  232:   // Preserve editable Experience content while removing
+  233:   // database-managed metadata.
+  234:   const editableExperience =
+  235:     withoutServerFields(existingExperience);
+  236: 
+  237:   const validatedExperience = parseExperienceInput({
+  238:     ...editableExperience,
+  239:     status: archived ? "archived" : "active",
+  240:   });
+  241: 
+  242:   // Always use the caller's version for concurrency checks.
+  243:   const updatedExperience = await updateExperience(
+  244:     authenticatedUserId,
+  245:     validatedExperience,
+  246:     expectedRowVersion,
+  247:   );
+  248: 
+  249:   if (!updatedExperience) {
+  250:     throw experienceVersionConflict();
+  251:   }
+  252: 
+  253:   return updatedExperience;
+  254: }
+  255: 
+  256: export async function deleteAuthenticatedExperience({
+  257:   userId,
+  258:   experienceId,
+  259:   rowVersion,
+  260: }) {
+  261:   const authenticatedUserId = assertUserId(userId);
+  262:   const normalizedExperienceId = assertExperienceId(experienceId);
+  263: 
+  264:   const expectedRowVersion =
+  265:     parseExperienceRowVersion(rowVersion);
+  266: 
+  267:   const existingExperience = await findExperienceById(
+  268:     authenticatedUserId,
+  269:     normalizedExperienceId,
+  270:   );
+  271: 
+  272:   if (!existingExperience) {
+  273:     throw experienceNotFound();
+  274:   }
+  275: 
+  276:   const deleted = await deleteExperience(
+  277:     authenticatedUserId,
+  278:     normalizedExperienceId,
+  279:     expectedRowVersion,
+  280:   );
+  281: 
+  282:   if (!deleted) {
+  283:     throw experienceVersionConflict();
+  284:   }
+  285: 
+  286:   return { deleted: true };
+  287: }
+
+==========================================================================================
+FILE: backend\src\schemas\skillSchemas.js
+==========================================================================================
+Size: 10657 bytes
+    1: import { z } from "zod";
+    2: 
+    3: /*
+    4:  * =========================================
+    5:  * Supported Values
+    6:  * =========================================
+    7:  */
+    8: 
+    9: export const SKILL_CATEGORY_VALUES = [
+   10:   "programming-languages",
+   11:   "software-development",
+   12:   "web-development",
+   13:   "mobile-development",
+   14:   "databases",
+   15:   "data-ai",
+   16:   "cloud-devops",
+   17:   "cybersecurity",
+   18:   "networking",
+   19:   "it-infrastructure",
+   20:   "hardware-electronics",
+   21:   "embedded-iot",
+   22:   "tools-platforms",
+   23:   "project-management",
+   24:   "leadership",
+   25:   "communication",
+   26:   "business",
+   27:   "design",
+   28:   "research-academic",
+   29:   "language",
+   30:   "industry-knowledge",
+   31:   "interpersonal",
+   32:   "other",
+   33: ];
+   34: 
+   35: export const SKILL_TYPE_VALUES = [
+   36:   "technical",
+   37:   "professional",
+   38:   "interpersonal",
+   39:   "leadership",
+   40:   "language",
+   41:   "domain",
+   42:   "tool",
+   43:   "other",
+   44: ];
+   45: 
+   46: export const SKILL_PROFICIENCY_VALUES = [
+   47:   "",
+   48:   "foundational",
+   49:   "intermediate",
+   50:   "advanced",
+   51:   "expert",
+   52: ];
+   53: 
+   54: export const LANGUAGE_PROFICIENCY_VALUES = [
+   55:   "",
+   56:   "basic",
+   57:   "conversational",
+   58:   "professional-working",
+   59:   "full-professional",
+   60:   "native-bilingual",
+   61: ];
+   62: 
+   63: export const SKILL_SOURCE_VALUES = [
+   64:   "manual",
+   65:   "ai-suggested",
+   66:   "imported",
+   67:   "migration",
+   68: ];
+   69: 
+   70: export const SKILL_STATUS_VALUES = ["active", "archived"];
+   71: 
+   72: /*
+   73:  * =========================================
+   74:  * Primitive Schemas
+   75:  * =========================================
+   76:  */
+   77: 
+   78: const skillIdSchema = z
+   79:   .string()
+   80:   .trim()
+   81:   .min(1, "A skill ID is required.")
+   82:   .max(200, "Skill ID cannot exceed 200 characters.");
+   83: 
+   84: const skillNameSchema = z
+   85:   .string()
+   86:   .trim()
+   87:   .min(2, "Skill name must contain at least two characters.")
+   88:   .max(150, "Skill name cannot exceed 150 characters.")
+   89:   .refine(
+   90:     (value) => /[\p{L}\p{N}]/u.test(value),
+   91:     "Skill name must contain letters or numbers.",
+   92:   );
+   93: 
+   94: const aliasSchema = z
+   95:   .string()
+   96:   .trim()
+   97:   .min(1, "Skill alias cannot be empty.")
+   98:   .max(150, "Skill alias cannot exceed 150 characters.");
+   99: 
+  100: const yearMonthSchema = z
+  101:   .string()
+  102:   .trim()
+  103:   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Enter a valid month and year.");
+  104: 
+  105: const optionalYearMonthSchema = z.union([z.literal(""), yearMonthSchema]);
+  106: 
+  107: const nullableYearsSchema = z
+  108:   .union([z.number(), z.string().trim(), z.null()])
+  109:   .transform((value, context) => {
+  110:     if (value === "" || value === null) {
+  111:       return null;
+  112:     }
+  113: 
+  114:     const numericValue = Number(value);
+  115: 
+  116:     if (!Number.isFinite(numericValue)) {
+  117:       context.addIssue({
+  118:         code: z.ZodIssueCode.custom,
+  119:         message: "Years of experience must be a number.",
+  120:       });
+  121: 
+  122:       return z.NEVER;
+  123:     }
+  124: 
+  125:     if (numericValue < 0 || numericValue > 80) {
+  126:       context.addIssue({
+  127:         code: z.ZodIssueCode.custom,
+  128:         message: "Years of experience must be between zero and 80.",
+  129:       });
+  130: 
+  131:       return z.NEVER;
+  132:     }
+  133: 
+  134:     if (Math.round(numericValue * 10) !== numericValue * 10) {
+  135:       context.addIssue({
+  136:         code: z.ZodIssueCode.custom,
+  137:         message:
+  138:           "Years of experience can contain no more than one decimal place.",
+  139:       });
+  140: 
+  141:       return z.NEVER;
+  142:     }
+  143: 
+  144:     return numericValue;
+  145:   });
+  146: 
+  147: /*
+  148:  * =========================================
+  149:  * Nested Skill Schemas
+  150:  * =========================================
+  151:  */
+  152: 
+  153: const aliasesSchema = z
+  154:   .array(aliasSchema)
+  155:   .max(20, "Add no more than 20 aliases.")
+  156:   .default([]);
+  157: 
+  158: const proficiencySchema = z
+  159:   .object({
+  160:     level: z.enum(SKILL_PROFICIENCY_VALUES).default(""),
+  161: 
+  162:     yearsOfExperience: nullableYearsSchema.default(null),
+  163: 
+  164:     lastUsedDate: optionalYearMonthSchema.default(""),
+  165:   })
+  166:   .default({
+  167:     level: "",
+  168:     yearsOfExperience: null,
+  169:     lastUsedDate: "",
+  170:   });
+  171: 
+  172: const proficiencyUpdateSchema = z.object({
+  173:   level: z.enum(SKILL_PROFICIENCY_VALUES).optional(),
+  174: 
+  175:   yearsOfExperience: nullableYearsSchema.optional(),
+  176: 
+  177:   lastUsedDate: optionalYearMonthSchema.optional(),
+  178: });
+  179: 
+  180: const languageSchema = z
+  181:   .object({
+  182:     proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).default(""),
+  183:   })
+  184:   .default({
+  185:     proficiency: "",
+  186:   });
+  187: 
+  188: const languageUpdateSchema = z.object({
+  189:   proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).optional(),
+  190: });
+  191: 
+  192: /*
+  193:  * =========================================
+  194:  * Cross-Field Validation
+  195:  * =========================================
+  196:  */
+  197: 
+  198: function validateSkillRelationships(skill, context) {
+  199:   const isLanguageType = skill.type === "language";
+  200: 
+  201:   const isLanguageCategory = skill.category === "language";
+  202: 
+  203:   const languageProficiency = skill.language?.proficiency || "";
+  204: 
+  205:   if (isLanguageType && !isLanguageCategory) {
+  206:     context.addIssue({
+  207:       code: z.ZodIssueCode.custom,
+  208:       path: ["category"],
+  209:       message: 'A language skill must use the "Languages" category.',
+  210:     });
+  211:   }
+  212: 
+  213:   if (isLanguageCategory && !isLanguageType) {
+  214:     context.addIssue({
+  215:       code: z.ZodIssueCode.custom,
+  216:       path: ["type"],
+  217:       message:
+  218:         'A skill in the "Languages" category must use the "Language Skill" type.',
+  219:     });
+  220:   }
+  221: 
+  222:   if (!isLanguageType && languageProficiency) {
+  223:     context.addIssue({
+  224:       code: z.ZodIssueCode.custom,
+  225:       path: ["language", "proficiency"],
+  226:       message: "Language proficiency can only be assigned to a language skill.",
+  227:     });
+  228:   }
+  229: 
+  230:   const normalizedName = skill.name
+  231:     .normalize("NFKC")
+  232:     .trim()
+  233:     .toLocaleLowerCase()
+  234:     .replace(/[._/\\-]+/g, " ")
+  235:     .replace(/\s+/g, " ");
+  236: 
+  237:   const seenAliases = new Set();
+  238: 
+  239:   skill.aliases.forEach((alias, index) => {
+  240:     const normalizedAlias = alias
+  241:       .normalize("NFKC")
+  242:       .trim()
+  243:       .toLocaleLowerCase()
+  244:       .replace(/[._/\\-]+/g, " ")
+  245:       .replace(/\s+/g, " ");
+  246: 
+  247:     if (normalizedAlias === normalizedName) {
+  248:       context.addIssue({
+  249:         code: z.ZodIssueCode.custom,
+  250:         path: ["aliases", index],
+  251:         message: "An alias cannot be the same as the primary skill name.",
+  252:       });
+  253:     }
+  254: 
+  255:     if (seenAliases.has(normalizedAlias)) {
+  256:       context.addIssue({
+  257:         code: z.ZodIssueCode.custom,
+  258:         path: ["aliases", index],
+  259:         message: "This skill alias has already been added.",
+  260:       });
+  261:     }
+  262: 
+  263:     seenAliases.add(normalizedAlias);
+  264:   });
+  265: }
+  266: 
+  267: /*
+  268:  * =========================================
+  269:  * Create Skill
+  270:  * =========================================
+  271:  */
+  272: 
+  273: const createSkillBaseSchema = z.object({
+  274:   name: skillNameSchema,
+  275: 
+  276:   category: z.enum(SKILL_CATEGORY_VALUES).default("other"),
+  277: 
+  278:   type: z.enum(SKILL_TYPE_VALUES).default("professional"),
+  279: 
+  280:   description: z.string().trim().max(1500).default(""),
+  281: 
+  282:   aliases: aliasesSchema,
+  283: 
+  284:   proficiency: proficiencySchema,
+  285: 
+  286:   language: languageSchema,
+  287: 
+  288:   source: z.enum(SKILL_SOURCE_VALUES).default("manual"),
+  289: 
+  290:   sourceContext: z.string().trim().max(100).default(""),
+  291: 
+  292:   notes: z.string().trim().max(2000).default(""),
+  293: 
+  294:   status: z.enum(SKILL_STATUS_VALUES).default("active"),
+  295: });
+  296: 
+  297: export const createSkillSchema = createSkillBaseSchema.superRefine(
+  298:   validateSkillRelationships,
+  299: );
+  300: 
+  301: /*
+  302:  * =========================================
+  303:  * Update Skill
+  304:  * =========================================
+  305:  */
+  306: 
+  307: const updateSkillBaseSchema = z.object({
+  308:   name: skillNameSchema.optional(),
+  309: 
+  310:   category: z.enum(SKILL_CATEGORY_VALUES).optional(),
+  311: 
+  312:   type: z.enum(SKILL_TYPE_VALUES).optional(),
+  313: 
+  314:   description: z.string().trim().max(1500).optional(),
+  315: 
+  316:   aliases: z.array(aliasSchema).max(20).optional(),
+  317: 
+  318:   proficiency: proficiencyUpdateSchema.optional(),
+  319: 
+  320:   language: languageUpdateSchema.optional(),
+  321: 
+  322:   source: z.enum(SKILL_SOURCE_VALUES).optional(),
+  323: 
+  324:   sourceContext: z.string().trim().max(100).optional(),
+  325: 
+  326:   notes: z.string().trim().max(2000).optional(),
+  327: 
+  328:   status: z.enum(SKILL_STATUS_VALUES).optional(),
+  329: });
+  330: 
+  331: export const updateSkillSchema = updateSkillBaseSchema.refine(
+  332:   (updates) => Object.keys(updates).length > 0,
+  333:   {
+  334:     message: "Provide at least one skill field to update.",
+  335:   },
+  336: );
+  337: 
+  338: /*
+  339:  * =========================================
+  340:  * Complete Merged Skill
+  341:  * =========================================
+  342:  *
+  343:  * The service uses this after merging an update
+  344:  * with the existing database record.
+  345:  */
+  346: 
+  347: export const completeSkillSchema = createSkillBaseSchema.superRefine(
+  348:   validateSkillRelationships,
+  349: );
+  350: 
+  351: /*
+  352:  * =========================================
+  353:  * Route Parameters
+  354:  * =========================================
+  355:  */
+  356: 
+  357: export const skillIdParamsSchema = z.object({
+  358:   skillId: skillIdSchema,
+  359: });
+  360: 
+  361: /*
+  362:  * =========================================
+  363:  * List Query
+  364:  * =========================================
+  365:  */
+  366: 
+  367: function parseBooleanQuery(value) {
+  368:   if (value === true || value === "true" || value === "1") {
+  369:     return true;
+  370:   }
+  371: 
+  372:   if (
+  373:     value === false ||
+  374:     value === "false" ||
+  375:     value === "0" ||
+  376:     value === undefined
+  377:   ) {
+  378:     return false;
+  379:   }
+  380: 
+  381:   return value;
+  382: }
+  383: 
+  384: export const skillListQuerySchema = z.object({
+  385:   includeArchived: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
+  386: 
+  387:   category: z
+  388:     .union([z.literal("all"), z.enum(SKILL_CATEGORY_VALUES)])
+  389:     .default("all"),
+  390: 
+  391:   type: z.union([z.literal("all"), z.enum(SKILL_TYPE_VALUES)]).default("all"),
+  392: 
+  393:   query: z.string().trim().max(200).default(""),
+  394: 
+  395:   sort: z
+  396:     .enum([
+  397:       "name-ascending",
+  398:       "name-descending",
+  399:       "recently-updated",
+  400:       "oldest-updated",
+  401:     ])
+  402:     .default("name-ascending"),
+  403: });
+  404: 
+  405: /*
+  406:  * =========================================
+  407:  * Skill Name Resolution
+  408:  * =========================================
+  409:  */
+  410: 
+  411: export const skillNameQuerySchema = z.object({
+  412:   name: skillNameSchema,
+  413: 
+  414:   excludeSkillId: z.string().trim().max(200).default(""),
+  415: });
+  416: 
+  417: /*
+  418:  * =========================================
+  419:  * Find or Create
+  420:  * =========================================
+  421:  */
+  422: 
+  423: export const findOrCreateSkillSchema = z.object({
+  424:   skill: createSkillBaseSchema,
+  425: 
+  426:   restoreArchived: z.boolean().default(true),
+  427: });
+  428: 
+  429: /*
+  430:  * =========================================
+  431:  * Collection Replacement
+  432:  * =========================================
+  433:  */
+  434: 
+  435: export const replaceSkillsSchema = z.object({
+  436:   skills: z
+  437:     .array(createSkillBaseSchema)
+  438:     .max(1000, "The Skill Library is too large."),
+  439: });
+  440: 
+  441: /*
+  442:  * =========================================
+  443:  * Validation Error Formatter
+  444:  * =========================================
+  445:  */
+  446: 
+  447: export function formatSkillSchemaErrors(error) {
+  448:   if (!error?.issues) {
+  449:     return [];
+  450:   }
+  451: 
+  452:   return error.issues.map((issue) => ({
+  453:     field: issue.path.join("."),
+  454:     message: issue.message,
+  455:     code: issue.code,
+  456:   }));
+  457: }
+
+==========================================================================================
+FILE: backend\src\services\Service\skillService.js
+==========================================================================================
+Size: 0 bytes
+
+==========================================================================================
+FILE: frontend\src\models\skillModel.js
+==========================================================================================
+Size: 10076 bytes
+    1: import {
+    2:   DEFAULT_SKILL_VALUES,
+    3:   isValidLanguageProficiency,
+    4:   isValidSkillCategory,
+    5:   isValidSkillProficiency,
+    6:   isValidSkillSource,
+    7:   isValidSkillStatus,
+    8:   isValidSkillType,
+    9:   SKILL_FIELD_LIMITS,
+   10: } from "../config/skillConfig.js";
+   11: 
+   12: /*
+   13:  * =========================================
+   14:  * Model Version
+   15:  * =========================================
+   16:  */
+   17: 
+   18: export const SKILL_MODEL_VERSION = 1;
+   19: 
+   20: /*
+   21:  * =========================================
+   22:  * ID Creation
+   23:  * =========================================
+   24:  */
+   25: 
+   26: export function createSkillId(prefix = "skill") {
+   27:   if (
+   28:     typeof crypto !== "undefined" &&
+   29:     typeof crypto.randomUUID === "function"
+   30:   ) {
+   31:     return `${prefix}-${crypto.randomUUID()}`;
+   32:   }
+   33: 
+   34:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+   35: }
+   36: 
+   37: /*
+   38:  * =========================================
+   39:  * Primitive Normalization
+   40:  * =========================================
+   41:  */
+   42: 
+   43: function normalizeText(value, maximumLength = Infinity) {
+   44:   if (typeof value !== "string") {
+   45:     return "";
+   46:   }
+   47: 
+   48:   return value.trim().slice(0, maximumLength);
+   49: }
+   50: 
+   51: function normalizeNullableNumber(value) {
+   52:   if (value === "" || value === null || value === undefined) {
+   53:     return null;
+   54:   }
+   55: 
+   56:   const numberValue = Number(value);
+   57: 
+   58:   if (!Number.isFinite(numberValue) || numberValue < 0) {
+   59:     return null;
+   60:   }
+   61: 
+   62:   return Number(numberValue.toFixed(1));
+   63: }
+   64: 
+   65: function normalizeYearMonth(value) {
+   66:   const text = normalizeText(value, 10);
+   67: 
+   68:   if (!text) {
+   69:     return "";
+   70:   }
+   71: 
+   72:   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(text)) {
+   73:     return "";
+   74:   }
+   75: 
+   76:   return text;
+   77: }
+   78: 
+   79: /*
+   80:  * =========================================
+   81:  * Search Name Normalization
+   82:  * =========================================
+   83:  *
+   84:  * normalizedName is used for searching and
+   85:  * duplicate prevention. It is not intended as
+   86:  * the user-facing display name.
+   87:  */
+   88: 
+   89: export function normalizeSkillNameForComparison(value) {
+   90:   return normalizeText(value)
+   91:     .normalize("NFKC")
+   92:     .toLocaleLowerCase()
+   93:     .replace(/[._/\\-]+/g, " ")
+   94:     .replace(/\s+/g, " ")
+   95:     .trim();
+   96: }
+   97: 
+   98: /*
+   99:  * =========================================
+  100:  * Alias Normalization
+  101:  * =========================================
+  102:  */
+  103: 
+  104: function normalizeAliases(aliases, skillName = "") {
+  105:   if (!Array.isArray(aliases)) {
+  106:     return [];
+  107:   }
+  108: 
+  109:   const normalizedSkillName = normalizeSkillNameForComparison(skillName);
+  110: 
+  111:   const normalizedAliases = aliases
+  112:     .map((alias) => {
+  113:       if (typeof alias === "string") {
+  114:         return normalizeText(alias, SKILL_FIELD_LIMITS.alias);
+  115:       }
+  116: 
+  117:       return normalizeText(
+  118:         alias?.name || alias?.value || alias?.label,
+  119:         SKILL_FIELD_LIMITS.alias,
+  120:       );
+  121:     })
+  122:     .filter(Boolean);
+  123: 
+  124:   return normalizedAliases
+  125:     .filter((alias, index, collection) => {
+  126:       const comparisonName = normalizeSkillNameForComparison(alias);
+  127: 
+  128:       if (comparisonName === normalizedSkillName) {
+  129:         return false;
+  130:       }
+  131: 
+  132:       return (
+  133:         collection.findIndex(
+  134:           (candidate) =>
+  135:             normalizeSkillNameForComparison(candidate) === comparisonName,
+  136:         ) === index
+  137:       );
+  138:     })
+  139:     .slice(0, SKILL_FIELD_LIMITS.maximumAliases);
+  140: }
+  141: 
+  142: /*
+  143:  * =========================================
+  144:  * Empty Skill
+  145:  * =========================================
+  146:  */
+  147: 
+  148: export function createEmptySkill() {
+  149:   const timestamp = new Date().toISOString();
+  150: 
+  151:   return {
+  152:     modelVersion: SKILL_MODEL_VERSION,
+  153: 
+  154:     id: createSkillId(),
+  155: 
+  156:     name: "",
+  157: 
+  158:     normalizedName: "",
+  159: 
+  160:     category: DEFAULT_SKILL_VALUES.category,
+  161: 
+  162:     type: DEFAULT_SKILL_VALUES.type,
+  163: 
+  164:     description: "",
+  165: 
+  166:     aliases: [],
+  167: 
+  168:     proficiency: {
+  169:       level: DEFAULT_SKILL_VALUES.proficiency,
+  170: 
+  171:       yearsOfExperience: null,
+  172: 
+  173:       lastUsedDate: "",
+  174:     },
+  175: 
+  176:     language: {
+  177:       proficiency: DEFAULT_SKILL_VALUES.languageProficiency,
+  178:     },
+  179: 
+  180:     source: DEFAULT_SKILL_VALUES.source,
+  181: 
+  182:     /*
+  183:      * sourceContext describes where a skill was
+  184:      * created. Examples:
+  185:      *
+  186:      * skill-page
+  187:      * experience
+  188:      * resume
+  189:      * portfolio
+  190:      * ai-experience-suggestion
+  191:      */
+  192: 
+  193:     sourceContext: "",
+  194: 
+  195:     notes: "",
+  196: 
+  197:     status: DEFAULT_SKILL_VALUES.status,
+  198: 
+  199:     createdAt: timestamp,
+  200:     updatedAt: timestamp,
+  201:   };
+  202: }
+  203: 
+  204: /*
+  205:  * =========================================
+  206:  * Normalize Skill
+  207:  * =========================================
+  208:  */
+  209: 
+  210: export function normalizeSkill(value = {}) {
+  211:   const defaults = createEmptySkill();
+  212: 
+  213:   /*
+  214:    * Permit a simple string during migration.
+  215:    */
+  216: 
+  217:   const source =
+  218:     typeof value === "string"
+  219:       ? {
+  220:           name: value,
+  221:         }
+  222:       : value && typeof value === "object"
+  223:         ? value
+  224:         : {};
+  225: 
+  226:   const proficiency =
+  227:     source.proficiency && typeof source.proficiency === "object"
+  228:       ? source.proficiency
+  229:       : {};
+  230: 
+  231:   const language =
+  232:     source.language && typeof source.language === "object"
+  233:       ? source.language
+  234:       : {};
+  235: 
+  236:   const name = normalizeText(
+  237:     source.name || source.label || source.value,
+  238:     SKILL_FIELD_LIMITS.name,
+  239:   );
+  240: 
+  241:   const category = isValidSkillCategory(source.category)
+  242:     ? source.category
+  243:     : defaults.category;
+  244: 
+  245:   const type = isValidSkillType(source.type) ? source.type : defaults.type;
+  246: 
+  247:   const proficiencyLevel = isValidSkillProficiency(proficiency.level)
+  248:     ? proficiency.level
+  249:     : defaults.proficiency.level;
+  250: 
+  251:   const languageProficiency = isValidLanguageProficiency(language.proficiency)
+  252:     ? language.proficiency
+  253:     : defaults.language.proficiency;
+  254: 
+  255:   const skillSource = isValidSkillSource(source.source)
+  256:     ? source.source
+  257:     : defaults.source;
+  258: 
+  259:   const status = isValidSkillStatus(source.status)
+  260:     ? source.status
+  261:     : defaults.status;
+  262: 
+  263:   return {
+  264:     modelVersion: SKILL_MODEL_VERSION,
+  265: 
+  266:     id: normalizeText(source.id, 200) || defaults.id,
+  267: 
+  268:     name,
+  269: 
+  270:     normalizedName: normalizeSkillNameForComparison(name),
+  271: 
+  272:     category,
+  273: 
+  274:     type,
+  275: 
+  276:     description: normalizeText(
+  277:       source.description,
+  278:       SKILL_FIELD_LIMITS.description,
+  279:     ),
+  280: 
+  281:     aliases: normalizeAliases(source.aliases, name),
+  282: 
+  283:     proficiency: {
+  284:       level: proficiencyLevel,
+  285: 
+  286:       yearsOfExperience: normalizeNullableNumber(
+  287:         proficiency.yearsOfExperience ?? source.yearsOfExperience,
+  288:       ),
+  289: 
+  290:       lastUsedDate: normalizeYearMonth(
+  291:         proficiency.lastUsedDate || source.lastUsedDate,
+  292:       ),
+  293:     },
+  294: 
+  295:     language: {
+  296:       proficiency: languageProficiency,
+  297:     },
+  298: 
+  299:     source: skillSource,
+  300: 
+  301:     sourceContext: normalizeText(source.sourceContext, 100),
+  302: 
+  303:     notes: normalizeText(source.notes, SKILL_FIELD_LIMITS.notes),
+  304: 
+  305:     status,
+  306: 
+  307:     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+  308: 
+  309:     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  310:   };
+  311: }
+  312: 
+  313: /*
+  314:  * =========================================
+  315:  * Create Skill
+  316:  * =========================================
+  317:  */
+  318: 
+  319: export function createSkill(values = {}) {
+  320:   const timestamp = new Date().toISOString();
+  321: 
+  322:   return normalizeSkill({
+  323:     ...values,
+  324: 
+  325:     id: normalizeText(values?.id, 200) || createSkillId(),
+  326: 
+  327:     createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+  328: 
+  329:     updatedAt: timestamp,
+  330:   });
+  331: }
+  332: 
+  333: /*
+  334:  * =========================================
+  335:  * Update Skill
+  336:  * =========================================
+  337:  */
+  338: 
+  339: export function updateSkillModel(currentSkill, updates = {}) {
+  340:   return normalizeSkill({
+  341:     ...currentSkill,
+  342:     ...updates,
+  343: 
+  344:     proficiency: {
+  345:       ...currentSkill?.proficiency,
+  346:       ...updates?.proficiency,
+  347:     },
+  348: 
+  349:     language: {
+  350:       ...currentSkill?.language,
+  351:       ...updates?.language,
+  352:     },
+  353: 
+  354:     id: currentSkill?.id,
+  355: 
+  356:     createdAt: currentSkill?.createdAt,
+  357: 
+  358:     updatedAt: new Date().toISOString(),
+  359:   });
+  360: }
+  361: 
+  362: /*
+  363:  * =========================================
+  364:  * Normalize Skill Collection
+  365:  * =========================================
+  366:  */
+  367: 
+  368: export function normalizeSkillCollection(values) {
+  369:   if (!Array.isArray(values)) {
+  370:     return [];
+  371:   }
+  372: 
+  373:   const normalizedSkills = values.map(normalizeSkill);
+  374: 
+  375:   /*
+  376:    * Remove duplicate IDs and duplicate skill names.
+  377:    */
+  378: 
+  379:   return normalizedSkills.filter((skill, index, collection) => {
+  380:     const duplicateIdIndex = collection.findIndex(
+  381:       (candidate) => candidate.id === skill.id,
+  382:     );
+  383: 
+  384:     const duplicateNameIndex = collection.findIndex(
+  385:       (candidate) =>
+  386:         candidate.normalizedName &&
+  387:         candidate.normalizedName === skill.normalizedName,
+  388:     );
+  389: 
+  390:     return (
+  391:       duplicateIdIndex === index &&
+  392:       (!skill.normalizedName || duplicateNameIndex === index)
+  393:     );
+  394:   });
+  395: }
+  396: 
+  397: /*
+  398:  * =========================================
+  399:  * Find Matching Skill
+  400:  * =========================================
+  401:  */
+  402: 
+  403: export function findMatchingSkill(skills, name) {
+  404:   if (!Array.isArray(skills)) {
+  405:     return null;
+  406:   }
+  407: 
+  408:   const normalizedName = normalizeSkillNameForComparison(name);
+  409: 
+  410:   if (!normalizedName) {
+  411:     return null;
+  412:   }
+  413: 
+  414:   return (
+  415:     skills.find((skill) => {
+  416:       if (normalizeSkillNameForComparison(skill.name) === normalizedName) {
+  417:         return true;
+  418:       }
+  419: 
+  420:       return (skill.aliases || []).some(
+  421:         (alias) => normalizeSkillNameForComparison(alias) === normalizedName,
+  422:       );
+  423:     }) || null
+  424:   );
+  425: }
+  426: 
+  427: /*
+  428:  * =========================================
+  429:  * Skill Display Information
+  430:  * =========================================
+  431:  */
+  432: 
+  433: export function getSkillDisplayName(skill) {
+  434:   return normalizeText(skill?.name) || "Unnamed Skill";
+  435: }
+  436: 
+  437: /*
+  438:  * =========================================
+  439:  * Public Skill
+  440:  * =========================================
+  441:  *
+  442:  * Private notes and internal source context are
+  443:  * excluded before public presentation.
+  444:  */
+  445: 
+  446: export function createPublicSkill(value) {
+  447:   const skill = normalizeSkill(value);
+  448: 
+  449:   const { notes, sourceContext, ...publicSkill } = skill;
+  450: 
+  451:   return publicSkill;
+  452: }
+
+==========================================================================================
+FILE: backend\package.json
+==========================================================================================
+Size: 5653 bytes
+    1: {
+    2:   "name": "portfolio-platform-backend",
+    3:   "version": "1.0.0",
+    4:   "description": "Backend API for the portfolio and resume platform",
+    5:   "main": "src/server.js",
+    6:   "scripts": {
+    7:     "dev": "nodemon src/server.js",
+    8:     "start": "node src/server.js",
+    9:     "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+   10:     "db:migrate": "node src/database/runMigrations.js",
+   11:     "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+   12:     "test:local-sql": "node test-local-sql.mjs",
+   13:     "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+   14:     "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+   15:     "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+   16:     "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+   17:     "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+   18:     "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+   19:     "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+   20:     "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+   21:     "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+   22:     "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+   23:     "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+   24:     "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+   25:     "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+   26:     "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+   27:     "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+   28:     "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+   29:     "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+   30:     "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+   31:   },
+   32:   "keywords": [],
+   33:   "type": "module",
+   34:   "dependencies": {
+   35:     "argon2": "^0.45.1",
+   36:     "cors": "^2.8.6",
+   37:     "dotenv": "^17.4.2",
+   38:     "express": "^5.2.1",
+   39:     "express-rate-limit": "^8.7.0",
+   40:     "file-type": "^22.1.1",
+   41:     "groq-sdk": "^1.6.0",
+   42:     "helmet": "^8.3.0",
+   43:     "mssql": "^12.7.2",
+   44:     "multer": "^2.4.0",
+   45:     "openai": "^7.9.0",
+   46:     "resend": "^6.28.1",
+   47:     "yauzl": "^3.4.0",
+   48:     "zod": "^4.5.4"
+   49:   },
+   50:   "devDependencies": {
+   51:     "nodemon": "^3.1.14",
+   52:     "supertest": "^7.2.2"
+   53:   }
+   54: }

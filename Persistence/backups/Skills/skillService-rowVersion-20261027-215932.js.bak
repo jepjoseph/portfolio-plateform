@@ -1,0 +1,292 @@
+import { randomUUID } from "node:crypto";
+
+import {
+  listSkillsByUser,
+  findSkillById,
+  createSkill,
+  updateSkill,
+} from "../../repositories/skillRepository.js";
+
+import {
+  createSkillSchema,
+  updateSkillSchema,
+  completeSkillSchema,
+  formatSkillSchemaErrors,
+} from "../../schemas/skillSchemas.js";
+
+function skillError(code, status, message) {
+  const error = new Error(message);
+  error.name = "SkillServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+function assertUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw skillError(
+      "SKILL_AUTHENTICATION_REQUIRED",
+      401,
+      "You must sign in to access your Skills.",
+    );
+  }
+
+  return userId.trim();
+}
+
+function assertSkillId(skillId) {
+  if (
+    typeof skillId !== "string" ||
+    !skillId.trim() ||
+    skillId.trim().length > 200
+  ) {
+    throw skillError(
+      "SKILL_ID_INVALID",
+      400,
+      "A valid Skill identifier is required.",
+    );
+  }
+
+  return skillId.trim();
+}
+
+function parseRowVersion(value) {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Za-z0-9+/]{10}==$/.test(value) ||
+    Buffer.from(value, "base64").length !== 8 ||
+    Buffer.from(value, "base64").toString("base64") !== value
+  ) {
+    throw skillError(
+      "SKILL_ROW_VERSION_INVALID",
+      400,
+      "A valid Skill row version is required.",
+    );
+  }
+
+  return value;
+}
+
+function parseSchema(schema, value) {
+  const result = schema.safeParse(value);
+
+  if (!result.success) {
+    const error = skillError(
+      "SKILL_VALIDATION_FAILED",
+      400,
+      "Correct the invalid Skill information before saving.",
+    );
+
+    error.validation = formatSkillSchemaErrors(result.error);
+    error.errors = error.validation;
+    error.fieldErrors = Object.fromEntries(
+      error.validation.map(({ field, message }) => [field, message]),
+    );
+
+    throw error;
+  }
+
+  return result.data;
+}
+
+function normalizeName(value) {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[._/\\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getNames(skill) {
+  return [
+    skill.name,
+    ...(Array.isArray(skill.aliases) ? skill.aliases : []),
+  ].map(normalizeName);
+}
+
+function assertNoConflicts(candidate, existingSkills, excludeId = "") {
+  const candidateNames = new Set(getNames(candidate));
+
+  for (const existing of existingSkills) {
+    if (existing.id === excludeId) {
+      continue;
+    }
+
+    if (getNames(existing).some((name) => candidateNames.has(name))) {
+      throw skillError(
+        "SKILL_NAME_CONFLICT",
+        409,
+        `A Skill named "${existing.name}" already uses this name or alias.`,
+      );
+    }
+  }
+}
+
+function notFound() {
+  return skillError(
+    "SKILL_NOT_FOUND",
+    404,
+    "The requested Skill could not be found.",
+  );
+}
+
+function versionConflict() {
+  return skillError(
+    "SKILL_VERSION_CONFLICT",
+    409,
+    "This Skill was changed elsewhere. Reload it before saving.",
+  );
+}
+
+function handleDatabaseConflict(error) {
+  if (error.number === 2601 || error.number === 2627) {
+    throw skillError(
+      "SKILL_NAME_CONFLICT",
+      409,
+      "A Skill with this identifier or normalized name already exists.",
+    );
+  }
+
+  throw error;
+}
+
+function toStoredSkill(id, validated) {
+  return {
+    ...validated,
+    id,
+    normalizedName: normalizeName(validated.name),
+    modelVersion: 1,
+  };
+}
+
+export async function getAuthenticatedSkills({ userId }) {
+  return listSkillsByUser(assertUserId(userId));
+}
+
+export async function getAuthenticatedSkill({ userId, skillId }) {
+  const skill = await findSkillById(
+    assertUserId(userId),
+    assertSkillId(skillId),
+  );
+
+  if (!skill) {
+    throw notFound();
+  }
+
+  return skill;
+}
+
+export async function createAuthenticatedSkill({ userId, skill }) {
+  const authenticatedUserId = assertUserId(userId);
+
+  const validated = parseSchema(createSkillSchema, skill);
+
+  const candidate = toStoredSkill(
+    `skill-${randomUUID()}`,
+    validated,
+  );
+
+  const existingSkills = await listSkillsByUser(authenticatedUserId);
+
+  assertNoConflicts(candidate, existingSkills);
+
+  try {
+    return await createSkill(authenticatedUserId, candidate);
+  } catch (error) {
+    handleDatabaseConflict(error);
+  }
+}
+
+export async function updateAuthenticatedSkill({
+  userId,
+  skillId,
+  updates,
+  rowVersion,
+}) {
+  const authenticatedUserId = assertUserId(userId);
+  const normalizedSkillId = assertSkillId(skillId);
+  const expectedRowVersion = parseRowVersion(rowVersion);
+
+  const validatedUpdates = parseSchema(updateSkillSchema, updates);
+
+  const existing = await findSkillById(
+    authenticatedUserId,
+    normalizedSkillId,
+  );
+
+  if (!existing) {
+    throw notFound();
+  }
+
+  const merged = parseSchema(completeSkillSchema, {
+    ...existing,
+    ...validatedUpdates,
+
+    proficiency: {
+      ...existing.proficiency,
+      ...validatedUpdates.proficiency,
+    },
+
+    language: {
+      ...existing.language,
+      ...validatedUpdates.language,
+    },
+  });
+
+  const candidate = toStoredSkill(existing.id, merged);
+
+  const existingSkills = await listSkillsByUser(authenticatedUserId);
+
+  assertNoConflicts(candidate, existingSkills, existing.id);
+
+  try {
+    const updated = await updateSkill(
+      authenticatedUserId,
+      candidate,
+      expectedRowVersion,
+    );
+
+    if (!updated) {
+      throw versionConflict();
+    }
+
+    return updated;
+  } catch (error) {
+    handleDatabaseConflict(error);
+  }
+}
+
+export async function setAuthenticatedSkillArchiveStatus({
+  userId,
+  skillId,
+  rowVersion,
+  archived,
+}) {
+  if (typeof archived !== "boolean") {
+    throw skillError(
+      "SKILL_ARCHIVE_STATUS_INVALID",
+      400,
+      "Archive status must be true or false.",
+    );
+  }
+
+  return updateAuthenticatedSkill({
+    userId,
+    skillId,
+    rowVersion,
+    updates: {
+      status: archived ? "archived" : "active",
+    },
+  });
+}
+
+export async function deleteAuthenticatedSkill() {
+  throw skillError(
+    "SKILL_DELETE_NOT_AVAILABLE",
+    409,
+    "Permanent Skill deletion is unavailable until relationship checks are implemented.",
+  );
+}
