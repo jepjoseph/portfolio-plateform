@@ -1,0 +1,313 @@
+﻿========================================
+CALLBACK: getSkillById
+========================================
+  const getSkillById = useCallback(
+    async (skillId) => {
+      const existingSkill = skills.find((skill) => skill.id === skillId);
+
+      if (existingSkill) {
+        return existingSkill;
+      }
+
+      try {
+        setError(null);
+
+        return await getSkillByIdService(skillId);
+      } catch (getError) {
+        setError(normalizeSkillContextError(getError));
+
+        throw getError;
+      }
+    },
+    [skills],
+  );
+
+
+
+========================================
+CALLBACK: createSkill
+========================================
+s: "loading",
+      });
+
+      const createdSkill = await createSkillService(skillData);
+
+      setSkills((current) =>
+        sortSkillLibrary([
+          createdSkill,
+          ...current.filter((skill) => skill.id !== createdSkill.id),
+        ]),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "create",
+        skillId: createdSkill.id,
+        status: "success",
+      });
+
+      return createdSkill;
+    } catch (createError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "create",
+        skillId: "",
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(createError));
+
+      throw createError;
+    }
+  }, []);
+
+
+
+========================================
+CALLBACK: updateSkill
+========================================
+ibrary(
+            current.map((skill) =>
+              skill.id === skillId ? updatedSkill : skill,
+            ),
+          ),
+        );
+
+        setSaveStatus("success");
+
+        setOperation({
+          type: "update",
+          skillId,
+          status: "success",
+        });
+
+        return updatedSkill;
+      } catch (updateError) {
+        if (isRequestCurrent(request)) {
+          setSaveStatus("error");
+
+          setOperation({
+            type: "update",
+            skillId,
+            status: "error",
+          });
+
+          setError(normalizeSkillContextError(updateError));
+        }
+
+        throw updateError;
+      }
+    },
+    [captureRequest, isRequestCurrent],
+  );
+
+
+
+========================================
+CALLBACK: findOrCreateSkill
+========================================
+);
+
+        const next = exists
+          ? current.map((skill) =>
+              skill.id === resolvedSkill.id ? resolvedSkill : skill,
+            )
+          : [resolvedSkill, ...current];
+
+        return sortSkillLibrary(next);
+      });
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "find-or-create",
+        skillId: resolvedSkill.id,
+        status: "success",
+      });
+
+      return result;
+    } catch (operationError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "find-or-create",
+        skillId: "",
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(operationError));
+
+      throw operationError;
+    }
+  }, []);
+
+
+
+========================================
+CALLBACK: archiveSkill
+========================================
+oading",
+      });
+
+      const archivedSkill = await archiveSkillService(skillId, rowVersion);
+
+      setSkills((current) =>
+        sortSkillLibrary(
+          current.map((skill) =>
+            skill.id === skillId ? archivedSkill : skill,
+          ),
+        ),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "archive",
+        skillId,
+        status: "success",
+      });
+
+      return archivedSkill;
+    } catch (archiveError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "archive",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(archiveError));
+
+      throw archiveError;
+    }
+  }, []);
+
+
+
+========================================
+CALLBACK: restoreSkill
+========================================
+oading",
+      });
+
+      const restoredSkill = await restoreSkillService(skillId, rowVersion);
+
+      setSkills((current) =>
+        sortSkillLibrary(
+          current.map((skill) =>
+            skill.id === skillId ? restoredSkill : skill,
+          ),
+        ),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "restore",
+        skillId,
+        status: "success",
+      });
+
+      return restoredSkill;
+    } catch (restoreError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "restore",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(restoreError));
+
+      throw restoreError;
+    }
+  }, []);
+
+
+
+========================================
+CALLBACK: deleteSkill
+========================================
+    });
+
+      if (Number(usage?.total ?? usage?.totalUsage) > 0) {
+        throw createSkillDeletionConflict(skillId, usage);
+      }
+
+      const deletionResult = await deleteSkillService(skillId);
+
+      setSkills((current) => current.filter((skill) => skill.id !== skillId));
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "delete",
+        skillId,
+        status: "success",
+      });
+
+      return deletionResult;
+    } catch (deleteError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "delete",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(deleteError));
+
+      throw deleteError;
+    }
+  }, []);
+
+
+
+========================================
+CALLBACK: replaceSkills
+========================================
+y {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "loading",
+      });
+
+      const replaced = await replaceSkillsService(skillValues);
+
+      setSkills(sortSkillLibrary(replaced));
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "success",
+      });
+
+      return replaced;
+    } catch (replaceError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(replaceError));
+
+      throw replaceError;
+    }
+  }, []);
+
+
+

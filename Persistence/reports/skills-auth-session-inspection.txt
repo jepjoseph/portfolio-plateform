@@ -1,0 +1,628 @@
+﻿
+========================================
+AUTH CONTEXT SESSION STRUCTURE
+========================================
+File: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\AuthContext.jsx
+---
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useRef,
+    8:   useState,
+    9: } from "react";
+   10: 
+   11: import {
+   12:   completeRegistration as completeRegistrationService,
+   13:   getCurrentSession,
+   14:   logout as logoutService,
+   15:   refreshSession,
+   16:   requestPasswordLogin,
+   17:   requestRegistrationOtp,
+   18:   verifyLoginOtp,
+   19:   verifyRegistrationOtp,
+   20: } from "../services/Auth/authService.js";
+   21: 
+   22: import { AUTH_SESSION_INVALID_EVENT } from "../services/apiClient.js";
+---
+   99:  * =========================================
+  100:  */
+  101: 
+  102: function normalizeAuthentication(result) {
+  103:   if (!result?.user?.id || !result?.session?.id) {
+  104:     return null;
+  105:   }
+  106: 
+  107:   return {
+  108:     user: result.user,
+  109: 
+  110:     roles: normalizeRoles(result.roles),
+  111: 
+  112:     session: result.session,
+  113:   };
+  114: }
+  115: 
+  116: /*
+  117:  * =========================================
+  118:  * Expected Unauthenticated Errors
+  119:  * =========================================
+  120:  */
+---
+  136:  * =========================================
+  137:  */
+  138: 
+  139: export function AuthProvider({ children }) {
+  140:   const [user, setUser] = useState(null);
+  141: 
+  142:   const [roles, setRoles] = useState([]);
+  143: 
+  144:   const [session, setSession] = useState(null);
+  145: 
+  146:   const [status, setStatus] = useState(AUTH_STATUS.INITIALIZING);
+  147: 
+  148:   const [operation, setOperation] = useState(AUTH_OPERATION.IDLE);
+  149: 
+  150:   const [error, setError] = useState(null);
+  151: 
+  152:   /*
+---
+  175:     if (!isMountedRef.current) {
+  176:       return;
+  177:     }
+  178: 
+  179:     setUser(null);
+  180: 
+  181:     setRoles([]);
+  182: 
+  183:     setSession(null);
+  184: 
+  185:     setStatus(AUTH_STATUS.UNAUTHENTICATED);
+  186:   }, []);
+  187: 
+---
+  203:     if (!isMountedRef.current) {
+  204:       return authentication;
+  205:     }
+  206: 
+  207:     setUser(authentication.user);
+  208: 
+  209:     setRoles(authentication.roles);
+  210: 
+  211:     setSession(authentication.session);
+  212: 
+  213:     setStatus(AUTH_STATUS.AUTHENTICATED);
+  214: 
+  215:     setError(null);
+  216: 
+  217:     return authentication;
+  218:   }, []);
+  219: 
+---
+  224:   }, []);
+  225: 
+  226:   /*
+  227:    * =========================================
+  228:    * Invalid Session Events
+  229:    * =========================================
+  230:    *
+  231:    * Protected API requests dispatch this event
+  232:    * when the server reports that the current
+  233:    * session was revoked, expired, or invalid.
+  234:    */
+  235: 
+  236:   useEffect(() => {
+  237:     function handleInvalidSession() {
+  238:       clearAuthentication();
+  239: 
+  240:       if (isMountedRef.current) {
+  241:         setError(null);
+---
+  260:   }, [clearAuthentication]);
+  261: 
+  262:   /*
+  263:    * =========================================
+  264:    * Restore Existing Session
+  265:    * =========================================
+  266:    *
+  267:    * A missing or expired cookie is an ordinary
+  268:    * unauthenticated state, not an application
+  269:    * failure.
+  270:    */
+  271: 
+  272:   const restoreAuthentication = useCallback(async () => {
+---
+  292:           return null;
+  293:         }
+  294: 
+  295:         if (isMountedRef.current) {
+  296:           setUser(null);
+  297: 
+  298:           setRoles([]);
+  299: 
+  300:           setSession(null);
+  301: 
+  302:           setStatus(AUTH_STATUS.ERROR);
+  303: 
+  304:           setError(restorationError);
+---
+  328:    * Revalidate Returning Browsers
+  329:    * =========================================
+  330:    *
+  331:    * If another device revoked this browser's
+  332:    * session, returning to this tab triggers a
+  333:    * server validation before continued use.
+  334:    */
+  335: 
+  336:   useEffect(() => {
+  337:     function revalidateAuthentication() {
+  338:       if (!isMountedRef.current || status !== AUTH_STATUS.AUTHENTICATED) {
+  339:         return;
+  340:       }
+---
+  411:    * =========================================
+  412:    *
+  413:    * Successful verification returns a
+  414:    * short-lived continuation token. It does
+  415:    * not create the account or session yet.
+  416:    */
+  417: 
+  418:   const verifyRegistration = useCallback(async ({ challengeId, otp }) => {
+  419:     if (isMountedRef.current) {
+  420:       setOperation(AUTH_OPERATION.VERIFYING_REGISTRATION);
+  421: 
+  422:       setError(null);
+  423:     }
+---
+  447:    * =========================================
+  448:    *
+  449:    * This creates the user, initial profile,
+  450:    * settings and standard user role. It does
+  451:    * not create an authenticated session.
+  452:    */
+  453: 
+  454:   const finishRegistration = useCallback(
+  455:     async ({ challengeId, continuationToken, password }) => {
+  456:       if (isMountedRef.current) {
+  457:         setOperation(AUTH_OPERATION.COMPLETING_REGISTRATION);
+  458: 
+  459:         setError(null);
+---
+  523:    * Complete Login OTP
+  524:    * =========================================
+  525:    *
+  526:    * Successful verification creates the
+  527:    * server session and HttpOnly cookie.
+  528:    */
+  529: 
+  530:   const completeLogin = useCallback(
+  531:     async ({ challengeId, otp }) => {
+  532:       if (isMountedRef.current) {
+  533:         setOperation(AUTH_OPERATION.VERIFYING_LOGIN);
+  534: 
+  535:         setError(null);
+---
+  561:   );
+  562: 
+  563:   /*
+  564:    * =========================================
+  565:    * Refresh Session
+  566:    * =========================================
+  567:    *
+  568:    * Only one refresh may run at a time because
+  569:    * every successful refresh invalidates the
+  570:    * previous refresh token.
+  571:    */
+  572: 
+  573:   const refreshAuthentication = useCallback(async () => {
+---
+  620:   }, [applyAuthentication, clearAuthentication]);
+  621: 
+  622:   /*
+  623:    * =========================================
+  624:    * Logout
+  625:    * =========================================
+  626:    */
+  627: 
+  628:   const logout = useCallback(async () => {
+  629:     if (isMountedRef.current) {
+  630:       setOperation(AUTH_OPERATION.LOGGING_OUT);
+  631: 
+  632:       setError(null);
+  633:     }
+  634: 
+  635:     try {
+  636:       const result = await logoutService();
+  637: 
+  638:       clearAuthentication();
+  639: 
+  640:       return result;
+  641:     } catch (logoutError) {
+  642:       /*
+  643:        * The backend intentionally preserves
+  644:        * the cookie when database revocation
+  645:        * fails, so keep the local identity
+  646:        * until logout actually succeeds.
+  647:        */
+  648: 
+  649:       if (isMountedRef.current) {
+  650:         setError(logoutError);
+  651:       }
+  652: 
+  653:       throw logoutError;
+  654:     } finally {
+  655:       if (isMountedRef.current) {
+  656:         setOperation(AUTH_OPERATION.IDLE);
+  657:       }
+  658:     }
+  659:   }, [clearAuthentication]);
+  660: 
+  661:   /*
+---
+  675:   );
+  676: 
+  677:   /*
+  678:    * =========================================
+  679:    * Initial Session Restoration
+  680:    * =========================================
+  681:    */
+  682: 
+  683:   useEffect(() => {
+  684:     isMountedRef.current = true;
+  685: 
+  686:     void restoreAuthentication();
+  687: 
+---
+  695:    * Derived State
+  696:    * =========================================
+  697:    */
+  698: 
+  699:   const isAuthenticated = status === AUTH_STATUS.AUTHENTICATED;
+  700: 
+  701:   const isInitializing = status === AUTH_STATUS.INITIALIZING;
+  702: 
+  703:   const isBusy = operation !== AUTH_OPERATION.IDLE;
+  704: 
+  705:   /*
+  706:    * =========================================
+  707:    * Context Value
+  708:    * =========================================
+  709:    */
+  710: 
+  711:   const contextValue = useMemo(
+  712:     () => ({
+  713:       /*
+  714:        * Identity
+  715:        */
+  716: 
+  717:       user,
+  718: 
+  719:       roles,
+  720: 
+  721:       session,
+  722: 
+  723:       /*
+  724:        * Status
+  725:        */
+  726: 
+  727:       status,
+  728: 
+  729:       operation,
+  730: 
+  731:       error,
+  732: 
+  733:       isAuthenticated,
+  734: 
+  735:       isInitializing,
+  736: 
+  737:       isBusy,
+  738: 
+  739:       /*
+  740:        * Authentication Actions
+  741:        */
+---
+  753:       completeLogin,
+  754: 
+  755:       refreshAuthentication,
+  756: 
+  757:       logout,
+  758: 
+  759:       /*
+  760:        * Utilities
+  761:        */
+  762: 
+  763:       hasRole,
+  764: 
+  765:       clearError,
+---
+  768:       user,
+  769: 
+  770:       roles,
+  771: 
+  772:       session,
+  773: 
+  774:       status,
+  775: 
+  776:       operation,
+  777: 
+  778:       error,
+  779: 
+  780:       isAuthenticated,
+  781: 
+  782:       isInitializing,
+  783: 
+  784:       isBusy,
+  785: 
+  786:       restoreAuthentication,
+  787: 
+  788:       beginRegistration,
+---
+  796:       completeLogin,
+  797: 
+  798:       refreshAuthentication,
+  799: 
+  800:       logout,
+  801: 
+  802:       hasRole,
+  803: 
+  804:       clearError,
+  805:     ],
+  806:   );
+  807: 
+  808:   return (
+  809:     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  810:   );
+  811: }
+  812: 
+  813: /*
+  814:  * =========================================
+  815:  * Authentication Hook
+  816:  * =========================================
+  817:  */
+  818: 
+  819: export function useAuth() {
+  820:   const context = useContext(AuthContext);
+  821: 
+  822:   if (!context) {
+  823:     throw new Error("useAuth must be used inside AuthProvider.");
+  824:   }
+  825: 
+  826:   return context;
+  827: }
+
+========================================
+SKILLS SESSION IMPLEMENTATION
+========================================
+File: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\SkillDataContext.jsx
+---
+    1: import {
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useRef,
+    8:   useState,
+    9: } from "react";
+   10: 
+   11: import {
+   12:   archiveSkill as archiveSkillService,
+   13:   checkSkillNameAvailability as checkSkillNameAvailabilityService,
+---
+  117:   const { user, session, isAuthenticated, isInitializing } = useAuth();
+  118: 
+  119:   const userId = isAuthenticated ? user?.id || null : null;
+  120: 
+  121:   const sessionKey =
+  122:     isAuthenticated && user?.id && session?.id
+  123:       ? JSON.stringify([user.id, session.id])
+  124:       : null;
+  125: 
+  126:   const activeSessionRef = useRef(sessionKey);
+  127:   const requestGenerationRef = useRef(0);
+  128:   const refreshGenerationRef = useRef(0);
+  129: 
+  130:   if (activeSessionRef.current !== sessionKey) {
+  131:     activeSessionRef.current = sessionKey;
+  132:     requestGenerationRef.current += 1;
+  133:     refreshGenerationRef.current += 1;
+  134:   }
+  135: 
+  136:   const captureRequest = useCallback(() => {
+  137:     if (!activeSessionRef.current) {
+  138:       const error = new Error("An authenticated session is required.");
+  139:       error.code = "AUTHENTICATION_REQUIRED";
+  140:       error.status = 401;
+  141:       throw error;
+  142:     }
+  143: 
+  144:     return {
+  145:       sessionKey: activeSessionRef.current,
+  146:       generation: requestGenerationRef.current,
+  147:     };
+  148:   }, []);
+  149: 
+  150:   const isRequestCurrent = useCallback(
+  151:     (request) =>
+  152:       request.sessionKey === activeSessionRef.current &&
+  153:       request.generation === requestGenerationRef.current,
+  154:     [],
+  155:   );
+  156:   const [skills, setSkills] = useState([]);
+  157:   const [isLoading, setIsLoading] = useState(true);
+  158:   const [loadStatus, setLoadStatus] = useState("idle");
+  159:   const [saveStatus, setSaveStatus] = useState("idle");
+  160:   const [error, setError] = useState(null);
+  161:   const [operation, setOperation] = useState(INITIAL_OPERATION);
+---
+  171:   const resetOperation = useCallback(() => {
+  172:     setOperation(INITIAL_OPERATION);
+  173:   }, []);
+  174: 
+  175:   const refreshSkills = useCallback(
+  176:     async ({ includeArchived = true, showLoading = true } = {}) => {
+  177:       try {
+  178:         if (showLoading) {
+  179:           setIsLoading(true);
+  180:           setLoadStatus("loading");
+  181:         }
+  182: 
+  183:         setError(null);
+---
+  210:     },
+  211:     [],
+  212:   );
+  213: 
+  214:   useEffect(() => {
+  215:     const generation = ++requestGenerationRef.current;
+  216: 
+  217:     if (!sessionKey) {
+  218:       setSkills([]);
+  219:       setIsLoading(false);
+  220:       setLoadStatus(isInitializing ? "idle" : "idle");
+  221:       setSaveStatus("idle");
+  222:       setError(null);
+  223:       setOperation(INITIAL_OPERATION);
+  224:       return;
+  225:     }
+---
+  230:     setError(null);
+  231: 
+  232:     getSkillsService({ includeArchived: true })
+  233:       .then((loadedSkills) => {
+  234:         if (generation !== requestGenerationRef.current) return;
+  235: 
+  236:         setSkills(sortSkillLibrary(loadedSkills));
+  237:         setLoadStatus("success");
+  238:       })
+  239:       .catch((loadError) => {
+  240:         if (generation !== requestGenerationRef.current) return;
+  241: 
+  242:         console.error("Unable to load skills:", loadError);
+  243:         setSkills([]);
+  244:         setLoadStatus("error");
+  245:         setError(normalizeSkillContextError(loadError));
+  246:       })
+  247:       .finally(() => {
+  248:         if (generation === requestGenerationRef.current) {
+  249:           setIsLoading(false);
+  250:         }
+  251:       });
+  252: 
+  253:     return () => {
+  254:       requestGenerationRef.current += 1;
+  255:     };
+  256:   }, [sessionKey, isInitializing]);
+  257:   const getSkillById = useCallback(
+  258:     async (skillId) => {
+  259:       const existingSkill = skills.find((skill) => skill.id === skillId);
+  260: 
+  261:       if (existingSkill) {
+  262:         return existingSkill;
+  263:       }
+  264: 
+---
+  320:   }, []);
+  321: 
+  322:   const updateSkill = useCallback(
+  323:     async (skillId, updates, rowVersion) => {
+  324:       const request = captureRequest();
+  325: 
+  326:       try {
+  327:         setSaveStatus("saving");
+  328:         setError(null);
+  329: 
+  330:         setOperation({
+  331:           type: "update",
+  332:           skillId,
+---
+  338:           updates,
+  339:           rowVersion,
+  340:         );
+  341: 
+  342:         if (!isRequestCurrent(request)) {
+  343:           return updatedSkill;
+  344:         }
+  345: 
+  346:         setSkills((current) =>
+  347:           sortSkillLibrary(
+  348:             current.map((skill) =>
+  349:               skill.id === skillId ? updatedSkill : skill,
+  350:             ),
+---
+  360:         });
+  361: 
+  362:         return updatedSkill;
+  363:       } catch (updateError) {
+  364:         if (isRequestCurrent(request)) {
+  365:           setSaveStatus("error");
+  366: 
+  367:           setOperation({
+  368:             type: "update",
+  369:             skillId,
+  370:             status: "error",
+  371:           });
+  372: 
+---
+  375: 
+  376:         throw updateError;
+  377:       }
+  378:     },
+  379:     [captureRequest, isRequestCurrent],
+  380:   );
+  381: 
+  382:   const findOrCreateSkill = useCallback(async (skillData, options = {}) => {
+  383:     try {
+  384:       setSaveStatus("saving");
+  385:       setError(null);
+  386: 
+  387:       setOperation({
+---
+  683:       saveStatus,
+  684:       operation,
+  685:       error,
+  686: 
+  687:       refreshSkills,
+  688:       getSkillById,
+  689:       resolveSkillMatch,
+  690: 
+  691:       createSkill,
+  692:       updateSkill,
+  693:       findOrCreateSkill,
+  694:       archiveSkill,
+  695:       restoreSkill,
+---
+  714:       loadStatus,
+  715:       saveStatus,
+  716:       operation,
+  717:       error,
+  718:       refreshSkills,
+  719:       getSkillById,
+  720:       resolveSkillMatch,
+  721:       createSkill,
+  722:       updateSkill,
+  723:       findOrCreateSkill,
+  724:       archiveSkill,
+  725:       restoreSkill,
+  726:       deleteSkill,
+
+========================================
+SKILLS CALLBACK INVENTORY
+========================================
+refreshSkills : FOUND
+getSkillById : FOUND
+createSkill : FOUND
+updateSkill : FOUND
+findOrCreateSkill : FOUND
+archiveSkill : FOUND
+restoreSkill : FOUND
+deleteSkill : FOUND
+replaceSkills : FOUND
+
+========================================
+SOURCE HASHES
+========================================
+File: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\AuthContext.jsx
+SHA256: E4BBC98800B2470403DB05CE522254AA6BF00951A8970F74EF31DC06CE0E2DF8
+File: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\SkillDataContext.jsx
+SHA256: B42E672A7204FF77A49E480F5A68EB41DC8A8BC448D27FE30B8209D130D8DA53

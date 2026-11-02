@@ -112,26 +112,20 @@ export async function createSkill(skillData) {
   return createSkillApi(skillData);
 }
 
-export async function updateSkill(skillId, updates = {}) {
-  const current = await getSkillById(skillId);
-
+export async function updateSkill(skillId, updates = {}, rowVersion) {
   return updateSkillApi(
     skillId,
     updates,
-    requireVersion(current),
+    requireVersion({ rowVersion }),
   );
 }
 
-export async function archiveSkill(skillId) {
-  const current = await getSkillById(skillId);
-
-  return archiveSkillApi(skillId, requireVersion(current));
+export async function archiveSkill(skillId, rowVersion) {
+  return archiveSkillApi(skillId, requireVersion({ rowVersion }));
 }
 
-export async function restoreSkill(skillId) {
-  const current = await getSkillById(skillId);
-
-  return restoreSkillApi(skillId, requireVersion(current));
+export async function restoreSkill(skillId, rowVersion) {
+  return restoreSkillApi(skillId, requireVersion({ rowVersion }));
 }
 
 export async function resolveSkillMatch(name) {
@@ -180,7 +174,7 @@ export async function findOrCreateSkill(
       restoreArchived && match.skill.status === "archived";
 
     const skill = restored
-      ? await restoreSkill(match.skill.id)
+      ? await restoreSkill(match.skill.id, match.skill.rowVersion)
       : match.skill;
 
     return {

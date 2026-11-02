@@ -114,18 +114,45 @@ function sortSkillLibrary(skills) {
 }
 
 export function SkillDataProvider({ children }) {
-  const { user, isAuthenticated, isInitializing } = useAuth();
+  const { user, session, isAuthenticated, isInitializing } = useAuth();
 
   const userId = isAuthenticated ? user?.id || null : null;
 
-  // Invalidates pending reads whenever the authenticated identity changes.
-  const requestGenerationRef = useRef(0);
-  const activeUserRef = useRef(userId);
+  const sessionKey =
+    isAuthenticated && user?.id && session?.id
+      ? JSON.stringify([user.id, session.id])
+      : null;
 
-  if (activeUserRef.current !== userId) {
-    activeUserRef.current = userId;
+  const activeSessionRef = useRef(sessionKey);
+  const requestGenerationRef = useRef(0);
+  const refreshGenerationRef = useRef(0);
+
+  if (activeSessionRef.current !== sessionKey) {
+    activeSessionRef.current = sessionKey;
     requestGenerationRef.current += 1;
+    refreshGenerationRef.current += 1;
   }
+
+  const captureRequest = useCallback(() => {
+    if (!activeSessionRef.current) {
+      const error = new Error("An authenticated session is required.");
+      error.code = "AUTHENTICATION_REQUIRED";
+      error.status = 401;
+      throw error;
+    }
+
+    return {
+      sessionKey: activeSessionRef.current,
+      generation: requestGenerationRef.current,
+    };
+  }, []);
+
+  const isRequestCurrent = useCallback(
+    (request) =>
+      request.sessionKey === activeSessionRef.current &&
+      request.generation === requestGenerationRef.current,
+    [],
+  );
   const [skills, setSkills] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadStatus, setLoadStatus] = useState("idle");
@@ -145,15 +172,25 @@ export function SkillDataProvider({ children }) {
     setOperation(INITIAL_OPERATION);
   }, []);
 
+
   const refreshSkills = useCallback(
     async ({ includeArchived = true, showLoading = true } = {}) => {
+      const request = captureRequest();
+      const refreshGeneration = ++refreshGenerationRef.current;
+
+      const isCurrentRefresh = () =>
+        isRequestCurrent(request) &&
+        refreshGeneration === refreshGenerationRef.current;
+
       try {
-        if (showLoading) {
+        if (showLoading && isCurrentRefresh()) {
           setIsLoading(true);
           setLoadStatus("loading");
         }
 
-        setError(null);
+        if (isCurrentRefresh()) {
+          setError(null);
+        }
 
         const loadedSkills = await getSkillsService({
           includeArchived,
@@ -163,31 +200,34 @@ export function SkillDataProvider({ children }) {
           Array.isArray(loadedSkills) ? loadedSkills : [],
         );
 
-        setSkills(nextSkills);
-        setLoadStatus("success");
+        if (isCurrentRefresh()) {
+          setSkills(nextSkills);
+          setLoadStatus("success");
+        }
 
         return nextSkills;
       } catch (loadError) {
-        console.error("Unable to load skills:", loadError);
-
-        setLoadStatus("error");
-
-        setError(normalizeSkillContextError(loadError));
+        if (isCurrentRefresh()) {
+          console.error("Unable to load skills:", loadError);
+          setLoadStatus("error");
+          setError(normalizeSkillContextError(loadError));
+        }
 
         throw loadError;
       } finally {
-        if (showLoading) {
+        if (showLoading && isCurrentRefresh()) {
           setIsLoading(false);
         }
       }
     },
-    [],
+    [captureRequest, isRequestCurrent],
   );
 
   useEffect(() => {
     const generation = ++requestGenerationRef.current;
+    const refreshGeneration = ++refreshGenerationRef.current;
 
-    if (!userId) {
+    if (!sessionKey) {
       setSkills([]);
       setIsLoading(false);
       setLoadStatus(isInitializing ? "idle" : "idle");
@@ -204,13 +244,13 @@ export function SkillDataProvider({ children }) {
 
     getSkillsService({ includeArchived: true })
       .then((loadedSkills) => {
-        if (generation !== requestGenerationRef.current) return;
+        if ((generation !== requestGenerationRef.current || refreshGeneration !== refreshGenerationRef.current)) return;
 
         setSkills(sortSkillLibrary(loadedSkills));
         setLoadStatus("success");
       })
       .catch((loadError) => {
-        if (generation !== requestGenerationRef.current) return;
+        if ((generation !== requestGenerationRef.current || refreshGeneration !== refreshGenerationRef.current)) return;
 
         console.error("Unable to load skills:", loadError);
         setSkills([]);
@@ -218,7 +258,7 @@ export function SkillDataProvider({ children }) {
         setError(normalizeSkillContextError(loadError));
       })
       .finally(() => {
-        if (generation === requestGenerationRef.current) {
+        if ((generation === requestGenerationRef.current && refreshGeneration === refreshGenerationRef.current)) {
           setIsLoading(false);
         }
       });
@@ -226,9 +266,11 @@ export function SkillDataProvider({ children }) {
     return () => {
       requestGenerationRef.current += 1;
     };
-  }, [userId, isInitializing]);
+  }, [sessionKey, isInitializing]);
   const getSkillById = useCallback(
     async (skillId) => {
+      const request = captureRequest();
+
       const existingSkill = skills.find((skill) => skill.id === skillId);
 
       if (existingSkill) {
@@ -236,19 +278,25 @@ export function SkillDataProvider({ children }) {
       }
 
       try {
-        setError(null);
+        if (isRequestCurrent(request)) {
+          setError(null);
+        }
 
         return await getSkillByIdService(skillId);
       } catch (getError) {
-        setError(normalizeSkillContextError(getError));
+        if (isRequestCurrent(request)) {
+          setError(normalizeSkillContextError(getError));
+        }
 
         throw getError;
       }
     },
-    [skills],
+    [skills, captureRequest, isRequestCurrent],
   );
 
   const createSkill = useCallback(async (skillData) => {
+    const request = captureRequest();
+
     try {
       setSaveStatus("saving");
       setError(null);
@@ -260,6 +308,12 @@ export function SkillDataProvider({ children }) {
       });
 
       const createdSkill = await createSkillService(skillData);
+
+      if (!isRequestCurrent(request)) {
+        return createdSkill;
+      }
+
+      refreshGenerationRef.current += 1;
 
       setSkills((current) =>
         sortSkillLibrary([
@@ -278,6 +332,7 @@ export function SkillDataProvider({ children }) {
 
       return createdSkill;
     } catch (createError) {
+      if (isRequestCurrent(request)) {
       setSaveStatus("error");
 
       setOperation({
@@ -288,54 +343,75 @@ export function SkillDataProvider({ children }) {
 
       setError(normalizeSkillContextError(createError));
 
+            }
+
       throw createError;
     }
-  }, []);
+  }, [captureRequest, isRequestCurrent]);
 
-  const updateSkill = useCallback(async (skillId, updates) => {
-    try {
-      setSaveStatus("saving");
-      setError(null);
+  const updateSkill = useCallback(
+    async (skillId, updates, rowVersion) => {
+      const request = captureRequest();
 
-      setOperation({
-        type: "update",
-        skillId,
-        status: "loading",
-      });
+      try {
+        setSaveStatus("saving");
+        setError(null);
 
-      const updatedSkill = await updateSkillService(skillId, updates);
+        setOperation({
+          type: "update",
+          skillId,
+          status: "loading",
+        });
 
-      setSkills((current) =>
-        sortSkillLibrary(
-          current.map((skill) => (skill.id === skillId ? updatedSkill : skill)),
-        ),
-      );
+        const updatedSkill = await updateSkillService(
+          skillId,
+          updates,
+          rowVersion,
+        );
 
-      setSaveStatus("success");
+        if (!isRequestCurrent(request)) {
+          return updatedSkill;
+        }
 
-      setOperation({
-        type: "update",
-        skillId,
-        status: "success",
-      });
+        setSkills((current) =>
+          sortSkillLibrary(
+            current.map((skill) =>
+              skill.id === skillId ? updatedSkill : skill,
+            ),
+          ),
+        );
 
-      return updatedSkill;
-    } catch (updateError) {
-      setSaveStatus("error");
+        setSaveStatus("success");
 
-      setOperation({
-        type: "update",
-        skillId,
-        status: "error",
-      });
+        setOperation({
+          type: "update",
+          skillId,
+          status: "success",
+        });
 
-      setError(normalizeSkillContextError(updateError));
+        return updatedSkill;
+      } catch (updateError) {
+        if (isRequestCurrent(request)) {
+          setSaveStatus("error");
 
-      throw updateError;
-    }
-  }, []);
+          setOperation({
+            type: "update",
+            skillId,
+            status: "error",
+          });
+
+          setError(normalizeSkillContextError(updateError));
+        }
+
+        throw updateError;
+      }
+    },
+    [captureRequest, isRequestCurrent],
+  );
 
   const findOrCreateSkill = useCallback(async (skillData, options = {}) => {
+    const request = captureRequest();
+
     try {
       setSaveStatus("saving");
       setError(null);
@@ -347,6 +423,12 @@ export function SkillDataProvider({ children }) {
       });
 
       const result = await findOrCreateSkillService(skillData, options);
+
+      if (!isRequestCurrent(request)) {
+        return result;
+      }
+
+      refreshGenerationRef.current += 1;
 
       const resolvedSkill = result.skill;
 
@@ -372,6 +454,7 @@ export function SkillDataProvider({ children }) {
 
       return result;
     } catch (operationError) {
+      if (isRequestCurrent(request)) {
       setSaveStatus("error");
 
       setOperation({
@@ -382,11 +465,15 @@ export function SkillDataProvider({ children }) {
 
       setError(normalizeSkillContextError(operationError));
 
+            }
+
       throw operationError;
     }
-  }, []);
+  }, [captureRequest, isRequestCurrent]);
 
-  const archiveSkill = useCallback(async (skillId) => {
+  const archiveSkill = useCallback(async (skillId, rowVersion) => {
+    const request = captureRequest();
+
     try {
       setSaveStatus("saving");
       setError(null);
@@ -397,7 +484,13 @@ export function SkillDataProvider({ children }) {
         status: "loading",
       });
 
-      const archivedSkill = await archiveSkillService(skillId);
+      const archivedSkill = await archiveSkillService(skillId, rowVersion);
+
+      if (!isRequestCurrent(request)) {
+        return archivedSkill;
+      }
+
+      refreshGenerationRef.current += 1;
 
       setSkills((current) =>
         sortSkillLibrary(
@@ -417,6 +510,7 @@ export function SkillDataProvider({ children }) {
 
       return archivedSkill;
     } catch (archiveError) {
+      if (isRequestCurrent(request)) {
       setSaveStatus("error");
 
       setOperation({
@@ -427,11 +521,15 @@ export function SkillDataProvider({ children }) {
 
       setError(normalizeSkillContextError(archiveError));
 
+            }
+
       throw archiveError;
     }
-  }, []);
+  }, [captureRequest, isRequestCurrent]);
 
-  const restoreSkill = useCallback(async (skillId) => {
+  const restoreSkill = useCallback(async (skillId, rowVersion) => {
+    const request = captureRequest();
+
     try {
       setSaveStatus("saving");
       setError(null);
@@ -442,7 +540,13 @@ export function SkillDataProvider({ children }) {
         status: "loading",
       });
 
-      const restoredSkill = await restoreSkillService(skillId);
+      const restoredSkill = await restoreSkillService(skillId, rowVersion);
+
+      if (!isRequestCurrent(request)) {
+        return restoredSkill;
+      }
+
+      refreshGenerationRef.current += 1;
 
       setSkills((current) =>
         sortSkillLibrary(
@@ -462,6 +566,7 @@ export function SkillDataProvider({ children }) {
 
       return restoredSkill;
     } catch (restoreError) {
+      if (isRequestCurrent(request)) {
       setSaveStatus("error");
 
       setOperation({
@@ -472,11 +577,15 @@ export function SkillDataProvider({ children }) {
 
       setError(normalizeSkillContextError(restoreError));
 
+            }
+
       throw restoreError;
     }
-  }, []);
+  }, [captureRequest, isRequestCurrent]);
 
   const deleteSkill = useCallback(async (skillId, { usage = null } = {}) => {
+    const request = captureRequest();
+
     try {
       setSaveStatus("saving");
       setError(null);
@@ -493,6 +602,12 @@ export function SkillDataProvider({ children }) {
 
       const deletionResult = await deleteSkillService(skillId);
 
+      if (!isRequestCurrent(request)) {
+        return deletionResult;
+      }
+
+      refreshGenerationRef.current += 1;
+
       setSkills((current) => current.filter((skill) => skill.id !== skillId));
 
       setSaveStatus("success");
@@ -505,6 +620,7 @@ export function SkillDataProvider({ children }) {
 
       return deletionResult;
     } catch (deleteError) {
+      if (isRequestCurrent(request)) {
       setSaveStatus("error");
 
       setOperation({
@@ -515,11 +631,15 @@ export function SkillDataProvider({ children }) {
 
       setError(normalizeSkillContextError(deleteError));
 
+            }
+
       throw deleteError;
     }
-  }, []);
+  }, [captureRequest, isRequestCurrent]);
 
   const replaceSkills = useCallback(async (skillValues) => {
+    const request = captureRequest();
+
     try {
       setSaveStatus("saving");
       setError(null);
@@ -531,6 +651,12 @@ export function SkillDataProvider({ children }) {
       });
 
       const replaced = await replaceSkillsService(skillValues);
+
+      if (!isRequestCurrent(request)) {
+        return replaced;
+      }
+
+      refreshGenerationRef.current += 1;
 
       setSkills(sortSkillLibrary(replaced));
 
@@ -544,6 +670,7 @@ export function SkillDataProvider({ children }) {
 
       return replaced;
     } catch (replaceError) {
+      if (isRequestCurrent(request)) {
       setSaveStatus("error");
 
       setOperation({
@@ -554,9 +681,11 @@ export function SkillDataProvider({ children }) {
 
       setError(normalizeSkillContextError(replaceError));
 
+            }
+
       throw replaceError;
     }
-  }, []);
+  }, [captureRequest, isRequestCurrent]);
 
   const validateSkillDraft = useCallback(
     (skillData, options = {}) => validateSkillDraftService(skillData, options),

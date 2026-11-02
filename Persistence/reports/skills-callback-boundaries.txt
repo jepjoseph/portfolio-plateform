@@ -1,0 +1,114 @@
+﻿========================================
+CALLBACK: getSkillById
+========================================
+  const getSkillById = useCallback(
+    async (skillId) => {
+    
+
+========================================
+CALLBACK: createSkill
+========================================
+  const createSkill = useCallback(async (skillData) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "create",
+        skillId: "",
+        status: "loading",
+      });
+
+    
+
+========================================
+CALLBACK: updateSkill
+========================================
+  const updateSkill = useCallback(
+    async (skillId, updates, rowVersion) => {
+    
+
+========================================
+CALLBACK: findOrCreateSkill
+========================================
+  const findOrCreateSkill = useCallback(async (skillData, options = {}) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "find-or-create",
+        skillId: "",
+        status: "loading",
+      });
+
+    
+
+========================================
+CALLBACK: archiveSkill
+========================================
+  const archiveSkill = useCallback(async (skillId, rowVersion) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "archive",
+        skillId,
+        status: "loading",
+      });
+
+    
+
+========================================
+CALLBACK: restoreSkill
+========================================
+  const restoreSkill = useCallback(async (skillId, rowVersion) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "restore",
+        skillId,
+        status: "loading",
+      });
+
+    
+
+========================================
+CALLBACK: deleteSkill
+========================================
+  const deleteSkill = useCallback(async (skillId, { usage = null } = {}) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "delete",
+        skillId,
+        status: "loading",
+      });
+
+      if (Number(usage?.total ?? usage?.totalUsage) > 0) {
+        throw createSkillDeletionConflict(skillId, usage);
+      }
+
+    
+
+========================================
+CALLBACK: replaceSkills
+========================================
+  const replaceSkills = useCallback(async (skillValues) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "loading",
+      });
+
+    
+

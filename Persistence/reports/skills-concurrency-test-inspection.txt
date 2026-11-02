@@ -1,0 +1,1113 @@
+﻿========== tests\Skill\skillApiService.test.mjs ==========
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  fetchSkills,
+  fetchSkillById,
+  createSkillApi,
+  updateSkillApi,
+  setSkillArchivedApi,
+  archiveSkillApi,
+  restoreSkillApi,
+  deleteSkillApi,
+} from "../../src/services/Skill/skillApiService.js";
+
+import { ApiError } from "../../src/services/apiClient.js";
+
+const ROW_VERSION = "AAAAAAAAAAE=";
+
+const SKILL = {
+  id: "skill-test-123",
+  name: "JavaScript",
+  category: "technical",
+  status: "active",
+  rowVersion: ROW_VERSION,
+};
+
+function mockResponse(data, status = 200) {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+}
+
+async function withMockFetch(handler, callback) {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    const request = {
+      url: String(url),
+      method: options.method,
+      credentials: options.credentials,
+      headers: options.headers,
+      body: options.body,
+    };
+
+    requests.push(request);
+
+    return handler(request);
+  };
+
+  try {
+    await callback(requests);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+function assertEndpoint(request, method, path) {
+  assert.equal(request.method, method);
+  assert.equal(new URL(request.url).pathname, `/api${path}`);
+  assert.equal(request.credentials, "include");
+}
+
+function parseBody(request) {
+  return JSON.parse(request.body);
+}
+
+test("GET retrieves the Skills collection", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        skills: [SKILL],
+      },
+    }),
+    async (requests) => {
+      const result = await fetchSkills();
+
+      assert.deepEqual(result, [SKILL]);
+      assert.equal(result[0].rowVersion, ROW_VERSION);
+      assert.equal(requests.length, 1);
+
+      assertEndpoint(requests[0], "GET", "/skills");
+    },
+  );
+});
+
+test("GET retrieves one Skill by ID", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        skill: SKILL,
+      },
+    }),
+    async (requests) => {
+      const result = await fetchSkillById(SKILL.id);
+
+      assert.deepEqual(result, SKILL);
+
+      assertEndpoint(
+        requests[0],
+        "GET",
+        `/skills/${SKILL.id}`,
+      );
+    },
+  );
+});
+
+test("POST creates a Skill", async () => {
+  const draft = {
+    name: "JavaScript",
+    category: "technical",
+  };
+
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        skill: SKILL,
+      },
+    }, 201),
+    async (requests) => {
+      const result = await createSkillApi(draft);
+
+      assert.deepEqual(result, SKILL);
+
+      assertEndpoint(requests[0], "POST", "/skills");
+
+      assert.deepEqual(parseBody(requests[0]), draft);
+    },
+  );
+});
+
+test("PATCH updates a Skill with rowVersion", async () => {
+  const updates = {
+    description: "Updated description",
+  };
+
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        skill: {
+          ...SKILL,
+          ...updates,
+        },
+      },
+    }),
+    async (requests) => {
+      const result = await updateSkillApi(
+        SKILL.id,
+        updates,
+        ROW_VERSION,
+      );
+
+      assert.equal(result.description, updates.description);
+      assert.equal(result.rowVersion, ROW_VERSION);
+
+      assertEndpoint(
+        requests[0],
+        "PATCH",
+        `/skills/${SKILL.id}`,
+      );
+
+      assert.deepEqual(parseBody(requests[0]), {
+        updates,
+        rowVersion: ROW_VERSION,
+      });
+    },
+  );
+});
+
+test("PATCH archives a Skill", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        skill: {
+          ...SKILL,
+          status: "archived",
+        },
+      },
+    }),
+    async (requests) => {
+      const result = await archiveSkillApi(
+        SKILL.id,
+        ROW_VERSION,
+      );
+
+      assert.equal(result.status, "archived");
+
+      assertEndpoint(
+        requests[0],
+        "PATCH",
+        `/skills/${SKILL.id}/archive`,
+      );
+
+      assert.deepEqual(parseBody(requests[0]), {
+        archived: true,
+        rowVersion: ROW_VERSION,
+      });
+    },
+  );
+});
+
+test("PATCH restores an archived Skill", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        skill: SKILL,
+      },
+    }),
+    async (requests) => {
+      const result = await restoreSkillApi(
+        SKILL.id,
+        ROW_VERSION,
+      );
+
+      assert.equal(result.status, "active");
+
+      assert.deepEqual(parseBody(requests[0]), {
+        archived: false,
+        rowVersion: ROW_VERSION,
+      });
+    },
+  );
+});
+
+test("setSkillArchivedApi rejects invalid archived values", async () => {
+  await withMockFetch(
+    () => {
+      throw new Error("Request should not be sent.");
+    },
+    async (requests) => {
+      await assert.rejects(
+        setSkillArchivedApi(
+          SKILL.id,
+          "true",
+          ROW_VERSION,
+        ),
+        TypeError,
+      );
+
+      assert.equal(requests.length, 0);
+    },
+  );
+});
+
+test("DELETE sends rowVersion in the request body", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      data: {
+        deleted: true,
+      },
+    }),
+    async (requests) => {
+      const result = await deleteSkillApi(
+        SKILL.id,
+        ROW_VERSION,
+      );
+
+      assert.deepEqual(result, {
+        deleted: true,
+      });
+
+      assertEndpoint(
+        requests[0],
+        "DELETE",
+        `/skills/${SKILL.id}`,
+      );
+
+      assert.deepEqual(parseBody(requests[0]), {
+        rowVersion: ROW_VERSION,
+      });
+    },
+  );
+});
+
+test("rejects invalid Skill IDs", async () => {
+  await assert.rejects(
+    fetchSkillById(""),
+    TypeError,
+  );
+
+  await assert.rejects(
+    fetchSkillById(null),
+    TypeError,
+  );
+
+  await assert.rejects(
+    fetchSkillById("x".repeat(201)),
+    TypeError,
+  );
+});
+
+test("rejects missing rowVersion before sending requests", async () => {
+  await withMockFetch(
+    () => {
+      throw new Error("Request should not be sent.");
+    },
+    async (requests) => {
+      await assert.rejects(
+        updateSkillApi(
+          SKILL.id,
+          { name: "Updated" },
+          "",
+        ),
+        TypeError,
+      );
+
+      await assert.rejects(
+        archiveSkillApi(SKILL.id, null),
+        TypeError,
+      );
+
+      await assert.rejects(
+        deleteSkillApi(SKILL.id, undefined),
+        TypeError,
+      );
+
+      assert.equal(requests.length, 0);
+    },
+  );
+});
+
+test("rejects invalid create and update payloads", async () => {
+  await withMockFetch(
+    () => {
+      throw new Error("Request should not be sent.");
+    },
+    async (requests) => {
+      await assert.rejects(
+        createSkillApi(null),
+        TypeError,
+      );
+
+      await assert.rejects(
+        createSkillApi([]),
+        TypeError,
+      );
+
+      await assert.rejects(
+        updateSkillApi(
+          SKILL.id,
+          [],
+          ROW_VERSION,
+        ),
+        TypeError,
+      );
+
+      assert.equal(requests.length, 0);
+    },
+  );
+});
+
+test("preserves backend concurrency conflicts", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      code: "SKILL_VERSION_CONFLICT",
+      message: "Skill was modified by another session.",
+    }, 409),
+    async () => {
+      await assert.rejects(
+        updateSkillApi(
+          SKILL.id,
+          { name: "Updated" },
+          ROW_VERSION,
+        ),
+        (error) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.status, 409);
+          assert.equal(error.code, "SKILL_VERSION_CONFLICT");
+          return true;
+        },
+      );
+    },
+  );
+});
+
+test("preserves authentication errors", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      code: "AUTHENTICATION_REQUIRED",
+      message: "Authentication required.",
+    }, 401),
+    async () => {
+      await assert.rejects(
+        fetchSkills(),
+        (error) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.status, 401);
+          assert.equal(error.code, "AUTHENTICATION_REQUIRED");
+          return true;
+        },
+      );
+    },
+  );
+});
+
+test("preserves backend validation errors", async () => {
+  await withMockFetch(
+    () => mockResponse({
+      code: "SKILL_VALIDATION_FAILED",
+      message: "Skill validation failed.",
+      fieldErrors: {
+        name: "Name is required.",
+      },
+    }, 400),
+    async () => {
+      await assert.rejects(
+        createSkillApi({ name: "" }),
+        (error) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.status, 400);
+          assert.equal(error.code, "SKILL_VALIDATION_FAILED");
+          assert.equal(
+            error.fieldErrors.name,
+            "Name is required.",
+          );
+          return true;
+        },
+      );
+    },
+  );
+});
+
+========== tests\Experience\experienceCompatibilityPositive.test.mjs ==========
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  createEmptyExperience,
+} from "../../src/models/experienceModel.js";
+
+import {
+  updateExperience,
+  archiveExperience,
+  restoreExperience,
+  deleteExperience,
+} from "../../src/services/Experience/experienceContextCompatibility.js";
+
+const VERSION = "AAAAAAAAAAA=";
+const NEXT_VERSION = "AAAAAAAAAAE=";
+
+function fixture() {
+  const experience = createEmptyExperience();
+
+  return {
+    ...experience,
+    id: "experience-test-1",
+    rowVersion: VERSION,
+    position: {
+      ...experience.position,
+      title: "Software Engineer",
+    },
+    organization: {
+      ...experience.organization,
+      name: "Example Organization",
+    },
+    dates: {
+      ...experience.dates,
+      startDate: "2025-01",
+      isCurrent: true,
+    },
+    overview: "Existing description.",
+    status: "active",
+  };
+}
+
+async function withMockFetch(handler, action) {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+
+  globalThis.fetch = async (input, options = {}) => {
+    const request = {
+      url: String(input),
+      method: options.method || "GET",
+      body: options.body ? JSON.parse(options.body) : null,
+    };
+
+    requests.push(request);
+
+    const result = await handler(request);
+
+    return new Response(
+      JSON.stringify(result.body),
+      {
+        status: result.status || 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  };
+
+  try {
+    await action(requests);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+test("partial update preserves nested fields and original rowVersion", async () => {
+  const current = fixture();
+
+  await withMockFetch(
+    (request) => {
+      assert.equal(request.method, "PUT");
+      assert.equal(request.body.rowVersion, VERSION);
+
+      const updated = request.body.experience;
+
+      assert.equal(
+        updated.position.title,
+        "Senior Software Engineer",
+      );
+
+      assert.equal(
+        updated.position.employmentType,
+        current.position.employmentType,
+      );
+
+      assert.equal(
+        updated.organization.name,
+        current.organization.name,
+      );
+
+      assert.equal(
+        updated.overview,
+        current.overview,
+      );
+
+      assert.equal(
+        Object.hasOwn(updated, "rowVersion"),
+        false,
+      );
+
+      return {
+        body: {
+          data: {
+            experience: {
+              ...current,
+              ...updated,
+              rowVersion: NEXT_VERSION,
+            },
+          },
+        },
+      };
+    },
+    async (requests) => {
+      const result = await updateExperience(
+        [current],
+        current.id,
+        {
+          position: {
+            title: "Senior Software Engineer",
+          },
+        },
+      );
+
+      assert.equal(result.rowVersion, NEXT_VERSION);
+      assert.equal(requests.length, 1);
+    },
+  );
+
+  assert.equal(current.position.title, "Software Engineer");
+  assert.equal(current.rowVersion, VERSION);
+});
+
+test("archive sends the loaded rowVersion", async () => {
+  const current = fixture();
+
+  await withMockFetch(
+    (request) => {
+      assert.equal(request.method, "PATCH");
+      assert.equal(request.body.archived, true);
+      assert.equal(request.body.rowVersion, VERSION);
+
+      return {
+        body: {
+          data: {
+            experience: {
+              ...current,
+              status: "archived",
+              rowVersion: NEXT_VERSION,
+            },
+          },
+        },
+      };
+    },
+    async (requests) => {
+      const result = await archiveExperience(
+        [current],
+        current.id,
+      );
+
+      assert.equal(result.status, "archived");
+      assert.equal(result.rowVersion, NEXT_VERSION);
+      assert.equal(requests.length, 1);
+    },
+  );
+});
+
+test("restore sends the loaded rowVersion", async () => {
+  const current = {
+    ...fixture(),
+    status: "archived",
+  };
+
+  await withMockFetch(
+    (request) => {
+      assert.equal(request.method, "PATCH");
+      assert.equal(request.body.archived, false);
+      assert.equal(request.body.rowVersion, VERSION);
+
+      return {
+        body: {
+          data: {
+            experience: {
+              ...current,
+              status: "active",
+              rowVersion: NEXT_VERSION,
+            },
+          },
+        },
+      };
+    },
+    async (requests) => {
+      const result = await restoreExperience(
+        [current],
+        current.id,
+      );
+
+      assert.equal(result.status, "active");
+      assert.equal(result.rowVersion, NEXT_VERSION);
+      assert.equal(requests.length, 1);
+    },
+  );
+});
+
+test("delete sends the loaded rowVersion", async () => {
+  const current = fixture();
+
+  await withMockFetch(
+    (request) => {
+      assert.equal(request.method, "DELETE");
+      assert.equal(request.body.rowVersion, VERSION);
+
+      return {
+        body: {
+          data: {
+            id: current.id,
+            deleted: true,
+          },
+        },
+      };
+    },
+    async (requests) => {
+      const result = await deleteExperience(
+        [current],
+        current.id,
+      );
+
+      assert.equal(result.deleted, true);
+      assert.equal(requests.length, 1);
+    },
+  );
+});
+
+test("backend concurrency conflicts propagate without retry", async () => {
+  const current = fixture();
+
+  await withMockFetch(
+    () => ({
+      status: 409,
+      body: {
+        success: false,
+        error: {
+          code: "EXPERIENCE_CONFLICT",
+          message: "The record was modified elsewhere.",
+        },
+      },
+    }),
+    async (requests) => {
+      await assert.rejects(
+        archiveExperience([current], current.id),
+        (error) => Number(error.status) === 409,
+      );
+
+      assert.equal(requests.length, 1);
+    },
+  );
+});
+
+========== src\services\Skill\skillApiService.js ==========
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+} from "../apiClient.js";
+
+const SKILLS_ENDPOINT = "/skills";
+
+function skillPath(skillId) {
+  if (
+    typeof skillId !== "string" ||
+    !skillId.trim() ||
+    skillId.trim().length > 200
+  ) {
+    throw new TypeError("A valid Skill ID is required.");
+  }
+
+  return `${SKILLS_ENDPOINT}/${encodeURIComponent(skillId.trim())}`;
+}
+
+function requireRowVersion(rowVersion) {
+  if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+    throw new TypeError("A Skill rowVersion is required.");
+  }
+
+  return rowVersion.trim();
+}
+
+function requireSkillData(skillData) {
+  if (
+    !skillData ||
+    typeof skillData !== "object" ||
+    Array.isArray(skillData)
+  ) {
+    throw new TypeError("Skill data must be an object.");
+  }
+
+  return skillData;
+}
+
+function requireUpdates(updates) {
+  if (
+    !updates ||
+    typeof updates !== "object" ||
+    Array.isArray(updates)
+  ) {
+    throw new TypeError("Skill updates must be an object.");
+  }
+
+  return updates;
+}
+
+export async function fetchSkills(options = {}) {
+  const response = await apiGet(SKILLS_ENDPOINT, options);
+  return response.data.skills;
+}
+
+export async function fetchSkillById(skillId, options = {}) {
+  const response = await apiGet(skillPath(skillId), options);
+  return response.data.skill;
+}
+
+export async function createSkillApi(skillData, options = {}) {
+  const response = await apiPost(
+    SKILLS_ENDPOINT,
+    requireSkillData(skillData),
+    options,
+  );
+
+  return response.data.skill;
+}
+
+export async function updateSkillApi(
+  skillId,
+  updates,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiPatch(
+    skillPath(skillId),
+    {
+      updates: requireUpdates(updates),
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.skill;
+}
+
+export async function setSkillArchivedApi(
+  skillId,
+  archived,
+  rowVersion,
+  options = {},
+) {
+  if (typeof archived !== "boolean") {
+    throw new TypeError("archived must be a boolean.");
+  }
+
+  const response = await apiPatch(
+    `${skillPath(skillId)}/archive`,
+    {
+      archived,
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.skill;
+}
+
+export function archiveSkillApi(
+  skillId,
+  rowVersion,
+  options = {},
+) {
+  return setSkillArchivedApi(
+    skillId,
+    true,
+    rowVersion,
+    options,
+  );
+}
+
+export function restoreSkillApi(
+  skillId,
+  rowVersion,
+  options = {},
+) {
+  return setSkillArchivedApi(
+    skillId,
+    false,
+    rowVersion,
+    options,
+  );
+}
+
+export async function deleteSkillApi(
+  skillId,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiDelete(skillPath(skillId), {
+    ...options,
+    body: {
+      rowVersion: requireRowVersion(rowVersion),
+    },
+  });
+
+  return response.data;
+}
+
+========== src\services\Skill\skillRemoteService.js ==========
+import {
+  fetchSkills,
+  fetchSkillById,
+  createSkillApi,
+  updateSkillApi,
+  archiveSkillApi,
+  restoreSkillApi,
+} from "./skillApiService.js";
+
+import {
+  createEmptySkill,
+  findMatchingSkill,
+  normalizeSkillNameForComparison,
+} from "../../models/skillModel.js";
+
+import {
+  validateSkill,
+  validateSkillNameAvailability,
+} from "./skillValidation.js";
+
+function makeError(message, code, status = 400) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireVersion(skill) {
+  if (!skill?.rowVersion) {
+    throw makeError(
+      "The skill must be refreshed before it can be changed.",
+      "SKILL_ROW_VERSION_REQUIRED",
+      409,
+    );
+  }
+
+  return skill.rowVersion;
+}
+
+function assertSkillCollection(skills) {
+  if (!Array.isArray(skills)) {
+    throw makeError(
+      "The server returned an invalid Skill Library.",
+      "SKILL_RESPONSE_INVALID",
+      502,
+    );
+  }
+
+  const ids = new Set();
+
+  for (const skill of skills) {
+    if (
+      !skill ||
+      typeof skill.id !== "string" ||
+      typeof skill.name !== "string" ||
+      typeof skill.rowVersion !== "string" ||
+      !skill.rowVersion.trim() ||
+      ids.has(skill.id)
+    ) {
+      throw makeError(
+        "The server returned an invalid or duplicate Skill.",
+        "SKILL_RESPONSE_INVALID",
+        502,
+      );
+    }
+
+    ids.add(skill.id);
+  }
+
+  return skills;
+}
+
+export async function getSkills({
+  includeArchived = false,
+  category = "all",
+  type = "all",
+  query = "",
+} = {}) {
+  const skills = assertSkillCollection(
+    await fetchSkills({
+      query: { includeArchived: true },
+    }),
+  );
+
+  const search = normalizeSkillNameForComparison(query);
+
+  return skills.filter((skill) => {
+    if (!includeArchived && skill.status === "archived") return false;
+    if (category !== "all" && skill.category !== category) return false;
+    if (type !== "all" && skill.type !== type) return false;
+
+    if (!search) return true;
+
+    return [
+      skill.name,
+      skill.description,
+      skill.category,
+      skill.type,
+      ...(skill.aliases || []),
+    ].some((value) =>
+      normalizeSkillNameForComparison(value).includes(search),
+    );
+  });
+}
+
+export async function getSkillById(skillId) {
+  return fetchSkillById(skillId);
+}
+
+export async function createSkill(skillData) {
+  return createSkillApi(skillData);
+}
+
+export async function updateSkill(skillId, updates = {}, rowVersion) {
+  return updateSkillApi(
+    skillId,
+    updates,
+    requireVersion({ rowVersion }),
+  );
+}
+
+export async function archiveSkill(skillId, rowVersion) {
+  return archiveSkillApi(skillId, requireVersion({ rowVersion }));
+}
+
+export async function restoreSkill(skillId, rowVersion) {
+  return restoreSkillApi(skillId, requireVersion({ rowVersion }));
+}
+
+export async function resolveSkillMatch(name) {
+  const skills = await getSkills({ includeArchived: true });
+  const matchingSkill = findMatchingSkill(skills, name);
+
+  if (!matchingSkill) {
+    return {
+      matched: false,
+      matchedBy: "",
+      skill: null,
+    };
+  }
+
+  const requested = normalizeSkillNameForComparison(name);
+  const primary = normalizeSkillNameForComparison(matchingSkill.name);
+
+  return {
+    matched: true,
+    matchedBy: requested === primary ? "name" : "alias",
+    skill: matchingSkill,
+  };
+}
+
+export async function findOrCreateSkill(
+  skillData,
+  { restoreArchived = true } = {},
+) {
+  const candidate =
+    typeof skillData === "string"
+      ? { name: skillData }
+      : skillData && typeof skillData === "object"
+        ? skillData
+        : {};
+
+  const name = String(candidate.name || "").trim();
+
+  if (!name) {
+    throw makeError("Enter a skill name.", "SKILL_NAME_REQUIRED");
+  }
+
+  const match = await resolveSkillMatch(name);
+
+  if (match.matched) {
+    const restored =
+      restoreArchived && match.skill.status === "archived";
+
+    const skill = restored
+      ? await restoreSkill(match.skill.id, match.skill.rowVersion)
+      : match.skill;
+
+    return {
+      skill,
+      created: false,
+      restored,
+      matched: true,
+      matchedBy: match.matchedBy,
+    };
+  }
+
+  const skill = await createSkill({
+    ...candidate,
+    name,
+    source: candidate.source || "manual",
+    sourceContext: candidate.sourceContext || "experience",
+  });
+
+  return {
+    skill,
+    created: true,
+    restored: false,
+    matched: false,
+    matchedBy: "",
+  };
+}
+
+export async function validateSkillDraft(
+  skillData,
+  { excludeSkillId = "" } = {},
+) {
+  const skills = await getSkills({ includeArchived: true });
+
+  const defaults = createEmptySkill();
+
+  const candidate = {
+    ...defaults,
+    ...skillData,
+    proficiency: {
+      ...defaults.proficiency,
+      ...skillData?.proficiency,
+    },
+    language: {
+      ...defaults.language,
+      ...skillData?.language,
+    },
+  };
+
+  return validateSkill(candidate, {
+    existingSkills: skills,
+    excludeSkillId,
+  });
+}
+
+export async function checkSkillNameAvailability(
+  name,
+  { excludeSkillId = "" } = {},
+) {
+  const skills = await getSkills({ includeArchived: true });
+
+  return validateSkillNameAvailability(
+    name,
+    skills,
+    excludeSkillId,
+  );
+}
+
+export async function deleteSkill() {
+  throw makeError(
+    "Permanent Skill deletion is not available. Archive the skill instead.",
+    "SKILL_DELETE_NOT_AVAILABLE",
+    409,
+  );
+}
+
+export async function replaceSkills() {
+  throw makeError(
+    "Replacing the entire Skill Library is not supported by the backend.",
+    "SKILL_REPLACE_NOT_AVAILABLE",
+    409,
+  );
+}
+

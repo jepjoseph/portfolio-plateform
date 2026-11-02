@@ -47,7 +47,7 @@ function Skills() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const [editingSkillId, setEditingSkillId] = useState(null);
+  const [editingSkill, setEditingSkill] = useState(null);
 
   const [showArchived, setShowArchived] = useState(false);
 
@@ -69,13 +69,7 @@ function Skills() {
 
   const selectedSkills = showArchived ? archivedSkills : activeSkills;
 
-  const editingSkill = useMemo(
-    () =>
-      editingSkillId
-        ? skills.find((skill) => skill.id === editingSkillId) || null
-        : null,
-    [skills, editingSkillId],
-  );
+
 
   const scrollToForm = () => {
     window.requestAnimationFrame(() => {
@@ -87,7 +81,7 @@ function Skills() {
   };
 
   const handleAddSkill = () => {
-    setEditingSkillId(null);
+    setEditingSkill(null);
     setIsFormOpen(true);
     clearError();
     resetSaveStatus();
@@ -95,7 +89,7 @@ function Skills() {
   };
 
   const handleEditSkill = (skill) => {
-    setEditingSkillId(skill.id);
+    setEditingSkill({ ...skill });
     setIsFormOpen(true);
     clearError();
     resetSaveStatus();
@@ -103,28 +97,28 @@ function Skills() {
   };
 
   const handleCloseForm = () => {
-    setEditingSkillId(null);
+    setEditingSkill(null);
     setIsFormOpen(false);
     clearError();
     resetSaveStatus();
   };
 
   const handleSaveSkill = async (skillData) => {
-    if (editingSkillId) {
-      await updateSkill(editingSkillId, skillData);
+    if (editingSkill) {
+      await updateSkill(editingSkill.id, skillData, editingSkill.rowVersion);
     } else {
       await createSkill(skillData);
     }
 
-    setEditingSkillId(null);
+    setEditingSkill(null);
     setIsFormOpen(false);
   };
 
   const handleArchiveSkill = async (skill) => {
     try {
-      await archiveSkill(skill.id);
+      await archiveSkill(skill.id, skill.rowVersion);
 
-      if (editingSkillId === skill.id) {
+      if (editingSkill?.id === skill.id) {
         handleCloseForm();
       }
     } catch {
@@ -134,7 +128,7 @@ function Skills() {
 
   const handleRestoreSkill = async (skill) => {
     try {
-      await restoreSkill(skill.id);
+      await restoreSkill(skill.id, skill.rowVersion);
     } catch {
       // Context displays the error.
     }
@@ -175,7 +169,7 @@ function Skills() {
         usage,
       });
 
-      if (editingSkillId === skill.id) {
+      if (editingSkill?.id === skill.id) {
         handleCloseForm();
       }
     } catch {
@@ -186,7 +180,7 @@ function Skills() {
   const handleToggleArchived = () => {
     setShowArchived((current) => !current);
 
-    setEditingSkillId(null);
+    setEditingSkill(null);
     setIsFormOpen(false);
     clearError();
     resetSaveStatus();

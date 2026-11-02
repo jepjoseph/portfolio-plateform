@@ -1,0 +1,23 @@
+﻿Skills session-safety patch verification
+Source: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\SkillDataContext.jsx
+SHA256: 6F9FF873EF43EE4F0727FD57DADA63C2DB344784EA4B539AF0756ED3796D436A
+
+Expected callbacks:
+
+Callback          Found
+--------          -----
+refreshSkills      True
+getSkillById       True
+createSkill        True
+updateSkill        True
+findOrCreateSkill  True
+archiveSkill       True
+restoreSkill       True
+deleteSkill        True
+replaceSkills      True
+
+
+
+
+Backup:
+D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\Skills\session-safety-20261102-134736\SkillDataContext.jsx
