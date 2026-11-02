@@ -1,0 +1,1563 @@
+﻿
+======================================================================
+SKILLS-RELATED FILES
+======================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\skillConfig.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\SkillDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\models\skillModel.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Skills\Skills.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Skills\Skills.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillForm\SkillForm.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillForm\SkillForm.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillItem\SkillItem.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillItem\SkillItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsDashboard\SkillsDashboard.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillSelector\SkillSelector.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillSelector\SkillSelector.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsLibrary\SkillsLibrary.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\Skills.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\Skills.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillValidation.js
+
+======================================================================
+SKILLS REFERENCES
+======================================================================
+src\App.jsx:36: import Skills from "./pages/skills/Skills";
+src\App.jsx:42: import { useSkillData } from "./context/SkillDataContext.jsx";
+src\App.jsx:59: const { skills, isLoading: areSkillsLoading } = useSkillData();
+src\App.jsx:73: skills: Array.isArray(skills) ? skills : [],
+src\App.jsx:84: areSkillsLoading ||
+src\App.jsx:91: skills,
+src\App.jsx:96: areSkillsLoading,
+src\App.jsx:269: path: "skills",
+src\App.jsx:270: element: <Skills />,
+src\main.jsx:19: import { SkillDataProvider } from "./context/SkillDataContext.jsx";
+src\config\api.js:43: generateExperienceSkills: buildApiUrl("/api/ai/experience-skills"),
+src\config\certificationConfig.js:124: skillSnapshotName: 120,
+src\config\certificationConfig.js:132: maximumSkills: 50,
+src\config\educationConfig.js:209: maximumSkills: 50,
+src\config\educationConfig.js:299: id: "skills",
+src\config\educationConfig.js:301: label: "Skills",
+src\config\educationConfig.js:302: title: "Skills Developed",
+src\config\educationConfig.js:304: "Connect skills from the central Skill Library to this education record.",
+src\config\experienceConfig.js:234: maximumSkills: 50,
+src\config\experienceConfig.js:301: id: "skills-tools",
+src\config\experienceConfig.js:304: title: "Skills and Technologies",
+src\config\experienceConfig.js:306: "Identify the skills, tools, technologies, systems, and methods used.",
+src\config\navigationConfig.js:81: label: "Skills",
+src\config\navigationConfig.js:82: path: "/skills",
+src\config\projectConfig.js:601: maximumSkills: 60,
+src\config\skillConfig.js:107: "Business operations, customer service, sales, finance, and organizational skills.",
+src\config\skillConfig.js:119: "Research, instruction, academic methods, laboratory work, and scholarly skills.",
+src\config\skillConfig.js:134: label: "Interpersonal Skills",
+src\config\skillConfig.js:396: export function getSkillSourceOption(value) {
+src\config\skillConfig.js:400: export function getSkillSourceLabel(value) {
+src\config\skillConfig.js:401: return getSkillSourceOption(value)?.label || "Added Manually";
+src\config\skillConfig.js:404: export function getSkillStatusOption(value) {
+src\config\skillConfig.js:408: export function getSkillStatusLabel(value) {
+src\config\skillConfig.js:409: return getSkillStatusOption(value)?.label || "Active";
+src\config\skillConfig.js:434: export function isValidSkillSource(value) {
+src\config\skillConfig.js:435: return Boolean(getSkillSourceOption(value));
+src\config\skillConfig.js:438: export function isValidSkillStatus(value) {
+src\config\skillConfig.js:439: return Boolean(getSkillStatusOption(value));
+src\config\trainingConfig.js:26: description: "An intensive skills-development program.",
+src\config\trainingConfig.js:324: maximumSkills: 50,
+src\config\trainingConfig.js:400: id: "skills",
+src\config\trainingConfig.js:402: label: "Skills",
+src\config\trainingConfig.js:403: title: "Related Skills",
+src\context\CertificationDataContext.jsx:179: event.storageArea !== window.localStorage ||
+src\context\EducationDataContext.jsx:42: educationId: "",
+src\context\EducationDataContext.jsx:239: event.storageArea !== window.localStorage ||
+src\context\EducationDataContext.jsx:270: async (educationId) => {
+src\context\EducationDataContext.jsx:272: (education) => education.id === educationId,
+src\context\EducationDataContext.jsx:282: return await getEducationByIdService(educationId);
+src\context\EducationDataContext.jsx:307: educationId: "",
+src\context\EducationDataContext.jsx:327: educationId: createdEducation.id,
+src\context\EducationDataContext.jsx:339: educationId: "",
+src\context\EducationDataContext.jsx:355: const updateEducation = useCallback(async (educationId, updates) => {
+src\context\EducationDataContext.jsx:362: educationId,
+src\context\EducationDataContext.jsx:367: educationId,
+src\context\EducationDataContext.jsx:374: education.id === educationId ? updatedEducation : education,
+src\context\EducationDataContext.jsx:383: educationId,
+src\context\EducationDataContext.jsx:395: educationId,
+src\context\EducationDataContext.jsx:411: const archiveEducation = useCallback(async (educationId) => {
+src\context\EducationDataContext.jsx:418: educationId,
+src\context\EducationDataContext.jsx:422: const archivedEducation = await archiveEducationService(educationId);
+src\context\EducationDataContext.jsx:427: education.id === educationId ? archivedEducation : education,
+src\context\EducationDataContext.jsx:436: educationId,
+src\context\EducationDataContext.jsx:448: educationId,
+src\context\EducationDataContext.jsx:464: const restoreEducation = useCallback(async (educationId) => {
+src\context\EducationDataContext.jsx:471: educationId,
+src\context\EducationDataContext.jsx:475: const restoredEducation = await restoreEducationService(educationId);
+src\context\EducationDataContext.jsx:480: education.id === educationId ? restoredEducation : education,
+src\context\EducationDataContext.jsx:489: educationId,
+src\context\EducationDataContext.jsx:501: educationId,
+src\context\EducationDataContext.jsx:517: const deleteEducation = useCallback(async (educationId) => {
+src\context\EducationDataContext.jsx:524: educationId,
+src\context\EducationDataContext.jsx:528: const deletionResult = await deleteEducationService(educationId);
+src\context\EducationDataContext.jsx:531: currentRecords.filter((education) => education.id !== educationId),
+src\context\EducationDataContext.jsx:538: educationId,
+src\context\EducationDataContext.jsx:550: educationId,
+src\context\EducationDataContext.jsx:573: educationId: "",
+src\context\EducationDataContext.jsx:588: educationId: "",
+src\context\EducationDataContext.jsx:600: educationId: "",
+src\context\ExperienceDataContext.jsx:38: experienceId: "",
+src\context\ExperienceDataContext.jsx:213: async (experienceId) => {
+src\context\ExperienceDataContext.jsx:220: (experience) => experience.id === experienceId,
+src\context\ExperienceDataContext.jsx:230: return await getExperienceByIdService(experienceId);
+src\context\ExperienceDataContext.jsx:255: experienceId: "",
+src\context\ExperienceDataContext.jsx:273: experienceId: createdExperience.id,
+src\context\ExperienceDataContext.jsx:285: experienceId: "",
+src\context\ExperienceDataContext.jsx:301: const updateExperience = useCallback(async (experienceId, updates) => {
+src\context\ExperienceDataContext.jsx:308: experienceId,
+src\context\ExperienceDataContext.jsx:314: experienceId,
+src\context\ExperienceDataContext.jsx:320: experience.id === experienceId ? updatedExperience : experience,
+src\context\ExperienceDataContext.jsx:328: experienceId,
+src\context\ExperienceDataContext.jsx:340: experienceId,
+src\context\ExperienceDataContext.jsx:356: const archiveExperience = useCallback(async (experienceId) => {
+src\context\ExperienceDataContext.jsx:363: experienceId,
+src\context\ExperienceDataContext.jsx:367: const archivedExperience = await archiveExperienceService(experiencesRef.current, experienceId);
+src\context\ExperienceDataContext.jsx:371: experience.id === experienceId ? archivedExperience : experience,
+src\context\ExperienceDataContext.jsx:379: experienceId,
+src\context\ExperienceDataContext.jsx:391: experienceId,
+src\context\ExperienceDataContext.jsx:407: const restoreExperience = useCallback(async (experienceId) => {
+src\context\ExperienceDataContext.jsx:414: experienceId,
+src\context\ExperienceDataContext.jsx:418: const restoredExperience = await restoreExperienceService(experiencesRef.current, experienceId);
+src\context\ExperienceDataContext.jsx:422: experience.id === experienceId ? restoredExperience : experience,
+src\context\ExperienceDataContext.jsx:430: experienceId,
+src\context\ExperienceDataContext.jsx:442: experienceId,
+src\context\ExperienceDataContext.jsx:458: const deleteExperience = useCallback(async (experienceId) => {
+src\context\ExperienceDataContext.jsx:465: experienceId,
+src\context\ExperienceDataContext.jsx:469: const deletionResult = await deleteExperienceService(experiencesRef.current, experienceId);
+src\context\ExperienceDataContext.jsx:473: (experience) => experience.id !== experienceId,
+src\context\ExperienceDataContext.jsx:481: experienceId,
+src\context\ExperienceDataContext.jsx:493: experienceId,
+src\context\PortfolioDraftContext.jsx:64: skills: [],
+src\context\PortfolioDraftContext.jsx:74: skills: true,
+src\context\ProfileDataContext.localStorage.backup.jsx:369: event.storageArea !== window.localStorage ||
+src\context\ProjectDataContext.jsx:240: event.storageArea !== window.localStorage ||
+src\context\ResumeDataContext.jsx:92: skills: Array.isArray(resume.skills) ? resume.skills : [],
+src\context\ResumeDataContext.jsx:105: skills: true,
+src\context\ResumeDataContext.jsx:127: const storedValue = window.localStorage.getItem(RESUME_STORAGE_KEY);
+src\context\ResumeDataContext.jsx:160: window.localStorage.setItem(
+src\context\SkillDataContext.jsx:11: archiveSkill as archiveSkillService,
+src\context\SkillDataContext.jsx:13: createSkill as createSkillService,
+src\context\SkillDataContext.jsx:14: deleteSkill as deleteSkillService,
+src\context\SkillDataContext.jsx:15: findOrCreateSkill as findOrCreateSkillService,
+src\context\SkillDataContext.jsx:17: getSkills as getSkillsService,
+src\context\SkillDataContext.jsx:18: replaceSkills as replaceSkillsService,
+src\context\SkillDataContext.jsx:20: restoreSkill as restoreSkillService,
+src\context\SkillDataContext.jsx:21: updateSkill as updateSkillService,
+src\context\SkillDataContext.jsx:23: } from "../services/Skill/skillService.js";
+src\context\SkillDataContext.jsx:25: import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
+src\context\SkillDataContext.jsx:27: const SkillDataContext = createContext(null);
+src\context\SkillDataContext.jsx:98: experienceIds: Array.isArray(usage?.experiences)
+src\context\SkillDataContext.jsx:107: function sortSkillLibrary(skills) {
+src\context\SkillDataContext.jsx:108: return [...skills].sort((firstSkill, secondSkill) =>
+src\context\SkillDataContext.jsx:116: const [skills, setSkills] = useState([]);
+src\context\SkillDataContext.jsx:135: const refreshSkills = useCallback(
+src\context\SkillDataContext.jsx:145: const loadedSkills = await getSkillsService({
+src\context\SkillDataContext.jsx:149: const nextSkills = sortSkillLibrary(
+src\context\SkillDataContext.jsx:150: Array.isArray(loadedSkills) ? loadedSkills : [],
+src\context\SkillDataContext.jsx:153: setSkills(nextSkills);
+src\context\SkillDataContext.jsx:156: return nextSkills;
+src\context\SkillDataContext.jsx:158: console.error("Unable to load skills:", loadError);
+src\context\SkillDataContext.jsx:177: getSkillsService({
+src\context\SkillDataContext.jsx:180: .then((loadedSkills) => {
+src\context\SkillDataContext.jsx:185: setSkills(
+src\context\SkillDataContext.jsx:186: sortSkillLibrary(Array.isArray(loadedSkills) ? loadedSkills : []),
+src\context\SkillDataContext.jsx:196: console.error("Unable to load skills:", loadError);
+src\context\SkillDataContext.jsx:198: setSkills([]);
+src\context\SkillDataContext.jsx:217: event.storageArea !== window.localStorage ||
+src\context\SkillDataContext.jsx:223: refreshSkills({
+src\context\SkillDataContext.jsx:234: }, [refreshSkills]);
+src\context\SkillDataContext.jsx:238: const existingSkill = skills.find((skill) => skill.id === skillId);
+src\context\SkillDataContext.jsx:254: [skills],
+src\context\SkillDataContext.jsx:268: const createdSkill = await createSkillService(skillData);
+src\context\SkillDataContext.jsx:270: setSkills((current) =>
+src\context\SkillDataContext.jsx:312: const updatedSkill = await updateSkillService(skillId, updates);
+src\context\SkillDataContext.jsx:314: setSkills((current) =>
+src\context\SkillDataContext.jsx:355: const result = await findOrCreateSkillService(skillData, options);
+src\context\SkillDataContext.jsx:359: setSkills((current) => {
+src\context\SkillDataContext.jsx:406: const archivedSkill = await archiveSkillService(skillId);
+src\context\SkillDataContext.jsx:408: setSkills((current) =>
+src\context\SkillDataContext.jsx:451: const restoredSkill = await restoreSkillService(skillId);
+src\context\SkillDataContext.jsx:453: setSkills((current) =>
+src\context\SkillDataContext.jsx:500: const deletionResult = await deleteSkillService(skillId);
+src\context\SkillDataContext.jsx:502: setSkills((current) => current.filter((skill) => skill.id !== skillId));
+src\context\SkillDataContext.jsx:528: const replaceSkills = useCallback(async (skillValues) => {
+src\context\SkillDataContext.jsx:539: const replaced = await replaceSkillsService(skillValues);
+src\context\SkillDataContext.jsx:541: setSkills(sortSkillLibrary(replaced));
+src\context\SkillDataContext.jsx:582: const activeSkills = useMemo(
+src\context\SkillDataContext.jsx:583: () => skills.filter((skill) => skill.status !== "archived"),
+src\context\SkillDataContext.jsx:584: [skills],
+src\context\SkillDataContext.jsx:587: const archivedSkills = useMemo(
+src\context\SkillDataContext.jsx:588: () => skills.filter((skill) => skill.status === "archived"),
+src\context\SkillDataContext.jsx:589: [skills],
+src\context\SkillDataContext.jsx:592: const skillsById = useMemo(
+src\context\SkillDataContext.jsx:593: () => new Map(skills.map((skill) => [skill.id, skill])),
+src\context\SkillDataContext.jsx:594: [skills],
+src\context\SkillDataContext.jsx:597: const skillsByCategory = useMemo(
+src\context\SkillDataContext.jsx:599: activeSkills.reduce((groups, skill) => {
+src\context\SkillDataContext.jsx:608: [activeSkills],
+src\context\SkillDataContext.jsx:613: total: skills.length,
+src\context\SkillDataContext.jsx:614: active: activeSkills.length,
+src\context\SkillDataContext.jsx:615: archived: archivedSkills.length,
+src\context\SkillDataContext.jsx:617: technical: activeSkills.filter((skill) => skill.type === "technical")
+src\context\SkillDataContext.jsx:620: professional: activeSkills.filter(
+src\context\SkillDataContext.jsx:624: languages: activeSkills.filter((skill) => skill.type === "language")
+src\context\SkillDataContext.jsx:627: aiSuggested: activeSkills.filter(
+src\context\SkillDataContext.jsx:631: [skills, activeSkills, archivedSkills],
+src\context\SkillDataContext.jsx:636: skills,
+src\context\SkillDataContext.jsx:637: activeSkills,
+src\context\SkillDataContext.jsx:638: archivedSkills,
+src\context\SkillDataContext.jsx:639: skillsById,
+src\context\SkillDataContext.jsx:640: skillsByCategory,
+src\context\SkillDataContext.jsx:649: refreshSkills,
+src\context\SkillDataContext.jsx:659: replaceSkills,
+src\context\SkillDataContext.jsx:669: skills,
+src\context\SkillDataContext.jsx:670: activeSkills,
+src\context\SkillDataContext.jsx:671: archivedSkills,
+src\context\SkillDataContext.jsx:672: skillsById,
+src\context\SkillDataContext.jsx:673: skillsByCategory,
+src\context\SkillDataContext.jsx:680: refreshSkills,
+src\context\SkillDataContext.jsx:689: replaceSkills,
+src\context\SkillDataContext.jsx:699: <SkillDataContext.Provider value={contextValue}>
+src\context\SkillDataContext.jsx:701: </SkillDataContext.Provider>
+src\context\SkillDataContext.jsx:706: const context = useContext(SkillDataContext);
+src\context\TrainingDataContext.jsx:40: trainingId: "",
+src\context\TrainingDataContext.jsx:278: event.storageArea !== window.localStorage ||
+src\context\TrainingDataContext.jsx:308: async (trainingId) => {
+src\context\TrainingDataContext.jsx:310: (training) => training.id === trainingId,
+src\context\TrainingDataContext.jsx:320: return await getTrainingByIdService(trainingId);
+src\context\TrainingDataContext.jsx:345: trainingId: "",
+src\context\TrainingDataContext.jsx:365: trainingId: createdTraining.id,
+src\context\TrainingDataContext.jsx:377: trainingId: "",
+src\context\TrainingDataContext.jsx:393: const updateTraining = useCallback(async (trainingId, updates) => {
+src\context\TrainingDataContext.jsx:400: trainingId,
+src\context\TrainingDataContext.jsx:404: const updatedTraining = await updateTrainingService(trainingId, updates);
+src\context\TrainingDataContext.jsx:409: training.id === trainingId ? updatedTraining : training,
+src\context\TrainingDataContext.jsx:418: trainingId,
+src\context\TrainingDataContext.jsx:430: trainingId,
+src\context\TrainingDataContext.jsx:446: const archiveTraining = useCallback(async (trainingId) => {
+src\context\TrainingDataContext.jsx:453: trainingId,
+src\context\TrainingDataContext.jsx:457: const archivedTraining = await archiveTrainingService(trainingId);
+src\context\TrainingDataContext.jsx:462: training.id === trainingId ? archivedTraining : training,
+src\context\TrainingDataContext.jsx:471: trainingId,
+src\context\TrainingDataContext.jsx:483: trainingId,
+src\context\TrainingDataContext.jsx:499: const restoreTraining = useCallback(async (trainingId) => {
+src\context\TrainingDataContext.jsx:506: trainingId,
+src\context\TrainingDataContext.jsx:510: const restoredTraining = await restoreTrainingService(trainingId);
+src\context\TrainingDataContext.jsx:515: training.id === trainingId ? restoredTraining : training,
+src\context\TrainingDataContext.jsx:524: trainingId,
+src\context\TrainingDataContext.jsx:536: trainingId,
+src\context\TrainingDataContext.jsx:552: const deleteTraining = useCallback(async (trainingId) => {
+src\context\TrainingDataContext.jsx:559: trainingId,
+src\context\TrainingDataContext.jsx:563: const deletionResult = await deleteTrainingService(trainingId);
+src\context\TrainingDataContext.jsx:566: currentRecords.filter((training) => training.id !== trainingId),
+src\context\TrainingDataContext.jsx:573: trainingId,
+src\context\TrainingDataContext.jsx:585: trainingId,
+src\context\TrainingDataContext.jsx:608: trainingId: "",
+src\context\TrainingDataContext.jsx:623: trainingId: "",
+src\context\TrainingDataContext.jsx:635: trainingId: "",
+src\context\TrainingDataContext.jsx:775: withSkills: activeTrainingRecords.filter(
+src\layouts\AuthLayout\AuthLayout.jsx:158: Organize your professional profile, experience, projects, skills,
+src\layouts\AuthLayout\AuthLayout.jsx:188: Create focused résumés using the experience and skills you
+src\models\certificationModel.js:124: const usedSkillIds = new Set();
+src\models\certificationModel.js:132: if (!normalized.skillId || usedSkillIds.has(normalized.skillId)) {
+src\models\certificationModel.js:136: usedSkillIds.add(normalized.skillId);
+src\models\certificationModel.js:157: const trainingId = getText(
+src\models\certificationModel.js:158: training.trainingId || training.trainingRecordId || training.id,
+src\models\certificationModel.js:164: trainingId,
+src\models\certificationModel.js:189: const usedTrainingIds = new Set();
+src\models\certificationModel.js:195: trainingId: relationship,
+src\models\certificationModel.js:201: if (!normalized.trainingId || usedTrainingIds.has(normalized.trainingId)) {
+src\models\certificationModel.js:205: usedTrainingIds.add(normalized.trainingId);
+src\models\certificationModel.js:372: educationIds: [],
+src\models\certificationModel.js:385: showSkills: true,
+src\models\certificationModel.js:513: source.skillRelationships || source.skills,
+src\models\certificationModel.js:520: related.trainingIds ||
+src\models\certificationModel.js:522: source.relatedTrainingIds ||
+src\models\certificationModel.js:523: source.trainingIds,
+src\models\certificationModel.js:526: educationIds: uniqueTextValues(
+src\models\certificationModel.js:527: related.educationIds ||
+src\models\certificationModel.js:528: source.relatedEducationIds ||
+src\models\certificationModel.js:529: source.educationIds,
+src\models\certificationModel.js:648: export function getCertificationTrainingIds(certification) {
+src\models\certificationModel.js:650: .map((relationship) => getText(relationship?.trainingId))
+src\models\certificationModel.js:766: skills: visibility.showSkills
+src\models\educationModel.js:30: export function createEducationId(prefix = "education") {
+src\models\educationModel.js:145: id: normalizeText(source.id, 200) || createEducationId("education-honor"),
+src\models\educationModel.js:189: createEducationId("education-coursework"),
+src\models\educationModel.js:232: normalizeText(source.id, 200) || createEducationId("education-activity"),
+src\models\educationModel.js:274: id: normalizeText(source.id, 200) || createEducationId("education-skill"),
+src\models\educationModel.js:308: function normalizeEducationSkills(values) {
+src\models\educationModel.js:313: const normalizedSkills = values
+src\models\educationModel.js:319: const uniqueSkills = normalizedSkills.filter(
+src\models\educationModel.js:341: return uniqueSkills
+src\models\educationModel.js:342: .slice(0, EDUCATION_FIELD_LIMITS.maximumSkills)
+src\models\educationModel.js:368: normalizeText(source.id, 200) || createEducationId("education-document"),
+src\models\educationModel.js:441: id: createEducationId(),
+src\models\educationModel.js:496: relatedTrainingIds: [],
+src\models\educationModel.js:507: showSkills: true,
+src\models\educationModel.js:690: skillRelationships: normalizeEducationSkills(
+src\models\educationModel.js:691: source.skillRelationships || source.skills,
+src\models\educationModel.js:703: relatedTrainingIds: normalizeIdentifierList(
+src\models\educationModel.js:704: source.relatedTrainingIds || source.trainingIds,
+src\models\educationModel.js:744: showSkills: normalizeBoolean(
+src\models\educationModel.js:745: visibility.showSkills,
+src\models\educationModel.js:746: defaults.visibility.showSkills,
+src\models\educationModel.js:784: id: normalizeText(values?.id, 200) || createEducationId(),
+src\models\experienceModel.js:26: export function createExperienceId(prefix = "experience") {
+src\models\experienceModel.js:129: id: normalizeText(source.id, 200) || createExperienceId("responsibility"),
+src\models\experienceModel.js:171: id: normalizeText(source.id, 200) || createExperienceId("achievement"),
+src\models\experienceModel.js:224: id: normalizeText(source.id, 200) || createExperienceId("experience-skill"),
+src\models\experienceModel.js:287: function normalizeExperienceSkills(values) {
+src\models\experienceModel.js:292: const normalizedSkills = values
+src\models\experienceModel.js:298: return normalizedSkills
+src\models\experienceModel.js:316: .slice(0, EXPERIENCE_FIELD_LIMITS.maximumSkills)
+src\models\experienceModel.js:352: createExperienceId("experience-technology"),
+src\models\experienceModel.js:450: id: createExperienceId(),
+src\models\experienceModel.js:493: skills: [],
+src\models\experienceModel.js:528: showSkills: true,
+src\models\experienceModel.js:694: skills: normalizeExperienceSkills(source.skills),
+src\models\experienceModel.js:760: showSkills: normalizeBoolean(
+src\models\experienceModel.js:761: visibility.showSkills,
+src\models\experienceModel.js:762: defaults.visibility.showSkills,
+src\models\experienceModel.js:796: id: normalizeText(values.id, 200) || createExperienceId(),
+src\models\projectModel.js:653: showSkills: true,
+src\models\projectModel.js:769: const seenSkills = new Set();
+src\models\projectModel.js:780: if (!identity || seenSkills.has(identity)) {
+src\models\projectModel.js:784: seenSkills.add(identity);
+src\models\projectModel.js:788: .slice(0, PROJECT_FIELD_LIMITS.maximumSkills)
+src\models\projectModel.js:1014: relatedRecords.experienceRelationships || source.relatedExperienceIds,
+src\models\projectModel.js:1019: relatedRecords.educationRelationships || source.relatedEducationIds,
+src\models\projectModel.js:1024: relatedRecords.trainingRelationships || source.relatedTrainingIds,
+src\models\projectModel.js:1296: skillRelationships: project.visibility.showSkills
+src\models\skillModel.js:6: isValidSkillSource,
+src\models\skillModel.js:7: isValidSkillStatus,
+src\models\skillModel.js:255: const skillSource = isValidSkillSource(source.source)
+src\models\skillModel.js:259: const status = isValidSkillStatus(source.status)
+src\models\skillModel.js:299: source: skillSource,
+src\models\skillModel.js:373: const normalizedSkills = values.map(normalizeSkill);
+src\models\skillModel.js:379: return normalizedSkills.filter((skill, index, collection) => {
+src\models\skillModel.js:403: export function findMatchingSkill(skills, name) {
+src\models\skillModel.js:404: if (!Array.isArray(skills)) {
+src\models\skillModel.js:415: skills.find((skill) => {
+src\models\trainingModel.js:28: export function createTrainingId(prefix = "training") {
+src\models\trainingModel.js:121: normalizeText(source.id, 200) || createTrainingId("training-instructor"),
+src\models\trainingModel.js:169: id: normalizeText(source.id, 200) || createTrainingId("training-topic"),
+src\models\trainingModel.js:218: id: normalizeText(source.id, 200) || createTrainingId("training-outcome"),
+src\models\trainingModel.js:262: id: normalizeText(source.id, 200) || createTrainingId("training-skill"),
+src\models\trainingModel.js:316: .slice(0, TRAINING_FIELD_LIMITS.maximumSkills)
+src\models\trainingModel.js:367: ) || createTrainingId("training-certification");
+src\models\trainingModel.js:507: id: normalizeText(source.id, 200) || createTrainingId("training-document"),
+src\models\trainingModel.js:599: id: createTrainingId(),
+src\models\trainingModel.js:650: relatedEducationIds: [],
+src\models\trainingModel.js:673: relatedExperienceIds: [],
+src\models\trainingModel.js:688: showSkills: true,
+src\models\trainingModel.js:909: source.skillRelationships || source.skills,
+src\models\trainingModel.js:916: relatedEducationIds: normalizeIdentifierList(
+src\models\trainingModel.js:917: source.relatedEducationIds,
+src\models\trainingModel.js:932: relatedExperienceIds: normalizeIdentifierList(
+src\models\trainingModel.js:933: source.relatedExperienceIds,
+src\models\trainingModel.js:993: showSkills: normalizeBoolean(
+src\models\trainingModel.js:994: visibility.showSkills,
+src\models\trainingModel.js:995: defaults.visibility.showSkills,
+src\models\trainingModel.js:1048: id: normalizeText(values?.id, 200) || createTrainingId(),
+src\pages\Certifications\Certifications.jsx:5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+src\pages\Certifications\Certifications.jsx:44: const { skills, isLoading: areSkillsLoading } = useSkillData();
+src\pages\Certifications\Certifications.jsx:83: areSkillsLoading || isTrainingLoading || isEducationLoading;
+src\pages\Certifications\Certifications.jsx:87: skills,
+src\pages\Certifications\Certifications.jsx:91: [skills, trainingRecords, educationRecords],
+src\pages\Certifications\Certifications.jsx:403: Education, and Skills, and upload certificate documentation.
+src\pages\Certifications\Certifications.jsx:420: skills={skills}
+src\pages\Certifications\components\CertificationDashboard\CertificationDashboard.jsx:36: id: "skills",
+src\pages\Certifications\components\CertificationDashboard\CertificationDashboard.jsx:38: value: statistics.withSkills || 0,
+src\pages\Certifications\components\CertificationDashboard\CertificationDashboard.jsx:39: description: "With related Skills",
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:32: skills = [],
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:200: (relationship) => relationship.trainingId !== training.id,
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:221: educationIds: checked
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:222: ? [...currentData.relatedRecords.educationIds, education.id]
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:223: : currentData.relatedRecords.educationIds.filter(
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:224: (educationId) => educationId !== education.id,
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:229: clearFieldError("relatedRecords.educationIds");
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:419: skills,
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:797: (relationship) => relationship.trainingId === training.id,
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:824: label="Skills"
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:825: title="Related Skills"
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:826: description="Connect skills demonstrated or validated by this Certification."
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:830: {skills.map((skill) => {
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:864: const checked = formData.relatedRecords.educationIds.includes(
+src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:1016: ["showSkills", "Show related Skills"],
+src\pages\Certifications\components\CertificationItem\CertificationItem.jsx:148: : "Skills"}
+src\pages\Certifications\components\CertificationLibrary\CertificationLibrary.jsx:93: placeholder="Search certifications, issuers, skills, or Training…"
+src\pages\Certifications\components\CertificationPageHeader\CertificationPageHeader.jsx:20: Manage verified credentials, related Training and Skills, renewal
+src\pages\Dashboard\Dashboard.jsx:7: import { useSkillData } from "../../context/SkillDataContext.jsx";
+src\pages\Dashboard\Dashboard.jsx:152: const { skills, activeSkills, isLoading: areSkillsLoading } = useSkillData();
+src\pages\Dashboard\Dashboard.jsx:287: areSkillsLoading ||
+src\pages\Dashboard\Dashboard.jsx:342: id: "skills",
+src\pages\Dashboard\Dashboard.jsx:343: label: "Professional skills",
+src\pages\Dashboard\Dashboard.jsx:344: description: "Add skills that demonstrate your capabilities.",
+src\pages\Dashboard\Dashboard.jsx:345: href: "/skills",
+src\pages\Dashboard\Dashboard.jsx:346: completed: activeSkills.length >= 3,
+src\pages\Dashboard\Dashboard.jsx:376: activeSkills.length,
+src\pages\Dashboard\Dashboard.jsx:448: id: "skills",
+src\pages\Dashboard\Dashboard.jsx:449: label: "Skills",
+src\pages\Dashboard\Dashboard.jsx:450: value: activeSkills.length,
+src\pages\Dashboard\Dashboard.jsx:453: href: "/skills",
+src\pages\Dashboard\Dashboard.jsx:455: isLoading: areSkillsLoading,
+src\pages\Dashboard\Dashboard.jsx:494: activeSkills.length,
+src\pages\Dashboard\Dashboard.jsx:505: areSkillsLoading,
+src\pages\Dashboard\Dashboard.jsx:534: id: "skills",
+src\pages\Dashboard\Dashboard.jsx:535: label: "Manage Skills",
+src\pages\Dashboard\Dashboard.jsx:538: path: "/skills",
+src\pages\Dashboard\Dashboard.jsx:620: ...createRecordActivities(skills, {
+src\pages\Dashboard\Dashboard.jsx:623: path: "/skills",
+src\pages\Dashboard\Dashboard.jsx:686: skills,
+src\pages\Education\Education.jsx:49: const [editingEducationId, setEditingEducationId] = useState(null);
+src\pages\Education\Education.jsx:74: editingEducationId
+src\pages\Education\Education.jsx:76: (education) => education.id === editingEducationId,
+src\pages\Education\Education.jsx:79: [educationRecords, editingEducationId],
+src\pages\Education\Education.jsx:98: setEditingEducationId(null);
+src\pages\Education\Education.jsx:108: setEditingEducationId(education.id);
+src\pages\Education\Education.jsx:119: setEditingEducationId(null);
+src\pages\Education\Education.jsx:134: * editingEducationId identifies whether the
+src\pages\Education\Education.jsx:138: if (editingEducationId) {
+src\pages\Education\Education.jsx:139: await updateEducation(editingEducationId, educationData);
+src\pages\Education\Education.jsx:150: setEditingEducationId(null);
+src\pages\Education\Education.jsx:164: if (editingEducationId === education.id) {
+src\pages\Education\Education.jsx:200: if (editingEducationId === education.id) {
+src\pages\Education\Education.jsx:219: setEditingEducationId(null);
+src\pages\Education\components\EducationDashboard\EducationDashboard.jsx:35: id: "withSkills",
+src\pages\Education\components\EducationDashboard\EducationDashboard.jsx:36: label: "With Skills",
+src\pages\Education\components\EducationDocumentEditor\EducationDocumentEditor.jsx:50: educationId,
+src\pages\Education\components\EducationDocumentEditor\EducationDocumentEditor.jsx:208: recordId: educationId || "",
+src\pages\Education\components\EducationForm\EducationForm.jsx:25: import EducationSkillsEditor from "../EducationSkillsEditor/EducationSkillsEditor.jsx";
+src\pages\Education\components\EducationForm\EducationForm.jsx:520: <EducationSkillsEditor
+src\pages\Education\components\EducationForm\EducationForm.jsx:530: educationId={formData.id}
+src\pages\Education\components\EducationForm\EducationForm.jsx:554: ["showSkills", "Show related skills"],
+src\pages\Education\components\EducationItem\EducationItem.jsx:67: skillsById = new Map(),
+src\pages\Education\components\EducationItem\EducationItem.jsx:404: title="Skills Developed"
+src\pages\Education\components\EducationItem\EducationItem.jsx:408: <div className="education-item-skills">
+src\pages\Education\components\EducationItem\EducationItem.jsx:411: skillsById instanceof Map
+src\pages\Education\components\EducationItem\EducationItem.jsx:412: ? skillsById.get(relationship.skillId)
+src\pages\Education\components\EducationItem\EducationItem.jsx:413: : skillsById[relationship.skillId];
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:8: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:21: hasSkills: false,
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:39: const { skillsById } = useSkillData();
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:70: filters.hasSkills;
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:120: placeholder="Search credentials, institutions, fields, courses, skills, or honors"
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:199: checked={filters.hasSkills}
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:201: updateFilter("hasSkills", event.target.checked)
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:204: Has related skills
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:298: operation.educationId === education.id &&
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:305: skillsById={skillsById}
+src\pages\Education\components\EducationPageHeader\EducationPageHeader.jsx:25: coursework, honors, activities, and skills for your résumés and
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:7: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:11: import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:13: import "./EducationSkillsEditor.css";
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:22: function EducationSkillsEditor({
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:31: activeSkills,
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:32: skillsById,
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:33: isLoading: areSkillsLoading,
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:37: const maximumItems = EDUCATION_FIELD_LIMITS.maximumSkills;
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:47: const selectedSkillIds = useMemo(
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:57: const isWorking = disabled || areSkillsLoading;
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:141: className="education-form-section education-skills-editor"
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:150: <h3 id={titleId}>Skills Developed</h3>
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:153: Connect skills developed or meaningfully practiced during this
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:159: <SkillSelector
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:160: skills={activeSkills}
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:161: selectedSkillIds={selectedSkillIds}
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:164: title="Select Education Skills"
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:166: emptyMessage="No matching skills were found."
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:174: <p className="education-skills-editor-error" role="alert">
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:179: <div className="education-skills-editor-summary">
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:188: <div className="education-skills-editor-list">
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:190: const librarySkill = skillsById.get(relationship.skillId);
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:209: className={`education-skills-editor-item ${
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:210: relationshipError ? "education-skills-editor-item--error" : ""
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:213: <div className="education-skills-editor-order">
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:261: <div className="education-skills-editor-empty">
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:264: <h4>No skills selected</h4>
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:266: <p>Add skills developed through this educational program.</p>
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:273: export default EducationSkillsEditor;
+src\pages\Experience\Experience.jsx:39: const [editingExperienceId, setEditingExperienceId] = useState(null);
+src\pages\Experience\Experience.jsx:64: editingExperienceId
+src\pages\Experience\Experience.jsx:66: (experience) => experience.id === editingExperienceId,
+src\pages\Experience\Experience.jsx:69: [experiences, editingExperienceId],
+src\pages\Experience\Experience.jsx:79: setEditingExperienceId(null);
+src\pages\Experience\Experience.jsx:94: setEditingExperienceId(null);
+src\pages\Experience\Experience.jsx:108: if (editingExperienceId) {
+src\pages\Experience\Experience.jsx:117: await updateExperience(editingExperienceId, editableExperienceData);
+src\pages\Experience\Experience.jsx:122: setEditingExperienceId(null);
+src\pages\Experience\Experience.jsx:133: setEditingExperienceId(experience.id);
+src\pages\Experience\Experience.jsx:157: if (editingExperienceId === experience.id) {
+src\pages\Experience\Experience.jsx:206: if (editingExperienceId === experience.id) {
+src\pages\Experience\Experience.jsx:225: setEditingExperienceId(null);
+src\pages\Experience\Experience.jsx:320: {editingExperienceId
+src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx:153: const skills = (experience.skills || []).map(getSkillName).filter(Boolean);
+src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx:330: {skills.length > 0 && (
+src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx:331: <ExperienceDetailGroup eyebrow="Capabilities" title="Skills">
+src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx:333: {skills.map((skill, index) => (
+src\pages\Experience\components\ExperienceCard\ExperienceCard.jsx:374: skills.length === 0 &&
+src\pages\Experience\components\ExperienceFilters\ExperienceFilters.jsx:33: placeholder="Search positions, organizations, responsibilities, skills, or technologies"
+src\pages\Experience\components\ExperienceFilters\ExperienceFilters.jsx:121: checked={Boolean(filters.hasSkillsOrTechnologies)}
+src\pages\Experience\components\ExperienceFilters\ExperienceFilters.jsx:123: onFilterChange?.("hasSkillsOrTechnologies", event.target.checked)
+src\pages\Experience\components\ExperienceFilters\ExperienceFilters.jsx:127: <span>Has skills or technologies</span>
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:20: import ExperienceSkillsEditor from "../ExperienceSkillsEditor/ExperienceSkillsEditor.jsx";
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:667: Skills and Competencies
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:670: <ExperienceSkillsEditor
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:672: experienceSkills={formData.skills}
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:675: onChange={(nextSkills) => updateCollectionField("skills", nextSkills)}
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:974: label="Skills"
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:975: description="Allow relevant professional skills to appear."
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:976: checked={formData.visibility.showSkills}
+src\pages\Experience\components\ExperienceForm\ExperienceForm.jsx:978: updateNestedField("visibility", "showSkills", checked)
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:10: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:111: const { activeSkills = [], findOrCreateSkill } = useSkillData();
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:150: const matchingLibrarySkills = useMemo(() => {
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:153: return activeSkills
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:177: }, [activeSkills, searchValue]);
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:220: const selectedSkill = activeSkills.find((skill) => skill.id === skillId);
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:288: let librarySkill = activeSkills.find(
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:545: {matchingLibrarySkills.map((skill) => {
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:16: hasSkillsOrTechnologies: false,
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:27: const [expandedExperienceId, setExpandedExperienceId] = useState("");
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:59: filters.hasSkillsOrTechnologies;
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:61: const handleToggleView = (experienceId) => {
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:62: setExpandedExperienceId((currentId) =>
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:63: currentId === experienceId ? "" : experienceId,
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:73: setExpandedExperienceId("");
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:78: setExpandedExperienceId("");
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:83: setExpandedExperienceId("");
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:90: setExpandedExperienceId("");
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:112: operation?.experienceId === experience.id &&
+src\pages\Experience\components\ExperienceList\ExperienceList.jsx:119: isExpanded={expandedExperienceId === experience.id}
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:7: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:89: skills: context.skills,
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:135: id: "skills",
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:136: label: "Skills",
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:137: complete: context.skills.length > 0,
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:139: value: `${context.skills.length} selected`,
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:203: "The AI can generate an overview, but more responsibilities, achievements, or skills would improve it.",
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:238: const { skillsById } = useSkillData();
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:283: skills: (experience.skills || [])
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:286: skillsById.get(relationship.skillId)?.name ||
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:323: [experience, overview, skillsById],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:11: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:15: import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:17: import ExperienceSkillSuggestions from "./ExperienceSkillSuggestions/ExperienceSkillSuggestions.jsx";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:19: import "./ExperienceSkillsEditor.css";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:27: function normalizeSkillOrder(skills = []) {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:28: return skills.map((skill, index) => ({
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:40: function getRelationshipInformation(relationship, skillsById) {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:41: const librarySkill = skillsById.get(relationship.skillId);
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:62: * Experience Skills Editor
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:66: function ExperienceSkillsEditor({
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:68: experienceSkills = [],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:75: const { activeSkills, skillsById, findOrCreateSkill, isLoading } =
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:78: const maximumSkills = EXPERIENCE_FIELD_LIMITS.maximumSkills;
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:80: const orderedExperienceSkills = useMemo(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:82: [...experienceSkills].sort(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:85: [experienceSkills],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:88: const selectedSkillIds = useMemo(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:90: orderedExperienceSkills
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:93: [orderedExperienceSkills],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:105: if (isWorking || !skill?.id || experienceSkills.length >= maximumSkills) {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:109: const alreadyAttached = experienceSkills.some(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:124: order: experienceSkills.length,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:127: onChange?.(normalizeSkillOrder([...experienceSkills, relationship]));
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:135: * SkillSelector will call handleSelectSkill()
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:156: experienceSkills.filter(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:164: const relationship = experienceSkills.find(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:182: orderedExperienceSkills.map((relationship) =>
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:201: const currentIndex = orderedExperienceSkills.findIndex(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:212: if (targetIndex < 0 || targetIndex >= orderedExperienceSkills.length) {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:216: const reorderedSkills = [...orderedExperienceSkills];
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:218: const [movedSkill] = reorderedSkills.splice(currentIndex, 1);
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:220: reorderedSkills.splice(targetIndex, 0, movedSkill);
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:222: onChange?.(normalizeSkillOrder(reorderedSkills));
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:227: className="experience-form-section experience-skills-editor"
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:236: <h3 id={sectionTitleId}>Skills Used in This Experience</h3>
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:239: Select skills from your central Skill Library or create a reusable
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:251: <SkillSelector
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:252: skills={activeSkills}
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:253: selectedSkillIds={selectedSkillIds}
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:254: maximumSelections={maximumSkills}
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:259: title="Select Experience Skills"
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:273: <ExperienceSkillSuggestions
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:275: experienceSkills={experienceSkills}
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:276: maximumExperienceSkills={maximumSkills}
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:287: <section className="experience-skills-selected">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:290: <span>Selected Skills</span>
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:300: <strong>{orderedExperienceSkills.length}</strong>
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:303: {orderedExperienceSkills.length > 0 ? (
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:304: <div className="experience-skills-selected-list">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:305: {orderedExperienceSkills.map((relationship, index) => {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:308: skillsById,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:312: fieldErrors[`skills.${index}.skillId`] ||
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:313: fieldErrors[`skills.${index}.nameSnapshot`];
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:315: const levelError = fieldErrors[`skills.${index}.level`];
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:318: fieldErrors[`skills.${index}.usageDescription`];
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:327: className={`experience-skills-selected-item ${
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:328: itemHasError ? "experience-skills-selected-item--error" : ""
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:331: <div className="experience-skills-order">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:349: index === orderedExperienceSkills.length - 1
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:358: <div className="experience-skills-selected-content">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:359: <div className="experience-skills-selected-labels">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:365: <span className="experience-skills-archived-label">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:371: <span className="experience-skills-snapshot-label">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:390: <div className="experience-skills-relationship-fields">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:443: <div className="experience-skills-usage-meta">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:456: className="experience-skills-remove-button"
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:467: <div className="experience-skills-empty">
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:470: <h4>No skills selected</h4>
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:483: export default ExperienceSkillsEditor;
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:5: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:16: import "./ExperienceSkillSuggestions.css";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:46: function getRelationshipName(relationship, skillsById) {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:48: skillsById.get(relationship.skillId)?.name ||
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:67: function ExperienceSkillSuggestions({
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:69: experienceSkills = [],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:70: maximumExperienceSkills = 50,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:74: const { skillsById, findOrCreateSkill } = useSkillData();
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:94: const attachedSkillIds = useMemo(
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:97: experienceSkills
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:101: [experienceSkills],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:107: experienceSkills
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:110: getRelationshipName(relationship, skillsById),
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:115: [experienceSkills, skillsById],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:120: experienceSkills
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:121: .map((relationship) => getRelationshipName(relationship, skillsById))
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:123: [experienceSkills, skillsById],
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:169: existingSkills: existingSkillNames,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:179: excludeExistingSkills: true,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:236: const response = await fetch(API_ENDPOINTS.generateExperienceSkills, {
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:298: console.error("Unable to generate experience skills:", generationError);
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:380: const availableSlots = maximumExperienceSkills - experienceSkills.length;
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:385: `This experience already contains the maximum of ${maximumExperienceSkills} skills.`,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:398: * Process sequentially so multiple new skills
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:421: attachedSkillIds.has(skill.id) ||
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:434: order: experienceSkills.length + acceptedRelationships.length,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:441: "The selected skills were already attached to this experience.",
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:447: ...experienceSkills,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:477: "The selected skills could not be added.",
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:519: Generate skills supported by the overview, responsibilities,
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:535: : "Generate Skills"}
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:555: <strong>Identifying supported skills</strong>
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:581: Accepted skills were added to this experience and your central Skill
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:700: export default ExperienceSkillSuggestions;
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:10: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:14: import SkillSelector from "../../../../Skills/components/SkillSelector/SkillSelector.jsx";
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:59: activeSkills,
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:60: skillsById,
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:61: isLoading: areSkillsLoading,
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:67: const isWorking = disabled || areSkillsLoading;
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:83: const selectedSkillIds = useMemo(
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:238: <SkillSelector
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:239: skills={activeSkills}
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:240: selectedSkillIds={selectedSkillIds}
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:271: const librarySkill = skillId ? skillsById.get(skillId) : null;
+src\pages\Portfolio\Portfolio.jsx:23: import Skills from "./components/Skills/Skills";
+src\pages\Portfolio\Portfolio.jsx:94: skills = [],
+src\pages\Portfolio\Portfolio.jsx:330: {isSectionVisible("skills") && (
+src\pages\Portfolio\Portfolio.jsx:331: <Skills
+src\pages\Portfolio\Portfolio.jsx:332: skills={skills}
+src\pages\Portfolio\Portfolio.jsx:334: updateDraftField("skills", valueOrUpdater)
+src\pages\Portfolio\components\Certifications\CertificationForm\CertificationForm.jsx:164: placeholder="What knowledge or skills does this certification demonstrate?"
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:104: const skills = mergeInformation(portfolioDraft.skills, profile?.skills)
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:145: project?.technologies || project?.skills || project?.tools,
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:211: skills,
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:234: skills: context.skills,
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:281: id: "skills",
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:282: label: "Skills",
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:283: count: context.skills.length,
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:284: weight: context.skills.length >= 3 ? 2 : 1,
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:343: "The AI can prepare a useful About draft, but more experience, projects, or skills would improve it.",
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:352: "Add professional titles, experience, skills, projects, education, or training for a more specific About section.",
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:453: context.skills.length,
+src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx:690: The AI is reviewing your experience, projects, skills, education,
+src\pages\Portfolio\components\PortfolioAboutBuilder\AboutEditor\AboutEditor.jsx:78: Add a professional title, experience, projects, or skills before
+src\pages\Portfolio\components\PortfolioHeroSettings\PortfolioHeroSettings.jsx:252: "Write a short tagline describing what you do and the professional value you provide.\nExample: Creating thoughtful solutions that combine professional expertise, practical skills, and meaningful results."
+src\pages\Portfolio\components\PortfolioHeroSettings\PortfolioTaglineGenerator\PortfolioTaglineGenerator.jsx:94: skills: getArray(portfolioDraft.skills).map(getSkillName).filter(Boolean),
+src\pages\Portfolio\components\PortfolioHeroSettings\PortfolioTaglineGenerator\PortfolioTaglineGenerator.jsx:128: context.skills.length ||
+src\pages\Portfolio\components\PortfolioHeroSettings\PortfolioTaglineGenerator\PortfolioTaglineGenerator.jsx:221: information. <br/> Complete your Profile, Projects, Experience, Education, Skills, Certifications and training sections first for the best results.
+src\pages\Portfolio\components\PortfolioHeroSettings\PortfolioTaglineGenerator\PortfolioTaglineGenerator.jsx:247: Select a professional title or add skills, experience, or projects
+src\pages\Portfolio\components\PortfolioNavigation\PortfolioNavigation.jsx:30: skills = [],
+src\pages\Portfolio\components\PortfolioNavigation\PortfolioNavigation.jsx:53: id: "skills",
+src\pages\Portfolio\components\PortfolioNavigation\PortfolioNavigation.jsx:54: label: "Skills",
+src\pages\Portfolio\components\PortfolioNavigation\PortfolioNavigation.jsx:55: visible: isVisible("skills") && skills.length > 0,
+src\pages\Portfolio\components\Skills\Skills.jsx:1: import SkillsItem from "./SkillsItem/SkillsItem";
+src\pages\Portfolio\components\Skills\Skills.jsx:3: import "./Skills.css";
+src\pages\Portfolio\components\Skills\Skills.jsx:5: function Skills({ skills }) {
+src\pages\Portfolio\components\Skills\Skills.jsx:8: className="skills-section portfolio-editor-card"
+src\pages\Portfolio\components\Skills\Skills.jsx:9: aria-labelledby="skills-title"
+src\pages\Portfolio\components\Skills\Skills.jsx:11: <div className="skills-header">
+src\pages\Portfolio\components\Skills\Skills.jsx:13: <span className="skills-eyebrow">Professional Capabilities</span>
+src\pages\Portfolio\components\Skills\Skills.jsx:15: <h3 id="skills-title">Skills</h3>
+src\pages\Portfolio\components\Skills\Skills.jsx:18: Technical and professional skills that represent your experience and
+src\pages\Portfolio\components\Skills\Skills.jsx:24: <div className="skills-list">
+src\pages\Portfolio\components\Skills\Skills.jsx:25: {skills.map((skill) => (
+src\pages\Portfolio\components\Skills\Skills.jsx:26: <SkillsItem
+src\pages\Portfolio\components\Skills\Skills.jsx:38: export default Skills;
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:1: import "./SkillsItem.css";
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:3: function SkillsItem({ name, category, level = "Intermediate" }) {
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:5: <article className="skills-item">
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:6: <div className="skills-item-main">
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:7: <div className="skills-item-icon">✦</div>
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:9: <div className="skills-item-info">
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:12: {category && <span className="skills-item-category">{category}</span>}
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:16: <span className="skills-item-level">{level}</span>
+src\pages\Portfolio\components\Skills\SkillsItem\SkillsItem.jsx:21: export default SkillsItem;
+src\pages\Portfolio\PortfolioPublic\PortfolioPublic.jsx:97: * different browser tab changes localStorage.
+src\pages\Portfolio\PortfolioPublic\PortfolioPublic.jsx:106: event.storageArea !== window.localStorage ||
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:111: skills = [],
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:213: {isSectionVisible("skills") && skills.length > 0 && (
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:214: <section id="skills" className="portfolio-view-section">
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:218: <h2>Skills</h2>
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:221: <div className="portfolio-view-skills">
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:222: {skills.map((skill, index) => {
+src\pages\Portfolio\PortfolioView\PortfolioView.jsx:661: <small>Related Skills</small>
+src\pages\Projects\Projects.jsx:76: skills: Array.isArray(relationshipCollections.skills)
+src\pages\Projects\Projects.jsx:77: ? relationshipCollections.skills
+src\pages\Projects\Projects.jsx:198: skills: normalizedCollections.skills,
+src\pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx:602: title="Skills and Technologies"
+src\pages\Projects\components\ProjectFilters\ProjectFilters.jsx:152: label: "Related to Skills",
+src\pages\Projects\components\ProjectFilters\ProjectFilters.jsx:259: placeholder="Search titles, technologies, results, or skills"
+src\pages\Projects\components\ProjectForm\ProjectForm.jsx:864: ["showSkills", "Show related skills"],
+src\pages\Projects\components\ProjectItem\ProjectItem.jsx:400: <strong>Skills</strong>
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:23: key: "skills",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:24: label: "Skills",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:25: title: "Related Skills",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:28: collectionKey: "skills",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:40: idField: "experienceId",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:50: idField: "educationId",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:60: idField: "trainingId",
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:108: case "skills":
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:239: const [activeGroup, setActiveGroup] = useState("skills");
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:252: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:263: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:264: ? PROJECT_FIELD_LIMITS.maximumSkills
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:268: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:345: if (group.key === "skills") {
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:380: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:422: <h3>Connected Skills and Professional Records</h3>
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:438: relationshipGroup.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:588: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:628: {group.key === "skills" && (
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:657: {group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:665: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:672: group.key === "skills"
+src\pages\Projects\components\ProjectRelationshipEditor\ProjectRelationshipEditor.jsx:680: group.key === "skills"
+src\pages\Public\About\About.jsx:137: skills, resumes, and portfolios.
+src\pages\Public\About\About.jsx:216: Use AI assistance to connect transferable skills, new training,
+src\pages\Public\Contact\Contact.jsx:62: "Profile, experience, education, training, skills, or certifications.",
+src\pages\Public\Home\Home.jsx:55: title: "Organize education, training, and skills",
+src\pages\Public\Home\Home.jsx:57: "Keep education, training, certifications, and skills connected to the professional story you want to present.",
+src\pages\Public\Home\Home.jsx:271: skills, and certifications with contextual writing assistance.
+src\pages\Public\HowItWorks\HowItWorks.jsx:57: "Maintain education, training, skills, and certifications while AI helps identify useful connections and descriptions.",
+src\pages\Public\HowItWorks\HowItWorks.jsx:62: "Organize technical and professional skills.",
+src\pages\Public\HowItWorks\HowItWorks.jsx:75: "Connect relevant skills and experience.",
+src\pages\Public\Opportunities\Opportunities.jsx:71: "With your permission, AI can use the skills, experience, education, projects, interests, and preferences stored in your workspace.",
+src\pages\Public\Opportunities\Opportunities.jsx:83: "Instead of displaying an unexplained score, the platform can identify matching skills, possible gaps, and areas worth reviewing.",
+src\pages\Public\Opportunities\Opportunities.jsx:208: Your projects, technical skills, and professional experience
+src\pages\Public\Opportunities\Opportunities.jsx:213: <span>Technical skills</span>
+src\pages\Public\Opportunities\Opportunities.jsx:366: Choose the experience, skills, education, and projects that
+src\pages\Public\Opportunities\Opportunities.jsx:468: Keep your experience, skills, education, certifications, and
+src\pages\Public\Privacy\Privacy.jsx:184: certifications, skills, projects, accomplishments, documents, links,
+src\pages\Public\Support\Support.jsx:111: "Begin with your profile, then add experience, education, skills, projects, and professional development.",
+src\pages\Public\Support\Support.jsx:116: "Organize your skills.",
+src\pages\Public\Support\Support.jsx:117: "Add projects that demonstrate how you applied those skills.",
+src\pages\Public\Support\Support.jsx:182: "Select relevant experience, skills, education, and projects.",
+src\pages\Public\Support\Support.jsx:193: "Different opportunities emphasize different experience, achievements, and skills.",
+src\pages\Public\Support\Support.jsx:209: "Select relevant projects, skills, and experience.",
+src\pages\Resumes\Resumes.jsx:48: skills: [],
+src\pages\Resumes\Resumes.jsx:57: skills: true,
+src\pages\Resumes\Resumes.jsx:81: skills: [],
+src\pages\Resumes\Resumes.jsx:525: skills: [...(resume.skills || [])],
+src\pages\Resumes\Resumes.jsx:903: "Skills",
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:103: skills: (resumeDraft?.skills || []).map(getSkillName).filter(Boolean),
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:187: skills: context.skills,
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:221: if (context.skills.length >= 3) {
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:223: } else if (context.skills.length > 0) {
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:274: "Add skills, experience, or projects for a more specific summary.",
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:612: Skills
+src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx:613: <strong>{summaryContext.skills.length}</strong>
+src\pages\Resumes\components\ResumeDocument\ResumeDocument.jsx:14: skills = [],
+src\pages\Resumes\components\ResumeDocument\ResumeDocument.jsx:137: {sectionVisibility.skills !== false && skills.length > 0 && (
+src\pages\Resumes\components\ResumeDocument\ResumeDocument.jsx:138: <ResumeSection title="Skills">
+src\pages\Resumes\components\ResumeDocument\ResumeDocument.jsx:139: <div className="resume-document-skills">
+src\pages\Resumes\components\ResumeDocument\ResumeDocument.jsx:140: {skills.map((skill, index) => (
+src\pages\Resumes\components\ResumeDocument\ResumeDocument.jsx:192: skills.length === 0 &&
+src\pages\skills\Skills.jsx:5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+src\pages\skills\Skills.jsx:11: getSkillStatistics,
+src\pages\skills\Skills.jsx:15: import SkillsDashboard from "./components/SkillsDashboard/SkillsDashboard.jsx";
+src\pages\skills\Skills.jsx:16: import SkillsLibrary from "./components/SkillsLibrary/SkillsLibrary.jsx";
+src\pages\skills\Skills.jsx:17: import SkillsPageHeader from "./components/SkillsPageHeader/SkillsPageHeader.jsx";
+src\pages\skills\Skills.jsx:19: import "./Skills.css";
+src\pages\skills\Skills.jsx:21: function Skills() {
+src\pages\skills\Skills.jsx:23: skills,
+src\pages\skills\Skills.jsx:24: activeSkills,
+src\pages\skills\Skills.jsx:25: archivedSkills,
+src\pages\skills\Skills.jsx:31: refreshSkills,
+src\pages\skills\Skills.jsx:54: const statistics = useMemo(() => getSkillStatistics(skills), [skills]);
+src\pages\skills\Skills.jsx:59: skills,
+src\pages\skills\Skills.jsx:64: [skills, experiences, educationRecords, trainingRecords],
+src\pages\skills\Skills.jsx:70: const selectedSkills = showArchived ? archivedSkills : activeSkills;
+src\pages\skills\Skills.jsx:75: ? skills.find((skill) => skill.id === editingSkillId) || null
+src\pages\skills\Skills.jsx:77: [skills, editingSkillId],
+src\pages\skills\Skills.jsx:82: document.querySelector(".skills-page-form")?.scrollIntoView({
+src\pages\skills\Skills.jsx:196: refreshSkills({
+src\pages\skills\Skills.jsx:202: <main className="skills-page">
+src\pages\skills\Skills.jsx:203: <SkillsPageHeader
+src\pages\skills\Skills.jsx:204: totalSkills={skills.length}
+src\pages\skills\Skills.jsx:205: activeCount={activeSkills.length}
+src\pages\skills\Skills.jsx:206: archivedCount={archivedSkills.length}
+src\pages\skills\Skills.jsx:213: <SkillsDashboard statistics={statistics} isLoading={isLoading} />
+src\pages\skills\Skills.jsx:217: className="skills-page-message skills-page-message--error"
+src\pages\skills\Skills.jsx:234: className="skills-page-message skills-page-message--success"
+src\pages\skills\Skills.jsx:251: className="skills-page-message skills-page-message--saving"
+src\pages\skills\Skills.jsx:255: <span className="skills-page-message-loader" aria-hidden="true" />
+src\pages\skills\Skills.jsx:266: <section className="skills-page-form">
+src\pages\skills\Skills.jsx:267: <header className="skills-page-form-header">
+src\pages\skills\Skills.jsx:285: className="skills-page-form-close"
+src\pages\skills\Skills.jsx:295: existingSkills={skills}
+src\pages\skills\Skills.jsx:303: <SkillsLibrary
+src\pages\skills\Skills.jsx:304: skills={selectedSkills}
+src\pages\skills\Skills.jsx:324: export default Skills;
+src\pages\skills\components\SkillForm\SkillForm.jsx:10: getSkillSourceLabel,
+src\pages\skills\components\SkillForm\SkillForm.jsx:49: existingSkills = [],
+src\pages\skills\components\SkillForm\SkillForm.jsx:305: existingSkills,
+src\pages\skills\components\SkillForm\SkillForm.jsx:477: recognize equivalent skills and prevent duplicates.
+src\pages\skills\components\SkillForm\SkillForm.jsx:748: <strong>{getSkillSourceLabel(formData.source)}</strong>
+src\pages\skills\components\SkillItem\SkillItem.jsx:9: getSkillSourceDisplay,
+src\pages\skills\components\SkillItem\SkillItem.jsx:49: const source = getSkillSourceDisplay(skill);
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:1: import "./SkillsDashboard.css";
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:3: function SkillsDashboard({ statistics = {}, isLoading = false }) {
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:21: label: "Total Skills",
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:29: label: "Technical Skills",
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:56: label: "Professional skills",
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:83: className="skills-dashboard"
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:84: aria-labelledby="skills-dashboard-title"
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:87: <header className="skills-dashboard-header">
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:89: <span>Skills Overview</span>
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:91: <h2 id="skills-dashboard-title">Professional Capability Summary</h2>
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:98: <div className="skills-dashboard-status">
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:109: <div className="skills-dashboard-grid">
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:113: className={`skills-dashboard-card skills-dashboard-card--${card.tone}`}
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:115: <div className="skills-dashboard-card-icon" aria-hidden="true">
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:119: <div className="skills-dashboard-card-content">
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:130: <div className="skills-dashboard-details">
+src\pages\skills\components\SkillsDashboard\SkillsDashboard.jsx:143: export default SkillsDashboard;
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:13: getActiveSkills,
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:17: import "./SkillSelector.css";
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:25: function SkillSelector({
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:26: skills = [],
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:27: selectedSkillIds = [],
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:35: title = "Select Skills",
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:36: description = "Search your central Skill Library and select reusable professional skills.",
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:37: emptyMessage = "No active skills are available.",
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:67: const activeSkills = useMemo(() => getActiveSkills(skills), [skills]);
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:72: (selectedSkillIds || [])
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:78: [selectedSkillIds],
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:81: const selectedSkills = useMemo(
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:82: () => activeSkills.filter((skill) => selectedIds.has(skill.id)),
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:83: [activeSkills, selectedIds],
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:95: skills: activeSkills,
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:105: [activeSkills, query, category, type],
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:121: activeSkills.find((skill) => {
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:131: }, [activeSkills, normalizedQuery]);
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:308: * Selected Skills
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:312: {selectedSkills.length > 0 && (
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:317: <strong>{selectedSkills.length}</strong>
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:321: {selectedSkills.map((skill) => (
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:468: The maximum of {maximumSelections} skills has been selected.
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:481: <span>Available Skills</span>
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:492: {activeSkills.length === 0 ? (
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:496: <h5>No active skills available</h5>
+src\pages\skills\components\SkillSelector\SkillSelector.jsx:614: export default SkillSelector;
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:13: import "./SkillsLibrary.css";
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:39: function SkillsLibrary({
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:40: skills = [],
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:70: const displayedSkills = useMemo(
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:73: skills,
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:78: [skills, query, filters, sortOption],
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:101: <section className="skills-library" aria-labelledby={libraryTitleId}>
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:102: <header className="skills-library-header">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:107: {showArchived ? "Archived Skills" : "Saved Skills"}
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:112: ? "Archived skills are preserved but unavailable for normal Experience, Résumé, and Portfolio selection."
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:117: <span className="skills-library-count">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:118: {displayedSkills.length}{" "}
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:119: {displayedSkills.length === 1 ? "Skill" : "Skills"}
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:123: {!isLoading && loadStatus !== "error" && skills.length > 0 && (
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:125: className="skills-library-controls"
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:128: <div className="skills-library-search">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:129: <label htmlFor={`${libraryTitleId}-search`}>Search Skills</label>
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:155: <div className="skills-library-filter-grid">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:230: <footer className="skills-library-controls-footer">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:232: Showing <strong>{displayedSkills.length}</strong> of{" "}
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:233: <strong>{skills.length}</strong>{" "}
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:234: {skills.length === 1 ? "skill" : "skills"}
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:248: className="skills-library-loading"
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:257: <p>Retrieving your reusable professional skills.</p>
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:263: <div className="skills-library-load-error">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:266: <h3>Skills could not be loaded</h3>
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:276: {!isLoading && loadStatus !== "error" && skills.length === 0 && (
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:277: <div className="skills-library-empty">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:280: <h3>{showArchived ? "No archived skills" : "No skills saved yet"}</h3>
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:284: ? "Skills you archive will appear here."
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:298: skills.length > 0 &&
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:299: displayedSkills.length === 0 && (
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:300: <div className="skills-library-no-results">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:303: <h3>No matching skills</h3>
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:315: {!isLoading && loadStatus !== "error" && displayedSkills.length > 0 && (
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:316: <div className="skills-library-list">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:317: {displayedSkills.map((skill) => {
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:354: <div className="skills-library-select">
+src\pages\skills\components\SkillsLibrary\SkillsLibrary.jsx:368: export default SkillsLibrary;
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:1: import "./SkillsPageHeader.css";
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:3: function SkillsPageHeader({
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:4: totalSkills = 0,
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:13: <header className="skills-page-header">
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:14: <div className="skills-page-header-content">
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:15: <span className="skills-page-header-eyebrow">
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:19: <h1>Skills</h1>
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:22: Create and maintain a central library of professional skills,
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:23: technologies, tools, languages, and industry knowledge. Saved skills
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:28: <div className="skills-page-header-meta">
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:30: <strong>{totalSkills}</strong>{" "}
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:31: {totalSkills === 1 ? "saved skill" : "saved skills"}
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:41: {archivedCount === 1 ? "archived skill" : "archived skills"}
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:47: <div className="skills-page-header-actions">
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:51: className={`skills-page-header-archive-button ${
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:52: showArchived ? "skills-page-header-archive-button--active" : ""
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:61: <span className="skills-page-header-archive-count">
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:70: className="skills-page-header-add-button"
+src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx:82: export default SkillsPageHeader;
+src\pages\Training\Training.jsx:49: const [editingTrainingId, setEditingTrainingId] = useState(null);
+src\pages\Training\Training.jsx:70: editingTrainingId
+src\pages\Training\Training.jsx:72: (training) => training.id === editingTrainingId,
+src\pages\Training\Training.jsx:75: [trainingRecords, editingTrainingId],
+src\pages\Training\Training.jsx:94: setEditingTrainingId(null);
+src\pages\Training\Training.jsx:104: setEditingTrainingId(training.id);
+src\pages\Training\Training.jsx:114: setEditingTrainingId(null);
+src\pages\Training\Training.jsx:202: if (editingTrainingId) {
+src\pages\Training\Training.jsx:203: await updateTraining(editingTrainingId, trainingData);
+src\pages\Training\Training.jsx:210: setEditingTrainingId(null);
+src\pages\Training\Training.jsx:226: if (editingTrainingId === training.id) {
+src\pages\Training\Training.jsx:279: if (editingTrainingId === training.id) {
+src\pages\Training\Training.jsx:298: setEditingTrainingId(null);
+src\pages\Training\components\TrainingDashboard\TrainingDashboard.jsx:30: id: "skills",
+src\pages\Training\components\TrainingDashboard\TrainingDashboard.jsx:31: label: "With Skills",
+src\pages\Training\components\TrainingDashboard\TrainingDashboard.jsx:32: value: statistics.withSkills || 0,
+src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx:68: trainingId,
+src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx:498: recordId: trainingId || "",
+src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx:714: educationIds: [],
+src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx:725: showSkills: true,
+src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx:731: sourceContext: trainingId
+src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx:732: ? `Created from Training draft ${trainingId}.`
+src\pages\Training\components\TrainingForm\TrainingForm.jsx:29: import TrainingSkillsEditor from "../TrainingSkillsEditor/TrainingSkillsEditor.jsx";
+src\pages\Training\components\TrainingForm\TrainingForm.jsx:957: {/* Skills */}
+src\pages\Training\components\TrainingForm\TrainingForm.jsx:959: <TrainingSkillsEditor
+src\pages\Training\components\TrainingForm\TrainingForm.jsx:971: trainingId={formData.id}
+src\pages\Training\components\TrainingForm\TrainingForm.jsx:1006: ["showSkills", "Show related skills"],
+src\pages\Training\components\TrainingItem\TrainingItem.jsx:86: skillsById = new Map(),
+src\pages\Training\components\TrainingItem\TrainingItem.jsx:530: title="Skills Developed"
+src\pages\Training\components\TrainingItem\TrainingItem.jsx:534: <div className="training-item-skills">
+src\pages\Training\components\TrainingItem\TrainingItem.jsx:537: skillsById instanceof Map
+src\pages\Training\components\TrainingItem\TrainingItem.jsx:538: ? skillsById.get(relationship.skillId)
+src\pages\Training\components\TrainingItem\TrainingItem.jsx:539: : skillsById?.[relationship.skillId];
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:10: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:26: hasSkills: false,
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:45: const { skillsById } = useSkillData();
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:107: filters.hasSkills ||
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:158: placeholder="Search titles, providers, topics, outcomes, instructors, or skills"
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:260: checked={filters.hasSkills}
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:262: updateFilter("hasSkills", event.target.checked)
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:265: Has related skills
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:362: operation?.trainingId === training.id &&
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:369: skillsById={skillsById}
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:6: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:10: import SkillSelector from "../../../skills/components/SkillSelector/SkillSelector.jsx";
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:12: import "./TrainingSkillsEditor.css";
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:29: * Training Skills Editor
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:33: function TrainingSkillsEditor({
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:42: activeSkills,
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:43: skillsById,
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:44: isLoading: areSkillsLoading,
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:48: const maximumItems = TRAINING_FIELD_LIMITS.maximumSkills;
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:58: const selectedSkillIds = useMemo(
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:68: const isWorking = disabled || areSkillsLoading;
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:115: * SkillSelector calls handleSelectSkill after this
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:190: if (skillsById instanceof Map) {
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:191: return skillsById.get(skillId) || null;
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:194: return skillsById?.[skillId] || null;
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:199: className="training-form-section training-skills-editor"
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:208: <h3 id={titleId}>Skills Developed</h3>
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:211: Connect skills learned, strengthened, or meaningfully practiced
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:217: <SkillSelector
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:218: skills={activeSkills}
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:219: selectedSkillIds={selectedSkillIds}
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:222: title="Select Training Skills"
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:224: emptyMessage="No active skills are currently available."
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:232: <p className="training-skills-editor-error" role="alert">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:237: <div className="training-skills-editor-summary">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:246: <div className="training-skills-editor-list">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:273: className={`training-skills-editor-item ${
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:274: relationshipError ? "training-skills-editor-item--error" : ""
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:277: <div className="training-skills-editor-order">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:303: <div className="training-skills-editor-content">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:304: <div className="training-skills-editor-labels">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:313: <small className="training-skills-editor-warning">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:320: className="training-skills-editor-field-error"
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:330: className="training-skills-editor-remove"
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:342: <div className="training-skills-editor-empty">
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:345: <h4>No skills selected</h4>
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:347: <p>Add skills developed or practiced through this training.</p>
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:354: export default TrainingSkillsEditor;
+src\services\Certification\certificationService.js:183: { skills = null, trainingRecords = null, educationRecords = null } = {},
+src\services\Certification\certificationService.js:186: skills,
+src\services\Certification\certificationService.js:375: skills = null,
+src\services\Certification\certificationService.js:399: skills,
+src\services\Certification\certificationService.js:446: skills = null,
+src\services\Certification\certificationService.js:486: skills,
+src\services\Certification\certificationStorage.js:37: if (typeof window === "undefined" || !window.localStorage) {
+src\services\Certification\certificationStorage.js:44: return window.localStorage;
+src\services\Certification\certificationStorage.js:175: * keys are written to localStorage.
+src\services\Certification\certificationTrainingMigrationService.js:75: if (typeof window === "undefined" || !window.localStorage) {
+src\services\Certification\certificationTrainingMigrationService.js:88: return window.localStorage;
+src\services\Certification\certificationTrainingMigrationService.js:326: function getCertificationTrainingIds(certification) {
+src\services\Certification\certificationTrainingMigrationService.js:330: relationship?.trainingId || relationship?.trainingRecordId,
+src\services\Certification\certificationTrainingMigrationService.js:342: getText(relationship?.trainingId || relationship?.trainingRecordId) ===
+src\services\Certification\certificationTrainingMigrationService.js:366: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:457: educationIds: [],
+src\services\Certification\certificationTrainingMigrationService.js:472: showSkills: true,
+src\services\Certification\certificationTrainingMigrationService.js:540: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:616: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:625: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:748: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:771: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:807: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:820: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:826: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:832: trainingId: training.id,
+src\services\Certification\certificationTrainingMigrationService.js:876: trainingId: training.id,
+src\services\Certification\certificationTrainingRelationshipService.js:100: function getCertificationTrainingIds(certification) {
+src\services\Certification\certificationTrainingRelationshipService.js:105: getText(relationship?.trainingId || relationship?.trainingRecordId),
+src\services\Certification\certificationTrainingRelationshipService.js:126: function requireTraining(trainingMap, trainingId) {
+src\services\Certification\certificationTrainingRelationshipService.js:127: const training = trainingMap.get(trainingId);
+src\services\Certification\certificationTrainingRelationshipService.js:132: `Training record "${trainingId}" could not be found during relationship synchronization.`,
+src\services\Certification\certificationTrainingRelationshipService.js:135: trainingId,
+src\services\Certification\certificationTrainingRelationshipService.js:194: const trainingIds = getCertificationTrainingIds(certification);
+src\services\Certification\certificationTrainingRelationshipService.js:196: const trainingRelationships = trainingIds.map((trainingId, index) => {
+src\services\Certification\certificationTrainingRelationshipService.js:197: const training = requireTraining(trainingMap, trainingId);
+src\services\Certification\certificationTrainingRelationshipService.js:230: (relationship) => getText(relationship?.trainingId) === training.id,
+src\services\Certification\certificationTrainingRelationshipService.js:243: (relationship) => getText(relationship?.trainingId) !== training.id,
+src\services\Certification\certificationTrainingRelationshipService.js:419: changedTrainingIds = [],
+src\services\Certification\certificationTrainingRelationshipService.js:420: deletedTrainingIds = [],
+src\services\Certification\certificationTrainingRelationshipService.js:432: const changedIds = createIdSet(changedTrainingIds);
+src\services\Certification\certificationTrainingRelationshipService.js:434: const deletedIds = createIdSet(deletedTrainingIds);
+src\services\Certification\certificationTrainingRelationshipService.js:452: (relationship) => !deletedIds.has(getText(relationship?.trainingId)),
+src\services\Certification\certificationTrainingRelationshipService.js:479: changedIds.forEach((trainingId) => {
+src\services\Certification\certificationTrainingRelationshipService.js:480: const training = requireTraining(trainingMap, trainingId);
+src\services\Certification\certificationTrainingRelationshipService.js:591: const selectedTrainingIds = new Set(
+src\services\Certification\certificationTrainingRelationshipService.js:592: getCertificationTrainingIds(certification),
+src\services\Certification\certificationTrainingRelationshipService.js:595: selectedTrainingIds.forEach((trainingId) => {
+src\services\Certification\certificationTrainingRelationshipService.js:596: requireTraining(trainingMap, trainingId);
+src\services\Certification\certificationTrainingRelationshipService.js:603: selectedTrainingIds.has(training.id),
+src\services\Certification\certificationUtils.js:558: withSkills: activeRecords.filter(
+src\services\Certification\certificationValidation.js:311: skills,
+src\services\Certification\certificationValidation.js:312: shouldCheckSkills,
+src\services\Certification\certificationValidation.js:318: if (relationships.length > CERTIFICATION_FIELD_LIMITS.maximumSkills) {
+src\services\Certification\certificationValidation.js:320: "CERTIFICATION_TOO_MANY_SKILLS",
+src\services\Certification\certificationValidation.js:322: `Add no more than ${CERTIFICATION_FIELD_LIMITS.maximumSkills} related skills.`,
+src\services\Certification\certificationValidation.js:326: const availableSkillIds = createIdSet(skills);
+src\services\Certification\certificationValidation.js:351: CERTIFICATION_FIELD_LIMITS.skillSnapshotName
+src\services\Certification\certificationValidation.js:356: `The skill snapshot name cannot exceed ${CERTIFICATION_FIELD_LIMITS.skillSnapshotName} characters.`,
+src\services\Certification\certificationValidation.js:360: if (shouldCheckSkills && !availableSkillIds.has(relationship.skillId)) {
+src\services\Certification\certificationValidation.js:397: const availableTrainingIds = createIdSet(trainingRecords);
+src\services\Certification\certificationValidation.js:402: if (!relationship.trainingId) {
+src\services\Certification\certificationValidation.js:405: `${baseField}.trainingId`,
+src\services\Certification\certificationValidation.js:422: !availableTrainingIds.has(relationship.trainingId)
+src\services\Certification\certificationValidation.js:426: `${baseField}.trainingId`,
+src\services\Certification\certificationValidation.js:455: const educationIds = certification.relatedRecords.educationIds;
+src\services\Certification\certificationValidation.js:458: educationIds.length >
+src\services\Certification\certificationValidation.js:463: "relatedRecords.educationIds",
+src\services\Certification\certificationValidation.js:468: const availableEducationIds = createIdSet(educationRecords);
+src\services\Certification\certificationValidation.js:470: educationIds.forEach((educationId, index) => {
+src\services\Certification\certificationValidation.js:471: if (shouldCheckEducation && !availableEducationIds.has(educationId)) {
+src\services\Certification\certificationValidation.js:474: `relatedRecords.educationIds.${index}`,
+src\services\Certification\certificationValidation.js:596: * localStorage with the actual Blob in IndexedDB.
+src\services\Certification\certificationValidation.js:657: { skills = null, trainingRecords = null, educationRecords = null } = {},
+src\services\Certification\certificationValidation.js:670: getArray(skills),
+src\services\Certification\certificationValidation.js:671: Array.isArray(skills),
+src\services\Education\educationService.js:48: function createEducationNotFoundError(educationId) {
+src\services\Education\educationService.js:50: message: `Education record "${educationId}" was not found.`,
+src\services\Education\educationService.js:139: export async function getEducationById(educationId) {
+src\services\Education\educationService.js:140: if (!educationId) {
+src\services\Education\educationService.js:153: (record) => record.id === educationId,
+src\services\Education\educationService.js:157: throw createEducationNotFoundError(educationId);
+src\services\Education\educationService.js:204: export async function updateEducation(educationId, updates = {}) {
+src\services\Education\educationService.js:205: if (!educationId) {
+src\services\Education\educationService.js:220: (education) => education.id === educationId,
+src\services\Education\educationService.js:224: throw createEducationNotFoundError(educationId);
+src\services\Education\educationService.js:294: export async function archiveEducation(educationId) {
+src\services\Education\educationService.js:295: return updateEducation(educationId, {
+src\services\Education\educationService.js:300: export async function restoreEducation(educationId) {
+src\services\Education\educationService.js:301: return updateEducation(educationId, {
+src\services\Education\educationService.js:336: export async function deleteEducation(educationId) {
+src\services\Education\educationService.js:337: if (!educationId) {
+src\services\Education\educationService.js:357: (education) => education.id === educationId,
+src\services\Education\educationService.js:361: throw createEducationNotFoundError(educationId);
+src\services\Education\educationService.js:393: `Education record "${educationId}" was preserved because ` +
+src\services\Education\educationService.js:405: educationId,
+src\services\Education\educationService.js:438: (education) => education.id !== educationId,
+src\services\Education\educationService.js:445: * IndexedDB and localStorage cannot share one
+src\services\Education\educationService.js:454: `Supporting documents for Education record "${educationId}" were ` +
+src\services\Education\educationService.js:455: "deleted, but its localStorage metadata could not be removed.",
+src\services\Education\educationService.js:465: educationId,
+src\services\Education\educationService.js:493: id: educationId,
+src\services\Education\educationStorage.js:52: if (!window.localStorage) {
+src\services\Education\educationStorage.js:59: return window.localStorage;
+src\services\Education\educationUtils.js:237: const skills = getArray(education?.skillRelationships).map(
+src\services\Education\educationUtils.js:261: ...skills,
+src\services\Education\educationUtils.js:299: hasSkills = false,
+src\services\Education\educationUtils.js:333: if (hasSkills && getArray(education?.skillRelationships).length === 0) {
+src\services\Education\educationUtils.js:484: id: "skills",
+src\services\Education\educationUtils.js:485: label: "Related skills",
+src\services\Education\educationUtils.js:553: const withSkills = active.filter(
+src\services\Education\educationUtils.js:564: withSkills: withSkills.length,
+src\services\Education\educationUtils.js:608: const withSkills = active.filter(
+src\services\Education\educationUtils.js:622: withSkills: withSkills.length,
+src\services\Education\educationValidation.js:622: function getSkillSnapshotName(relationship) {
+src\services\Education\educationValidation.js:631: if (relationships.length > EDUCATION_FIELD_LIMITS.maximumSkills) {
+src\services\Education\educationValidation.js:634: `Add no more than ${EDUCATION_FIELD_LIMITS.maximumSkills} skills.`,
+src\services\Education\educationValidation.js:644: const nameSnapshot = getSkillSnapshotName(item);
+src\services\Education\educationValidation.js:712: : `name:${getSkillSnapshotName(relationship)}`;
+src\services\Education\educationValidation.js:925: education.relatedTrainingIds,
+src\services\Education\educationValidation.js:926: "relatedTrainingIds",
+src\services\Experience\experienceApiService.js:16: function experiencePath(experienceId) {
+src\services\Experience\experienceApiService.js:18: typeof experienceId !== "string" ||
+src\services\Experience\experienceApiService.js:19: !experienceId.trim() ||
+src\services\Experience\experienceApiService.js:20: experienceId.trim().length > 200
+src\services\Experience\experienceApiService.js:26: experienceId.trim(),
+src\services\Experience\experienceApiService.js:41: experienceId,
+src\services\Experience\experienceApiService.js:45: experiencePath(experienceId),
+src\services\Experience\experienceApiService.js:66: experienceId,
+src\services\Experience\experienceApiService.js:72: experiencePath(experienceId),
+src\services\Experience\experienceApiService.js:84: experienceId,
+src\services\Experience\experienceApiService.js:94: `${experiencePath(experienceId)}/archive`,
+src\services\Experience\experienceApiService.js:106: experienceId,
+src\services\Experience\experienceApiService.js:111: experiencePath(experienceId),
+src\services\Experience\experienceContextCompatibility.js:11: * Does not access localStorage.
+src\services\Experience\experienceContextCompatibility.js:26: function findLoadedExperience(experiences, experienceId) {
+src\services\Experience\experienceContextCompatibility.js:30: (item) => item?.id === experienceId,
+src\services\Experience\experienceContextCompatibility.js:75: export async function getExperienceById(experienceId) {
+src\services\Experience\experienceContextCompatibility.js:76: return database.getExperienceById(experienceId);
+src\services\Experience\experienceContextCompatibility.js:87: experienceId,
+src\services\Experience\experienceContextCompatibility.js:90: const current = findLoadedExperience(experiences, experienceId);
+src\services\Experience\experienceContextCompatibility.js:98: return database.updateExperience(experienceId, updated);
+src\services\Experience\experienceContextCompatibility.js:101: export async function archiveExperience(experiences, experienceId) {
+src\services\Experience\experienceContextCompatibility.js:102: const current = findLoadedExperience(experiences, experienceId);
+src\services\Experience\experienceContextCompatibility.js:104: return database.archiveExperience(experienceId, current);
+src\services\Experience\experienceContextCompatibility.js:107: export async function restoreExperience(experiences, experienceId) {
+src\services\Experience\experienceContextCompatibility.js:108: const current = findLoadedExperience(experiences, experienceId);
+src\services\Experience\experienceContextCompatibility.js:110: return database.restoreExperience(experienceId, current);
+src\services\Experience\experienceContextCompatibility.js:113: export async function deleteExperience(experiences, experienceId) {
+src\services\Experience\experienceContextCompatibility.js:114: const current = findLoadedExperience(experiences, experienceId);
+src\services\Experience\experienceContextCompatibility.js:116: return database.deleteExperience(experienceId, current);
+src\services\Experience\experienceDatabaseService.js:22: * Never reads or writes browser localStorage.
+src\services\Experience\experienceDatabaseService.js:41: function requireMatchingId(experienceId, experience) {
+src\services\Experience\experienceDatabaseService.js:44: if (experience.id !== experienceId) {
+src\services\Experience\experienceDatabaseService.js:63: export async function getExperienceById(experienceId) {
+src\services\Experience\experienceDatabaseService.js:64: return fetchExperienceById(experienceId);
+src\services\Experience\experienceDatabaseService.js:80: experienceId,
+src\services\Experience\experienceDatabaseService.js:83: requireMatchingId(experienceId, experience);
+src\services\Experience\experienceDatabaseService.js:88: experienceId,
+src\services\Experience\experienceDatabaseService.js:95: experienceId,
+src\services\Experience\experienceDatabaseService.js:98: requireMatchingId(experienceId, experience);
+src\services\Experience\experienceDatabaseService.js:101: experienceId,
+src\services\Experience\experienceDatabaseService.js:108: experienceId,
+src\services\Experience\experienceDatabaseService.js:111: requireMatchingId(experienceId, experience);
+src\services\Experience\experienceDatabaseService.js:114: experienceId,
+src\services\Experience\experienceDatabaseService.js:121: experienceId,
+src\services\Experience\experienceDatabaseService.js:124: requireMatchingId(experienceId, experience);
+src\services\Experience\experienceDatabaseService.js:127: experienceId,
+src\services\Experience\experienceService.js:34: function createNotFoundError(experienceId) {
+src\services\Experience\experienceService.js:36: message: `Experience "${experienceId}" was not found.`,
+src\services\Experience\experienceService.js:79: export async function getExperienceById(experienceId) {
+src\services\Experience\experienceService.js:80: if (!experienceId) {
+src\services\Experience\experienceService.js:91: const experience = experiences.find((item) => item.id === experienceId);
+src\services\Experience\experienceService.js:94: throw createNotFoundError(experienceId);
+src\services\Experience\experienceService.js:141: export async function updateExperience(experienceId, updates) {
+src\services\Experience\experienceService.js:142: if (!experienceId) {
+src\services\Experience\experienceService.js:154: (experience) => experience.id === experienceId,
+src\services\Experience\experienceService.js:158: throw createNotFoundError(experienceId);
+src\services\Experience\experienceService.js:227: export async function archiveExperience(experienceId) {
+src\services\Experience\experienceService.js:228: return updateExperience(experienceId, {
+src\services\Experience\experienceService.js:239: export async function restoreExperience(experienceId) {
+src\services\Experience\experienceService.js:240: return updateExperience(experienceId, {
+src\services\Experience\experienceService.js:251: export async function deleteExperience(experienceId) {
+src\services\Experience\experienceService.js:252: if (!experienceId) {
+src\services\Experience\experienceService.js:264: (experience) => experience.id === experienceId,
+src\services\Experience\experienceService.js:268: throw createNotFoundError(experienceId);
+src\services\Experience\experienceService.js:272: (experience) => experience.id !== experienceId,
+src\services\Experience\experienceService.js:278: id: experienceId,
+src\services\Experience\experienceStorage.js:50: if (!window.localStorage) {
+src\services\Experience\experienceStorage.js:57: return window.localStorage;
+src\services\Experience\experienceStorage.js:177: skills: Array.isArray(source.skills)
+src\services\Experience\experienceStorage.js:178: ? source.skills.map(migrateVersionOneSkill)
+src\services\Experience\experienceUtils.js:395: label: "Skills or technologies",
+src\services\Experience\experienceUtils.js:397: getArray(experience?.skills).length > 0 ||
+src\services\Experience\experienceUtils.js:458: const skills = getArray(experience?.skills).map((item) =>
+src\services\Experience\experienceUtils.js:489: ...skills,
+src\services\Experience\experienceUtils.js:533: hasSkillsOrTechnologies = false,
+src\services\Experience\experienceUtils.js:572: hasSkillsOrTechnologies &&
+src\services\Experience\experienceUtils.js:573: getArray(experience.skills).length === 0 &&
+src\services\Experience\experienceValidation.js:601: function getSkillSnapshotName(value) {
+src\services\Experience\experienceValidation.js:664: * Skills
+src\services\Experience\experienceValidation.js:668: function validateSkills(collector, experience) {
+src\services\Experience\experienceValidation.js:669: const skills = getArray(experience.skills);
+src\services\Experience\experienceValidation.js:671: if (skills.length > EXPERIENCE_FIELD_LIMITS.maximumSkills) {
+src\services\Experience\experienceValidation.js:673: "skills",
+src\services\Experience\experienceValidation.js:674: `Add no more than ${EXPERIENCE_FIELD_LIMITS.maximumSkills} skills.`,
+src\services\Experience\experienceValidation.js:679: skills.forEach((skill, index) => {
+src\services\Experience\experienceValidation.js:684: const nameSnapshot = getSkillSnapshotName(relationship);
+src\services\Experience\experienceValidation.js:696: `skills.${index}.id`,
+src\services\Experience\experienceValidation.js:703: `skills.${index}.skillId`,
+src\services\Experience\experienceValidation.js:710: `skills.${index}.skillId`,
+src\services\Experience\experienceValidation.js:727: `skills.${index}.nameSnapshot`,
+src\services\Experience\experienceValidation.js:735: `skills.${index}.skillId`,
+src\services\Experience\experienceValidation.js:743: `skills.${index}.nameSnapshot`,
+src\services\Experience\experienceValidation.js:751: `skills.${index}.categorySnapshot`,
+src\services\Experience\experienceValidation.js:759: `skills.${index}.typeSnapshot`,
+src\services\Experience\experienceValidation.js:767: `skills.${index}.level`,
+src\services\Experience\experienceValidation.js:775: `skills.${index}.level`,
+src\services\Experience\experienceValidation.js:782: `skills.${index}.usageDescription`,
+src\services\Experience\experienceValidation.js:790: `skills.${index}.order`,
+src\services\Experience\experienceValidation.js:801: const duplicates = findDuplicateIndexes(skills, (skill) => {
+src\services\Experience\experienceValidation.js:808: return `name:${getSkillSnapshotName(skill)}`;
+src\services\Experience\experienceValidation.js:813: `skills.${duplicateIndex}.skillId`,
+src\services\Experience\experienceValidation.js:842: const nameSnapshot = getSkillSnapshotName(relationship);
+src\services\Experience\experienceValidation.js:951: return `name:${getSkillSnapshotName(technology)}`;
+src\services\Experience\experienceValidation.js:1113: getArray(experience.skills).some((skill) => {
+src\services\Experience\experienceValidation.js:1115: getRelationshipSkillId(skill) || getSkillSnapshotName(skill),
+src\services\Experience\experienceValidation.js:1120: getRelationshipSkillId(technology) || getSkillSnapshotName(technology),
+src\services\Experience\experienceValidation.js:1126: "skills",
+src\services\Experience\experienceValidation.js:1127: "Consider adding relevant skills or technologies used in this role.",
+src\services\Experience\experienceValidation.js:1173: validateSkills(collector, experience);
+src\services\Portfolio\portfolioService.js:57: function requireLocalStorage() {
+src\services\Portfolio\portfolioService.js:58: if (typeof window === "undefined" || !window.localStorage) {
+src\services\Portfolio\portfolioService.js:61: "Browser localStorage is unavailable.",
+src\services\Portfolio\portfolioService.js:66: return window.localStorage;
+src\services\Portfolio\portfolioService.js:161: showSkills: Array.isArray(source.skillRelationships),
+src\services\Portfolio\portfolioService.js:244: skills: getArray(source.skills),
+src\services\Portfolio\portfolioService.js:304: const storage = requireLocalStorage();
+src\services\Portfolio\portfolioService.js:333: const storage = requireLocalStorage();
+src\services\Profile\profileStorage.js:59: function getLocalStorage() {
+src\services\Profile\profileStorage.js:60: if (typeof window === "undefined" || !window.localStorage) {
+src\services\Profile\profileStorage.js:68: return window.localStorage;
+src\services\Profile\profileStorage.js:94: "The browser does not have enough localStorage capacity to save the Profile.",
+src\services\Profile\profileStorage.js:273: const storage = getLocalStorage();
+src\services\Profile\profileStorage.js:304: storage = getLocalStorage();
+src\services\Profile\profileStorage.js:406: const storage = getLocalStorage();
+src\services\Profile\profileStorage.js:449: const storage = getLocalStorage();
+src\services\Profile\profileStorage.js:465: const storage = getLocalStorage();
+src\services\Project\projectService.js:225: * in localStorage metadata.
+src\services\Project\projectService.js:707: * Delete metadata first. If localStorage
+src\services\Project\projectStorage.js:61: if (!window.localStorage) {
+src\services\Project\projectStorage.js:62: throw new Error("localStorage is unavailable.");
+src\services\Project\projectStorage.js:65: return window.localStorage;
+src\services\Project\projectStorage.js:69: "Browser localStorage could not be accessed.",
+src\services\Project\projectStorage.js:346: ? "Project localStorage quota was exceeded."
+src\services\Project\projectUtils.js:379: const skills = getArray(project?.skillRelationships).flatMap(
+src\services\Project\projectUtils.js:475: ...skills,
+src\services\Project\projectValidation.js:554: PROJECT_FIELD_LIMITS.maximumSkills,
+src\services\Project\projectValidation.js:556: "related Skills",
+src\services\Project\projectValidation.js:588: * Skills
+src\services\Project\projectValidation.js:592: const availableSkillIds = Array.isArray(collections.skills)
+src\services\Project\projectValidation.js:593: ? new Set(collections.skills.map((skill) => skill?.id).filter(Boolean))
+src\services\Project\projectValidation.js:626: availableSkillIds &&
+src\services\Project\projectValidation.js:628: !availableSkillIds.has(relationship.skillId)
+src\services\Project\projectValidation.js:650: idField: "experienceId",
+src\services\Project\projectValidation.js:656: idField: "educationId",
+src\services\Project\projectValidation.js:662: idField: "trainingId",
+src\services\Project\projectValidation.js:1046: id: "skills",
+src\services\Resume\resumeSummaryUtils.js:14: skills: (resumeDraft.skills || [])
+src\services\Skill\skillService.js:25: import { readStoredSkills, replaceStoredSkills } from "./skillStorage.js";
+src\services\Skill\skillService.js:33: function createSkillServiceError({
+src\services\Skill\skillService.js:44: error.name = "SkillServiceError";
+src\services\Skill\skillService.js:58: return createSkillServiceError({
+src\services\Skill\skillService.js:162: return createSkillServiceError({
+src\services\Skill\skillService.js:231: * Get All Skills
+src\services\Skill\skillService.js:235: export async function getSkills({
+src\services\Skill\skillService.js:241: const skills = readStoredSkills();
+src\services\Skill\skillService.js:245: return skills
+src\services\Skill\skillService.js:290: throw createSkillServiceError({
+src\services\Skill\skillService.js:301: const skills = readStoredSkills();
+src\services\Skill\skillService.js:303: const skill = skills.find((candidate) => candidate.id === skillId);
+src\services\Skill\skillService.js:323: return findMatchingSkill(readStoredSkills(), name);
+src\services\Skill\skillService.js:333: const skills = readStoredSkills();
+src\services\Skill\skillService.js:338: existingSkills: skills,
+src\services\Skill\skillService.js:343: const duplicateId = skills.some(
+src\services\Skill\skillService.js:348: throw createSkillServiceError({
+src\services\Skill\skillService.js:360: replaceStoredSkills([skill, ...skills]);
+src\services\Skill\skillService.js:373: throw createSkillServiceError({
+src\services\Skill\skillService.js:384: const skills = readStoredSkills();
+src\services\Skill\skillService.js:386: const skillIndex = skills.findIndex((skill) => skill.id === skillId);
+src\services\Skill\skillService.js:392: const currentSkill = skills[skillIndex];
+src\services\Skill\skillService.js:416: existingSkills: skills,
+src\services\Skill\skillService.js:422: const nextSkills = [...skills];
+src\services\Skill\skillService.js:424: nextSkills[skillIndex] = updatedSkill;
+src\services\Skill\skillService.js:426: replaceStoredSkills(nextSkills);
+src\services\Skill\skillService.js:495: throw createSkillServiceError({
+src\services\Skill\skillService.js:506: const skills = readStoredSkills();
+src\services\Skill\skillService.js:508: const skillToDelete = skills.find((skill) => skill.id === skillId);
+src\services\Skill\skillService.js:518: * skillService directly.
+src\services\Skill\skillService.js:527: const remainingSkills = skills.filter((skill) => skill.id !== skillId);
+src\services\Skill\skillService.js:529: replaceStoredSkills(remainingSkills);
+src\services\Skill\skillService.js:547: const skills = readStoredSkills();
+src\services\Skill\skillService.js:549: const availability = validateSkillNameAvailability(name, skills);
+src\services\Skill\skillService.js:600: throw createSkillServiceError({
+src\services\Skill\skillService.js:670: const existingSkills = readStoredSkills();
+src\services\Skill\skillService.js:675: existingSkills,
+src\services\Skill\skillService.js:692: readStoredSkills(),
+src\services\Skill\skillService.js:703: export async function replaceSkills(skillValues) {
+src\services\Skill\skillService.js:705: throw createSkillServiceError({
+src\services\Skill\skillService.js:716: const validatedSkills = [];
+src\services\Skill\skillService.js:721: const otherSkills = skillValues.filter(
+src\services\Skill\skillService.js:726: existingSkills: otherSkills,
+src\services\Skill\skillService.js:730: validatedSkills.push(normalizeSkill(candidate));
+src\services\Skill\skillService.js:733: const normalizedSkills = normalizeSkillCollection(validatedSkills);
+src\services\Skill\skillService.js:735: return replaceStoredSkills(normalizedSkills);
+src\services\Skill\skillStorage.js:12: export const SKILL_STORAGE_KEY = "portfolio-platform:skills";
+src\services\Skill\skillStorage.js:22: function createSkillStorageError(message, publicMessage, cause) {
+src\services\Skill\skillStorage.js:25: error.name = "SkillStorageError";
+src\services\Skill\skillStorage.js:44: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:50: if (!window.localStorage) {
+src\services\Skill\skillStorage.js:51: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:57: return window.localStorage;
+src\services\Skill\skillStorage.js:66: function createEmptySkillStorageDocument() {
+src\services\Skill\skillStorage.js:70: skills: [],
+src\services\Skill\skillStorage.js:81: function parseSkillStorageDocument(value) {
+src\services\Skill\skillStorage.js:83: return createEmptySkillStorageDocument();
+src\services\Skill\skillStorage.js:91: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:105: ...createEmptySkillStorageDocument(),
+src\services\Skill\skillStorage.js:107: skills: normalizeSkillCollection(parsedValue),
+src\services\Skill\skillStorage.js:112: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:124: skills: normalizeSkillCollection(parsedValue.skills),
+src\services\Skill\skillStorage.js:139: export function readSkillStorage() {
+src\services\Skill\skillStorage.js:145: return parseSkillStorageDocument(storedValue);
+src\services\Skill\skillStorage.js:147: if (error?.name === "SkillStorageError") {
+src\services\Skill\skillStorage.js:151: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:153: "Your saved skills could not be loaded.",
+src\services\Skill\skillStorage.js:165: export function writeSkillStorage(skills) {
+src\services\Skill\skillStorage.js:172: skills: normalizeSkillCollection(skills),
+src\services\Skill\skillStorage.js:182: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:184: "Your skills could not be saved in this browser.",
+src\services\Skill\skillStorage.js:192: * Read Skills
+src\services\Skill\skillStorage.js:196: export function readStoredSkills() {
+src\services\Skill\skillStorage.js:197: return readSkillStorage().skills;
+src\services\Skill\skillStorage.js:202: * Replace Skills
+src\services\Skill\skillStorage.js:206: export function replaceStoredSkills(skills) {
+src\services\Skill\skillStorage.js:207: return writeSkillStorage(skills).skills;
+src\services\Skill\skillStorage.js:212: * Update Skills Transaction
+src\services\Skill\skillStorage.js:219: export function updateStoredSkills(updater) {
+src\services\Skill\skillStorage.js:221: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:227: const currentSkills = readStoredSkills();
+src\services\Skill\skillStorage.js:229: const nextSkills = updater([...currentSkills]);
+src\services\Skill\skillStorage.js:231: if (!Array.isArray(nextSkills)) {
+src\services\Skill\skillStorage.js:232: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:238: return replaceStoredSkills(nextSkills);
+src\services\Skill\skillStorage.js:248: * skill through skillService.js.
+src\services\Skill\skillStorage.js:251: export function clearSkillStorage() {
+src\services\Skill\skillStorage.js:257: throw createSkillStorageError(
+src\services\Skill\skillStorage.js:271: export function getSkillStorageInformation() {
+src\services\Skill\skillStorage.js:272: const document = readSkillStorage();
+src\services\Skill\skillStorage.js:280: skillCount: document.skills.length,
+src\services\Skill\skillUtils.js:5: getSkillSourceLabel,
+src\services\Skill\skillUtils.js:6: getSkillStatusLabel,
+src\services\Skill\skillUtils.js:37: * Active and Archived Skills
+src\services\Skill\skillUtils.js:49: export function getActiveSkills(skills = []) {
+src\services\Skill\skillUtils.js:50: return getArray(skills).filter(isActiveSkill);
+src\services\Skill\skillUtils.js:53: export function getArchivedSkills(skills = []) {
+src\services\Skill\skillUtils.js:54: return getArray(skills).filter(isArchivedSkill);
+src\services\Skill\skillUtils.js:67: export function getSkillSecondaryLabel(skill) {
+src\services\Skill\skillUtils.js:92: export function getSkillSourceDisplay(skill) {
+src\services\Skill\skillUtils.js:93: return getSkillSourceLabel(skill?.source);
+src\services\Skill\skillUtils.js:96: export function getSkillStatusDisplay(skill) {
+src\services\Skill\skillUtils.js:97: return getSkillStatusLabel(skill?.status);
+src\services\Skill\skillUtils.js:155: export function createSkillSearchText(skill) {
+src\services\Skill\skillUtils.js:178: export function searchSkills(skills = [], query = "") {
+src\services\Skill\skillUtils.js:182: return [...getArray(skills)];
+src\services\Skill\skillUtils.js:187: return getArray(skills).filter((skill) => {
+src\services\Skill\skillUtils.js:188: const searchableText = createSkillSearchText(skill);
+src\services\Skill\skillUtils.js:200: export function filterSkills(skills = [], filters = {}) {
+src\services\Skill\skillUtils.js:209: return getArray(skills).filter((skill) => {
+src\services\Skill\skillUtils.js:258: export function sortSkills(skills = [], sortOption = "name-ascending") {
+src\services\Skill\skillUtils.js:259: const sortedSkills = [...getArray(skills)];
+src\services\Skill\skillUtils.js:261: sortedSkills.sort((firstSkill, secondSkill) => {
+src\services\Skill\skillUtils.js:322: return sortedSkills;
+src\services\Skill\skillUtils.js:326: skills = [],
+src\services\Skill\skillUtils.js:331: return sortSkills(
+src\services\Skill\skillUtils.js:332: filterSkills(searchSkills(skills, query), filters),
+src\services\Skill\skillUtils.js:343: export function groupSkillsByCategory(skills = []) {
+src\services\Skill\skillUtils.js:344: return getArray(skills).reduce((groups, skill) => {
+src\services\Skill\skillUtils.js:574: experience?.skills,
+src\services\Skill\skillUtils.js:788: skills = [],
+src\services\Skill\skillUtils.js:795: return getArray(skills).reduce((usageMap, skill) => {
+src\services\Skill\skillUtils.js:880: export function getSkillStatistics(skills = []) {
+src\services\Skill\skillUtils.js:881: const collection = getArray(skills);
+src\services\Skill\skillUtils.js:883: const active = getActiveSkills(collection);
+src\services\Skill\skillUtils.js:885: const archived = getArchivedSkills(collection);
+src\services\Skill\skillUtils.js:929: export function createSkillSelectionOptions(skills = []) {
+src\services\Skill\skillUtils.js:930: return sortSkills(getActiveSkills(skills), "name-ascending").map((skill) => ({
+src\services\Skill\skillValidation.js:5: isValidSkillSource,
+src\services\Skill\skillValidation.js:6: isValidSkillStatus,
+src\services\Skill\skillValidation.js:209: if (!isValidSkillSource(skill.source)) {
+src\services\Skill\skillValidation.js:217: if (!isValidSkillStatus(skill.status)) {
+src\services\Skill\skillValidation.js:494: existingSkills,
+src\services\Skill\skillValidation.js:508: getArray(existingSkills).forEach((existingSkill) => {
+src\services\Skill\skillValidation.js:601: { existingSkills = [], excludeSkillId = "" } = {},
+src\services\Skill\skillValidation.js:619: validateLibraryConflicts(collector, skill, existingSkills, excludeSkillId);
+src\services\Skill\skillValidation.js:642: existingSkills = [],
+src\services\Skill\skillValidation.js:656: getArray(existingSkills).find((skill) => {
+src\services\Training\trainingService.js:35: function createTrainingNotFoundError(trainingId) {
+src\services\Training\trainingService.js:37: message: `Training record "${trainingId}" was not found.`,
+src\services\Training\trainingService.js:101: export async function getTrainingById(trainingId) {
+src\services\Training\trainingService.js:102: if (!trainingId) {
+src\services\Training\trainingService.js:112: (record) => record.id === trainingId,
+src\services\Training\trainingService.js:116: throw createTrainingNotFoundError(trainingId);
+src\services\Training\trainingService.js:144: changedTrainingIds: [training.id],
+src\services\Training\trainingService.js:153: export async function updateTraining(trainingId, updates = {}) {
+src\services\Training\trainingService.js:154: if (!trainingId) {
+src\services\Training\trainingService.js:166: (training) => training.id === trainingId,
+src\services\Training\trainingService.js:170: throw createTrainingNotFoundError(trainingId);
+src\services\Training\trainingService.js:226: changedTrainingIds: [updatedTraining.id],
+src\services\Training\trainingService.js:236: export async function archiveTraining(trainingId) {
+src\services\Training\trainingService.js:237: return updateTraining(trainingId, {
+src\services\Training\trainingService.js:242: export async function restoreTraining(trainingId) {
+src\services\Training\trainingService.js:243: return updateTraining(trainingId, {
+src\services\Training\trainingService.js:266: export async function deleteTraining(trainingId) {
+src\services\Training\trainingService.js:267: if (!trainingId) {
+src\services\Training\trainingService.js:278: const recordToDelete = records.find((training) => training.id === trainingId);
+src\services\Training\trainingService.js:281: throw createTrainingNotFoundError(trainingId);
+src\services\Training\trainingService.js:287: (training) => training.id !== trainingId,
+src\services\Training\trainingService.js:298: deletedTrainingIds: [trainingId],
+src\services\Training\trainingService.js:323: id: trainingId,
+src\services\Training\trainingService.js:366: const nextTrainingIds = new Set(
+src\services\Training\trainingService.js:370: const deletedTrainingIds = currentRecords
+src\services\Training\trainingService.js:372: .filter((trainingId) => !nextTrainingIds.has(trainingId));
+src\services\Training\trainingService.js:377: changedTrainingIds: normalizedRecords.map((training) => training.id),
+src\services\Training\trainingService.js:379: deletedTrainingIds,
+src\services\Training\trainingStorage.js:25: if (typeof window === "undefined" || !window.localStorage) {
+src\services\Training\trainingStorage.js:32: return window.localStorage;
+src\services\Training\trainingUtils.js:194: hasSkills = false,
+src\services\Training\trainingUtils.js:236: hasSkills &&
+src\services\Training\trainingUtils.js:360: id: "skills",
+src\services\Training\trainingUtils.js:361: label: "Related skills",
+src\services\Training\trainingUtils.js:447: withSkills: active.filter(
+src\services\Training\trainingValidation.js:537: if (relationships.length > TRAINING_FIELD_LIMITS.maximumSkills) {
+src\services\Training\trainingValidation.js:540: `Add no more than ${TRAINING_FIELD_LIMITS.maximumSkills} skills.`,
+
+======================================================================
+FRONTEND SERVICES
+======================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\apiClient.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\apiClient.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Account\sessionService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Auth\authService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationDocumentStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingMigrationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingRelationshipService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Documents\documentStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Documents\documentUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceApiAdapter.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceContextCompatibility.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceDatabaseService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\PersonalInformation\contactInformationConfig.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Portfolio\portfolioService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Portfolio\portfolioStyleUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Portfolio\profileSelectionUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileService.localStorage.backup.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiAdapter.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.bak-20261020-234542
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.before-restore-20261020-234859.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetResolver.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectBinaryApi.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectDocumentApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectFeaturedMedia.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectMediaApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.featured-media.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.helper-integration.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Resume\resumeSelectionUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Resume\resumeSummaryUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Support\contactService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingValidation.js
+
+======================================================================
+FRONTEND CONTEXTS
+======================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\AuthContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\CertificationDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\EducationDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ExperienceDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\PortfolioDraftContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProfileDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProfileDataContext.localStorage.backup.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx.before-backend-read-20261021-001049.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ResumeDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\SkillDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx

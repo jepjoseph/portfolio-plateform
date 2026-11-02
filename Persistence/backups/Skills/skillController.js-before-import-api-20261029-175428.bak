@@ -1,0 +1,297 @@
+import {
+  getAuthenticatedSkills,
+  getAuthenticatedSkill,
+  createAuthenticatedSkill,
+  updateAuthenticatedSkill,
+  setAuthenticatedSkillArchiveStatus,
+  deleteAuthenticatedSkill,
+} from "../services/Service/skillService.js";
+
+import {
+  skillListQuerySchema,
+  skillIdParamsSchema,
+  formatSkillSchemaErrors,
+} from "../schemas/skillSchemas.js";
+
+function requestError(message) {
+  const error = new Error(message);
+
+  error.name = "SkillRequestError";
+  error.code = "SKILL_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+
+  return error;
+}
+
+function requireFields(value, allowedFields) {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw requestError("Request body must be a JSON object.");
+  }
+
+  const unexpected = Object.keys(value).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw requestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return value;
+}
+
+function validateSchema(schema, value) {
+  const result = schema.safeParse(value);
+
+  if (!result.success) {
+    const error = requestError(
+      "The request contains invalid Skill parameters.",
+    );
+
+    error.errors = formatSkillSchemaErrors(result.error);
+
+    throw error;
+  }
+
+  return result.data;
+}
+
+function sendSuccess(response, status, message, data) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+
+  return response.status(status).json({
+    status: "success",
+    message,
+    data,
+  });
+}
+
+function getSkillId(request) {
+  const params = validateSchema(
+    skillIdParamsSchema,
+    request.params,
+  );
+
+  return params.skillId;
+}
+
+export async function listMySkills(request, response, next) {
+  try {
+    const filters = validateSchema(
+      skillListQuerySchema,
+      request.query,
+    );
+
+    const allSkills = await getAuthenticatedSkills({
+      userId: request.auth.userId,
+    });
+
+    const query = filters.query.toLocaleLowerCase();
+
+    const skills = allSkills
+      .filter((skill) => {
+        if (!filters.includeArchived && skill.status === "archived") {
+          return false;
+        }
+
+        if (
+          filters.category !== "all" &&
+          skill.category !== filters.category
+        ) {
+          return false;
+        }
+
+        if (
+          filters.type !== "all" &&
+          skill.type !== filters.type
+        ) {
+          return false;
+        }
+
+        if (!query) {
+          return true;
+        }
+
+        const searchable = [
+          skill.name,
+          skill.description,
+          ...(Array.isArray(skill.aliases) ? skill.aliases : []),
+        ];
+
+        return searchable.some(
+          (value) =>
+            typeof value === "string" &&
+            value.toLocaleLowerCase().includes(query),
+        );
+      })
+      .sort((a, b) => {
+        switch (filters.sort) {
+          case "name-descending":
+            return b.name.localeCompare(a.name);
+
+          case "recently-updated":
+            return (
+              new Date(b.updatedAt).getTime() -
+              new Date(a.updatedAt).getTime()
+            );
+
+          case "oldest-updated":
+            return (
+              new Date(a.updatedAt).getTime() -
+              new Date(b.updatedAt).getTime()
+            );
+
+          default:
+            return a.name.localeCompare(b.name);
+        }
+      });
+
+    return sendSuccess(
+      response,
+      200,
+      "Skills retrieved successfully.",
+      { skills },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMySkill(request, response, next) {
+  try {
+    const skill = await getAuthenticatedSkill({
+      userId: request.auth.userId,
+      skillId: getSkillId(request),
+    });
+
+    return sendSuccess(
+      response,
+      200,
+      "Skill retrieved successfully.",
+      { skill },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMySkill(request, response, next) {
+  try {
+    const body = requireFields(request.body, [
+      "name",
+      "category",
+      "type",
+      "description",
+      "aliases",
+      "proficiency",
+      "language",
+      "source",
+      "sourceContext",
+      "notes",
+      "status",
+    ]);
+
+    const skill = await createAuthenticatedSkill({
+      userId: request.auth.userId,
+      skill: body,
+    });
+
+    return sendSuccess(
+      response,
+      201,
+      "Skill created successfully.",
+      { skill },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMySkill(request, response, next) {
+  try {
+    const body = requireFields(request.body, [
+      "updates",
+      "rowVersion",
+    ]);
+
+    const skill = await updateAuthenticatedSkill({
+      userId: request.auth.userId,
+      skillId: getSkillId(request),
+      updates: body.updates,
+      rowVersion: body.rowVersion,
+    });
+
+    return sendSuccess(
+      response,
+      200,
+      "Skill updated successfully.",
+      { skill },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function setMySkillArchiveStatus(
+  request,
+  response,
+  next,
+) {
+  try {
+    const body = requireFields(request.body, [
+      "archived",
+      "rowVersion",
+    ]);
+
+    if (typeof body.archived !== "boolean") {
+      throw requestError("Archive status must be true or false.");
+    }
+
+    const skill = await setAuthenticatedSkillArchiveStatus({
+      userId: request.auth.userId,
+      skillId: getSkillId(request),
+      archived: body.archived,
+      rowVersion: body.rowVersion,
+    });
+
+    return sendSuccess(
+      response,
+      200,
+      body.archived
+        ? "Skill archived successfully."
+        : "Skill restored successfully.",
+      { skill },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMySkill(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["rowVersion"]);
+
+    await deleteAuthenticatedSkill({
+      userId: request.auth.userId,
+      skillId: getSkillId(request),
+      rowVersion: body.rowVersion,
+    });
+
+    // Permanent deletion is currently disabled by the service.
+    throw requestError(
+      "Permanent Skill deletion is not available.",
+    );
+  } catch (error) {
+    return next(error);
+  }
+}

@@ -1,0 +1,765 @@
+SKILLS API TEST PATTERNS INSPECTION
+Generated: 2026-10-29 17:01:59
+
+
+================================================================================
+FILE: frontend\tests\Experience\experienceApiService.test.mjs
+================================================================================
+Total lines: 464
+    1: import test from "node:test";
+    2: import assert from "node:assert/strict";
+    3: 
+    4: import {
+    5:   fetchExperiences,
+    6:   fetchExperienceById,
+    7:   createExperienceApi,
+    8:   updateExperienceApi,
+    9:   setExperienceArchivedApi,
+   10:   deleteExperienceApi,
+   11: } from "../../src/services/Experience/experienceApiService.js";
+   12: 
+   13: const ROW_VERSION = "AAAAAAAAAAE=";
+   14: 
+   15: const EXPERIENCE = {
+   16:   id: "experience-123",
+   17:   category: "employment",
+   18:   position: {
+   19:     title: "Software Engineer",
+   20:   },
+   21:   organization: {
+   22:     name: "MoticH",
+   23:   },
+   24:   status: "active",
+   25:   createdAt: "2026-01-01T00:00:00.000Z",
+   26:   updatedAt: "2026-01-02T00:00:00.000Z",
+   27:   rowVersion: ROW_VERSION,
+   28: };
+   29: 
+   30: function mockResponse(data, status = 200) {
+   31:   return new Response(JSON.stringify(data), {
+   32:     status,
+   33:     headers: {
+   34:       "Content-Type": "application/json",
+   35:     },
+   36:   });
+   37: }
+   38: 
+   39: async function withMockFetch(handler, callback) {
+   40:   const originalFetch = globalThis.fetch;
+   41:   const requests = [];
+   42: 
+   43:   globalThis.fetch = async (url, options = {}) => {
+   44:     const request = {
+   45:       url: String(url),
+   46:       method: options.method,
+   47:       credentials: options.credentials,
+   48:       body: options.body,
+   49:       headers: options.headers,
+   50:     };
+   51: 
+   52:     requests.push(request);
+   53: 
+   54:     return handler(request);
+   55:   };
+   56: 
+   57:   try {
+   58:     await callback(requests);
+   59:   } finally {
+   60:     globalThis.fetch = originalFetch;
+   61:   }
+   62: }
+   63: 
+   64: function assertEndpoint(request, method, path) {
+   65:   assert.equal(request.method, method);
+   66: 
+   67:   assert.equal(
+   68:     new URL(request.url).pathname,
+   69:     `/api${path}`,
+   70:   );
+   71: 
+   72:   assert.equal(request.credentials, "include");
+   73: }
+   74: 
+   75: function parseBody(request) {
+   76:   return JSON.parse(request.body);
+   77: }
+   78: 
+   79: test("GET retrieves the Experience collection", async () => {
+   80:   await withMockFetch(
+   81:     () =>
+   82:       mockResponse({
+   83:         data: {
+   84:           experiences: [EXPERIENCE],
+   85:         },
+   86:       }),
+   87:     async (requests) => {
+   88:       const result = await fetchExperiences();
+   89: 
+   90:       assert.deepEqual(result, [EXPERIENCE]);
+   91:       assert.equal(requests.length, 1);
+   92: 
+   93:       assertEndpoint(
+   94:         requests[0],
+   95:         "GET",
+   96:         "/experiences",
+   97:       );
+   98:     },
+   99:   );
+  100: });
+  101: 
+  102: test("GET retrieves one Experience by ID", async () => {
+  103:   await withMockFetch(
+  104:     () =>
+  105:       mockResponse({
+  106:         data: {
+  107:           experience: EXPERIENCE,
+  108:         },
+  109:       }),
+  110:     async (requests) => {
+  111:       const result = await fetchExperienceById(
+  112:         EXPERIENCE.id,
+  113:       );
+  114: 
+  115:       assert.deepEqual(result, EXPERIENCE);
+  116: 
+  117:       assertEndpoint(
+  118:         requests[0],
+  119:         "GET",
+  120:         `/experiences/${EXPERIENCE.id}`,
+  121:       );
+  122:     },
+  123:   );
+  124: });
+  125: 
+  126: test("POST creates an Experience without server-owned fields", async () => {
+  127:   await withMockFetch(
+  128:     () =>
+  129:       mockResponse(
+  130:         {
+  131:           data: {
+  132:             experience: EXPERIENCE,
+  133:           },
+  134:         },
+  135:         201,
+  136:       ),
+  137:     async (requests) => {
+  138:       const result = await createExperienceApi(EXPERIENCE);
+  139: 
+  140:       assert.deepEqual(result, EXPERIENCE);
+  141: 
+  142:       assertEndpoint(
+  143:         requests[0],
+  144:         "POST",
+  145:         "/experiences",
+  146:       );
+  147: 
+  148:       const body = parseBody(requests[0]);
+  149: 
+  150:       assert.equal(body.id, EXPERIENCE.id);
+  151:       assert.equal(
+  152:         body.position.title,
+  153:         "Software Engineer",
+  154:       );
+  155: 
+  156:       assert.equal(
+  157:         Object.hasOwn(body, "createdAt"),
+  158:         false,
+  159:       );
+  160: 
+  161:       assert.equal(
+  162:         Object.hasOwn(body, "updatedAt"),
+  163:         false,
+  164:       );
+  165: 
+  166:       assert.equal(
+  167:         Object.hasOwn(body, "rowVersion"),
+  168:         false,
+  169:       );
+  170: 
+  171:       // Original object must remain unchanged.
+  172:       assert.equal(
+  173:         EXPERIENCE.rowVersion,
+  174:         ROW_VERSION,
+  175:       );
+  176:     },
+  177:   );
+  178: });
+  179: 
+  180: test("PUT updates an Experience with rowVersion", async () => {
+  181:   await withMockFetch(
+  182:     () =>
+  183:       mockResponse({
+  184:         data: {
+  185:           experience: EXPERIENCE,
+  186:         },
+  187:       }),
+  188:     async (requests) => {
+  189:       const result = await updateExperienceApi(
+  190:         EXPERIENCE.id,
+  191:         EXPERIENCE,
+  192:         ROW_VERSION,
+  193:       );
+  194: 
+  195:       assert.deepEqual(result, EXPERIENCE);
+  196: 
+  197:       assertEndpoint(
+  198:         requests[0],
+  199:         "PUT",
+  200:         `/experiences/${EXPERIENCE.id}`,
+  201:       );
+  202: 
+  203:       const body = parseBody(requests[0]);
+  204: 
+  205:       assert.equal(body.rowVersion, ROW_VERSION);
+  206: 
+  207:       assert.equal(
+  208:         body.experience.position.title,
+  209:         "Software Engineer",
+  210:       );
+  211: 
+  212:       assert.equal(
+  213:         Object.hasOwn(
+  214:           body.experience,
+  215:           "rowVersion",
+  216:         ),
+  217:         false,
+  218:       );
+  219:     },
+  220:   );
+  221: });
+  222: 
+  223: test("PATCH archives an Experience with rowVersion", async () => {
+  224:   await withMockFetch(
+  225:     () =>
+  226:       mockResponse({
+  227:         data: {
+  228:           experience: {
+  229:             ...EXPERIENCE,
+  230:             status: "archived",
+  231:           },
+  232:         },
+  233:       }),
+  234:     async (requests) => {
+  235:       const result = await setExperienceArchivedApi(
+  236:         EXPERIENCE.id,
+  237:         true,
+  238:         ROW_VERSION,
+  239:       );
+  240: 
+  241:       assert.equal(result.status, "archived");
+  242: 
+  243:       assertEndpoint(
+  244:         requests[0],
+  245:         "PATCH",
+  246:         `/experiences/${EXPERIENCE.id}/archive`,
+  247:       );
+  248: 
+  249:       assert.deepEqual(
+  250:         parseBody(requests[0]),
+  251:         {
+  252:           archived: true,
+  253:           rowVersion: ROW_VERSION,
+  254:         },
+  255:       );
+  256:     },
+  257:   );
+  258: });
+  259: 
+  260: test("PATCH restores an archived Experience", async () => {
+  261:   await withMockFetch(
+  262:     () =>
+  263:       mockResponse({
+  264:         data: {
+  265:           experience: EXPERIENCE,
+  266:         },
+  267:       }),
+  268:     async (requests) => {
+  269:       const result = await setExperienceArchivedApi(
+  270:         EXPERIENCE.id,
+  271:         false,
+  272:         ROW_VERSION,
+  273:       );
+  274: 
+  275:       assert.equal(result.status, "active");
+  276: 
+  277:       assert.deepEqual(
+  278:         parseBody(requests[0]),
+  279:         {
+  280:           archived: false,
+  281:           rowVersion: ROW_VERSION,
+  282:         },
+  283:       );
+  284:     },
+  285:   );
+  286: });
+  287: 
+  288: test("DELETE sends rowVersion in the request body", async () => {
+  289:   await withMockFetch(
+  290:     () =>
+  291:       mockResponse({
+  292:         data: {
+  293:           deleted: true,
+  294:         },
+  295:       }),
+  296:     async (requests) => {
+  297:       const result = await deleteExperienceApi(
+  298:         EXPERIENCE.id,
+  299:         ROW_VERSION,
+  300:       );
+  301: 
+  302:       assert.deepEqual(result, {
+  303:         deleted: true,
+  304:       });
+  305: 
+  306:       assertEndpoint(
+  307:         requests[0],
+  308:         "DELETE",
+  309:         `/experiences/${EXPERIENCE.id}`,
+  310:       );
+  311: 
+  312:       assert.deepEqual(
+  313:         parseBody(requests[0]),
+  314:         {
+  315:           rowVersion: ROW_VERSION,
+  316:         },
+  317:       );
+  318:     },
+  319:   );
+  320: });
+  321: 
+  322: test("rejects invalid rowVersion before sending a request", async () => {
+  323:   await withMockFetch(
+  324:     () => {
+  325:       throw new Error("Request should not be sent.");
+  326:     },
+  327:     async (requests) => {
+  328:       await assert.rejects(
+  329:         updateExperienceApi(
+  330:           EXPERIENCE.id,
+  331:           EXPERIENCE,
+  332:           "invalid",
+  333:         ),
+  334:         TypeError,
+  335:       );
+  336: 
+  337:       await assert.rejects(
+  338:         setExperienceArchivedApi(
+  339:           EXPERIENCE.id,
+  340:           true,
+  341:           "",
+  342:         ),
+  343:         TypeError,
+  344:       );
+  345: 
+  346:       await assert.rejects(
+  347:         deleteExperienceApi(
+  348:           EXPERIENCE.id,
+  349:           null,
+  350:         ),
+  351:         TypeError,
+  352:       );
+  353: 
+  354:       assert.equal(requests.length, 0);
+  355:     },
+  356:   );
+  357: });
+  358: 
+  359: test("rejects invalid Experience IDs", async () => {
+  360:   await assert.rejects(
+  361:     fetchExperienceById(""),
+  362:     TypeError,
+  363:   );
+  364: 
+  365:   await assert.rejects(
+  366:     fetchExperienceById(null),
+  367:     TypeError,
+  368:   );
+  369: });
+  370: 
+  371: test("preserves backend validation errors", async () => {
+  372:   await withMockFetch(
+  373:     () =>
+  374:       mockResponse(
+  375:         {
+  376:           code: "EXPERIENCE_VALIDATION_FAILED",
+  377:           message: "Experience validation failed.",
+  378:           fieldErrors: {
+  379:             "position.title": "Title is required.",
+  380:           },
+  381:         },
+  382:         400,
+  383:       ),
+  384:     async () => {
+  385:       await assert.rejects(
+  386:         createExperienceApi(EXPERIENCE),
+  387:         (error) => {
+  388:           assert.equal(error.status, 400);
+  389: 
+  390:           assert.equal(
+  391:             error.code,
+  392:             "EXPERIENCE_VALIDATION_FAILED",
+  393:           );
+  394: 
+  395:           assert.equal(
+  396:             error.fieldErrors["position.title"],
+  397:             "Title is required.",
+  398:           );
+  399: 
+  400:           return true;
+  401:         },
+  402:       );
+  403:     },
+  404:   );
+  405: });
+  406: 
+  407: test("preserves concurrency conflict errors", async () => {
+  408:   await withMockFetch(
+  409:     () =>
+  410:       mockResponse(
+  411:         {
+  412:           code: "EXPERIENCE_CONFLICT",
+  413:           message: "Experience was modified.",
+  414:         },
+  415:         409,
+  416:       ),
+  417:     async () => {
+  418:       await assert.rejects(
+  419:         updateExperienceApi(
+  420:           EXPERIENCE.id,
+  421:           EXPERIENCE,
+  422:           ROW_VERSION,
+  423:         ),
+  424:         (error) => {
+  425:           assert.equal(error.status, 409);
+  426:           assert.equal(
+  427:             error.code,
+  428:             "EXPERIENCE_CONFLICT",
+  429:           );
+  430: 
+  431:           return true;
+  432:         },
+  433:       );
+  434:     },
+  435:   );
+  436: });
+  437: 
+  438: test("preserves authentication errors", async () => {
+  439:   await withMockFetch(
+  440:     () =>
+  441:       mockResponse(
+  442:         {
+  443:           code: "AUTHENTICATION_REQUIRED",
+  444:           message: "Authentication required.",
+  445:         },
+  446:         401,
+  447:       ),
+  448:     async () => {
+  449:       await assert.rejects(
+  450:         fetchExperiences(),
+  451:         (error) => {
+  452:           assert.equal(error.status, 401);
+  453: 
+  454:           assert.equal(
+  455:             error.code,
+  456:             "AUTHENTICATION_REQUIRED",
+  457:           );
+  458: 
+  459:           return true;
+  460:         },
+  461:       );
+  462:     },
+  463:   );
+  464: });
+
+================================================================================
+FILE: frontend\tests\Project\projectApiService.test.js
+================================================================================
+Total lines: 175
+    1: import test from "node:test";
+    2: import assert from "node:assert/strict";
+    3: 
+    4: import {
+    5:   fetchProjects,
+    6:   fetchProjectById,
+    7:   createProjectApi,
+    8:   updateProjectApi,
+    9:   setProjectArchivedApi,
+   10:   deleteProjectApi,
+   11: } from "../../src/services/Project/projectApiService.js";
+   12: 
+   13: const ROW_VERSION = "AAAAAAAAAAE=";
+   14: 
+   15: const project = {
+   16:   id: "project-test",
+   17:   title: "Test Project",
+   18:   createdAt: "2026-10-20",
+   19:   updatedAt: "2026-10-20",
+   20:   rowVersion: ROW_VERSION,
+   21:   presentation: {
+   22:     isFeatured: false,
+   23:   },
+   24: };
+   25: 
+   26: function createApiResponse(data, status = 200) {
+   27:   return new Response(
+   28:     JSON.stringify({
+   29:       status: "success",
+   30:       message: "OK",
+   31:       data,
+   32:     }),
+   33:     {
+   34:       status,
+   35:       headers: {
+   36:         "Content-Type": "application/json",
+   37:       },
+   38:     },
+   39:   );
+   40: }
+   41: 
+   42: async function withMockFetch(callback, responseData, status = 200) {
+   43:   const originalFetch = globalThis.fetch;
+   44:   const requests = [];
+   45: 
+   46:   globalThis.fetch = async (url, options = {}) => {
+   47:     requests.push({ url: String(url), options });
+   48:     return createApiResponse(responseData, status);
+   49:   };
+   50: 
+   51:   try {
+   52:     await callback(requests);
+   53:   } finally {
+   54:     globalThis.fetch = originalFetch;
+   55:   }
+   56: }
+   57: 
+   58: test("fetchProjects sends GET and returns Projects", async () => {
+   59:   await withMockFetch(
+   60:     async (requests) => {
+   61:       const result = await fetchProjects();
+   62: 
+   63:       assert.deepEqual(result, [project]);
+   64:       assert.equal(requests.length, 1);
+   65:       assert.match(requests[0].url, /\/api\/projects$/);
+   66:       assert.equal(requests[0].options.method, "GET");
+   67:     },
+   68:     { projects: [project] },
+   69:   );
+   70: });
+   71: 
+   72: test("fetchProjectById sends GET for one Project", async () => {
+   73:   await withMockFetch(
+   74:     async (requests) => {
+   75:       const result = await fetchProjectById(project.id);
+   76: 
+   77:       assert.deepEqual(result, project);
+   78:       assert.match(requests[0].url, /\/api\/projects\/project-test$/);
+   79:       assert.equal(requests[0].options.method, "GET");
+   80:     },
+   81:     { project },
+   82:   );
+   83: });
+   84: 
+   85: test("createProjectApi removes server-owned fields", async () => {
+   86:   await withMockFetch(
+   87:     async (requests) => {
+   88:       const result = await createProjectApi(project);
+   89: 
+   90:       assert.deepEqual(result, project);
+   91:       assert.equal(requests[0].options.method, "POST");
+   92: 
+   93:       const body = JSON.parse(requests[0].options.body);
+   94: 
+   95:       assert.equal(body.title, project.title);
+   96:       assert.equal(Object.hasOwn(body, "createdAt"), false);
+   97:       assert.equal(Object.hasOwn(body, "updatedAt"), false);
+   98:       assert.equal(Object.hasOwn(body, "rowVersion"), false);
+   99: 
+  100:       assert.equal(project.createdAt, "2026-10-20");
+  101:     },
+  102:     { project },
+  103:     201,
+  104:   );
+  105: });
+  106: 
+  107: test("updateProjectApi sends Project and rowVersion separately", async () => {
+  108:   await withMockFetch(
+  109:     async (requests) => {
+  110:       const result = await updateProjectApi(
+  111:         project.id,
+  112:         project,
+  113:         ROW_VERSION,
+  114:       );
+  115: 
+  116:       assert.deepEqual(result, project);
+  117:       assert.equal(requests[0].options.method, "PUT");
+  118: 
+  119:       const body = JSON.parse(requests[0].options.body);
+  120: 
+  121:       assert.equal(body.rowVersion, ROW_VERSION);
+  122:       assert.equal(body.project.title, project.title);
+  123:       assert.equal(Object.hasOwn(body.project, "createdAt"), false);
+  124:       assert.equal(Object.hasOwn(body.project, "rowVersion"), false);
+  125:     },
+  126:     { project },
+  127:   );
+  128: });
+  129: 
+  130: test("setProjectArchivedApi sends PATCH with rowVersion", async () => {
+  131:   await withMockFetch(
+  132:     async (requests) => {
+  133:       await setProjectArchivedApi(
+  134:         project.id,
+  135:         true,
+  136:         ROW_VERSION,
+  137:       );
+  138: 
+  139:       assert.equal(requests[0].options.method, "PATCH");
+  140:       assert.match(requests[0].url, /\/archive$/);
+  141: 
+  142:       const body = JSON.parse(requests[0].options.body);
+  143: 
+  144:       assert.deepEqual(body, {
+  145:         archived: true,
+  146:         rowVersion: ROW_VERSION,
+  147:       });
+  148:     },
+  149:     { project },
+  150:   );
+  151: });
+  152: 
+  153: test("deleteProjectApi sends DELETE with rowVersion", async () => {
+  154:   await withMockFetch(
+  155:     async (requests) => {
+  156:       const result = await deleteProjectApi(
+  157:         project.id,
+  158:         ROW_VERSION,
+  159:       );
+  160: 
+  161:       assert.equal(requests[0].options.method, "DELETE");
+  162: 
+  163:       const body = JSON.parse(requests[0].options.body);
+  164: 
+  165:       assert.deepEqual(body, {
+  166:         rowVersion: ROW_VERSION,
+  167:       });
+  168: 
+  169:       assert.deepEqual(result, {
+  170:         deleted: true,
+  171:       });
+  172:     },
+  173:     { deleted: true },
+  174:   );
+  175: });
+
+================================================================================
+FILE: frontend\tests\Project\projectApiErrors.test.js
+================================================================================
+Total lines: 108
+    1: import test from "node:test";
+    2: import assert from "node:assert/strict";
+    3: 
+    4: import {
+    5:   updateProjectApi,
+    6:   fetchProjects,
+    7: } from "../../src/services/Project/projectApiService.js";
+    8: 
+    9: import { ApiError } from "../../src/services/apiClient.js";
+   10: 
+   11: const ROW_VERSION = "AAAAAAAAAAE=";
+   12: 
+   13: async function withMockError(status, code, message, callback) {
+   14:   const originalFetch = globalThis.fetch;
+   15: 
+   16:   let requestCount = 0;
+   17: 
+   18:   globalThis.fetch = async () => {
+   19:     requestCount += 1;
+   20: 
+   21:     return new Response(
+   22:       JSON.stringify({
+   23:         status: "error",
+   24:         code,
+   25:         message,
+   26:       }),
+   27:       {
+   28:         status,
+   29:         headers: {
+   30:           "Content-Type": "application/json",
+   31:         },
+   32:       },
+   33:     );
+   34:   };
+   35: 
+   36:   try {
+   37:     await callback(() => requestCount);
+   38:   } finally {
+   39:     globalThis.fetch = originalFetch;
+   40:   }
+   41: }
+   42: 
+   43: test("409 conflict preserves backend error details", async () => {
+   44:   await withMockError(
+   45:     409,
+   46:     "PROJECT_VERSION_CONFLICT",
+   47:     "The Project was modified by another session.",
+   48:     async (getRequestCount) => {
+   49:       await assert.rejects(
+   50:         updateProjectApi(
+   51:           "project-test",
+   52:           { id: "project-test", title: "Updated Project" },
+   53:           ROW_VERSION,
+   54:         ),
+   55:         (error) => {
+   56:           assert.ok(error instanceof ApiError);
+   57:           assert.equal(error.status, 409);
+   58:           assert.equal(error.code, "PROJECT_VERSION_CONFLICT");
+   59:           assert.equal(
+   60:             error.message,
+   61:             "The Project was modified by another session.",
+   62:           );
+   63:           return true;
+   64:         },
+   65:       );
+   66: 
+   67:       assert.equal(getRequestCount(), 1);
+   68:     },
+   69:   );
+   70: });
+   71: 
+   72: test("401 authentication error is preserved", async () => {
+   73:   await withMockError(
+   74:     401,
+   75:     "AUTHENTICATION_REQUIRED",
+   76:     "Authentication is required.",
+   77:     async () => {
+   78:       await assert.rejects(
+   79:         fetchProjects(),
+   80:         (error) => {
+   81:           assert.ok(error instanceof ApiError);
+   82:           assert.equal(error.status, 401);
+   83:           assert.equal(error.code, "AUTHENTICATION_REQUIRED");
+   84:           return true;
+   85:         },
+   86:       );
+   87:     },
+   88:   );
+   89: });
+   90: 
+   91: test("500 server error is preserved", async () => {
+   92:   await withMockError(
+   93:     500,
+   94:     "INTERNAL_SERVER_ERROR",
+   95:     "An internal server error occurred.",
+   96:     async () => {
+   97:       await assert.rejects(
+   98:         fetchProjects(),
+   99:         (error) => {
+  100:           assert.ok(error instanceof ApiError);
+  101:           assert.equal(error.status, 500);
+  102:           assert.equal(error.code, "INTERNAL_SERVER_ERROR");
+  103:           return true;
+  104:         },
+  105:       );
+  106:     },
+  107:   );
+  108: });

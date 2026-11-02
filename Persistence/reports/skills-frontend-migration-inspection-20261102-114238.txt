@@ -1,0 +1,2978 @@
+SKILLS FRONTEND MIGRATION INSPECTION
+Generated: 2026-11-02T11:42:38.0832466-05:00
+Root: D:\Documents\Project\Portfolio\portfolio-plateform\frontend
+
+================================================================================
+FILE: src\context\SkillDataContext.jsx
+================================================================================
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  archiveSkill as archiveSkillService,
+  checkSkillNameAvailability as checkSkillNameAvailabilityService,
+  createSkill as createSkillService,
+  deleteSkill as deleteSkillService,
+  findOrCreateSkill as findOrCreateSkillService,
+  getSkillById as getSkillByIdService,
+  getSkills as getSkillsService,
+  replaceSkills as replaceSkillsService,
+  resolveSkillMatch as resolveSkillMatchService,
+  restoreSkill as restoreSkillService,
+  updateSkill as updateSkillService,
+  validateSkillDraft as validateSkillDraftService,
+} from "../services/Skill/skillService.js";
+
+import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
+
+const SkillDataContext = createContext(null);
+
+const INITIAL_OPERATION = {
+  type: "",
+  skillId: "",
+  status: "idle",
+};
+
+function normalizeSkillContextError(error) {
+  return {
+    message:
+      error?.publicMessage ||
+      error?.message ||
+      "An unexpected Skill Library error occurred.",
+
+    code: error?.code || "SKILL_OPERATION_FAILED",
+
+    status: Number(error?.status) || 500,
+
+    errors: Array.isArray(error?.errors) ? error.errors : [],
+
+    warnings: Array.isArray(error?.warnings) ? error.warnings : [],
+
+    conflicts: Array.isArray(error?.conflicts) ? error.conflicts : [],
+
+    fieldErrors:
+      error?.fieldErrors && typeof error.fieldErrors === "object"
+        ? error.fieldErrors
+        : {},
+
+    validation: error?.validation || null,
+
+    usage: error?.usage && typeof error.usage === "object" ? error.usage : null,
+
+    details:
+      error?.details && typeof error.details === "object"
+        ? error.details
+        : null,
+
+    originalError: error,
+  };
+}
+
+function createSkillDeletionConflict(skillId, usage) {
+  const experienceCount = Number(usage?.experienceCount) || 0;
+
+  const error = new Error(`Skill "${skillId}" is still referenced.`);
+
+  error.name = "SkillUsageConflictError";
+  error.code = "SKILL_IN_USE";
+  error.status = 409;
+
+  error.publicMessage =
+    experienceCount === 1
+      ? "This skill cannot be permanently deleted because it is used by an experience. Archive it instead."
+      : `This skill cannot be permanently deleted because it is used by ${experienceCount} experiences. Archive it instead.`;
+
+  error.usage = usage;
+
+  error.conflicts = [
+    {
+      field: "skillId",
+      code: "skill_in_use",
+      message: error.publicMessage,
+      skillId,
+      experienceCount,
+
+      experienceSkillCount: Number(usage?.experienceSkillCount) || 0,
+
+      experienceTechnologyCount: Number(usage?.experienceTechnologyCount) || 0,
+
+      experienceIds: Array.isArray(usage?.experiences)
+        ? usage.experiences.map((item) => item.id).filter(Boolean)
+        : [],
+    },
+  ];
+
+  return error;
+}
+
+function sortSkillLibrary(skills) {
+  return [...skills].sort((firstSkill, secondSkill) =>
+    firstSkill.name.localeCompare(secondSkill.name, undefined, {
+      sensitivity: "base",
+    }),
+  );
+}
+
+export function SkillDataProvider({ children }) {
+  const [skills, setSkills] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadStatus, setLoadStatus] = useState("idle");
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const [error, setError] = useState(null);
+  const [operation, setOperation] = useState(INITIAL_OPERATION);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const resetSaveStatus = useCallback(() => {
+    setSaveStatus("idle");
+  }, []);
+
+  const resetOperation = useCallback(() => {
+    setOperation(INITIAL_OPERATION);
+  }, []);
+
+  const refreshSkills = useCallback(
+    async ({ includeArchived = true, showLoading = true } = {}) => {
+      try {
+        if (showLoading) {
+          setIsLoading(true);
+          setLoadStatus("loading");
+        }
+
+        setError(null);
+
+        const loadedSkills = await getSkillsService({
+          includeArchived,
+        });
+
+        const nextSkills = sortSkillLibrary(
+          Array.isArray(loadedSkills) ? loadedSkills : [],
+        );
+
+        setSkills(nextSkills);
+        setLoadStatus("success");
+
+        return nextSkills;
+      } catch (loadError) {
+        console.error("Unable to load skills:", loadError);
+
+        setLoadStatus("error");
+
+        setError(normalizeSkillContextError(loadError));
+
+        throw loadError;
+      } finally {
+        if (showLoading) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let isActive = true;
+
+    getSkillsService({
+      includeArchived: true,
+    })
+      .then((loadedSkills) => {
+        if (!isActive) {
+          return;
+        }
+
+        setSkills(
+          sortSkillLibrary(Array.isArray(loadedSkills) ? loadedSkills : []),
+        );
+
+        setLoadStatus("success");
+      })
+      .catch((loadError) => {
+        if (!isActive) {
+          return;
+        }
+
+        console.error("Unable to load skills:", loadError);
+
+        setSkills([]);
+        setLoadStatus("error");
+
+        setError(normalizeSkillContextError(loadError));
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (
+        event.storageArea !== window.localStorage ||
+        event.key !== SKILL_STORAGE_KEY
+      ) {
+        return;
+      }
+
+      refreshSkills({
+        includeArchived: true,
+        showLoading: false,
+      }).catch(() => {});
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [refreshSkills]);
+
+  const getSkillById = useCallback(
+    async (skillId) => {
+      const existingSkill = skills.find((skill) => skill.id === skillId);
+
+      if (existingSkill) {
+        return existingSkill;
+      }
+
+      try {
+        setError(null);
+
+        return await getSkillByIdService(skillId);
+      } catch (getError) {
+        setError(normalizeSkillContextError(getError));
+
+        throw getError;
+      }
+    },
+    [skills],
+  );
+
+  const createSkill = useCallback(async (skillData) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "create",
+        skillId: "",
+        status: "loading",
+      });
+
+      const createdSkill = await createSkillService(skillData);
+
+      setSkills((current) =>
+        sortSkillLibrary([
+          createdSkill,
+          ...current.filter((skill) => skill.id !== createdSkill.id),
+        ]),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "create",
+        skillId: createdSkill.id,
+        status: "success",
+      });
+
+      return createdSkill;
+    } catch (createError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "create",
+        skillId: "",
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(createError));
+
+      throw createError;
+    }
+  }, []);
+
+  const updateSkill = useCallback(async (skillId, updates) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "update",
+        skillId,
+        status: "loading",
+      });
+
+      const updatedSkill = await updateSkillService(skillId, updates);
+
+      setSkills((current) =>
+        sortSkillLibrary(
+          current.map((skill) => (skill.id === skillId ? updatedSkill : skill)),
+        ),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "update",
+        skillId,
+        status: "success",
+      });
+
+      return updatedSkill;
+    } catch (updateError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "update",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(updateError));
+
+      throw updateError;
+    }
+  }, []);
+
+  const findOrCreateSkill = useCallback(async (skillData, options = {}) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "find-or-create",
+        skillId: "",
+        status: "loading",
+      });
+
+      const result = await findOrCreateSkillService(skillData, options);
+
+      const resolvedSkill = result.skill;
+
+      setSkills((current) => {
+        const exists = current.some((skill) => skill.id === resolvedSkill.id);
+
+        const next = exists
+          ? current.map((skill) =>
+              skill.id === resolvedSkill.id ? resolvedSkill : skill,
+            )
+          : [resolvedSkill, ...current];
+
+        return sortSkillLibrary(next);
+      });
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "find-or-create",
+        skillId: resolvedSkill.id,
+        status: "success",
+      });
+
+      return result;
+    } catch (operationError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "find-or-create",
+        skillId: "",
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(operationError));
+
+      throw operationError;
+    }
+  }, []);
+
+  const archiveSkill = useCallback(async (skillId) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "archive",
+        skillId,
+        status: "loading",
+      });
+
+      const archivedSkill = await archiveSkillService(skillId);
+
+      setSkills((current) =>
+        sortSkillLibrary(
+          current.map((skill) =>
+            skill.id === skillId ? archivedSkill : skill,
+          ),
+        ),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "archive",
+        skillId,
+        status: "success",
+      });
+
+      return archivedSkill;
+    } catch (archiveError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "archive",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(archiveError));
+
+      throw archiveError;
+    }
+  }, []);
+
+  const restoreSkill = useCallback(async (skillId) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "restore",
+        skillId,
+        status: "loading",
+      });
+
+      const restoredSkill = await restoreSkillService(skillId);
+
+      setSkills((current) =>
+        sortSkillLibrary(
+          current.map((skill) =>
+            skill.id === skillId ? restoredSkill : skill,
+          ),
+        ),
+      );
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "restore",
+        skillId,
+        status: "success",
+      });
+
+      return restoredSkill;
+    } catch (restoreError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "restore",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(restoreError));
+
+      throw restoreError;
+    }
+  }, []);
+
+  const deleteSkill = useCallback(async (skillId, { usage = null } = {}) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "delete",
+        skillId,
+        status: "loading",
+      });
+
+      if (Number(usage?.total ?? usage?.totalUsage) > 0) {
+        throw createSkillDeletionConflict(skillId, usage);
+      }
+
+      const deletionResult = await deleteSkillService(skillId);
+
+      setSkills((current) => current.filter((skill) => skill.id !== skillId));
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "delete",
+        skillId,
+        status: "success",
+      });
+
+      return deletionResult;
+    } catch (deleteError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "delete",
+        skillId,
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(deleteError));
+
+      throw deleteError;
+    }
+  }, []);
+
+  const replaceSkills = useCallback(async (skillValues) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "loading",
+      });
+
+      const replaced = await replaceSkillsService(skillValues);
+
+      setSkills(sortSkillLibrary(replaced));
+
+      setSaveStatus("success");
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "success",
+      });
+
+      return replaced;
+    } catch (replaceError) {
+      setSaveStatus("error");
+
+      setOperation({
+        type: "replace",
+        skillId: "",
+        status: "error",
+      });
+
+      setError(normalizeSkillContextError(replaceError));
+
+      throw replaceError;
+    }
+  }, []);
+
+  const validateSkillDraft = useCallback(
+    (skillData, options = {}) => validateSkillDraftService(skillData, options),
+    [],
+  );
+
+  const checkSkillNameAvailability = useCallback(
+    (name, options = {}) => checkSkillNameAvailabilityService(name, options),
+    [],
+  );
+
+  const resolveSkillMatch = useCallback(
+    (name) => resolveSkillMatchService(name),
+    [],
+  );
+
+  const activeSkills = useMemo(
+    () => skills.filter((skill) => skill.status !== "archived"),
+    [skills],
+  );
+
+  const archivedSkills = useMemo(
+    () => skills.filter((skill) => skill.status === "archived"),
+    [skills],
+  );
+
+  const skillsById = useMemo(
+    () => new Map(skills.map((skill) => [skill.id, skill])),
+    [skills],
+  );
+
+  const skillsByCategory = useMemo(
+    () =>
+      activeSkills.reduce((groups, skill) => {
+        if (!groups[skill.category]) {
+          groups[skill.category] = [];
+        }
+
+        groups[skill.category].push(skill);
+
+        return groups;
+      }, {}),
+    [activeSkills],
+  );
+
+  const statistics = useMemo(
+    () => ({
+      total: skills.length,
+      active: activeSkills.length,
+      archived: archivedSkills.length,
+
+      technical: activeSkills.filter((skill) => skill.type === "technical")
+        .length,
+
+      professional: activeSkills.filter(
+        (skill) => skill.type === "professional",
+      ).length,
+
+      languages: activeSkills.filter((skill) => skill.type === "language")
+        .length,
+
+      aiSuggested: activeSkills.filter(
+        (skill) => skill.source === "ai-suggested",
+      ).length,
+    }),
+    [skills, activeSkills, archivedSkills],
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      skills,
+      activeSkills,
+      archivedSkills,
+      skillsById,
+      skillsByCategory,
+      statistics,
+
+      isLoading,
+      loadStatus,
+      saveStatus,
+      operation,
+      error,
+
+      refreshSkills,
+      getSkillById,
+      resolveSkillMatch,
+
+      createSkill,
+      updateSkill,
+      findOrCreateSkill,
+      archiveSkill,
+      restoreSkill,
+      deleteSkill,
+      replaceSkills,
+
+      validateSkillDraft,
+      checkSkillNameAvailability,
+
+      clearError,
+      resetSaveStatus,
+      resetOperation,
+    }),
+    [
+      skills,
+      activeSkills,
+      archivedSkills,
+      skillsById,
+      skillsByCategory,
+      statistics,
+      isLoading,
+      loadStatus,
+      saveStatus,
+      operation,
+      error,
+      refreshSkills,
+      getSkillById,
+      resolveSkillMatch,
+      createSkill,
+      updateSkill,
+      findOrCreateSkill,
+      archiveSkill,
+      restoreSkill,
+      deleteSkill,
+      replaceSkills,
+      validateSkillDraft,
+      checkSkillNameAvailability,
+      clearError,
+      resetSaveStatus,
+      resetOperation,
+    ],
+  );
+
+  return (
+    <SkillDataContext.Provider value={contextValue}>
+      {children}
+    </SkillDataContext.Provider>
+  );
+}
+
+export function useSkillData() {
+  const context = useContext(SkillDataContext);
+
+  if (!context) {
+    throw new Error("useSkillData must be used inside SkillDataProvider.");
+  }
+
+  return context;
+}
+
+
+================================================================================
+FILE: src\services\Skill\skillService.js
+================================================================================
+import {
+  createEmptySkill,
+  createSkill as createSkillModel,
+  findMatchingSkill,
+  normalizeSkill,
+  normalizeSkillCollection,
+  normalizeSkillNameForComparison,
+  updateSkillModel,
+} from "../../models/skillModel.js";
+
+import { readStoredExperiences } from "../Experience/experienceStorage.js";
+
+import { readStoredEducation } from "../Education/educationStorage.js";
+
+import { readStoredTraining } from "../Training/trainingStorage.js";
+
+import { getSkillUsage } from "./skillUtils.js";
+
+import {
+  assertValidSkill,
+  validateSkill,
+  validateSkillNameAvailability,
+} from "./skillValidation.js";
+
+import { readStoredSkills, replaceStoredSkills } from "./skillStorage.js";
+
+/*
+ * =========================================
+ * Service Error
+ * =========================================
+ */
+
+function createSkillServiceError({
+  message,
+  publicMessage,
+  code,
+  status = 500,
+  details = null,
+  conflicts = [],
+  usage = null,
+}) {
+  const error = new Error(message);
+
+  error.name = "SkillServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  error.details = details;
+
+  error.conflicts = Array.isArray(conflicts) ? conflicts : [];
+
+  error.usage = usage && typeof usage === "object" ? usage : null;
+
+  return error;
+}
+
+function createSkillNotFoundError(skillId) {
+  return createSkillServiceError({
+    message: `Skill "${skillId}" was not found.`,
+
+    publicMessage: "The requested skill could not be found.",
+
+    code: "SKILL_NOT_FOUND",
+
+    status: 404,
+  });
+}
+
+/*
+ * =========================================
+ * Skill Usage Conflict
+ * =========================================
+ */
+
+function createSkillUsageConflict(skill, usage) {
+  const experienceCount = Number(usage?.experienceCount) || 0;
+
+  const educationCount = Number(usage?.educationCount) || 0;
+
+  const trainingCount = Number(usage?.trainingCount) || 0;
+
+  const resumeCount = Number(usage?.resumeCount) || 0;
+
+  const portfolioCount = Number(usage?.portfolioCount) || 0;
+
+  const experienceSkillCount = Number(usage?.experienceSkillCount) || 0;
+
+  const experienceTechnologyCount =
+    Number(usage?.experienceTechnologyCount) || 0;
+
+  const educationSkillCount = Number(usage?.educationSkillCount) || 0;
+
+  const trainingSkillCount = Number(usage?.trainingSkillCount) || 0;
+
+  const relationshipCount =
+    experienceSkillCount +
+    experienceTechnologyCount +
+    educationSkillCount +
+    trainingSkillCount;
+
+  const recordCount =
+    experienceCount +
+    educationCount +
+    trainingCount +
+    resumeCount +
+    portfolioCount;
+
+  const publicMessage =
+    `"${skill.name}" cannot be permanently deleted because it is still ` +
+    `referenced by ${recordCount} ${
+      recordCount === 1 ? "saved record" : "saved records"
+    }. Archive it instead.`;
+
+  const experienceConflicts = Array.isArray(usage?.experiences)
+    ? usage.experiences.map((experience) => ({
+        type: "experience",
+
+        recordId: experience.id,
+
+        recordName:
+          `${experience.positionTitle} at ` + experience.organizationName,
+
+        positionTitle: experience.positionTitle,
+
+        organizationName: experience.organizationName,
+
+        usedAsSkill: experience.usedAsSkill === true,
+
+        usedAsTechnology: experience.usedAsTechnology === true,
+      }))
+    : [];
+
+  const educationConflicts = Array.isArray(usage?.educationRecords)
+    ? usage.educationRecords.map((education) => ({
+        type: "education",
+
+        recordId: education.id,
+
+        recordName:
+          `${education.credentialName} at ` + education.institutionName,
+
+        credentialName: education.credentialName,
+
+        institutionName: education.institutionName,
+      }))
+    : [];
+
+  const trainingConflicts = Array.isArray(usage?.trainingRecords)
+    ? usage.trainingRecords.map((training) => ({
+        type: "training",
+
+        recordId: training.id,
+
+        recordName: `${training.title} from ` + training.providerName,
+
+        title: training.title,
+
+        providerName: training.providerName,
+      }))
+    : [];
+
+  return createSkillServiceError({
+    message:
+      `Skill "${skill.id}" has stored relationships ` +
+      "and cannot be deleted.",
+
+    publicMessage,
+
+    code: "SKILL_IN_USE",
+
+    status: 409,
+
+    details: {
+      skillId: skill.id,
+      skillName: skill.name,
+
+      recordCount,
+      relationshipCount,
+
+      experienceCount,
+      educationCount,
+      trainingCount,
+      resumeCount,
+      portfolioCount,
+
+      experienceSkillCount,
+      experienceTechnologyCount,
+      educationSkillCount,
+      trainingSkillCount,
+    },
+
+    usage,
+
+    conflicts: [
+      ...experienceConflicts,
+      ...educationConflicts,
+      ...trainingConflicts,
+    ],
+  });
+}
+
+/*
+ * =========================================
+ * Candidate Creation
+ * =========================================
+ */
+
+function createSkillCandidate(skillData = {}) {
+  const defaults = createEmptySkill();
+
+  const source = skillData && typeof skillData === "object" ? skillData : {};
+
+  return {
+    ...defaults,
+    ...source,
+
+    proficiency: {
+      ...defaults.proficiency,
+      ...source.proficiency,
+    },
+
+    language: {
+      ...defaults.language,
+      ...source.language,
+    },
+  };
+}
+
+/*
+ * =========================================
+ * Get All Skills
+ * =========================================
+ */
+
+export async function getSkills({
+  includeArchived = false,
+  category = "all",
+  type = "all",
+  query = "",
+} = {}) {
+  const skills = readStoredSkills();
+
+  const normalizedQuery = normalizeSkillNameForComparison(query);
+
+  return skills
+    .filter((skill) => {
+      if (!includeArchived && skill.status === "archived") {
+        return false;
+      }
+
+      if (category !== "all" && skill.category !== category) {
+        return false;
+      }
+
+      if (type !== "all" && skill.type !== type) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const searchableValues = [
+        skill.name,
+        skill.description,
+        skill.category,
+        skill.type,
+        ...(skill.aliases || []),
+      ]
+        .map(normalizeSkillNameForComparison)
+        .filter(Boolean);
+
+      return searchableValues.some((value) => value.includes(normalizedQuery));
+    })
+    .sort((firstSkill, secondSkill) =>
+      firstSkill.name.localeCompare(secondSkill.name, undefined, {
+        sensitivity: "base",
+      }),
+    );
+}
+
+/*
+ * =========================================
+ * Get Skill By ID
+ * =========================================
+ */
+
+export async function getSkillById(skillId) {
+  if (!skillId) {
+    throw createSkillServiceError({
+      message: "A skill ID is required to retrieve a skill.",
+
+      publicMessage: "The requested skill could not be identified.",
+
+      code: "SKILL_ID_REQUIRED",
+
+      status: 400,
+    });
+  }
+
+  const skills = readStoredSkills();
+
+  const skill = skills.find((candidate) => candidate.id === skillId);
+
+  if (!skill) {
+    throw createSkillNotFoundError(skillId);
+  }
+
+  return skill;
+}
+
+/*
+ * =========================================
+ * Find Skill By Name or Alias
+ * =========================================
+ */
+
+export async function findSkillByName(name) {
+  if (!normalizeSkillNameForComparison(name)) {
+    return null;
+  }
+
+  return findMatchingSkill(readStoredSkills(), name);
+}
+
+/*
+ * =========================================
+ * Create Skill
+ * =========================================
+ */
+
+export async function createSkill(skillData) {
+  const skills = readStoredSkills();
+
+  const candidate = createSkillCandidate(skillData);
+
+  assertValidSkill(candidate, {
+    existingSkills: skills,
+  });
+
+  const skill = createSkillModel(candidate);
+
+  const duplicateId = skills.some(
+    (existingSkill) => existingSkill.id === skill.id,
+  );
+
+  if (duplicateId) {
+    throw createSkillServiceError({
+      message: `Skill ID "${skill.id}" already exists.`,
+
+      publicMessage:
+        "This skill could not be created because its identifier already exists.",
+
+      code: "SKILL_ID_CONFLICT",
+
+      status: 409,
+    });
+  }
+
+  replaceStoredSkills([skill, ...skills]);
+
+  return skill;
+}
+
+/*
+ * =========================================
+ * Update Skill
+ * =========================================
+ */
+
+export async function updateSkill(skillId, updates = {}) {
+  if (!skillId) {
+    throw createSkillServiceError({
+      message: "A skill ID is required to update a skill.",
+
+      publicMessage: "The skill could not be identified.",
+
+      code: "SKILL_ID_REQUIRED",
+
+      status: 400,
+    });
+  }
+
+  const skills = readStoredSkills();
+
+  const skillIndex = skills.findIndex((skill) => skill.id === skillId);
+
+  if (skillIndex === -1) {
+    throw createSkillNotFoundError(skillId);
+  }
+
+  const currentSkill = skills[skillIndex];
+
+  const safeUpdates = updates && typeof updates === "object" ? updates : {};
+
+  const mergedSkill = {
+    ...currentSkill,
+    ...safeUpdates,
+
+    proficiency: {
+      ...currentSkill.proficiency,
+      ...safeUpdates.proficiency,
+    },
+
+    language: {
+      ...currentSkill.language,
+      ...safeUpdates.language,
+    },
+
+    id: currentSkill.id,
+
+    createdAt: currentSkill.createdAt,
+  };
+
+  assertValidSkill(mergedSkill, {
+    existingSkills: skills,
+    excludeSkillId: skillId,
+  });
+
+  const updatedSkill = updateSkillModel(currentSkill, safeUpdates);
+
+  const nextSkills = [...skills];
+
+  nextSkills[skillIndex] = updatedSkill;
+
+  replaceStoredSkills(nextSkills);
+
+  return updatedSkill;
+}
+
+/*
+ * =========================================
+ * Archive Skill
+ * =========================================
+ */
+
+export async function archiveSkill(skillId) {
+  /*
+   * Archiving is allowed even when the skill is
+   * referenced. Experience, Education, and Training
+   * relationships preserve readable snapshots.
+   */
+
+  return updateSkill(skillId, {
+    status: "archived",
+  });
+}
+
+/*
+ * =========================================
+ * Restore Skill
+ * =========================================
+ */
+
+export async function restoreSkill(skillId) {
+  return updateSkill(skillId, {
+    status: "active",
+  });
+}
+
+/*
+ * =========================================
+ * Resolve Stored Usage
+ * =========================================
+ */
+
+function resolveStoredSkillUsage(skillId) {
+  /*
+   * Active and archived parent records are checked.
+   * Archiving a parent record does not remove its
+   * central Skill Library relationships.
+   */
+
+  const experiences = readStoredExperiences();
+
+  const educationRecords = readStoredEducation();
+
+  const trainingRecords = readStoredTraining();
+
+  return getSkillUsage(skillId, {
+    experiences,
+    educationRecords,
+    trainingRecords,
+  });
+}
+
+/*
+ * =========================================
+ * Delete Skill
+ * =========================================
+ */
+
+export async function deleteSkill(skillId) {
+  if (!skillId) {
+    throw createSkillServiceError({
+      message: "A skill ID is required to delete a skill.",
+
+      publicMessage: "The skill could not be identified.",
+
+      code: "SKILL_ID_REQUIRED",
+
+      status: 400,
+    });
+  }
+
+  const skills = readStoredSkills();
+
+  const skillToDelete = skills.find((skill) => skill.id === skillId);
+
+  if (!skillToDelete) {
+    throw createSkillNotFoundError(skillId);
+  }
+
+  /*
+ * The service independently reads Experience,
+ * Education, and Training storage. Deletion
+ * protection cannot be bypassed by calling
+ * skillService directly.
+ */
+
+  const usage = resolveStoredSkillUsage(skillId);
+
+  if (Number(usage.total ?? usage.totalUsage) > 0) {
+    throw createSkillUsageConflict(skillToDelete, usage);
+  }
+
+  const remainingSkills = skills.filter((skill) => skill.id !== skillId);
+
+  replaceStoredSkills(remainingSkills);
+
+  return {
+    id: skillId,
+
+    name: skillToDelete.name,
+
+    deleted: true,
+  };
+}
+
+/*
+ * =========================================
+ * Resolve Skill Match
+ * =========================================
+ */
+
+export async function resolveSkillMatch(name) {
+  const skills = readStoredSkills();
+
+  const availability = validateSkillNameAvailability(name, skills);
+
+  if (availability.isAvailable || !availability.matchingSkill) {
+    return {
+      matched: false,
+      matchedBy: "",
+      skill: null,
+    };
+  }
+
+  const matchingSkill = availability.matchingSkill;
+
+  const normalizedRequestedName = normalizeSkillNameForComparison(name);
+
+  const normalizedPrimaryName = normalizeSkillNameForComparison(
+    matchingSkill.name,
+  );
+
+  return {
+    matched: true,
+
+    matchedBy:
+      normalizedRequestedName === normalizedPrimaryName ? "name" : "alias",
+
+    skill: matchingSkill,
+  };
+}
+
+/*
+ * =========================================
+ * Find or Create Skill
+ * =========================================
+ */
+
+export async function findOrCreateSkill(
+  skillData,
+  { restoreArchived = true } = {},
+) {
+  const candidateData =
+    typeof skillData === "string"
+      ? {
+          name: skillData,
+        }
+      : skillData && typeof skillData === "object"
+        ? skillData
+        : {};
+
+  const name =
+    typeof candidateData.name === "string" ? candidateData.name.trim() : "";
+
+  if (!name) {
+    throw createSkillServiceError({
+      message: "A skill name is required for find-or-create.",
+
+      publicMessage: "Enter a skill name before adding it.",
+
+      code: "SKILL_NAME_REQUIRED",
+
+      status: 400,
+    });
+  }
+
+  const matchResult = await resolveSkillMatch(name);
+
+  if (matchResult.matched) {
+    let matchedSkill = matchResult.skill;
+
+    let restored = false;
+
+    if (restoreArchived && matchedSkill.status === "archived") {
+      matchedSkill = await restoreSkill(matchedSkill.id);
+
+      restored = true;
+    }
+
+    return {
+      skill: matchedSkill,
+
+      created: false,
+
+      restored,
+
+      matched: true,
+
+      matchedBy: matchResult.matchedBy,
+    };
+  }
+
+  const createdSkill = await createSkill({
+    ...candidateData,
+
+    name,
+
+    source: candidateData.source || "manual",
+
+    sourceContext: candidateData.sourceContext || "experience",
+  });
+
+  return {
+    skill: createdSkill,
+
+    created: true,
+
+    restored: false,
+
+    matched: false,
+
+    matchedBy: "",
+  };
+}
+
+/*
+ * =========================================
+ * Validate Skill Draft
+ * =========================================
+ */
+
+export async function validateSkillDraft(
+  skillData,
+  { excludeSkillId = "" } = {},
+) {
+  const existingSkills = readStoredSkills();
+
+  const candidate = createSkillCandidate(skillData);
+
+  return validateSkill(candidate, {
+    existingSkills,
+    excludeSkillId,
+  });
+}
+
+/*
+ * =========================================
+ * Validate Name Availability
+ * =========================================
+ */
+
+export async function checkSkillNameAvailability(
+  name,
+  { excludeSkillId = "" } = {},
+) {
+  return validateSkillNameAvailability(
+    name,
+    readStoredSkills(),
+    excludeSkillId,
+  );
+}
+
+/*
+ * =========================================
+ * Replace Skill Library
+ * =========================================
+ */
+
+export async function replaceSkills(skillValues) {
+  if (!Array.isArray(skillValues)) {
+    throw createSkillServiceError({
+      message: "The replacement Skill Library must be an array.",
+
+      publicMessage: "The Skill Library has an invalid format.",
+
+      code: "INVALID_SKILL_COLLECTION",
+
+      status: 400,
+    });
+  }
+
+  const validatedSkills = [];
+
+  skillValues.forEach((skillValue, index) => {
+    const candidate = createSkillCandidate(skillValue);
+
+    const otherSkills = skillValues.filter(
+      (_, candidateIndex) => candidateIndex !== index,
+    );
+
+    assertValidSkill(candidate, {
+      existingSkills: otherSkills,
+      excludeSkillId: candidate.id,
+    });
+
+    validatedSkills.push(normalizeSkill(candidate));
+  });
+
+  const normalizedSkills = normalizeSkillCollection(validatedSkills);
+
+  return replaceStoredSkills(normalizedSkills);
+}
+
+
+================================================================================
+FILE: src\services\Skill\skillApiService.js
+================================================================================
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+} from "../apiClient.js";
+
+const SKILLS_ENDPOINT = "/skills";
+
+function skillPath(skillId) {
+  if (
+    typeof skillId !== "string" ||
+    !skillId.trim() ||
+    skillId.trim().length > 200
+  ) {
+    throw new TypeError("A valid Skill ID is required.");
+  }
+
+  return `${SKILLS_ENDPOINT}/${encodeURIComponent(skillId.trim())}`;
+}
+
+function requireRowVersion(rowVersion) {
+  if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+    throw new TypeError("A Skill rowVersion is required.");
+  }
+
+  return rowVersion.trim();
+}
+
+function requireSkillData(skillData) {
+  if (
+    !skillData ||
+    typeof skillData !== "object" ||
+    Array.isArray(skillData)
+  ) {
+    throw new TypeError("Skill data must be an object.");
+  }
+
+  return skillData;
+}
+
+function requireUpdates(updates) {
+  if (
+    !updates ||
+    typeof updates !== "object" ||
+    Array.isArray(updates)
+  ) {
+    throw new TypeError("Skill updates must be an object.");
+  }
+
+  return updates;
+}
+
+export async function fetchSkills(options = {}) {
+  const response = await apiGet(SKILLS_ENDPOINT, options);
+  return response.data.skills;
+}
+
+export async function fetchSkillById(skillId, options = {}) {
+  const response = await apiGet(skillPath(skillId), options);
+  return response.data.skill;
+}
+
+export async function createSkillApi(skillData, options = {}) {
+  const response = await apiPost(
+    SKILLS_ENDPOINT,
+    requireSkillData(skillData),
+    options,
+  );
+
+  return response.data.skill;
+}
+
+export async function updateSkillApi(
+  skillId,
+  updates,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiPatch(
+    skillPath(skillId),
+    {
+      updates: requireUpdates(updates),
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.skill;
+}
+
+export async function setSkillArchivedApi(
+  skillId,
+  archived,
+  rowVersion,
+  options = {},
+) {
+  if (typeof archived !== "boolean") {
+    throw new TypeError("archived must be a boolean.");
+  }
+
+  const response = await apiPatch(
+    `${skillPath(skillId)}/archive`,
+    {
+      archived,
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.skill;
+}
+
+export function archiveSkillApi(
+  skillId,
+  rowVersion,
+  options = {},
+) {
+  return setSkillArchivedApi(
+    skillId,
+    true,
+    rowVersion,
+    options,
+  );
+}
+
+export function restoreSkillApi(
+  skillId,
+  rowVersion,
+  options = {},
+) {
+  return setSkillArchivedApi(
+    skillId,
+    false,
+    rowVersion,
+    options,
+  );
+}
+
+export async function deleteSkillApi(
+  skillId,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiDelete(skillPath(skillId), {
+    ...options,
+    body: {
+      rowVersion: requireRowVersion(rowVersion),
+    },
+  });
+
+  return response.data;
+}
+
+================================================================================
+FILE: src\models\skillModel.js
+================================================================================
+import {
+  DEFAULT_SKILL_VALUES,
+  isValidLanguageProficiency,
+  isValidSkillCategory,
+  isValidSkillProficiency,
+  isValidSkillSource,
+  isValidSkillStatus,
+  isValidSkillType,
+  SKILL_FIELD_LIMITS,
+} from "../config/skillConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const SKILL_MODEL_VERSION = 1;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createSkillId(prefix = "skill") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeNullableNumber(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    return null;
+  }
+
+  return Number(numberValue.toFixed(1));
+}
+
+function normalizeYearMonth(value) {
+  const text = normalizeText(value, 10);
+
+  if (!text) {
+    return "";
+  }
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(text)) {
+    return "";
+  }
+
+  return text;
+}
+
+/*
+ * =========================================
+ * Search Name Normalization
+ * =========================================
+ *
+ * normalizedName is used for searching and
+ * duplicate prevention. It is not intended as
+ * the user-facing display name.
+ */
+
+export function normalizeSkillNameForComparison(value) {
+  return normalizeText(value)
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[._/\\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/*
+ * =========================================
+ * Alias Normalization
+ * =========================================
+ */
+
+function normalizeAliases(aliases, skillName = "") {
+  if (!Array.isArray(aliases)) {
+    return [];
+  }
+
+  const normalizedSkillName = normalizeSkillNameForComparison(skillName);
+
+  const normalizedAliases = aliases
+    .map((alias) => {
+      if (typeof alias === "string") {
+        return normalizeText(alias, SKILL_FIELD_LIMITS.alias);
+      }
+
+      return normalizeText(
+        alias?.name || alias?.value || alias?.label,
+        SKILL_FIELD_LIMITS.alias,
+      );
+    })
+    .filter(Boolean);
+
+  return normalizedAliases
+    .filter((alias, index, collection) => {
+      const comparisonName = normalizeSkillNameForComparison(alias);
+
+      if (comparisonName === normalizedSkillName) {
+        return false;
+      }
+
+      return (
+        collection.findIndex(
+          (candidate) =>
+            normalizeSkillNameForComparison(candidate) === comparisonName,
+        ) === index
+      );
+    })
+    .slice(0, SKILL_FIELD_LIMITS.maximumAliases);
+}
+
+/*
+ * =========================================
+ * Empty Skill
+ * =========================================
+ */
+
+export function createEmptySkill() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: SKILL_MODEL_VERSION,
+
+    id: createSkillId(),
+
+    name: "",
+
+    normalizedName: "",
+
+    category: DEFAULT_SKILL_VALUES.category,
+
+    type: DEFAULT_SKILL_VALUES.type,
+
+    description: "",
+
+    aliases: [],
+
+    proficiency: {
+      level: DEFAULT_SKILL_VALUES.proficiency,
+
+      yearsOfExperience: null,
+
+      lastUsedDate: "",
+    },
+
+    language: {
+      proficiency: DEFAULT_SKILL_VALUES.languageProficiency,
+    },
+
+    source: DEFAULT_SKILL_VALUES.source,
+
+    /*
+     * sourceContext describes where a skill was
+     * created. Examples:
+     *
+     * skill-page
+     * experience
+     * resume
+     * portfolio
+     * ai-experience-suggestion
+     */
+
+    sourceContext: "",
+
+    notes: "",
+
+    status: DEFAULT_SKILL_VALUES.status,
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Normalize Skill
+ * =========================================
+ */
+
+export function normalizeSkill(value = {}) {
+  const defaults = createEmptySkill();
+
+  /*
+   * Permit a simple string during migration.
+   */
+
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  const proficiency =
+    source.proficiency && typeof source.proficiency === "object"
+      ? source.proficiency
+      : {};
+
+  const language =
+    source.language && typeof source.language === "object"
+      ? source.language
+      : {};
+
+  const name = normalizeText(
+    source.name || source.label || source.value,
+    SKILL_FIELD_LIMITS.name,
+  );
+
+  const category = isValidSkillCategory(source.category)
+    ? source.category
+    : defaults.category;
+
+  const type = isValidSkillType(source.type) ? source.type : defaults.type;
+
+  const proficiencyLevel = isValidSkillProficiency(proficiency.level)
+    ? proficiency.level
+    : defaults.proficiency.level;
+
+  const languageProficiency = isValidLanguageProficiency(language.proficiency)
+    ? language.proficiency
+    : defaults.language.proficiency;
+
+  const skillSource = isValidSkillSource(source.source)
+    ? source.source
+    : defaults.source;
+
+  const status = isValidSkillStatus(source.status)
+    ? source.status
+    : defaults.status;
+
+  return {
+    modelVersion: SKILL_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    name,
+
+    normalizedName: normalizeSkillNameForComparison(name),
+
+    category,
+
+    type,
+
+    description: normalizeText(
+      source.description,
+      SKILL_FIELD_LIMITS.description,
+    ),
+
+    aliases: normalizeAliases(source.aliases, name),
+
+    proficiency: {
+      level: proficiencyLevel,
+
+      yearsOfExperience: normalizeNullableNumber(
+        proficiency.yearsOfExperience ?? source.yearsOfExperience,
+      ),
+
+      lastUsedDate: normalizeYearMonth(
+        proficiency.lastUsedDate || source.lastUsedDate,
+      ),
+    },
+
+    language: {
+      proficiency: languageProficiency,
+    },
+
+    source: skillSource,
+
+    sourceContext: normalizeText(source.sourceContext, 100),
+
+    notes: normalizeText(source.notes, SKILL_FIELD_LIMITS.notes),
+
+    status,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Skill
+ * =========================================
+ */
+
+export function createSkill(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeSkill({
+    ...values,
+
+    id: normalizeText(values?.id, 200) || createSkillId(),
+
+    createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Skill
+ * =========================================
+ */
+
+export function updateSkillModel(currentSkill, updates = {}) {
+  return normalizeSkill({
+    ...currentSkill,
+    ...updates,
+
+    proficiency: {
+      ...currentSkill?.proficiency,
+      ...updates?.proficiency,
+    },
+
+    language: {
+      ...currentSkill?.language,
+      ...updates?.language,
+    },
+
+    id: currentSkill?.id,
+
+    createdAt: currentSkill?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Skill Collection
+ * =========================================
+ */
+
+export function normalizeSkillCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedSkills = values.map(normalizeSkill);
+
+  /*
+   * Remove duplicate IDs and duplicate skill names.
+   */
+
+  return normalizedSkills.filter((skill, index, collection) => {
+    const duplicateIdIndex = collection.findIndex(
+      (candidate) => candidate.id === skill.id,
+    );
+
+    const duplicateNameIndex = collection.findIndex(
+      (candidate) =>
+        candidate.normalizedName &&
+        candidate.normalizedName === skill.normalizedName,
+    );
+
+    return (
+      duplicateIdIndex === index &&
+      (!skill.normalizedName || duplicateNameIndex === index)
+    );
+  });
+}
+
+/*
+ * =========================================
+ * Find Matching Skill
+ * =========================================
+ */
+
+export function findMatchingSkill(skills, name) {
+  if (!Array.isArray(skills)) {
+    return null;
+  }
+
+  const normalizedName = normalizeSkillNameForComparison(name);
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return (
+    skills.find((skill) => {
+      if (normalizeSkillNameForComparison(skill.name) === normalizedName) {
+        return true;
+      }
+
+      return (skill.aliases || []).some(
+        (alias) => normalizeSkillNameForComparison(alias) === normalizedName,
+      );
+    }) || null
+  );
+}
+
+/*
+ * =========================================
+ * Skill Display Information
+ * =========================================
+ */
+
+export function getSkillDisplayName(skill) {
+  return normalizeText(skill?.name) || "Unnamed Skill";
+}
+
+/*
+ * =========================================
+ * Public Skill
+ * =========================================
+ *
+ * Private notes and internal source context are
+ * excluded before public presentation.
+ */
+
+export function createPublicSkill(value) {
+  const skill = normalizeSkill(value);
+
+  const { notes, sourceContext, ...publicSkill } = skill;
+
+  return publicSkill;
+}
+
+
+================================================================================
+FILE: src\context\AuthContext.jsx
+================================================================================
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  completeRegistration as completeRegistrationService,
+  getCurrentSession,
+  logout as logoutService,
+  refreshSession,
+  requestPasswordLogin,
+  requestRegistrationOtp,
+  verifyLoginOtp,
+  verifyRegistrationOtp,
+} from "../services/Auth/authService.js";
+
+import { AUTH_SESSION_INVALID_EVENT } from "../services/apiClient.js";
+
+/*
+ * =========================================
+ * Authentication Status
+ * =========================================
+ */
+
+export const AUTH_STATUS = Object.freeze({
+  INITIALIZING: "initializing",
+
+  AUTHENTICATED: "authenticated",
+
+  UNAUTHENTICATED: "unauthenticated",
+
+  ERROR: "error",
+});
+
+/*
+ * =========================================
+ * Authentication Operations
+ * =========================================
+ */
+
+export const AUTH_OPERATION = Object.freeze({
+  IDLE: "idle",
+
+  RESTORING: "restoring",
+
+  REQUESTING_REGISTRATION: "requesting-registration",
+
+  VERIFYING_REGISTRATION: "verifying-registration",
+
+  COMPLETING_REGISTRATION: "completing-registration",
+
+  REQUESTING_LOGIN: "requesting-login",
+
+  VERIFYING_LOGIN: "verifying-login",
+
+  REFRESHING: "refreshing",
+
+  LOGGING_OUT: "logging-out",
+});
+
+/*
+ * =========================================
+ * Context
+ * =========================================
+ */
+
+const AuthContext = createContext(null);
+
+/*
+ * =========================================
+ * Role Normalization
+ * =========================================
+ */
+
+function normalizeRoles(roles) {
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      roles
+        .map((role) =>
+          typeof role === "string" ? role.trim().toLowerCase() : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/*
+ * =========================================
+ * Authentication Data
+ * =========================================
+ */
+
+function normalizeAuthentication(result) {
+  if (!result?.user?.id || !result?.session?.id) {
+    return null;
+  }
+
+  return {
+    user: result.user,
+
+    roles: normalizeRoles(result.roles),
+
+    session: result.session,
+  };
+}
+
+/*
+ * =========================================
+ * Expected Unauthenticated Errors
+ * =========================================
+ */
+
+function isUnauthenticatedError(error) {
+  return (
+    Number(error?.status) === 401 ||
+    [
+      "AUTHENTICATION_REQUIRED",
+      "SESSION_REFRESH_TOKEN_INVALID",
+      "SESSION_NOT_FOUND",
+    ].includes(error?.code)
+  );
+}
+
+/*
+ * =========================================
+ * Provider
+ * =========================================
+ */
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+
+  const [roles, setRoles] = useState([]);
+
+  const [session, setSession] = useState(null);
+
+  const [status, setStatus] = useState(AUTH_STATUS.INITIALIZING);
+
+  const [operation, setOperation] = useState(AUTH_OPERATION.IDLE);
+
+  const [error, setError] = useState(null);
+
+  /*
+   * Prevent state updates after an actual
+   * provider unmount.
+   */
+
+  const isMountedRef = useRef(false);
+
+  /*
+   * Prevent duplicate restoration and token
+   * rotation requests.
+   */
+
+  const restorationPromiseRef = useRef(null);
+
+  const refreshPromiseRef = useRef(null);
+
+  /*
+   * =========================================
+   * Safe State Helpers
+   * =========================================
+   */
+
+  const clearAuthentication = useCallback(() => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    setUser(null);
+
+    setRoles([]);
+
+    setSession(null);
+
+    setStatus(AUTH_STATUS.UNAUTHENTICATED);
+  }, []);
+
+  const applyAuthentication = useCallback((result) => {
+    const authentication = normalizeAuthentication(result);
+
+    if (!authentication) {
+      const authenticationError = new Error(
+        "The server returned an incomplete authentication response.",
+      );
+
+      authenticationError.name = "AuthenticationResponseError";
+
+      authenticationError.code = "AUTHENTICATION_RESPONSE_INVALID";
+
+      throw authenticationError;
+    }
+
+    if (!isMountedRef.current) {
+      return authentication;
+    }
+
+    setUser(authentication.user);
+
+    setRoles(authentication.roles);
+
+    setSession(authentication.session);
+
+    setStatus(AUTH_STATUS.AUTHENTICATED);
+
+    setError(null);
+
+    return authentication;
+  }, []);
+
+  const clearError = useCallback(() => {
+    if (isMountedRef.current) {
+      setError(null);
+    }
+  }, []);
+
+  /*
+   * =========================================
+   * Invalid Session Events
+   * =========================================
+   *
+   * Protected API requests dispatch this event
+   * when the server reports that the current
+   * session was revoked, expired, or invalid.
+   */
+
+  useEffect(() => {
+    function handleInvalidSession() {
+      clearAuthentication();
+
+      if (isMountedRef.current) {
+        setError(null);
+
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+
+    window.addEventListener(
+      AUTH_SESSION_INVALID_EVENT,
+
+      handleInvalidSession,
+    );
+
+    return () => {
+      window.removeEventListener(
+        AUTH_SESSION_INVALID_EVENT,
+
+        handleInvalidSession,
+      );
+    };
+  }, [clearAuthentication]);
+
+  /*
+   * =========================================
+   * Restore Existing Session
+   * =========================================
+   *
+   * A missing or expired cookie is an ordinary
+   * unauthenticated state, not an application
+   * failure.
+   */
+
+  const restoreAuthentication = useCallback(async () => {
+    if (restorationPromiseRef.current) {
+      return restorationPromiseRef.current;
+    }
+
+    const restorationPromise = (async () => {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.RESTORING);
+
+        setError(null);
+      }
+
+      try {
+        const result = await getCurrentSession();
+
+        return applyAuthentication(result);
+      } catch (restorationError) {
+        if (isUnauthenticatedError(restorationError)) {
+          clearAuthentication();
+
+          return null;
+        }
+
+        if (isMountedRef.current) {
+          setUser(null);
+
+          setRoles([]);
+
+          setSession(null);
+
+          setStatus(AUTH_STATUS.ERROR);
+
+          setError(restorationError);
+        }
+
+        return null;
+      } finally {
+        if (isMountedRef.current) {
+          setOperation(AUTH_OPERATION.IDLE);
+        }
+      }
+    })();
+
+    restorationPromiseRef.current = restorationPromise;
+
+    try {
+      return await restorationPromise;
+    } finally {
+      if (restorationPromiseRef.current === restorationPromise) {
+        restorationPromiseRef.current = null;
+      }
+    }
+  }, [applyAuthentication, clearAuthentication]);
+
+  /*
+   * =========================================
+   * Revalidate Returning Browsers
+   * =========================================
+   *
+   * If another device revoked this browser's
+   * session, returning to this tab triggers a
+   * server validation before continued use.
+   */
+
+  useEffect(() => {
+    function revalidateAuthentication() {
+      if (!isMountedRef.current || status !== AUTH_STATUS.AUTHENTICATED) {
+        return;
+      }
+
+      void restoreAuthentication();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        revalidateAuthentication();
+      }
+    }
+
+    window.addEventListener("focus", revalidateAuthentication);
+
+    document.addEventListener(
+      "visibilitychange",
+
+      handleVisibilityChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+
+        revalidateAuthentication,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+
+        handleVisibilityChange,
+      );
+    };
+  }, [status, restoreAuthentication]);
+
+  /*
+   * =========================================
+   * Begin Registration
+   * =========================================
+   *
+   * This creates a registration challenge and
+   * requests delivery of the registration OTP.
+   * It does not authenticate the browser.
+   */
+
+  const beginRegistration = useCallback(async ({ email }) => {
+    if (isMountedRef.current) {
+      setOperation(AUTH_OPERATION.REQUESTING_REGISTRATION);
+
+      setError(null);
+    }
+
+    try {
+      return await requestRegistrationOtp({
+        email,
+      });
+    } catch (registrationError) {
+      if (isMountedRef.current) {
+        setError(registrationError);
+      }
+
+      throw registrationError;
+    } finally {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+  }, []);
+
+  /*
+   * =========================================
+   * Verify Registration OTP
+   * =========================================
+   *
+   * Successful verification returns a
+   * short-lived continuation token. It does
+   * not create the account or session yet.
+   */
+
+  const verifyRegistration = useCallback(async ({ challengeId, otp }) => {
+    if (isMountedRef.current) {
+      setOperation(AUTH_OPERATION.VERIFYING_REGISTRATION);
+
+      setError(null);
+    }
+
+    try {
+      return await verifyRegistrationOtp({
+        challengeId,
+
+        otp,
+      });
+    } catch (verificationError) {
+      if (isMountedRef.current) {
+        setError(verificationError);
+      }
+
+      throw verificationError;
+    } finally {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+  }, []);
+
+  /*
+   * =========================================
+   * Complete Registration
+   * =========================================
+   *
+   * This creates the user, initial profile,
+   * settings and standard user role. It does
+   * not create an authenticated session.
+   */
+
+  const finishRegistration = useCallback(
+    async ({ challengeId, continuationToken, password }) => {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.COMPLETING_REGISTRATION);
+
+        setError(null);
+      }
+
+      try {
+        return await completeRegistrationService({
+          challengeId,
+
+          continuationToken,
+
+          password,
+        });
+      } catch (registrationError) {
+        if (isMountedRef.current) {
+          setError(registrationError);
+        }
+
+        throw registrationError;
+      } finally {
+        if (isMountedRef.current) {
+          setOperation(AUTH_OPERATION.IDLE);
+        }
+      }
+    },
+    [],
+  );
+
+  /*
+   * =========================================
+   * Begin Password Login
+   * =========================================
+   *
+   * This validates the password and requests
+   * an OTP. It does not authenticate the
+   * browser yet.
+   */
+
+  const beginPasswordLogin = useCallback(async ({ email, password }) => {
+    if (isMountedRef.current) {
+      setOperation(AUTH_OPERATION.REQUESTING_LOGIN);
+
+      setError(null);
+    }
+
+    try {
+      return await requestPasswordLogin({
+        email,
+
+        password,
+      });
+    } catch (loginError) {
+      if (isMountedRef.current) {
+        setError(loginError);
+      }
+
+      throw loginError;
+    } finally {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+  }, []);
+
+  /*
+   * =========================================
+   * Complete Login OTP
+   * =========================================
+   *
+   * Successful verification creates the
+   * server session and HttpOnly cookie.
+   */
+
+  const completeLogin = useCallback(
+    async ({ challengeId, otp }) => {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.VERIFYING_LOGIN);
+
+        setError(null);
+      }
+
+      try {
+        const result = await verifyLoginOtp({
+          challengeId,
+
+          otp,
+        });
+
+        applyAuthentication(result);
+
+        return result;
+      } catch (verificationError) {
+        if (isMountedRef.current) {
+          setError(verificationError);
+        }
+
+        throw verificationError;
+      } finally {
+        if (isMountedRef.current) {
+          setOperation(AUTH_OPERATION.IDLE);
+        }
+      }
+    },
+    [applyAuthentication],
+  );
+
+  /*
+   * =========================================
+   * Refresh Session
+   * =========================================
+   *
+   * Only one refresh may run at a time because
+   * every successful refresh invalidates the
+   * previous refresh token.
+   */
+
+  const refreshAuthentication = useCallback(async () => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const refreshPromise = (async () => {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.REFRESHING);
+
+        setError(null);
+      }
+
+      try {
+        const result = await refreshSession();
+
+        applyAuthentication(result);
+
+        return result;
+      } catch (refreshError) {
+        if (
+          isUnauthenticatedError(refreshError) ||
+          refreshError?.code === "SESSION_REFRESH_CONFLICT"
+        ) {
+          clearAuthentication();
+        }
+
+        if (isMountedRef.current) {
+          setError(refreshError);
+        }
+
+        throw refreshError;
+      } finally {
+        if (isMountedRef.current) {
+          setOperation(AUTH_OPERATION.IDLE);
+        }
+      }
+    })();
+
+    refreshPromiseRef.current = refreshPromise;
+
+    try {
+      return await refreshPromise;
+    } finally {
+      if (refreshPromiseRef.current === refreshPromise) {
+        refreshPromiseRef.current = null;
+      }
+    }
+  }, [applyAuthentication, clearAuthentication]);
+
+  /*
+   * =========================================
+   * Logout
+   * =========================================
+   */
+
+  const logout = useCallback(async () => {
+    if (isMountedRef.current) {
+      setOperation(AUTH_OPERATION.LOGGING_OUT);
+
+      setError(null);
+    }
+
+    try {
+      const result = await logoutService();
+
+      clearAuthentication();
+
+      return result;
+    } catch (logoutError) {
+      /*
+       * The backend intentionally preserves
+       * the cookie when database revocation
+       * fails, so keep the local identity
+       * until logout actually succeeds.
+       */
+
+      if (isMountedRef.current) {
+        setError(logoutError);
+      }
+
+      throw logoutError;
+    } finally {
+      if (isMountedRef.current) {
+        setOperation(AUTH_OPERATION.IDLE);
+      }
+    }
+  }, [clearAuthentication]);
+
+  /*
+   * =========================================
+   * Role Lookup
+   * =========================================
+   */
+
+  const hasRole = useCallback(
+    (roleName) => {
+      const normalizedRole =
+        typeof roleName === "string" ? roleName.trim().toLowerCase() : "";
+
+      return Boolean(normalizedRole && roles.includes(normalizedRole));
+    },
+    [roles],
+  );
+
+  /*
+   * =========================================
+   * Initial Session Restoration
+   * =========================================
+   */
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    void restoreAuthentication();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [restoreAuthentication]);
+
+  /*
+   * =========================================
+   * Derived State
+   * =========================================
+   */
+
+  const isAuthenticated = status === AUTH_STATUS.AUTHENTICATED;
+
+  const isInitializing = status === AUTH_STATUS.INITIALIZING;
+
+  const isBusy = operation !== AUTH_OPERATION.IDLE;
+
+  /*
+   * =========================================
+   * Context Value
+   * =========================================
+   */
+
+  const contextValue = useMemo(
+    () => ({
+      /*
+       * Identity
+       */
+
+      user,
+
+      roles,
+
+      session,
+
+      /*
+       * Status
+       */
+
+      status,
+
+      operation,
+
+      error,
+
+      isAuthenticated,
+
+      isInitializing,
+
+      isBusy,
+
+      /*
+       * Authentication Actions
+       */
+
+      restoreAuthentication,
+
+      beginRegistration,
+
+      verifyRegistration,
+
+      finishRegistration,
+
+      beginPasswordLogin,
+
+      completeLogin,
+
+      refreshAuthentication,
+
+      logout,
+
+      /*
+       * Utilities
+       */
+
+      hasRole,
+
+      clearError,
+    }),
+    [
+      user,
+
+      roles,
+
+      session,
+
+      status,
+
+      operation,
+
+      error,
+
+      isAuthenticated,
+
+      isInitializing,
+
+      isBusy,
+
+      restoreAuthentication,
+
+      beginRegistration,
+
+      verifyRegistration,
+
+      finishRegistration,
+
+      beginPasswordLogin,
+
+      completeLogin,
+
+      refreshAuthentication,
+
+      logout,
+
+      hasRole,
+
+      clearError,
+    ],
+  );
+
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
+}
+
+/*
+ * =========================================
+ * Authentication Hook
+ * =========================================
+ */
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider.");
+  }
+
+  return context;
+}
+
+
+================================================================================
+SKILLS REFERENCES
+================================================================================
+src\App.jsx:42: import { useSkillData } from "./context/SkillDataContext.jsx";
+src\App.jsx:59: const { skills, isLoading: areSkillsLoading } = useSkillData();
+src\main.jsx:19: import { SkillDataProvider } from "./context/SkillDataContext.jsx";
+src\context\SkillDataContext.jsx:11: archiveSkill as archiveSkillService,
+src\context\SkillDataContext.jsx:13: createSkill as createSkillService,
+src\context\SkillDataContext.jsx:14: deleteSkill as deleteSkillService,
+src\context\SkillDataContext.jsx:15: findOrCreateSkill as findOrCreateSkillService,
+src\context\SkillDataContext.jsx:20: restoreSkill as restoreSkillService,
+src\context\SkillDataContext.jsx:21: updateSkill as updateSkillService,
+src\context\SkillDataContext.jsx:23: } from "../services/Skill/skillService.js";
+src\context\SkillDataContext.jsx:27: const SkillDataContext = createContext(null);
+src\context\SkillDataContext.jsx:268: const createdSkill = await createSkillService(skillData);
+src\context\SkillDataContext.jsx:312: const updatedSkill = await updateSkillService(skillId, updates);
+src\context\SkillDataContext.jsx:355: const result = await findOrCreateSkillService(skillData, options);
+src\context\SkillDataContext.jsx:406: const archivedSkill = await archiveSkillService(skillId);
+src\context\SkillDataContext.jsx:451: const restoredSkill = await restoreSkillService(skillId);
+src\context\SkillDataContext.jsx:500: const deletionResult = await deleteSkillService(skillId);
+src\context\SkillDataContext.jsx:699: <SkillDataContext.Provider value={contextValue}>
+src\context\SkillDataContext.jsx:701: </SkillDataContext.Provider>
+src\context\SkillDataContext.jsx:705: export function useSkillData() {
+src\context\SkillDataContext.jsx:706: const context = useContext(SkillDataContext);
+src\context\SkillDataContext.jsx:709: throw new Error("useSkillData must be used inside SkillDataProvider.");
+src\models\skillModel.js:368: export function normalizeSkillCollection(values) {
+src\pages\Certifications\Certifications.jsx:5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+src\pages\Certifications\Certifications.jsx:44: const { skills, isLoading: areSkillsLoading } = useSkillData();
+src\pages\Dashboard\Dashboard.jsx:7: import { useSkillData } from "../../context/SkillDataContext.jsx";
+src\pages\Dashboard\Dashboard.jsx:152: const { skills, activeSkills, isLoading: areSkillsLoading } = useSkillData();
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:8: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Education\components\EducationLibrary\EducationLibrary.jsx:39: const { skillsById } = useSkillData();
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:7: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Education\components\EducationSkillsEditor\EducationSkillsEditor.jsx:35: } = useSkillData();
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:10: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceForm\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:111: const { activeSkills = [], findOrCreateSkill } = useSkillData();
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:7: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx:238: const { skillsById } = useSkillData();
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:11: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillsEditor.jsx:76: useSkillData();
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:5: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx:74: const { skillsById, findOrCreateSkill } = useSkillData();
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:10: import { useSkillData } from "../../../../../context/SkillDataContext.jsx";
+src\pages\Experience\components\ExperienceTechnologyEditor\ExperienceTechnologyEditor.jsx:63: } = useSkillData();
+src\pages\skills\Skills.jsx:5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+src\pages\skills\Skills.jsx:39: } = useSkillData();
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:10: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx:45: const { skillsById } = useSkillData();
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:6: import { useSkillData } from "../../../../context/SkillDataContext.jsx";
+src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx:46: } = useSkillData();
+src\services\Skill\skillService.js:6: normalizeSkillCollection,
+src\services\Skill\skillService.js:33: function createSkillServiceError({
+src\services\Skill\skillService.js:44: error.name = "SkillServiceError";
+src\services\Skill\skillService.js:58: return createSkillServiceError({
+src\services\Skill\skillService.js:162: return createSkillServiceError({
+src\services\Skill\skillService.js:290: throw createSkillServiceError({
+src\services\Skill\skillService.js:348: throw createSkillServiceError({
+src\services\Skill\skillService.js:373: throw createSkillServiceError({
+src\services\Skill\skillService.js:495: throw createSkillServiceError({
+src\services\Skill\skillService.js:518: * skillService directly.
+src\services\Skill\skillService.js:600: throw createSkillServiceError({
+src\services\Skill\skillService.js:705: throw createSkillServiceError({
+src\services\Skill\skillService.js:733: const normalizedSkills = normalizeSkillCollection(validatedSkills);
+src\services\Skill\skillStorage.js:2: normalizeSkillCollection,
+src\services\Skill\skillStorage.js:12: export const SKILL_STORAGE_KEY = "portfolio-platform:skills";
+src\services\Skill\skillStorage.js:107: skills: normalizeSkillCollection(parsedValue),
+src\services\Skill\skillStorage.js:124: skills: normalizeSkillCollection(parsedValue.skills),
+src\services\Skill\skillStorage.js:172: skills: normalizeSkillCollection(skills),
+src\services\Skill\skillStorage.js:248: * skill through skillService.js.

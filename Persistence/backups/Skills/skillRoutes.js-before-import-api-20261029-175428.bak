@@ -1,0 +1,36 @@
+import { Router } from "express";
+
+import {
+  requireAuthentication,
+} from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMySkills,
+  getMySkill,
+  createMySkill,
+  updateMySkill,
+  setMySkillArchiveStatus,
+  deleteMySkill,
+} from "../controllers/skillController.js";
+
+const router = Router();
+
+// Every Skills endpoint requires an authenticated session.
+router.use(requireAuthentication);
+
+router.get("/", listMySkills);
+router.post("/", createMySkill);
+
+router.get("/:skillId", getMySkill);
+router.patch("/:skillId", updateMySkill);
+
+router.patch(
+  "/:skillId/archive",
+  setMySkillArchiveStatus,
+);
+
+// The service rejects permanent deletion until relationship
+// integrity checks are implemented.
+router.delete("/:skillId", deleteMySkill);
+
+export default router;

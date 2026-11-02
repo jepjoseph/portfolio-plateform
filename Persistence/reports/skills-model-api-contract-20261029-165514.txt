@@ -1,0 +1,2957 @@
+SKILLS MODEL AND API CONTRACT INSPECTION
+Generated: 2026-10-29 16:55:14
+
+
+================================================================================
+FILE: frontend\src\models\skillModel.js
+================================================================================
+Total lines: 452
+    1: import {
+    2:   DEFAULT_SKILL_VALUES,
+    3:   isValidLanguageProficiency,
+    4:   isValidSkillCategory,
+    5:   isValidSkillProficiency,
+    6:   isValidSkillSource,
+    7:   isValidSkillStatus,
+    8:   isValidSkillType,
+    9:   SKILL_FIELD_LIMITS,
+   10: } from "../config/skillConfig.js";
+   11: 
+   12: /*
+   13:  * =========================================
+   14:  * Model Version
+   15:  * =========================================
+   16:  */
+   17: 
+   18: export const SKILL_MODEL_VERSION = 1;
+   19: 
+   20: /*
+   21:  * =========================================
+   22:  * ID Creation
+   23:  * =========================================
+   24:  */
+   25: 
+   26: export function createSkillId(prefix = "skill") {
+   27:   if (
+   28:     typeof crypto !== "undefined" &&
+   29:     typeof crypto.randomUUID === "function"
+   30:   ) {
+   31:     return `${prefix}-${crypto.randomUUID()}`;
+   32:   }
+   33: 
+   34:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+   35: }
+   36: 
+   37: /*
+   38:  * =========================================
+   39:  * Primitive Normalization
+   40:  * =========================================
+   41:  */
+   42: 
+   43: function normalizeText(value, maximumLength = Infinity) {
+   44:   if (typeof value !== "string") {
+   45:     return "";
+   46:   }
+   47: 
+   48:   return value.trim().slice(0, maximumLength);
+   49: }
+   50: 
+   51: function normalizeNullableNumber(value) {
+   52:   if (value === "" || value === null || value === undefined) {
+   53:     return null;
+   54:   }
+   55: 
+   56:   const numberValue = Number(value);
+   57: 
+   58:   if (!Number.isFinite(numberValue) || numberValue < 0) {
+   59:     return null;
+   60:   }
+   61: 
+   62:   return Number(numberValue.toFixed(1));
+   63: }
+   64: 
+   65: function normalizeYearMonth(value) {
+   66:   const text = normalizeText(value, 10);
+   67: 
+   68:   if (!text) {
+   69:     return "";
+   70:   }
+   71: 
+   72:   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(text)) {
+   73:     return "";
+   74:   }
+   75: 
+   76:   return text;
+   77: }
+   78: 
+   79: /*
+   80:  * =========================================
+   81:  * Search Name Normalization
+   82:  * =========================================
+   83:  *
+   84:  * normalizedName is used for searching and
+   85:  * duplicate prevention. It is not intended as
+   86:  * the user-facing display name.
+   87:  */
+   88: 
+   89: export function normalizeSkillNameForComparison(value) {
+   90:   return normalizeText(value)
+   91:     .normalize("NFKC")
+   92:     .toLocaleLowerCase()
+   93:     .replace(/[._/\\-]+/g, " ")
+   94:     .replace(/\s+/g, " ")
+   95:     .trim();
+   96: }
+   97: 
+   98: /*
+   99:  * =========================================
+  100:  * Alias Normalization
+  101:  * =========================================
+  102:  */
+  103: 
+  104: function normalizeAliases(aliases, skillName = "") {
+  105:   if (!Array.isArray(aliases)) {
+  106:     return [];
+  107:   }
+  108: 
+  109:   const normalizedSkillName = normalizeSkillNameForComparison(skillName);
+  110: 
+  111:   const normalizedAliases = aliases
+  112:     .map((alias) => {
+  113:       if (typeof alias === "string") {
+  114:         return normalizeText(alias, SKILL_FIELD_LIMITS.alias);
+  115:       }
+  116: 
+  117:       return normalizeText(
+  118:         alias?.name || alias?.value || alias?.label,
+  119:         SKILL_FIELD_LIMITS.alias,
+  120:       );
+  121:     })
+  122:     .filter(Boolean);
+  123: 
+  124:   return normalizedAliases
+  125:     .filter((alias, index, collection) => {
+  126:       const comparisonName = normalizeSkillNameForComparison(alias);
+  127: 
+  128:       if (comparisonName === normalizedSkillName) {
+  129:         return false;
+  130:       }
+  131: 
+  132:       return (
+  133:         collection.findIndex(
+  134:           (candidate) =>
+  135:             normalizeSkillNameForComparison(candidate) === comparisonName,
+  136:         ) === index
+  137:       );
+  138:     })
+  139:     .slice(0, SKILL_FIELD_LIMITS.maximumAliases);
+  140: }
+  141: 
+  142: /*
+  143:  * =========================================
+  144:  * Empty Skill
+  145:  * =========================================
+  146:  */
+  147: 
+  148: export function createEmptySkill() {
+  149:   const timestamp = new Date().toISOString();
+  150: 
+  151:   return {
+  152:     modelVersion: SKILL_MODEL_VERSION,
+  153: 
+  154:     id: createSkillId(),
+  155: 
+  156:     name: "",
+  157: 
+  158:     normalizedName: "",
+  159: 
+  160:     category: DEFAULT_SKILL_VALUES.category,
+  161: 
+  162:     type: DEFAULT_SKILL_VALUES.type,
+  163: 
+  164:     description: "",
+  165: 
+  166:     aliases: [],
+  167: 
+  168:     proficiency: {
+  169:       level: DEFAULT_SKILL_VALUES.proficiency,
+  170: 
+  171:       yearsOfExperience: null,
+  172: 
+  173:       lastUsedDate: "",
+  174:     },
+  175: 
+  176:     language: {
+  177:       proficiency: DEFAULT_SKILL_VALUES.languageProficiency,
+  178:     },
+  179: 
+  180:     source: DEFAULT_SKILL_VALUES.source,
+  181: 
+  182:     /*
+  183:      * sourceContext describes where a skill was
+  184:      * created. Examples:
+  185:      *
+  186:      * skill-page
+  187:      * experience
+  188:      * resume
+  189:      * portfolio
+  190:      * ai-experience-suggestion
+  191:      */
+  192: 
+  193:     sourceContext: "",
+  194: 
+  195:     notes: "",
+  196: 
+  197:     status: DEFAULT_SKILL_VALUES.status,
+  198: 
+  199:     createdAt: timestamp,
+  200:     updatedAt: timestamp,
+  201:   };
+  202: }
+  203: 
+  204: /*
+  205:  * =========================================
+  206:  * Normalize Skill
+  207:  * =========================================
+  208:  */
+  209: 
+  210: export function normalizeSkill(value = {}) {
+  211:   const defaults = createEmptySkill();
+  212: 
+  213:   /*
+  214:    * Permit a simple string during migration.
+  215:    */
+  216: 
+  217:   const source =
+  218:     typeof value === "string"
+  219:       ? {
+  220:           name: value,
+  221:         }
+  222:       : value && typeof value === "object"
+  223:         ? value
+  224:         : {};
+  225: 
+  226:   const proficiency =
+  227:     source.proficiency && typeof source.proficiency === "object"
+  228:       ? source.proficiency
+  229:       : {};
+  230: 
+  231:   const language =
+  232:     source.language && typeof source.language === "object"
+  233:       ? source.language
+  234:       : {};
+  235: 
+  236:   const name = normalizeText(
+  237:     source.name || source.label || source.value,
+  238:     SKILL_FIELD_LIMITS.name,
+  239:   );
+  240: 
+  241:   const category = isValidSkillCategory(source.category)
+  242:     ? source.category
+  243:     : defaults.category;
+  244: 
+  245:   const type = isValidSkillType(source.type) ? source.type : defaults.type;
+  246: 
+  247:   const proficiencyLevel = isValidSkillProficiency(proficiency.level)
+  248:     ? proficiency.level
+  249:     : defaults.proficiency.level;
+  250: 
+  251:   const languageProficiency = isValidLanguageProficiency(language.proficiency)
+  252:     ? language.proficiency
+  253:     : defaults.language.proficiency;
+  254: 
+  255:   const skillSource = isValidSkillSource(source.source)
+  256:     ? source.source
+  257:     : defaults.source;
+  258: 
+  259:   const status = isValidSkillStatus(source.status)
+  260:     ? source.status
+  261:     : defaults.status;
+  262: 
+  263:   return {
+  264:     modelVersion: SKILL_MODEL_VERSION,
+  265: 
+  266:     id: normalizeText(source.id, 200) || defaults.id,
+  267: 
+  268:     name,
+  269: 
+  270:     normalizedName: normalizeSkillNameForComparison(name),
+  271: 
+  272:     category,
+  273: 
+  274:     type,
+  275: 
+  276:     description: normalizeText(
+  277:       source.description,
+  278:       SKILL_FIELD_LIMITS.description,
+  279:     ),
+  280: 
+  281:     aliases: normalizeAliases(source.aliases, name),
+  282: 
+  283:     proficiency: {
+  284:       level: proficiencyLevel,
+  285: 
+  286:       yearsOfExperience: normalizeNullableNumber(
+  287:         proficiency.yearsOfExperience ?? source.yearsOfExperience,
+  288:       ),
+  289: 
+  290:       lastUsedDate: normalizeYearMonth(
+  291:         proficiency.lastUsedDate || source.lastUsedDate,
+  292:       ),
+  293:     },
+  294: 
+  295:     language: {
+  296:       proficiency: languageProficiency,
+  297:     },
+  298: 
+  299:     source: skillSource,
+  300: 
+  301:     sourceContext: normalizeText(source.sourceContext, 100),
+  302: 
+  303:     notes: normalizeText(source.notes, SKILL_FIELD_LIMITS.notes),
+  304: 
+  305:     status,
+  306: 
+  307:     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+  308: 
+  309:     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  310:   };
+  311: }
+  312: 
+  313: /*
+  314:  * =========================================
+  315:  * Create Skill
+  316:  * =========================================
+  317:  */
+  318: 
+  319: export function createSkill(values = {}) {
+  320:   const timestamp = new Date().toISOString();
+  321: 
+  322:   return normalizeSkill({
+  323:     ...values,
+  324: 
+  325:     id: normalizeText(values?.id, 200) || createSkillId(),
+  326: 
+  327:     createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+  328: 
+  329:     updatedAt: timestamp,
+  330:   });
+  331: }
+  332: 
+  333: /*
+  334:  * =========================================
+  335:  * Update Skill
+  336:  * =========================================
+  337:  */
+  338: 
+  339: export function updateSkillModel(currentSkill, updates = {}) {
+  340:   return normalizeSkill({
+  341:     ...currentSkill,
+  342:     ...updates,
+  343: 
+  344:     proficiency: {
+  345:       ...currentSkill?.proficiency,
+  346:       ...updates?.proficiency,
+  347:     },
+  348: 
+  349:     language: {
+  350:       ...currentSkill?.language,
+  351:       ...updates?.language,
+  352:     },
+  353: 
+  354:     id: currentSkill?.id,
+  355: 
+  356:     createdAt: currentSkill?.createdAt,
+  357: 
+  358:     updatedAt: new Date().toISOString(),
+  359:   });
+  360: }
+  361: 
+  362: /*
+  363:  * =========================================
+  364:  * Normalize Skill Collection
+  365:  * =========================================
+  366:  */
+  367: 
+  368: export function normalizeSkillCollection(values) {
+  369:   if (!Array.isArray(values)) {
+  370:     return [];
+  371:   }
+  372: 
+  373:   const normalizedSkills = values.map(normalizeSkill);
+  374: 
+  375:   /*
+  376:    * Remove duplicate IDs and duplicate skill names.
+  377:    */
+  378: 
+  379:   return normalizedSkills.filter((skill, index, collection) => {
+  380:     const duplicateIdIndex = collection.findIndex(
+  381:       (candidate) => candidate.id === skill.id,
+  382:     );
+  383: 
+  384:     const duplicateNameIndex = collection.findIndex(
+  385:       (candidate) =>
+  386:         candidate.normalizedName &&
+  387:         candidate.normalizedName === skill.normalizedName,
+  388:     );
+  389: 
+  390:     return (
+  391:       duplicateIdIndex === index &&
+  392:       (!skill.normalizedName || duplicateNameIndex === index)
+  393:     );
+  394:   });
+  395: }
+  396: 
+  397: /*
+  398:  * =========================================
+  399:  * Find Matching Skill
+  400:  * =========================================
+  401:  */
+  402: 
+  403: export function findMatchingSkill(skills, name) {
+  404:   if (!Array.isArray(skills)) {
+  405:     return null;
+  406:   }
+  407: 
+  408:   const normalizedName = normalizeSkillNameForComparison(name);
+  409: 
+  410:   if (!normalizedName) {
+  411:     return null;
+  412:   }
+  413: 
+  414:   return (
+  415:     skills.find((skill) => {
+  416:       if (normalizeSkillNameForComparison(skill.name) === normalizedName) {
+  417:         return true;
+  418:       }
+  419: 
+  420:       return (skill.aliases || []).some(
+  421:         (alias) => normalizeSkillNameForComparison(alias) === normalizedName,
+  422:       );
+  423:     }) || null
+  424:   );
+  425: }
+  426: 
+  427: /*
+  428:  * =========================================
+  429:  * Skill Display Information
+  430:  * =========================================
+  431:  */
+  432: 
+  433: export function getSkillDisplayName(skill) {
+  434:   return normalizeText(skill?.name) || "Unnamed Skill";
+  435: }
+  436: 
+  437: /*
+  438:  * =========================================
+  439:  * Public Skill
+  440:  * =========================================
+  441:  *
+  442:  * Private notes and internal source context are
+  443:  * excluded before public presentation.
+  444:  */
+  445: 
+  446: export function createPublicSkill(value) {
+  447:   const skill = normalizeSkill(value);
+  448: 
+  449:   const { notes, sourceContext, ...publicSkill } = skill;
+  450: 
+  451:   return publicSkill;
+  452: }
+
+================================================================================
+FILE: frontend\src\config\skillConfig.js
+================================================================================
+Total lines: 440
+    1: /*
+    2:  * =========================================
+    3:  * Skill Categories
+    4:  * =========================================
+    5:  */
+    6: 
+    7: export const SKILL_CATEGORY_OPTIONS = [
+    8:   {
+    9:     value: "programming-languages",
+   10:     label: "Programming Languages",
+   11:     description:
+   12:       "Languages used to develop software, scripts, systems, or applications.",
+   13:   },
+   14:   {
+   15:     value: "software-development",
+   16:     label: "Software Development",
+   17:     description:
+   18:       "Software engineering, architecture, testing, debugging, and development practices.",
+   19:   },
+   20:   {
+   21:     value: "web-development",
+   22:     label: "Web Development",
+   23:     description:
+   24:       "Frontend, backend, full-stack, web API, and browser-based development.",
+   25:   },
+   26:   {
+   27:     value: "mobile-development",
+   28:     label: "Mobile Development",
+   29:     description: "Mobile application development and related technologies.",
+   30:   },
+   31:   {
+   32:     value: "databases",
+   33:     label: "Databases",
+   34:     description:
+   35:       "Database administration, modeling, querying, and data management.",
+   36:   },
+   37:   {
+   38:     value: "data-ai",
+   39:     label: "Data and Artificial Intelligence",
+   40:     description:
+   41:       "Data analysis, machine learning, artificial intelligence, and automation.",
+   42:   },
+   43:   {
+   44:     value: "cloud-devops",
+   45:     label: "Cloud and DevOps",
+   46:     description:
+   47:       "Cloud platforms, deployment, automation, containers, and delivery pipelines.",
+   48:   },
+   49:   {
+   50:     value: "cybersecurity",
+   51:     label: "Cybersecurity",
+   52:     description:
+   53:       "Security operations, access control, risk management, and system protection.",
+   54:   },
+   55:   {
+   56:     value: "networking",
+   57:     label: "Networking",
+   58:     description:
+   59:       "Network configuration, routing, switching, monitoring, and troubleshooting.",
+   60:   },
+   61:   {
+   62:     value: "it-infrastructure",
+   63:     label: "IT Infrastructure",
+   64:     description:
+   65:       "Servers, operating systems, virtualization, directories, and enterprise systems.",
+   66:   },
+   67:   {
+   68:     value: "hardware-electronics",
+   69:     label: "Hardware and Electronics",
+   70:     description:
+   71:       "Computer hardware, electronics, circuits, equipment, and technical maintenance.",
+   72:   },
+   73:   {
+   74:     value: "embedded-iot",
+   75:     label: "Embedded Systems and IoT",
+   76:     description:
+   77:       "Microcontrollers, sensors, firmware, connected devices, and embedded systems.",
+   78:   },
+   79:   {
+   80:     value: "tools-platforms",
+   81:     label: "Tools and Platforms",
+   82:     description:
+   83:       "Professional software, technical platforms, development tools, and systems.",
+   84:   },
+   85:   {
+   86:     value: "project-management",
+   87:     label: "Project Management",
+   88:     description:
+   89:       "Planning, coordination, delivery, documentation, and project leadership.",
+   90:   },
+   91:   {
+   92:     value: "leadership",
+   93:     label: "Leadership",
+   94:     description:
+   95:       "Team leadership, supervision, mentoring, training, and decision-making.",
+   96:   },
+   97:   {
+   98:     value: "communication",
+   99:     label: "Communication",
+  100:     description:
+  101:       "Written, verbal, technical, interpersonal, and presentation communication.",
+  102:   },
+  103:   {
+  104:     value: "business",
+  105:     label: "Business",
+  106:     description:
+  107:       "Business operations, customer service, sales, finance, and organizational skills.",
+  108:   },
+  109:   {
+  110:     value: "design",
+  111:     label: "Design",
+  112:     description:
+  113:       "Visual design, product design, user experience, drafting, and modeling.",
+  114:   },
+  115:   {
+  116:     value: "research-academic",
+  117:     label: "Research and Academic",
+  118:     description:
+  119:       "Research, instruction, academic methods, laboratory work, and scholarly skills.",
+  120:   },
+  121:   {
+  122:     value: "language",
+  123:     label: "Languages",
+  124:     description: "Spoken, written, or signed human-language proficiency.",
+  125:   },
+  126:   {
+  127:     value: "industry-knowledge",
+  128:     label: "Industry Knowledge",
+  129:     description:
+  130:       "Specialized knowledge associated with a profession or industry.",
+  131:   },
+  132:   {
+  133:     value: "interpersonal",
+  134:     label: "Interpersonal Skills",
+  135:     description:
+  136:       "Collaboration, adaptability, conflict resolution, and relationship-building.",
+  137:   },
+  138:   {
+  139:     value: "other",
+  140:     label: "Other",
+  141:     description:
+  142:       "Another relevant skill that does not fit an existing category.",
+  143:   },
+  144: ];
+  145: 
+  146: /*
+  147:  * =========================================
+  148:  * Skill Types
+  149:  * =========================================
+  150:  */
+  151: 
+  152: export const SKILL_TYPE_OPTIONS = [
+  153:   {
+  154:     value: "technical",
+  155:     label: "Technical Skill",
+  156:     description:
+  157:       "A practical skill involving systems, tools, technologies, or technical methods.",
+  158:   },
+  159:   {
+  160:     value: "professional",
+  161:     label: "Professional Skill",
+  162:     description: "A transferable skill used in professional work.",
+  163:   },
+  164:   {
+  165:     value: "interpersonal",
+  166:     label: "Interpersonal Skill",
+  167:     description:
+  168:       "A skill involving communication, collaboration, or relationships.",
+  169:   },
+  170:   {
+  171:     value: "leadership",
+  172:     label: "Leadership Skill",
+  173:     description:
+  174:       "A skill involving supervision, mentoring, coordination, or decision-making.",
+  175:   },
+  176:   {
+  177:     value: "language",
+  178:     label: "Language Skill",
+  179:     description: "A spoken, written, or signed human language.",
+  180:   },
+  181:   {
+  182:     value: "domain",
+  183:     label: "Domain Knowledge",
+  184:     description:
+  185:       "Knowledge associated with a particular profession or industry.",
+  186:   },
+  187:   {
+  188:     value: "tool",
+  189:     label: "Tool or Platform",
+  190:     description:
+  191:       "A named application, platform, service, system, or piece of equipment.",
+  192:   },
+  193:   {
+  194:     value: "other",
+  195:     label: "Other",
+  196:     description: "Another type of relevant professional skill.",
+  197:   },
+  198: ];
+  199: 
+  200: /*
+  201:  * =========================================
+  202:  * Proficiency Levels
+  203:  * =========================================
+  204:  */
+  205: 
+  206: export const SKILL_PROFICIENCY_OPTIONS = [
+  207:   {
+  208:     value: "",
+  209:     label: "Not specified",
+  210:     description: "Do not assign a proficiency level.",
+  211:   },
+  212:   {
+  213:     value: "foundational",
+  214:     label: "Foundational",
+  215:     description:
+  216:       "Understands the fundamentals and can complete basic tasks with guidance.",
+  217:   },
+  218:   {
+  219:     value: "intermediate",
+  220:     label: "Intermediate",
+  221:     description:
+  222:       "Can use the skill independently for common professional tasks.",
+  223:   },
+  224:   {
+  225:     value: "advanced",
+  226:     label: "Advanced",
+  227:     description:
+  228:       "Can handle complex work, troubleshoot problems, and guide others.",
+  229:   },
+  230:   {
+  231:     value: "expert",
+  232:     label: "Expert",
+  233:     description:
+  234:       "Has deep, extensive knowledge and can lead highly complex work.",
+  235:   },
+  236: ];
+  237: 
+  238: /*
+  239:  * =========================================
+  240:  * Language Proficiency
+  241:  * =========================================
+  242:  */
+  243: 
+  244: export const LANGUAGE_PROFICIENCY_OPTIONS = [
+  245:   {
+  246:     value: "",
+  247:     label: "Not specified",
+  248:   },
+  249:   {
+  250:     value: "basic",
+  251:     label: "Basic",
+  252:   },
+  253:   {
+  254:     value: "conversational",
+  255:     label: "Conversational",
+  256:   },
+  257:   {
+  258:     value: "professional-working",
+  259:     label: "Professional Working",
+  260:   },
+  261:   {
+  262:     value: "full-professional",
+  263:     label: "Full Professional",
+  264:   },
+  265:   {
+  266:     value: "native-bilingual",
+  267:     label: "Native or Bilingual",
+  268:   },
+  269: ];
+  270: 
+  271: /*
+  272:  * =========================================
+  273:  * Skill Sources
+  274:  * =========================================
+  275:  */
+  276: 
+  277: export const SKILL_SOURCE_OPTIONS = [
+  278:   {
+  279:     value: "manual",
+  280:     label: "Added Manually",
+  281:   },
+  282:   {
+  283:     value: "ai-suggested",
+  284:     label: "AI Suggested",
+  285:   },
+  286:   {
+  287:     value: "imported",
+  288:     label: "Imported",
+  289:   },
+  290:   {
+  291:     value: "migration",
+  292:     label: "Migrated",
+  293:   },
+  294: ];
+  295: 
+  296: /*
+  297:  * =========================================
+  298:  * Skill Statuses
+  299:  * =========================================
+  300:  */
+  301: 
+  302: export const SKILL_STATUS_OPTIONS = [
+  303:   {
+  304:     value: "active",
+  305:     label: "Active",
+  306:     description: "Available for experiences, résumés, and portfolios.",
+  307:   },
+  308:   {
+  309:     value: "archived",
+  310:     label: "Archived",
+  311:     description: "Saved but unavailable in normal selection lists.",
+  312:   },
+  313: ];
+  314: 
+  315: /*
+  316:  * =========================================
+  317:  * Field Limits
+  318:  * =========================================
+  319:  *
+  320:  * These limits should later be reproduced in
+  321:  * backend validation and the database design.
+  322:  */
+  323: 
+  324: export const SKILL_FIELD_LIMITS = {
+  325:   name: 150,
+  326:   description: 1500,
+  327:   category: 100,
+  328:   type: 100,
+  329:   proficiency: 50,
+  330:   languageProficiency: 50,
+  331: 
+  332:   alias: 150,
+  333:   maximumAliases: 20,
+  334: 
+  335:   yearsOfExperience: 80,
+  336:   notes: 2000,
+  337: };
+  338: 
+  339: /*
+  340:  * =========================================
+  341:  * Default Skill Values
+  342:  * =========================================
+  343:  */
+  344: 
+  345: export const DEFAULT_SKILL_VALUES = {
+  346:   category: "other",
+  347:   type: "professional",
+  348:   proficiency: "",
+  349:   languageProficiency: "",
+  350:   source: "manual",
+  351:   status: "active",
+  352: };
+  353: 
+  354: /*
+  355:  * =========================================
+  356:  * Option Helpers
+  357:  * =========================================
+  358:  */
+  359: 
+  360: function findOption(options, value) {
+  361:   return options.find((option) => option.value === value) || null;
+  362: }
+  363: 
+  364: export function getSkillCategoryOption(value) {
+  365:   return findOption(SKILL_CATEGORY_OPTIONS, value);
+  366: }
+  367: 
+  368: export function getSkillCategoryLabel(value) {
+  369:   return getSkillCategoryOption(value)?.label || "Other";
+  370: }
+  371: 
+  372: export function getSkillTypeOption(value) {
+  373:   return findOption(SKILL_TYPE_OPTIONS, value);
+  374: }
+  375: 
+  376: export function getSkillTypeLabel(value) {
+  377:   return getSkillTypeOption(value)?.label || "Professional Skill";
+  378: }
+  379: 
+  380: export function getSkillProficiencyOption(value) {
+  381:   return findOption(SKILL_PROFICIENCY_OPTIONS, value);
+  382: }
+  383: 
+  384: export function getSkillProficiencyLabel(value) {
+  385:   return getSkillProficiencyOption(value)?.label || "Not specified";
+  386: }
+  387: 
+  388: export function getLanguageProficiencyOption(value) {
+  389:   return findOption(LANGUAGE_PROFICIENCY_OPTIONS, value);
+  390: }
+  391: 
+  392: export function getLanguageProficiencyLabel(value) {
+  393:   return getLanguageProficiencyOption(value)?.label || "Not specified";
+  394: }
+  395: 
+  396: export function getSkillSourceOption(value) {
+  397:   return findOption(SKILL_SOURCE_OPTIONS, value);
+  398: }
+  399: 
+  400: export function getSkillSourceLabel(value) {
+  401:   return getSkillSourceOption(value)?.label || "Added Manually";
+  402: }
+  403: 
+  404: export function getSkillStatusOption(value) {
+  405:   return findOption(SKILL_STATUS_OPTIONS, value);
+  406: }
+  407: 
+  408: export function getSkillStatusLabel(value) {
+  409:   return getSkillStatusOption(value)?.label || "Active";
+  410: }
+  411: 
+  412: /*
+  413:  * =========================================
+  414:  * Option Validation
+  415:  * =========================================
+  416:  */
+  417: 
+  418: export function isValidSkillCategory(value) {
+  419:   return Boolean(getSkillCategoryOption(value));
+  420: }
+  421: 
+  422: export function isValidSkillType(value) {
+  423:   return Boolean(getSkillTypeOption(value));
+  424: }
+  425: 
+  426: export function isValidSkillProficiency(value) {
+  427:   return Boolean(getSkillProficiencyOption(value));
+  428: }
+  429: 
+  430: export function isValidLanguageProficiency(value) {
+  431:   return Boolean(getLanguageProficiencyOption(value));
+  432: }
+  433: 
+  434: export function isValidSkillSource(value) {
+  435:   return Boolean(getSkillSourceOption(value));
+  436: }
+  437: 
+  438: export function isValidSkillStatus(value) {
+  439:   return Boolean(getSkillStatusOption(value));
+  440: }
+
+================================================================================
+FILE: frontend\src\services\Skill\skillUtils.js
+================================================================================
+Total lines: 945
+    1: import {
+    2:   getLanguageProficiencyLabel,
+    3:   getSkillCategoryLabel,
+    4:   getSkillProficiencyLabel,
+    5:   getSkillSourceLabel,
+    6:   getSkillStatusLabel,
+    7:   getSkillTypeLabel,
+    8: } from "../../config/skillConfig.js";
+    9: 
+   10: import {
+   11:   getSkillDisplayName,
+   12:   normalizeSkillNameForComparison,
+   13: } from "../../models/skillModel.js";
+   14: 
+   15: /*
+   16:  * =========================================
+   17:  * Basic Helpers
+   18:  * =========================================
+   19:  */
+   20: 
+   21: function getText(value) {
+   22:   return typeof value === "string" ? value.trim() : "";
+   23: }
+   24: 
+   25: function getArray(value) {
+   26:   return Array.isArray(value) ? value : [];
+   27: }
+   28: 
+   29: function getNumericValue(value, fallback = 0) {
+   30:   const numericValue = Number(value);
+   31: 
+   32:   return Number.isFinite(numericValue) ? numericValue : fallback;
+   33: }
+   34: 
+   35: /*
+   36:  * =========================================
+   37:  * Active and Archived Skills
+   38:  * =========================================
+   39:  */
+   40: 
+   41: export function isActiveSkill(skill) {
+   42:   return skill?.status !== "archived";
+   43: }
+   44: 
+   45: export function isArchivedSkill(skill) {
+   46:   return skill?.status === "archived";
+   47: }
+   48: 
+   49: export function getActiveSkills(skills = []) {
+   50:   return getArray(skills).filter(isActiveSkill);
+   51: }
+   52: 
+   53: export function getArchivedSkills(skills = []) {
+   54:   return getArray(skills).filter(isArchivedSkill);
+   55: }
+   56: 
+   57: /*
+   58:  * =========================================
+   59:  * Skill Display Information
+   60:  * =========================================
+   61:  */
+   62: 
+   63: export function getSkillPrimaryLabel(skill) {
+   64:   return getSkillDisplayName(skill);
+   65: }
+   66: 
+   67: export function getSkillSecondaryLabel(skill) {
+   68:   return [
+   69:     getSkillCategoryLabel(skill?.category),
+   70:     getSkillTypeLabel(skill?.type),
+   71:   ]
+   72:     .filter(Boolean)
+   73:     .join(" · ");
+   74: }
+   75: 
+   76: export function getSkillCategoryDisplay(skill) {
+   77:   return getSkillCategoryLabel(skill?.category);
+   78: }
+   79: 
+   80: export function getSkillTypeDisplay(skill) {
+   81:   return getSkillTypeLabel(skill?.type);
+   82: }
+   83: 
+   84: export function getSkillProficiencyDisplay(skill) {
+   85:   if (skill?.type === "language") {
+   86:     return getLanguageProficiencyLabel(skill?.language?.proficiency);
+   87:   }
+   88: 
+   89:   return getSkillProficiencyLabel(skill?.proficiency?.level);
+   90: }
+   91: 
+   92: export function getSkillSourceDisplay(skill) {
+   93:   return getSkillSourceLabel(skill?.source);
+   94: }
+   95: 
+   96: export function getSkillStatusDisplay(skill) {
+   97:   return getSkillStatusLabel(skill?.status);
+   98: }
+   99: 
+  100: /*
+  101:  * =========================================
+  102:  * Skill Metadata
+  103:  * =========================================
+  104:  */
+  105: 
+  106: export function getSkillMetadata(skill) {
+  107:   const metadata = [getSkillCategoryDisplay(skill), getSkillTypeDisplay(skill)];
+  108: 
+  109:   if (skill?.type === "language" || getText(skill?.proficiency?.level)) {
+  110:     metadata.push(getSkillProficiencyDisplay(skill));
+  111:   }
+  112: 
+  113:   const years = getNumericValue(skill?.proficiency?.yearsOfExperience, -1);
+  114: 
+  115:   if (years >= 0) {
+  116:     metadata.push(`${years} ${years === 1 ? "year" : "years"}`);
+  117:   }
+  118: 
+  119:   return metadata.filter(Boolean);
+  120: }
+  121: 
+  122: /*
+  123:  * =========================================
+  124:  * Last Used Date
+  125:  * =========================================
+  126:  */
+  127: 
+  128: export function formatSkillLastUsedDate(
+  129:   value,
+  130:   { locale = "en-US", fallback = "" } = {},
+  131: ) {
+  132:   const normalizedValue = getText(value);
+  133: 
+  134:   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(normalizedValue)) {
+  135:     return fallback;
+  136:   }
+  137: 
+  138:   const [year, month] = normalizedValue.split("-").map(Number);
+  139: 
+  140:   const date = new Date(Date.UTC(year, month - 1, 1));
+  141: 
+  142:   return new Intl.DateTimeFormat(locale, {
+  143:     month: "short",
+  144:     year: "numeric",
+  145:     timeZone: "UTC",
+  146:   }).format(date);
+  147: }
+  148: 
+  149: /*
+  150:  * =========================================
+  151:  * Search
+  152:  * =========================================
+  153:  */
+  154: 
+  155: export function createSkillSearchText(skill) {
+  156:   return [
+  157:     skill?.name,
+  158:     skill?.description,
+  159:     skill?.category,
+  160:     skill?.type,
+  161:     skill?.source,
+  162:     skill?.sourceContext,
+  163:     skill?.notes,
+  164:     skill?.proficiency?.level,
+  165:     skill?.language?.proficiency,
+  166:     getSkillCategoryDisplay(skill),
+  167:     getSkillTypeDisplay(skill),
+  168:     getSkillProficiencyDisplay(skill),
+  169:     ...getArray(skill?.aliases),
+  170:   ]
+  171:     .map(getText)
+  172:     .filter(Boolean)
+  173:     .join(" ")
+  174:     .normalize("NFKC")
+  175:     .toLocaleLowerCase();
+  176: }
+  177: 
+  178: export function searchSkills(skills = [], query = "") {
+  179:   const normalizedQuery = normalizeSkillNameForComparison(query);
+  180: 
+  181:   if (!normalizedQuery) {
+  182:     return [...getArray(skills)];
+  183:   }
+  184: 
+  185:   const terms = normalizedQuery.split(/\s+/).filter(Boolean);
+  186: 
+  187:   return getArray(skills).filter((skill) => {
+  188:     const searchableText = createSkillSearchText(skill);
+  189: 
+  190:     return terms.every((term) => searchableText.includes(term));
+  191:   });
+  192: }
+  193: 
+  194: /*
+  195:  * =========================================
+  196:  * Filtering
+  197:  * =========================================
+  198:  */
+  199: 
+  200: export function filterSkills(skills = [], filters = {}) {
+  201:   const {
+  202:     category = "all",
+  203:     type = "all",
+  204:     proficiency = "all",
+  205:     source = "all",
+  206:     status = "all",
+  207:   } = filters;
+  208: 
+  209:   return getArray(skills).filter((skill) => {
+  210:     if (category !== "all" && skill?.category !== category) {
+  211:       return false;
+  212:     }
+  213: 
+  214:     if (type !== "all" && skill?.type !== type) {
+  215:       return false;
+  216:     }
+  217: 
+  218:     if (proficiency !== "all" && skill?.proficiency?.level !== proficiency) {
+  219:       return false;
+  220:     }
+  221: 
+  222:     if (source !== "all" && skill?.source !== source) {
+  223:       return false;
+  224:     }
+  225: 
+  226:     if (status !== "all" && skill?.status !== status) {
+  227:       return false;
+  228:     }
+  229: 
+  230:     return true;
+  231:   });
+  232: }
+  233: 
+  234: /*
+  235:  * =========================================
+  236:  * Sorting
+  237:  * =========================================
+  238:  */
+  239: 
+  240: function compareText(firstValue, secondValue) {
+  241:   return getText(firstValue).localeCompare(getText(secondValue), undefined, {
+  242:     sensitivity: "base",
+  243:   });
+  244: }
+  245: 
+  246: function getUpdatedTime(skill) {
+  247:   const timestamp = new Date(skill?.updatedAt || 0).getTime();
+  248: 
+  249:   return Number.isFinite(timestamp) ? timestamp : 0;
+  250: }
+  251: 
+  252: function getCreatedTime(skill) {
+  253:   const timestamp = new Date(skill?.createdAt || 0).getTime();
+  254: 
+  255:   return Number.isFinite(timestamp) ? timestamp : 0;
+  256: }
+  257: 
+  258: export function sortSkills(skills = [], sortOption = "name-ascending") {
+  259:   const sortedSkills = [...getArray(skills)];
+  260: 
+  261:   sortedSkills.sort((firstSkill, secondSkill) => {
+  262:     switch (sortOption) {
+  263:       case "name-descending":
+  264:         return compareText(secondSkill?.name, firstSkill?.name);
+  265: 
+  266:       case "category-ascending":
+  267:         return (
+  268:           compareText(
+  269:             getSkillCategoryDisplay(firstSkill),
+  270:             getSkillCategoryDisplay(secondSkill),
+  271:           ) || compareText(firstSkill?.name, secondSkill?.name)
+  272:         );
+  273: 
+  274:       case "type-ascending":
+  275:         return (
+  276:           compareText(
+  277:             getSkillTypeDisplay(firstSkill),
+  278:             getSkillTypeDisplay(secondSkill),
+  279:           ) || compareText(firstSkill?.name, secondSkill?.name)
+  280:         );
+  281: 
+  282:       case "proficiency-descending": {
+  283:         const proficiencyOrder = {
+  284:           expert: 4,
+  285:           advanced: 3,
+  286:           intermediate: 2,
+  287:           foundational: 1,
+  288:           "": 0,
+  289:         };
+  290: 
+  291:         const firstLevel =
+  292:           proficiencyOrder[firstSkill?.proficiency?.level || ""] || 0;
+  293: 
+  294:         const secondLevel =
+  295:           proficiencyOrder[secondSkill?.proficiency?.level || ""] || 0;
+  296: 
+  297:         return (
+  298:           secondLevel - firstLevel ||
+  299:           compareText(firstSkill?.name, secondSkill?.name)
+  300:         );
+  301:       }
+  302: 
+  303:       case "years-descending":
+  304:         return (
+  305:           getNumericValue(secondSkill?.proficiency?.yearsOfExperience) -
+  306:             getNumericValue(firstSkill?.proficiency?.yearsOfExperience) ||
+  307:           compareText(firstSkill?.name, secondSkill?.name)
+  308:         );
+  309: 
+  310:       case "recently-created":
+  311:         return getCreatedTime(secondSkill) - getCreatedTime(firstSkill);
+  312: 
+  313:       case "recently-updated":
+  314:         return getUpdatedTime(secondSkill) - getUpdatedTime(firstSkill);
+  315: 
+  316:       case "name-ascending":
+  317:       default:
+  318:         return compareText(firstSkill?.name, secondSkill?.name);
+  319:     }
+  320:   });
+  321: 
+  322:   return sortedSkills;
+  323: }
+  324: 
+  325: export function prepareSkillCollection({
+  326:   skills = [],
+  327:   query = "",
+  328:   filters = {},
+  329:   sortOption = "name-ascending",
+  330: } = {}) {
+  331:   return sortSkills(
+  332:     filterSkills(searchSkills(skills, query), filters),
+  333:     sortOption,
+  334:   );
+  335: }
+  336: 
+  337: /*
+  338:  * =========================================
+  339:  * Grouping
+  340:  * =========================================
+  341:  */
+  342: 
+  343: export function groupSkillsByCategory(skills = []) {
+  344:   return getArray(skills).reduce((groups, skill) => {
+  345:     const category = skill?.category || "other";
+  346: 
+  347:     if (!groups[category]) {
+  348:       groups[category] = [];
+  349:     }
+  350: 
+  351:     groups[category].push(skill);
+  352: 
+  353:     return groups;
+  354:   }, {});
+  355: }
+  356: 
+  357: /*
+  358:  * =========================================
+  359:  * Completeness
+  360:  * =========================================
+  361:  */
+  362: 
+  363: export function getSkillCompleteness(skill) {
+  364:   const isLanguage = skill?.type === "language";
+  365: 
+  366:   const checks = [
+  367:     {
+  368:       id: "name",
+  369:       label: "Skill name",
+  370:       complete: Boolean(getText(skill?.name)),
+  371:       weight: 3,
+  372:     },
+  373:     {
+  374:       id: "category",
+  375:       label: "Category",
+  376:       complete: Boolean(getText(skill?.category) && skill.category !== "other"),
+  377:       weight: 1,
+  378:     },
+  379:     {
+  380:       id: "type",
+  381:       label: "Skill type",
+  382:       complete: Boolean(getText(skill?.type) && skill.type !== "other"),
+  383:       weight: 1,
+  384:     },
+  385:     {
+  386:       id: "description",
+  387:       label: "Description",
+  388:       complete: Boolean(getText(skill?.description)),
+  389:       weight: 2,
+  390:     },
+  391:     {
+  392:       id: "proficiency",
+  393:       label: isLanguage ? "Language proficiency" : "Proficiency",
+  394:       complete: isLanguage
+  395:         ? Boolean(getText(skill?.language?.proficiency))
+  396:         : Boolean(getText(skill?.proficiency?.level)),
+  397:       weight: 1,
+  398:     },
+  399:     {
+  400:       id: "experience",
+  401:       label: "Experience information",
+  402:       complete:
+  403:         getNumericValue(skill?.proficiency?.yearsOfExperience, -1) >= 0 ||
+  404:         Boolean(getText(skill?.proficiency?.lastUsedDate)),
+  405:       weight: 1,
+  406:     },
+  407:   ];
+  408: 
+  409:   const maximumScore = checks.reduce((total, check) => total + check.weight, 0);
+  410: 
+  411:   const score = checks.reduce(
+  412:     (total, check) => total + (check.complete ? check.weight : 0),
+  413:     0,
+  414:   );
+  415: 
+  416:   const percentage =
+  417:     maximumScore > 0 ? Math.round((score / maximumScore) * 100) : 0;
+  418: 
+  419:   let level = "basic";
+  420:   let label = "Basic";
+  421: 
+  422:   if (percentage >= 90) {
+  423:     level = "excellent";
+  424:     label = "Excellent";
+  425:   } else if (percentage >= 70) {
+  426:     level = "strong";
+  427:     label = "Strong";
+  428:   } else if (percentage >= 45) {
+  429:     level = "developing";
+  430:     label = "Developing";
+  431:   }
+  432: 
+  433:   return {
+  434:     score,
+  435:     maximumScore,
+  436:     percentage,
+  437:     level,
+  438:     label,
+  439:     checks,
+  440: 
+  441:     completedChecks: checks.filter((check) => check.complete),
+  442: 
+  443:     missingChecks: checks.filter((check) => !check.complete),
+  444:   };
+  445: }
+  446: /*
+  447:  * =========================================
+  448:  * Relationship Helpers
+  449:  * =========================================
+  450:  */
+  451: 
+  452: function getRelationshipSkillId(relationship) {
+  453:   if (typeof relationship === "string") {
+  454:     return relationship.trim();
+  455:   }
+  456: 
+  457:   if (!relationship || typeof relationship !== "object") {
+  458:     return "";
+  459:   }
+  460: 
+  461:   return String(
+  462:     relationship.skillId || relationship.profileSkillId || "",
+  463:   ).trim();
+  464: }
+  465: 
+  466: function countSkillRelationships(relationships, skillId) {
+  467:   if (!skillId) {
+  468:     return 0;
+  469:   }
+  470: 
+  471:   return getArray(relationships).filter(
+  472:     (relationship) => getRelationshipSkillId(relationship) === skillId,
+  473:   ).length;
+  474: }
+  475: 
+  476: function getExperienceLabels(experience) {
+  477:   return {
+  478:     positionTitle: getText(experience?.position?.title) || "Untitled Position",
+  479: 
+  480:     organizationName:
+  481:       getText(experience?.organization?.name) || "Organization not provided",
+  482:   };
+  483: }
+  484: 
+  485: function getEducationLabels(education) {
+  486:   return {
+  487:     credentialName:
+  488:       getText(education?.credential?.name) || "Unnamed Credential",
+  489: 
+  490:     institutionName:
+  491:       getText(education?.institution?.name) || "Institution not provided",
+  492:   };
+  493: }
+  494: 
+  495: function getTrainingLabels(training) {
+  496:   return {
+  497:     title: getText(training?.title) || "Untitled Training",
+  498: 
+  499:     providerName:
+  500:       getText(training?.provider?.name) || "Training provider not provided",
+  501:   };
+  502: }
+  503: 
+  504: /*
+  505:  * =========================================
+  506:  * Empty Usage
+  507:  * =========================================
+  508:  */
+  509: 
+  510: export function createEmptySkillUsage(skillId = "") {
+  511:   return {
+  512:     skillId,
+  513: 
+  514:     /*
+  515:      * Unique parent records using this skill.
+  516:      */
+  517: 
+  518:     total: 0,
+  519:     totalUsage: 0,
+  520: 
+  521:     /*
+  522:      * Unique parent-record totals.
+  523:      */
+  524: 
+  525:     experienceCount: 0,
+  526:     educationCount: 0,
+  527:     trainingCount: 0,
+  528:     resumeCount: 0,
+  529:     portfolioCount: 0,
+  530: 
+  531:     /*
+  532:      * Relationship totals.
+  533:      */
+  534: 
+  535:     experienceSkillCount: 0,
+  536:     experienceTechnologyCount: 0,
+  537:     educationSkillCount: 0,
+  538:     trainingSkillCount: 0,
+  539: 
+  540:     /*
+  541:      * Referencing records.
+  542:      */
+  543: 
+  544:     experiences: [],
+  545:     educationRecords: [],
+  546:     trainingRecords: [],
+  547:     resumes: [],
+  548:     portfolios: [],
+  549: 
+  550:     isUsed: false,
+  551:   };
+  552: }
+  553: 
+  554: /*
+  555:  * =========================================
+  556:  * Experience Usage
+  557:  * =========================================
+  558:  */
+  559: 
+  560: export function getSkillExperienceUsage(skillId, experiences = []) {
+  561:   const result = {
+  562:     experienceCount: 0,
+  563:     experienceSkillCount: 0,
+  564:     experienceTechnologyCount: 0,
+  565:     experiences: [],
+  566:   };
+  567: 
+  568:   if (!skillId) {
+  569:     return result;
+  570:   }
+  571: 
+  572:   getArray(experiences).forEach((experience) => {
+  573:     const skillRelationshipCount = countSkillRelationships(
+  574:       experience?.skills,
+  575:       skillId,
+  576:     );
+  577: 
+  578:     const technologyRelationshipCount = countSkillRelationships(
+  579:       experience?.technologies,
+  580:       skillId,
+  581:     );
+  582: 
+  583:     const usedAsSkill = skillRelationshipCount > 0;
+  584:     const usedAsTechnology = technologyRelationshipCount > 0;
+  585: 
+  586:     if (!usedAsSkill && !usedAsTechnology) {
+  587:       return;
+  588:     }
+  589: 
+  590:     const labels = getExperienceLabels(experience);
+  591: 
+  592:     result.experienceSkillCount += skillRelationshipCount;
+  593:     result.experienceTechnologyCount += technologyRelationshipCount;
+  594: 
+  595:     result.experiences.push({
+  596:       id: getText(experience?.id),
+  597: 
+  598:       positionTitle: labels.positionTitle,
+  599:       organizationName: labels.organizationName,
+  600: 
+  601:       usedAsSkill,
+  602:       usedAsTechnology,
+  603:     });
+  604:   });
+  605: 
+  606:   result.experienceCount = result.experiences.length;
+  607: 
+  608:   return result;
+  609: }
+  610: 
+  611: /*
+  612:  * =========================================
+  613:  * Education Usage
+  614:  * =========================================
+  615:  */
+  616: 
+  617: export function getSkillEducationUsage(skillId, educationRecords = []) {
+  618:   const result = {
+  619:     educationCount: 0,
+  620:     educationSkillCount: 0,
+  621:     educationRecords: [],
+  622:   };
+  623: 
+  624:   if (!skillId) {
+  625:     return result;
+  626:   }
+  627: 
+  628:   getArray(educationRecords).forEach((education) => {
+  629:     const relationshipCount = countSkillRelationships(
+  630:       education?.skillRelationships,
+  631:       skillId,
+  632:     );
+  633: 
+  634:     if (relationshipCount === 0) {
+  635:       return;
+  636:     }
+  637: 
+  638:     const labels = getEducationLabels(education);
+  639: 
+  640:     result.educationSkillCount += relationshipCount;
+  641: 
+  642:     result.educationRecords.push({
+  643:       id: getText(education?.id),
+  644: 
+  645:       credentialName: labels.credentialName,
+  646:       institutionName: labels.institutionName,
+  647: 
+  648:       relationshipCount,
+  649:     });
+  650:   });
+  651: 
+  652:   result.educationCount = result.educationRecords.length;
+  653: 
+  654:   return result;
+  655: }
+  656: 
+  657: /*
+  658:  * =========================================
+  659:  * Training Usage
+  660:  * =========================================
+  661:  */
+  662: 
+  663: export function getSkillTrainingUsage(skillId, trainingRecords = []) {
+  664:   const result = {
+  665:     trainingCount: 0,
+  666:     trainingSkillCount: 0,
+  667:     trainingRecords: [],
+  668:   };
+  669: 
+  670:   if (!skillId) {
+  671:     return result;
+  672:   }
+  673: 
+  674:   getArray(trainingRecords).forEach((training) => {
+  675:     const relationshipCount = countSkillRelationships(
+  676:       training?.skillRelationships,
+  677:       skillId,
+  678:     );
+  679: 
+  680:     if (relationshipCount === 0) {
+  681:       return;
+  682:     }
+  683: 
+  684:     const labels = getTrainingLabels(training);
+  685: 
+  686:     result.trainingSkillCount += relationshipCount;
+  687: 
+  688:     result.trainingRecords.push({
+  689:       id: getText(training?.id),
+  690: 
+  691:       title: labels.title,
+  692: 
+  693:       providerName: labels.providerName,
+  694: 
+  695:       relationshipCount,
+  696:     });
+  697:   });
+  698: 
+  699:   result.trainingCount = result.trainingRecords.length;
+  700: 
+  701:   return result;
+  702: }
+  703: 
+  704: /*
+  705:  * =========================================
+  706:  * Complete Skill Usage
+  707:  * =========================================
+  708:  */
+  709: 
+  710: export function getSkillUsage(
+  711:   skillId,
+  712:   {
+  713:     experiences = [],
+  714:     educationRecords = [],
+  715:     trainingRecords = [],
+  716:     portfolios = [],
+  717:     resumes = [],
+  718:   } = {},
+  719: ) {
+  720:   const usage = createEmptySkillUsage(skillId);
+  721: 
+  722:   const experienceUsage = getSkillExperienceUsage(skillId, experiences);
+  723: 
+  724:   const educationUsage = getSkillEducationUsage(skillId, educationRecords);
+  725: 
+  726:   const trainingUsage = getSkillTrainingUsage(skillId, trainingRecords);
+  727: 
+  728:   usage.experienceCount = experienceUsage.experienceCount;
+  729: 
+  730:   usage.experienceSkillCount = experienceUsage.experienceSkillCount;
+  731: 
+  732:   usage.experienceTechnologyCount = experienceUsage.experienceTechnologyCount;
+  733: 
+  734:   usage.experiences = experienceUsage.experiences;
+  735: 
+  736:   usage.educationCount = educationUsage.educationCount;
+  737: 
+  738:   usage.educationSkillCount = educationUsage.educationSkillCount;
+  739: 
+  740:   usage.educationRecords = educationUsage.educationRecords;
+  741: 
+  742:   usage.trainingCount = trainingUsage.trainingCount;
+  743: 
+  744:   usage.trainingSkillCount = trainingUsage.trainingSkillCount;
+  745: 
+  746:   usage.trainingRecords = trainingUsage.trainingRecords;
+  747: 
+  748:   /*
+  749:    * Résumé and Portfolio relationship models
+  750:    * have not been implemented yet.
+  751:    */
+  752: 
+  753:   usage.resumeCount = 0;
+  754:   usage.portfolioCount = 0;
+  755: 
+  756:   usage.resumes = [];
+  757:   usage.portfolios = [];
+  758: 
+  759:   /*
+  760:    * Total represents unique parent records,
+  761:    * not the number of relationship rows.
+  762:    */
+  763: 
+  764:   usage.total =
+  765:     usage.experienceCount +
+  766:     usage.educationCount +
+  767:     usage.trainingCount +
+  768:     usage.resumeCount +
+  769:     usage.portfolioCount;
+  770: 
+  771:   usage.totalUsage = usage.total;
+  772: 
+  773:   usage.isUsed = usage.total > 0;
+  774: 
+  775:   void portfolios;
+  776:   void resumes;
+  777: 
+  778:   return usage;
+  779: }
+  780: 
+  781: /*
+  782:  * =========================================
+  783:  * Usage Map
+  784:  * =========================================
+  785:  */
+  786: 
+  787: export function createSkillUsageMap({
+  788:   skills = [],
+  789:   experiences = [],
+  790:   educationRecords = [],
+  791:   trainingRecords = [],
+  792:   portfolios = [],
+  793:   resumes = [],
+  794: } = {}) {
+  795:   return getArray(skills).reduce((usageMap, skill) => {
+  796:     if (!skill?.id) {
+  797:       return usageMap;
+  798:     }
+  799: 
+  800:     usageMap[skill.id] = getSkillUsage(skill.id, {
+  801:       experiences,
+  802:       educationRecords,
+  803:       trainingRecords,
+  804:       portfolios,
+  805:       resumes,
+  806:     });
+  807: 
+  808:     return usageMap;
+  809:   }, {});
+  810: }
+  811: 
+  812: export function isSkillInUse(usage) {
+  813:   return Number(usage?.total ?? usage?.totalUsage) > 0;
+  814: }
+  815: 
+  816: /*
+  817:  * =========================================
+  818:  * Usage Summary
+  819:  * =========================================
+  820:  */
+  821: 
+  822: export function getSkillUsageSummary(usage) {
+  823:   if (!isSkillInUse(usage)) {
+  824:     return "Not currently used";
+  825:   }
+  826: 
+  827:   const parts = [];
+  828: 
+  829:   const experienceCount = Number(usage?.experienceCount) || 0;
+  830: 
+  831:   const educationCount = Number(usage?.educationCount) || 0;
+  832: 
+  833:   const trainingCount = Number(usage?.trainingCount) || 0;
+  834: 
+  835:   const resumeCount = Number(usage?.resumeCount) || 0;
+  836: 
+  837:   const portfolioCount = Number(usage?.portfolioCount) || 0;
+  838: 
+  839:   if (experienceCount > 0) {
+  840:     parts.push(
+  841:       `${experienceCount} ${
+  842:         experienceCount === 1 ? "experience" : "experiences"
+  843:       }`,
+  844:     );
+  845:   }
+  846: 
+  847:   if (educationCount > 0) {
+  848:     parts.push(
+  849:       `${educationCount} education ${
+  850:         educationCount === 1 ? "record" : "records"
+  851:       }`,
+  852:     );
+  853:   }
+  854: 
+  855:   if (trainingCount > 0) {
+  856:     parts.push(
+  857:       `${trainingCount} training ${trainingCount === 1 ? "record" : "records"}`,
+  858:     );
+  859:   }
+  860: 
+  861:   if (resumeCount > 0) {
+  862:     parts.push(`${resumeCount} ${resumeCount === 1 ? "résumé" : "résumés"}`);
+  863:   }
+  864: 
+  865:   if (portfolioCount > 0) {
+  866:     parts.push(
+  867:       `${portfolioCount} ${portfolioCount === 1 ? "portfolio" : "portfolios"}`,
+  868:     );
+  869:   }
+  870: 
+  871:   return parts.join(" · ");
+  872: }
+  873: 
+  874: /*
+  875:  * =========================================
+  876:  * Statistics
+  877:  * =========================================
+  878:  */
+  879: 
+  880: export function getSkillStatistics(skills = []) {
+  881:   const collection = getArray(skills);
+  882: 
+  883:   const active = getActiveSkills(collection);
+  884: 
+  885:   const archived = getArchivedSkills(collection);
+  886: 
+  887:   return {
+  888:     total: collection.length,
+  889: 
+  890:     active: active.length,
+  891: 
+  892:     archived: archived.length,
+  893: 
+  894:     technical: active.filter((skill) => skill.type === "technical").length,
+  895: 
+  896:     professional: active.filter((skill) => skill.type === "professional")
+  897:       .length,
+  898: 
+  899:     languages: active.filter((skill) => skill.type === "language").length,
+  900: 
+  901:     tools: active.filter((skill) => skill.type === "tool").length,
+  902: 
+  903:     aiSuggested: active.filter((skill) => skill.source === "ai-suggested")
+  904:       .length,
+  905: 
+  906:     withDescriptions: active.filter((skill) =>
+  907:       Boolean(getText(skill.description)),
+  908:     ).length,
+  909: 
+  910:     withProficiency: active.filter((skill) =>
+  911:       Boolean(
+  912:         getText(skill.proficiency?.level) ||
+  913:         getText(skill.language?.proficiency),
+  914:       ),
+  915:     ).length,
+  916: 
+  917:     categoryCount: new Set(
+  918:       active.map((skill) => skill.category).filter(Boolean),
+  919:     ).size,
+  920:   };
+  921: }
+  922: 
+  923: /*
+  924:  * =========================================
+  925:  * Selection Options
+  926:  * =========================================
+  927:  */
+  928: 
+  929: export function createSkillSelectionOptions(skills = []) {
+  930:   return sortSkills(getActiveSkills(skills), "name-ascending").map((skill) => ({
+  931:     id: skill.id,
+  932:     value: skill.id,
+  933:     label: skill.name,
+  934:     displayValue: skill.name,
+  935:     category: skill.category,
+  936: 
+  937:     categoryLabel: getSkillCategoryDisplay(skill),
+  938: 
+  939:     type: skill.type,
+  940: 
+  941:     typeLabel: getSkillTypeDisplay(skill),
+  942: 
+  943:     proficiency: skill.proficiency?.level || "",
+  944:   }));
+  945: }
+
+================================================================================
+FILE: backend\src\controllers\skillController.js
+================================================================================
+Total lines: 297
+    1: import {
+    2:   getAuthenticatedSkills,
+    3:   getAuthenticatedSkill,
+    4:   createAuthenticatedSkill,
+    5:   updateAuthenticatedSkill,
+    6:   setAuthenticatedSkillArchiveStatus,
+    7:   deleteAuthenticatedSkill,
+    8: } from "../services/Service/skillService.js";
+    9: 
+   10: import {
+   11:   skillListQuerySchema,
+   12:   skillIdParamsSchema,
+   13:   formatSkillSchemaErrors,
+   14: } from "../schemas/skillSchemas.js";
+   15: 
+   16: function requestError(message) {
+   17:   const error = new Error(message);
+   18: 
+   19:   error.name = "SkillRequestError";
+   20:   error.code = "SKILL_REQUEST_INVALID";
+   21:   error.status = 400;
+   22:   error.publicMessage = message;
+   23: 
+   24:   return error;
+   25: }
+   26: 
+   27: function requireFields(value, allowedFields) {
+   28:   if (
+   29:     value === null ||
+   30:     typeof value !== "object" ||
+   31:     Array.isArray(value)
+   32:   ) {
+   33:     throw requestError("Request body must be a JSON object.");
+   34:   }
+   35: 
+   36:   const unexpected = Object.keys(value).filter(
+   37:     (field) => !allowedFields.includes(field),
+   38:   );
+   39: 
+   40:   if (unexpected.length > 0) {
+   41:     throw requestError(
+   42:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+   43:     );
+   44:   }
+   45: 
+   46:   return value;
+   47: }
+   48: 
+   49: function validateSchema(schema, value) {
+   50:   const result = schema.safeParse(value);
+   51: 
+   52:   if (!result.success) {
+   53:     const error = requestError(
+   54:       "The request contains invalid Skill parameters.",
+   55:     );
+   56: 
+   57:     error.errors = formatSkillSchemaErrors(result.error);
+   58: 
+   59:     throw error;
+   60:   }
+   61: 
+   62:   return result.data;
+   63: }
+   64: 
+   65: function sendSuccess(response, status, message, data) {
+   66:   response.set({
+   67:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+   68:     Pragma: "no-cache",
+   69:     Expires: "0",
+   70:   });
+   71: 
+   72:   return response.status(status).json({
+   73:     status: "success",
+   74:     message,
+   75:     data,
+   76:   });
+   77: }
+   78: 
+   79: function getSkillId(request) {
+   80:   const params = validateSchema(
+   81:     skillIdParamsSchema,
+   82:     request.params,
+   83:   );
+   84: 
+   85:   return params.skillId;
+   86: }
+   87: 
+   88: export async function listMySkills(request, response, next) {
+   89:   try {
+   90:     const filters = validateSchema(
+   91:       skillListQuerySchema,
+   92:       request.query,
+   93:     );
+   94: 
+   95:     const allSkills = await getAuthenticatedSkills({
+   96:       userId: request.auth.userId,
+   97:     });
+   98: 
+   99:     const query = filters.query.toLocaleLowerCase();
+  100: 
+  101:     const skills = allSkills
+  102:       .filter((skill) => {
+  103:         if (!filters.includeArchived && skill.status === "archived") {
+  104:           return false;
+  105:         }
+  106: 
+  107:         if (
+  108:           filters.category !== "all" &&
+  109:           skill.category !== filters.category
+  110:         ) {
+  111:           return false;
+  112:         }
+  113: 
+  114:         if (
+  115:           filters.type !== "all" &&
+  116:           skill.type !== filters.type
+  117:         ) {
+  118:           return false;
+  119:         }
+  120: 
+  121:         if (!query) {
+  122:           return true;
+  123:         }
+  124: 
+  125:         const searchable = [
+  126:           skill.name,
+  127:           skill.description,
+  128:           ...(Array.isArray(skill.aliases) ? skill.aliases : []),
+  129:         ];
+  130: 
+  131:         return searchable.some(
+  132:           (value) =>
+  133:             typeof value === "string" &&
+  134:             value.toLocaleLowerCase().includes(query),
+  135:         );
+  136:       })
+  137:       .sort((a, b) => {
+  138:         switch (filters.sort) {
+  139:           case "name-descending":
+  140:             return b.name.localeCompare(a.name);
+  141: 
+  142:           case "recently-updated":
+  143:             return (
+  144:               new Date(b.updatedAt).getTime() -
+  145:               new Date(a.updatedAt).getTime()
+  146:             );
+  147: 
+  148:           case "oldest-updated":
+  149:             return (
+  150:               new Date(a.updatedAt).getTime() -
+  151:               new Date(b.updatedAt).getTime()
+  152:             );
+  153: 
+  154:           default:
+  155:             return a.name.localeCompare(b.name);
+  156:         }
+  157:       });
+  158: 
+  159:     return sendSuccess(
+  160:       response,
+  161:       200,
+  162:       "Skills retrieved successfully.",
+  163:       { skills },
+  164:     );
+  165:   } catch (error) {
+  166:     return next(error);
+  167:   }
+  168: }
+  169: 
+  170: export async function getMySkill(request, response, next) {
+  171:   try {
+  172:     const skill = await getAuthenticatedSkill({
+  173:       userId: request.auth.userId,
+  174:       skillId: getSkillId(request),
+  175:     });
+  176: 
+  177:     return sendSuccess(
+  178:       response,
+  179:       200,
+  180:       "Skill retrieved successfully.",
+  181:       { skill },
+  182:     );
+  183:   } catch (error) {
+  184:     return next(error);
+  185:   }
+  186: }
+  187: 
+  188: export async function createMySkill(request, response, next) {
+  189:   try {
+  190:     const body = requireFields(request.body, [
+  191:       "name",
+  192:       "category",
+  193:       "type",
+  194:       "description",
+  195:       "aliases",
+  196:       "proficiency",
+  197:       "language",
+  198:       "source",
+  199:       "sourceContext",
+  200:       "notes",
+  201:       "status",
+  202:     ]);
+  203: 
+  204:     const skill = await createAuthenticatedSkill({
+  205:       userId: request.auth.userId,
+  206:       skill: body,
+  207:     });
+  208: 
+  209:     return sendSuccess(
+  210:       response,
+  211:       201,
+  212:       "Skill created successfully.",
+  213:       { skill },
+  214:     );
+  215:   } catch (error) {
+  216:     return next(error);
+  217:   }
+  218: }
+  219: 
+  220: export async function updateMySkill(request, response, next) {
+  221:   try {
+  222:     const body = requireFields(request.body, [
+  223:       "updates",
+  224:       "rowVersion",
+  225:     ]);
+  226: 
+  227:     const skill = await updateAuthenticatedSkill({
+  228:       userId: request.auth.userId,
+  229:       skillId: getSkillId(request),
+  230:       updates: body.updates,
+  231:       rowVersion: body.rowVersion,
+  232:     });
+  233: 
+  234:     return sendSuccess(
+  235:       response,
+  236:       200,
+  237:       "Skill updated successfully.",
+  238:       { skill },
+  239:     );
+  240:   } catch (error) {
+  241:     return next(error);
+  242:   }
+  243: }
+  244: 
+  245: export async function setMySkillArchiveStatus(
+  246:   request,
+  247:   response,
+  248:   next,
+  249: ) {
+  250:   try {
+  251:     const body = requireFields(request.body, [
+  252:       "archived",
+  253:       "rowVersion",
+  254:     ]);
+  255: 
+  256:     if (typeof body.archived !== "boolean") {
+  257:       throw requestError("Archive status must be true or false.");
+  258:     }
+  259: 
+  260:     const skill = await setAuthenticatedSkillArchiveStatus({
+  261:       userId: request.auth.userId,
+  262:       skillId: getSkillId(request),
+  263:       archived: body.archived,
+  264:       rowVersion: body.rowVersion,
+  265:     });
+  266: 
+  267:     return sendSuccess(
+  268:       response,
+  269:       200,
+  270:       body.archived
+  271:         ? "Skill archived successfully."
+  272:         : "Skill restored successfully.",
+  273:       { skill },
+  274:     );
+  275:   } catch (error) {
+  276:     return next(error);
+  277:   }
+  278: }
+  279: 
+  280: export async function deleteMySkill(request, response, next) {
+  281:   try {
+  282:     const body = requireFields(request.body, ["rowVersion"]);
+  283: 
+  284:     await deleteAuthenticatedSkill({
+  285:       userId: request.auth.userId,
+  286:       skillId: getSkillId(request),
+  287:       rowVersion: body.rowVersion,
+  288:     });
+  289: 
+  290:     // Permanent deletion is currently disabled by the service.
+  291:     throw requestError(
+  292:       "Permanent Skill deletion is not available.",
+  293:     );
+  294:   } catch (error) {
+  295:     return next(error);
+  296:   }
+  297: }
+
+================================================================================
+FILE: backend\src\routes\skillRoutes.js
+================================================================================
+Total lines: 36
+    1: import { Router } from "express";
+    2: 
+    3: import {
+    4:   requireAuthentication,
+    5: } from "../middleware/authenticationMiddleware.js";
+    6: 
+    7: import {
+    8:   listMySkills,
+    9:   getMySkill,
+   10:   createMySkill,
+   11:   updateMySkill,
+   12:   setMySkillArchiveStatus,
+   13:   deleteMySkill,
+   14: } from "../controllers/skillController.js";
+   15: 
+   16: const router = Router();
+   17: 
+   18: // Every Skills endpoint requires an authenticated session.
+   19: router.use(requireAuthentication);
+   20: 
+   21: router.get("/", listMySkills);
+   22: router.post("/", createMySkill);
+   23: 
+   24: router.get("/:skillId", getMySkill);
+   25: router.patch("/:skillId", updateMySkill);
+   26: 
+   27: router.patch(
+   28:   "/:skillId/archive",
+   29:   setMySkillArchiveStatus,
+   30: );
+   31: 
+   32: // The service rejects permanent deletion until relationship
+   33: // integrity checks are implemented.
+   34: router.delete("/:skillId", deleteMySkill);
+   35: 
+   36: export default router;
+
+================================================================================
+FILE: backend\src\services\Service\skillService.js
+================================================================================
+Total lines: 292
+    1: import { randomUUID } from "node:crypto";
+    2: 
+    3: import {
+    4:   listSkillsByUser,
+    5:   findSkillById,
+    6:   createSkill,
+    7:   updateSkill,
+    8: } from "../../repositories/skillRepository.js";
+    9: 
+   10: import {
+   11:   createSkillSchema,
+   12:   updateSkillSchema,
+   13:   completeSkillSchema,
+   14:   formatSkillSchemaErrors,
+   15: } from "../../schemas/skillSchemas.js";
+   16: 
+   17: function skillError(code, status, message) {
+   18:   const error = new Error(message);
+   19:   error.name = "SkillServiceError";
+   20:   error.code = code;
+   21:   error.status = status;
+   22:   error.publicMessage = message;
+   23:   return error;
+   24: }
+   25: 
+   26: function assertUserId(userId) {
+   27:   if (typeof userId !== "string" || !userId.trim()) {
+   28:     throw skillError(
+   29:       "SKILL_AUTHENTICATION_REQUIRED",
+   30:       401,
+   31:       "You must sign in to access your Skills.",
+   32:     );
+   33:   }
+   34: 
+   35:   return userId.trim();
+   36: }
+   37: 
+   38: function assertSkillId(skillId) {
+   39:   if (
+   40:     typeof skillId !== "string" ||
+   41:     !skillId.trim() ||
+   42:     skillId.trim().length > 200
+   43:   ) {
+   44:     throw skillError(
+   45:       "SKILL_ID_INVALID",
+   46:       400,
+   47:       "A valid Skill identifier is required.",
+   48:     );
+   49:   }
+   50: 
+   51:   return skillId.trim();
+   52: }
+   53: 
+   54: function parseRowVersion(value) {
+   55:   if (
+   56:     typeof value !== "string" ||
+   57:     !/^[A-Za-z0-9+/]{11}=$/.test(value) ||
+   58:     Buffer.from(value, "base64").length !== 8 ||
+   59:     Buffer.from(value, "base64").toString("base64") !== value
+   60:   ) {
+   61:     throw skillError(
+   62:       "SKILL_ROW_VERSION_INVALID",
+   63:       400,
+   64:       "A valid Skill row version is required.",
+   65:     );
+   66:   }
+   67: 
+   68:   return value;
+   69: }
+   70: 
+   71: function parseSchema(schema, value) {
+   72:   const result = schema.safeParse(value);
+   73: 
+   74:   if (!result.success) {
+   75:     const error = skillError(
+   76:       "SKILL_VALIDATION_FAILED",
+   77:       400,
+   78:       "Correct the invalid Skill information before saving.",
+   79:     );
+   80: 
+   81:     error.validation = formatSkillSchemaErrors(result.error);
+   82:     error.errors = error.validation;
+   83:     error.fieldErrors = Object.fromEntries(
+   84:       error.validation.map(({ field, message }) => [field, message]),
+   85:     );
+   86: 
+   87:     throw error;
+   88:   }
+   89: 
+   90:   return result.data;
+   91: }
+   92: 
+   93: function normalizeName(value) {
+   94:   return value
+   95:     .normalize("NFKC")
+   96:     .trim()
+   97:     .toLocaleLowerCase()
+   98:     .replace(/[._/\\-]+/g, " ")
+   99:     .replace(/\s+/g, " ")
+  100:     .trim();
+  101: }
+  102: 
+  103: function getNames(skill) {
+  104:   return [
+  105:     skill.name,
+  106:     ...(Array.isArray(skill.aliases) ? skill.aliases : []),
+  107:   ].map(normalizeName);
+  108: }
+  109: 
+  110: function assertNoConflicts(candidate, existingSkills, excludeId = "") {
+  111:   const candidateNames = new Set(getNames(candidate));
+  112: 
+  113:   for (const existing of existingSkills) {
+  114:     if (existing.id === excludeId) {
+  115:       continue;
+  116:     }
+  117: 
+  118:     if (getNames(existing).some((name) => candidateNames.has(name))) {
+  119:       throw skillError(
+  120:         "SKILL_NAME_CONFLICT",
+  121:         409,
+  122:         `A Skill named "${existing.name}" already uses this name or alias.`,
+  123:       );
+  124:     }
+  125:   }
+  126: }
+  127: 
+  128: function notFound() {
+  129:   return skillError(
+  130:     "SKILL_NOT_FOUND",
+  131:     404,
+  132:     "The requested Skill could not be found.",
+  133:   );
+  134: }
+  135: 
+  136: function versionConflict() {
+  137:   return skillError(
+  138:     "SKILL_VERSION_CONFLICT",
+  139:     409,
+  140:     "This Skill was changed elsewhere. Reload it before saving.",
+  141:   );
+  142: }
+  143: 
+  144: function handleDatabaseConflict(error) {
+  145:   if (error.number === 2601 || error.number === 2627) {
+  146:     throw skillError(
+  147:       "SKILL_NAME_CONFLICT",
+  148:       409,
+  149:       "A Skill with this identifier or normalized name already exists.",
+  150:     );
+  151:   }
+  152: 
+  153:   throw error;
+  154: }
+  155: 
+  156: function toStoredSkill(id, validated) {
+  157:   return {
+  158:     ...validated,
+  159:     id,
+  160:     normalizedName: normalizeName(validated.name),
+  161:     modelVersion: 1,
+  162:   };
+  163: }
+  164: 
+  165: export async function getAuthenticatedSkills({ userId }) {
+  166:   return listSkillsByUser(assertUserId(userId));
+  167: }
+  168: 
+  169: export async function getAuthenticatedSkill({ userId, skillId }) {
+  170:   const skill = await findSkillById(
+  171:     assertUserId(userId),
+  172:     assertSkillId(skillId),
+  173:   );
+  174: 
+  175:   if (!skill) {
+  176:     throw notFound();
+  177:   }
+  178: 
+  179:   return skill;
+  180: }
+  181: 
+  182: export async function createAuthenticatedSkill({ userId, skill }) {
+  183:   const authenticatedUserId = assertUserId(userId);
+  184: 
+  185:   const validated = parseSchema(createSkillSchema, skill);
+  186: 
+  187:   const candidate = toStoredSkill(
+  188:     `skill-${randomUUID()}`,
+  189:     validated,
+  190:   );
+  191: 
+  192:   const existingSkills = await listSkillsByUser(authenticatedUserId);
+  193: 
+  194:   assertNoConflicts(candidate, existingSkills);
+  195: 
+  196:   try {
+  197:     return await createSkill(authenticatedUserId, candidate);
+  198:   } catch (error) {
+  199:     handleDatabaseConflict(error);
+  200:   }
+  201: }
+  202: 
+  203: export async function updateAuthenticatedSkill({
+  204:   userId,
+  205:   skillId,
+  206:   updates,
+  207:   rowVersion,
+  208: }) {
+  209:   const authenticatedUserId = assertUserId(userId);
+  210:   const normalizedSkillId = assertSkillId(skillId);
+  211:   const expectedRowVersion = parseRowVersion(rowVersion);
+  212: 
+  213:   const validatedUpdates = parseSchema(updateSkillSchema, updates);
+  214: 
+  215:   const existing = await findSkillById(
+  216:     authenticatedUserId,
+  217:     normalizedSkillId,
+  218:   );
+  219: 
+  220:   if (!existing) {
+  221:     throw notFound();
+  222:   }
+  223: 
+  224:   const merged = parseSchema(completeSkillSchema, {
+  225:     ...existing,
+  226:     ...validatedUpdates,
+  227: 
+  228:     proficiency: {
+  229:       ...existing.proficiency,
+  230:       ...validatedUpdates.proficiency,
+  231:     },
+  232: 
+  233:     language: {
+  234:       ...existing.language,
+  235:       ...validatedUpdates.language,
+  236:     },
+  237:   });
+  238: 
+  239:   const candidate = toStoredSkill(existing.id, merged);
+  240: 
+  241:   const existingSkills = await listSkillsByUser(authenticatedUserId);
+  242: 
+  243:   assertNoConflicts(candidate, existingSkills, existing.id);
+  244: 
+  245:   try {
+  246:     const updated = await updateSkill(
+  247:       authenticatedUserId,
+  248:       candidate,
+  249:       expectedRowVersion,
+  250:     );
+  251: 
+  252:     if (!updated) {
+  253:       throw versionConflict();
+  254:     }
+  255: 
+  256:     return updated;
+  257:   } catch (error) {
+  258:     handleDatabaseConflict(error);
+  259:   }
+  260: }
+  261: 
+  262: export async function setAuthenticatedSkillArchiveStatus({
+  263:   userId,
+  264:   skillId,
+  265:   rowVersion,
+  266:   archived,
+  267: }) {
+  268:   if (typeof archived !== "boolean") {
+  269:     throw skillError(
+  270:       "SKILL_ARCHIVE_STATUS_INVALID",
+  271:       400,
+  272:       "Archive status must be true or false.",
+  273:     );
+  274:   }
+  275: 
+  276:   return updateAuthenticatedSkill({
+  277:     userId,
+  278:     skillId,
+  279:     rowVersion,
+  280:     updates: {
+  281:       status: archived ? "archived" : "active",
+  282:     },
+  283:   });
+  284: }
+  285: 
+  286: export async function deleteAuthenticatedSkill() {
+  287:   throw skillError(
+  288:     "SKILL_DELETE_NOT_AVAILABLE",
+  289:     409,
+  290:     "Permanent Skill deletion is unavailable until relationship checks are implemented.",
+  291:   );
+  292: }
+
+================================================================================
+FILE: backend\src\schemas\skillSchemas.js
+================================================================================
+Total lines: 457
+    1: import { z } from "zod";
+    2: 
+    3: /*
+    4:  * =========================================
+    5:  * Supported Values
+    6:  * =========================================
+    7:  */
+    8: 
+    9: export const SKILL_CATEGORY_VALUES = [
+   10:   "programming-languages",
+   11:   "software-development",
+   12:   "web-development",
+   13:   "mobile-development",
+   14:   "databases",
+   15:   "data-ai",
+   16:   "cloud-devops",
+   17:   "cybersecurity",
+   18:   "networking",
+   19:   "it-infrastructure",
+   20:   "hardware-electronics",
+   21:   "embedded-iot",
+   22:   "tools-platforms",
+   23:   "project-management",
+   24:   "leadership",
+   25:   "communication",
+   26:   "business",
+   27:   "design",
+   28:   "research-academic",
+   29:   "language",
+   30:   "industry-knowledge",
+   31:   "interpersonal",
+   32:   "other",
+   33: ];
+   34: 
+   35: export const SKILL_TYPE_VALUES = [
+   36:   "technical",
+   37:   "professional",
+   38:   "interpersonal",
+   39:   "leadership",
+   40:   "language",
+   41:   "domain",
+   42:   "tool",
+   43:   "other",
+   44: ];
+   45: 
+   46: export const SKILL_PROFICIENCY_VALUES = [
+   47:   "",
+   48:   "foundational",
+   49:   "intermediate",
+   50:   "advanced",
+   51:   "expert",
+   52: ];
+   53: 
+   54: export const LANGUAGE_PROFICIENCY_VALUES = [
+   55:   "",
+   56:   "basic",
+   57:   "conversational",
+   58:   "professional-working",
+   59:   "full-professional",
+   60:   "native-bilingual",
+   61: ];
+   62: 
+   63: export const SKILL_SOURCE_VALUES = [
+   64:   "manual",
+   65:   "ai-suggested",
+   66:   "imported",
+   67:   "migration",
+   68: ];
+   69: 
+   70: export const SKILL_STATUS_VALUES = ["active", "archived"];
+   71: 
+   72: /*
+   73:  * =========================================
+   74:  * Primitive Schemas
+   75:  * =========================================
+   76:  */
+   77: 
+   78: const skillIdSchema = z
+   79:   .string()
+   80:   .trim()
+   81:   .min(1, "A skill ID is required.")
+   82:   .max(200, "Skill ID cannot exceed 200 characters.");
+   83: 
+   84: const skillNameSchema = z
+   85:   .string()
+   86:   .trim()
+   87:   .min(2, "Skill name must contain at least two characters.")
+   88:   .max(150, "Skill name cannot exceed 150 characters.")
+   89:   .refine(
+   90:     (value) => /[\p{L}\p{N}]/u.test(value),
+   91:     "Skill name must contain letters or numbers.",
+   92:   );
+   93: 
+   94: const aliasSchema = z
+   95:   .string()
+   96:   .trim()
+   97:   .min(1, "Skill alias cannot be empty.")
+   98:   .max(150, "Skill alias cannot exceed 150 characters.");
+   99: 
+  100: const yearMonthSchema = z
+  101:   .string()
+  102:   .trim()
+  103:   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Enter a valid month and year.");
+  104: 
+  105: const optionalYearMonthSchema = z.union([z.literal(""), yearMonthSchema]);
+  106: 
+  107: const nullableYearsSchema = z
+  108:   .union([z.number(), z.string().trim(), z.null()])
+  109:   .transform((value, context) => {
+  110:     if (value === "" || value === null) {
+  111:       return null;
+  112:     }
+  113: 
+  114:     const numericValue = Number(value);
+  115: 
+  116:     if (!Number.isFinite(numericValue)) {
+  117:       context.addIssue({
+  118:         code: z.ZodIssueCode.custom,
+  119:         message: "Years of experience must be a number.",
+  120:       });
+  121: 
+  122:       return z.NEVER;
+  123:     }
+  124: 
+  125:     if (numericValue < 0 || numericValue > 80) {
+  126:       context.addIssue({
+  127:         code: z.ZodIssueCode.custom,
+  128:         message: "Years of experience must be between zero and 80.",
+  129:       });
+  130: 
+  131:       return z.NEVER;
+  132:     }
+  133: 
+  134:     if (Math.round(numericValue * 10) !== numericValue * 10) {
+  135:       context.addIssue({
+  136:         code: z.ZodIssueCode.custom,
+  137:         message:
+  138:           "Years of experience can contain no more than one decimal place.",
+  139:       });
+  140: 
+  141:       return z.NEVER;
+  142:     }
+  143: 
+  144:     return numericValue;
+  145:   });
+  146: 
+  147: /*
+  148:  * =========================================
+  149:  * Nested Skill Schemas
+  150:  * =========================================
+  151:  */
+  152: 
+  153: const aliasesSchema = z
+  154:   .array(aliasSchema)
+  155:   .max(20, "Add no more than 20 aliases.")
+  156:   .default([]);
+  157: 
+  158: const proficiencySchema = z
+  159:   .object({
+  160:     level: z.enum(SKILL_PROFICIENCY_VALUES).default(""),
+  161: 
+  162:     yearsOfExperience: nullableYearsSchema.default(null),
+  163: 
+  164:     lastUsedDate: optionalYearMonthSchema.default(""),
+  165:   })
+  166:   .default({
+  167:     level: "",
+  168:     yearsOfExperience: null,
+  169:     lastUsedDate: "",
+  170:   });
+  171: 
+  172: const proficiencyUpdateSchema = z.object({
+  173:   level: z.enum(SKILL_PROFICIENCY_VALUES).optional(),
+  174: 
+  175:   yearsOfExperience: nullableYearsSchema.optional(),
+  176: 
+  177:   lastUsedDate: optionalYearMonthSchema.optional(),
+  178: });
+  179: 
+  180: const languageSchema = z
+  181:   .object({
+  182:     proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).default(""),
+  183:   })
+  184:   .default({
+  185:     proficiency: "",
+  186:   });
+  187: 
+  188: const languageUpdateSchema = z.object({
+  189:   proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).optional(),
+  190: });
+  191: 
+  192: /*
+  193:  * =========================================
+  194:  * Cross-Field Validation
+  195:  * =========================================
+  196:  */
+  197: 
+  198: function validateSkillRelationships(skill, context) {
+  199:   const isLanguageType = skill.type === "language";
+  200: 
+  201:   const isLanguageCategory = skill.category === "language";
+  202: 
+  203:   const languageProficiency = skill.language?.proficiency || "";
+  204: 
+  205:   if (isLanguageType && !isLanguageCategory) {
+  206:     context.addIssue({
+  207:       code: z.ZodIssueCode.custom,
+  208:       path: ["category"],
+  209:       message: 'A language skill must use the "Languages" category.',
+  210:     });
+  211:   }
+  212: 
+  213:   if (isLanguageCategory && !isLanguageType) {
+  214:     context.addIssue({
+  215:       code: z.ZodIssueCode.custom,
+  216:       path: ["type"],
+  217:       message:
+  218:         'A skill in the "Languages" category must use the "Language Skill" type.',
+  219:     });
+  220:   }
+  221: 
+  222:   if (!isLanguageType && languageProficiency) {
+  223:     context.addIssue({
+  224:       code: z.ZodIssueCode.custom,
+  225:       path: ["language", "proficiency"],
+  226:       message: "Language proficiency can only be assigned to a language skill.",
+  227:     });
+  228:   }
+  229: 
+  230:   const normalizedName = skill.name
+  231:     .normalize("NFKC")
+  232:     .trim()
+  233:     .toLocaleLowerCase()
+  234:     .replace(/[._/\\-]+/g, " ")
+  235:     .replace(/\s+/g, " ");
+  236: 
+  237:   const seenAliases = new Set();
+  238: 
+  239:   skill.aliases.forEach((alias, index) => {
+  240:     const normalizedAlias = alias
+  241:       .normalize("NFKC")
+  242:       .trim()
+  243:       .toLocaleLowerCase()
+  244:       .replace(/[._/\\-]+/g, " ")
+  245:       .replace(/\s+/g, " ");
+  246: 
+  247:     if (normalizedAlias === normalizedName) {
+  248:       context.addIssue({
+  249:         code: z.ZodIssueCode.custom,
+  250:         path: ["aliases", index],
+  251:         message: "An alias cannot be the same as the primary skill name.",
+  252:       });
+  253:     }
+  254: 
+  255:     if (seenAliases.has(normalizedAlias)) {
+  256:       context.addIssue({
+  257:         code: z.ZodIssueCode.custom,
+  258:         path: ["aliases", index],
+  259:         message: "This skill alias has already been added.",
+  260:       });
+  261:     }
+  262: 
+  263:     seenAliases.add(normalizedAlias);
+  264:   });
+  265: }
+  266: 
+  267: /*
+  268:  * =========================================
+  269:  * Create Skill
+  270:  * =========================================
+  271:  */
+  272: 
+  273: const createSkillBaseSchema = z.object({
+  274:   name: skillNameSchema,
+  275: 
+  276:   category: z.enum(SKILL_CATEGORY_VALUES).default("other"),
+  277: 
+  278:   type: z.enum(SKILL_TYPE_VALUES).default("professional"),
+  279: 
+  280:   description: z.string().trim().max(1500).default(""),
+  281: 
+  282:   aliases: aliasesSchema,
+  283: 
+  284:   proficiency: proficiencySchema,
+  285: 
+  286:   language: languageSchema,
+  287: 
+  288:   source: z.enum(SKILL_SOURCE_VALUES).default("manual"),
+  289: 
+  290:   sourceContext: z.string().trim().max(100).default(""),
+  291: 
+  292:   notes: z.string().trim().max(2000).default(""),
+  293: 
+  294:   status: z.enum(SKILL_STATUS_VALUES).default("active"),
+  295: });
+  296: 
+  297: export const createSkillSchema = createSkillBaseSchema.superRefine(
+  298:   validateSkillRelationships,
+  299: );
+  300: 
+  301: /*
+  302:  * =========================================
+  303:  * Update Skill
+  304:  * =========================================
+  305:  */
+  306: 
+  307: const updateSkillBaseSchema = z.object({
+  308:   name: skillNameSchema.optional(),
+  309: 
+  310:   category: z.enum(SKILL_CATEGORY_VALUES).optional(),
+  311: 
+  312:   type: z.enum(SKILL_TYPE_VALUES).optional(),
+  313: 
+  314:   description: z.string().trim().max(1500).optional(),
+  315: 
+  316:   aliases: z.array(aliasSchema).max(20).optional(),
+  317: 
+  318:   proficiency: proficiencyUpdateSchema.optional(),
+  319: 
+  320:   language: languageUpdateSchema.optional(),
+  321: 
+  322:   source: z.enum(SKILL_SOURCE_VALUES).optional(),
+  323: 
+  324:   sourceContext: z.string().trim().max(100).optional(),
+  325: 
+  326:   notes: z.string().trim().max(2000).optional(),
+  327: 
+  328:   status: z.enum(SKILL_STATUS_VALUES).optional(),
+  329: });
+  330: 
+  331: export const updateSkillSchema = updateSkillBaseSchema.refine(
+  332:   (updates) => Object.keys(updates).length > 0,
+  333:   {
+  334:     message: "Provide at least one skill field to update.",
+  335:   },
+  336: );
+  337: 
+  338: /*
+  339:  * =========================================
+  340:  * Complete Merged Skill
+  341:  * =========================================
+  342:  *
+  343:  * The service uses this after merging an update
+  344:  * with the existing database record.
+  345:  */
+  346: 
+  347: export const completeSkillSchema = createSkillBaseSchema.superRefine(
+  348:   validateSkillRelationships,
+  349: );
+  350: 
+  351: /*
+  352:  * =========================================
+  353:  * Route Parameters
+  354:  * =========================================
+  355:  */
+  356: 
+  357: export const skillIdParamsSchema = z.object({
+  358:   skillId: skillIdSchema,
+  359: });
+  360: 
+  361: /*
+  362:  * =========================================
+  363:  * List Query
+  364:  * =========================================
+  365:  */
+  366: 
+  367: function parseBooleanQuery(value) {
+  368:   if (value === true || value === "true" || value === "1") {
+  369:     return true;
+  370:   }
+  371: 
+  372:   if (
+  373:     value === false ||
+  374:     value === "false" ||
+  375:     value === "0" ||
+  376:     value === undefined
+  377:   ) {
+  378:     return false;
+  379:   }
+  380: 
+  381:   return value;
+  382: }
+  383: 
+  384: export const skillListQuerySchema = z.object({
+  385:   includeArchived: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
+  386: 
+  387:   category: z
+  388:     .union([z.literal("all"), z.enum(SKILL_CATEGORY_VALUES)])
+  389:     .default("all"),
+  390: 
+  391:   type: z.union([z.literal("all"), z.enum(SKILL_TYPE_VALUES)]).default("all"),
+  392: 
+  393:   query: z.string().trim().max(200).default(""),
+  394: 
+  395:   sort: z
+  396:     .enum([
+  397:       "name-ascending",
+  398:       "name-descending",
+  399:       "recently-updated",
+  400:       "oldest-updated",
+  401:     ])
+  402:     .default("name-ascending"),
+  403: });
+  404: 
+  405: /*
+  406:  * =========================================
+  407:  * Skill Name Resolution
+  408:  * =========================================
+  409:  */
+  410: 
+  411: export const skillNameQuerySchema = z.object({
+  412:   name: skillNameSchema,
+  413: 
+  414:   excludeSkillId: z.string().trim().max(200).default(""),
+  415: });
+  416: 
+  417: /*
+  418:  * =========================================
+  419:  * Find or Create
+  420:  * =========================================
+  421:  */
+  422: 
+  423: export const findOrCreateSkillSchema = z.object({
+  424:   skill: createSkillBaseSchema,
+  425: 
+  426:   restoreArchived: z.boolean().default(true),
+  427: });
+  428: 
+  429: /*
+  430:  * =========================================
+  431:  * Collection Replacement
+  432:  * =========================================
+  433:  */
+  434: 
+  435: export const replaceSkillsSchema = z.object({
+  436:   skills: z
+  437:     .array(createSkillBaseSchema)
+  438:     .max(1000, "The Skill Library is too large."),
+  439: });
+  440: 
+  441: /*
+  442:  * =========================================
+  443:  * Validation Error Formatter
+  444:  * =========================================
+  445:  */
+  446: 
+  447: export function formatSkillSchemaErrors(error) {
+  448:   if (!error?.issues) {
+  449:     return [];
+  450:   }
+  451: 
+  452:   return error.issues.map((issue) => ({
+  453:     field: issue.path.join("."),
+  454:     message: issue.message,
+  455:     code: issue.code,
+  456:   }));
+  457: }

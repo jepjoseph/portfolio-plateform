@@ -1,0 +1,231 @@
+SKILLS FRONTEND API INFRASTRUCTURE INSPECTION
+Generated: 2026-10-29 16:57:31
+Root: D:\Documents\Project\Portfolio\portfolio-plateform\frontend
+
+
+================================================================================
+FILE: frontend\src\main.jsx
+================================================================================
+Line 11: import { ProfileDataProvider } from "./context/ProfileDataContext.jsx";
+
+================================================================================
+FILE: frontend\src\context\AuthContext.jsx
+================================================================================
+Line 22: import { AUTH_SESSION_INVALID_EVENT } from "../services/apiClient.js";
+
+================================================================================
+FILE: frontend\src\context\ProfileDataContext.jsx
+================================================================================
+Line 33: const ProfileDataContext = createContext(null);
+Line 242: return <ProfileDataContext.Provider value={value}>{children}</ProfileDataContext.Provider>;
+Line 246: const context = useContext(ProfileDataContext);
+
+================================================================================
+FILE: frontend\src\context\ProfileDataContext.localStorage.backup.jsx
+================================================================================
+Line 43: const ProfileDataContext = createContext(null);
+Line 1020: <ProfileDataContext.Provider value={contextValue}>
+Line 1022: </ProfileDataContext.Provider>
+Line 1033: const context = useContext(ProfileDataContext);
+
+================================================================================
+FILE: frontend\src\context\SkillDataContext.jsx
+================================================================================
+Line 11: archiveSkill as archiveSkillService,
+Line 13: createSkill as createSkillService,
+Line 14: deleteSkill as deleteSkillService,
+Line 15: findOrCreateSkill as findOrCreateSkillService,
+Line 20: restoreSkill as restoreSkillService,
+Line 21: updateSkill as updateSkillService,
+Line 23: } from "../services/Skill/skillService.js";
+Line 25: import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
+Line 268: const createdSkill = await createSkillService(skillData);
+Line 312: const updatedSkill = await updateSkillService(skillId, updates);
+Line 355: const result = await findOrCreateSkillService(skillData, options);
+Line 406: const archivedSkill = await archiveSkillService(skillId);
+Line 451: const restoredSkill = await restoreSkillService(skillId);
+Line 500: const deletionResult = await deleteSkillService(skillId);
+
+================================================================================
+FILE: frontend\src\context\TrainingDataContext.jsx
+================================================================================
+Line 766: withCredentials: activeTrainingRecords.filter(
+
+================================================================================
+FILE: frontend\src\pages\Dashboard\Dashboard.jsx
+================================================================================
+Line 3: import { useProfileData } from "../../context/ProfileDataContext.jsx";
+
+================================================================================
+FILE: frontend\src\pages\Experience\components\ExperienceOverviewBuilder\ExperienceOverviewBuilder.jsx
+================================================================================
+Line 403: const response = await fetch(API_ENDPOINTS.generateExperienceOverview, {
+
+================================================================================
+FILE: frontend\src\pages\Experience\components\ExperienceSkillsEditor\ExperienceSkillSuggestions\ExperienceSkillSuggestions.jsx
+================================================================================
+Line 236: const response = await fetch(API_ENDPOINTS.generateExperienceSkills, {
+
+================================================================================
+FILE: frontend\src\pages\Portfolio\Portfolio.jsx
+================================================================================
+Line 5: import { useProfileData } from "../../context/ProfileDataContext";
+
+================================================================================
+FILE: frontend\src\pages\Portfolio\components\PortfolioAboutBuilder\PortfolioAboutBuilder.jsx
+================================================================================
+Line 514: const response = await fetch(API_ENDPOINTS.generateResumeSummary, {
+
+================================================================================
+FILE: frontend\src\pages\Portfolio\components\PortfolioHeroSettings\PortfolioTaglineGenerator\PortfolioTaglineGenerator.jsx
+================================================================================
+Line 147: const response = await fetch(API_ENDPOINTS.generateResumeSummary, {
+
+================================================================================
+FILE: frontend\src\pages\Profile\Profile.jsx
+================================================================================
+Line 6: import { useProfileData } from "../../context/ProfileDataContext.jsx";
+Line 90: * ProfileDataContext already normalizes
+Line 117: * ProfileDataContext already stores the
+
+================================================================================
+FILE: frontend\src\pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx
+================================================================================
+Line 974: fetch(url, { signal: controller.signal })
+
+================================================================================
+FILE: frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.jsx
+================================================================================
+Line 622: fetch(url, { signal: controller.signal })
+
+================================================================================
+FILE: frontend\src\pages\Public\Privacy\Privacy.jsx
+================================================================================
+Line 413: cookies, refresh-token hashing, token rotation, authorization
+Line 458: under 13 without legally sufficient authorization.
+
+================================================================================
+FILE: frontend\src\pages\Public\Terms\Terms.jsx
+================================================================================
+Line 173: agreement or have legally sufficient authorization from a parent or
+Line 368: Circumvent authorization, rate limits, security measures, or
+
+================================================================================
+FILE: frontend\src\pages\Resumes\Resumes.jsx
+================================================================================
+Line 3: import { useProfileData } from "../../context/ProfileDataContext";
+
+================================================================================
+FILE: frontend\src\pages\Resumes\components\ProfessionalSummaryBuilder\ProfessionalSummaryBuilder.jsx
+================================================================================
+Line 434: const response = await fetch(API_ENDPOINTS.generateResumeSummary, {
+
+================================================================================
+FILE: frontend\src\services\apiClient.js
+================================================================================
+Line 403: const response = await fetch(requestUrl, {
+Line 411: credentials: "include",
+
+================================================================================
+FILE: frontend\src\services\Account\sessionService.js
+================================================================================
+Line 1: import { apiDelete, apiGet, apiPost } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Auth\authService.js
+================================================================================
+Line 1: import { apiGet, apiPost } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Certification\certificationUtils.js
+================================================================================
+Line 541: activeCredentials: credentialStates.active,
+Line 543: expiredCredentials: credentialStates.expired,
+Line 545: plannedCredentials: credentialStates.planned,
+
+================================================================================
+FILE: frontend\src\services\Experience\experienceApiService.js
+================================================================================
+Line 7: } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Profile\profileService.js
+================================================================================
+Line 1: import { apiDelete, apiGet, apiPost, apiPut } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Project\projectApiService.js
+================================================================================
+Line 8: } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Project\projectBinaryApi.js
+================================================================================
+Line 1: import { API_BASE_URL, ApiError } from "../apiClient.js";
+Line 30: const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+Line 32: credentials: "include",
+
+================================================================================
+FILE: frontend\src\services\Project\projectDocumentApiService.js
+================================================================================
+Line 5: } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Project\projectMediaApiService.js
+================================================================================
+Line 5: } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Skill\skillService.js
+================================================================================
+Line 25: import { readStoredSkills, replaceStoredSkills } from "./skillStorage.js";
+Line 33: function createSkillServiceError({
+Line 44: error.name = "SkillServiceError";
+Line 58: return createSkillServiceError({
+Line 162: return createSkillServiceError({
+Line 290: throw createSkillServiceError({
+Line 348: throw createSkillServiceError({
+Line 373: throw createSkillServiceError({
+Line 495: throw createSkillServiceError({
+Line 518: * skillService directly.
+Line 600: throw createSkillServiceError({
+Line 705: throw createSkillServiceError({
+
+================================================================================
+FILE: frontend\src\services\Skill\skillStorage.js
+================================================================================
+Line 22: function createSkillStorageError(message, publicMessage, cause) {
+Line 25: error.name = "SkillStorageError";
+Line 44: throw createSkillStorageError(
+Line 51: throw createSkillStorageError(
+Line 66: function createEmptySkillStorageDocument() {
+Line 81: function parseSkillStorageDocument(value) {
+Line 83: return createEmptySkillStorageDocument();
+Line 91: throw createSkillStorageError(
+Line 105: ...createEmptySkillStorageDocument(),
+Line 112: throw createSkillStorageError(
+Line 139: export function readSkillStorage() {
+Line 145: return parseSkillStorageDocument(storedValue);
+Line 147: if (error?.name === "SkillStorageError") {
+Line 151: throw createSkillStorageError(
+Line 165: export function writeSkillStorage(skills) {
+Line 182: throw createSkillStorageError(
+Line 197: return readSkillStorage().skills;
+Line 207: return writeSkillStorage(skills).skills;
+Line 221: throw createSkillStorageError(
+Line 232: throw createSkillStorageError(
+Line 248: * skill through skillService.js.
+Line 251: export function clearSkillStorage() {
+Line 257: throw createSkillStorageError(
+Line 271: export function getSkillStorageInformation() {
+Line 272: const document = readSkillStorage();
+
+================================================================================
+FILE: frontend\src\services\Support\contactService.js
+================================================================================
+Line 1: import { apiPost } from "../apiClient.js";
+
+================================================================================
+FILE: frontend\src\services\Training\trainingUtils.js
+================================================================================
+Line 440: withCredentials: active.filter(

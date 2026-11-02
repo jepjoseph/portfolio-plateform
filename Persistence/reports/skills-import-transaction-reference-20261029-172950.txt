@@ -1,0 +1,235 @@
+﻿EXISTING SQL TRANSACTION REFERENCE
+Source: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\authRepository.js
+Generated: 2026-10-29 17:29:50
+
+  375:  * The following operations occur in one
+  376:  * serializable transaction:
+  377:  *
+  378:  * 1. Lock and verify the challenge
+  379:  * 2. Ensure the email is not registered
+  380:  * 3. Create the user
+  381:  * 4. Create the default profile
+  382:  * 5. Create the default settings
+  383:  * 6. Assign the standard user role
+  384:  * 7. Consume the registration challenge
+  385:  * 8. Write the completion audit event
+  386:  */
+  387: 
+  388: export async function completeRegistration({
+  389:   challengeId,
+  390:   continuationTokenHash,
+  391:   passwordHash,
+  392: }) {
+  393:   const pool = await getDatabasePool();
+  394: 
+  395:   const transaction = new sql.Transaction(pool);
+  396: 
+  397:   await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  398: 
+  399:   try {
+  400:     /*
+  401:      * Lock Registration Challenge
+  402:      */
+  403: 
+  404:     const challengeResult = await new sql.Request(transaction)
+  405:       .input("challengeId", sql.UniqueIdentifier, challengeId)
+  406:       .input("continuationTokenHash", sql.Char(64), continuationTokenHash)
+  407:       .query(`
+  408:         SELECT TOP (1) *
+  409:         FROM dbo.auth_challenges WITH (UPDLOCK, HOLDLOCK)
+  410:         WHERE id = @challengeId
+  411:           AND purpose = N'registration'
+  412:           AND continuation_token_hash = @continuationTokenHash
+  413:           AND verified_at IS NOT NULL
+  414:           AND consumed_at IS NULL
+  415:           AND expires_at > SYSUTCDATETIME();
+  416:       `);
+  417: 
+  418:     const challenge = challengeResult.recordset[0];
+  419: 
+  420:     if (!challenge) {
+  421:       throw createRepositoryError({
+  422:         message: "The verified registration challenge is unavailable.",
+  423: 
+  424:         code: "REGISTRATION_CONTINUATION_INVALID",
+  425: 
+  426:         status: 400,
+  427: 
+  428:         publicMessage:
+  429:           "The registration session is invalid or expired. Start registration again.",
+  430:       });
+  431:     }
+  432: 
+  433:     /*
+  434:      * Prevent Duplicate Account
+  435:      */
+  436: 
+  437:     const existingUserResult = await new sql.Request(transaction).input(
+  438:       "normalizedEmail",
+  439:       sql.NVarChar(320),
+  440:       challenge.normalized_pending_email,
+  441:     ).query(`
+  442:         SELECT TOP (1) id
+  443:         FROM dbo.users WITH (UPDLOCK, HOLDLOCK)
+  444:         WHERE normalized_email = @normalizedEmail;
+  445:       `);
+  446: 
+  447:     if (existingUserResult.recordset[0]) {
+  448:       throw createRepositoryError({
+  449:         message: "A user already exists for the registration email.",
+  450: 
+  451:         code: "ACCOUNT_ALREADY_EXISTS",
+  452: 
+  453:         status: 409,
+  454: 
+  455:         publicMessage:
+  456:           "This registration cannot be completed. Try signing in or resetting your password.",
+  457:       });
+  458:     }
+  459: 
+  460:     /*
+  461:      * Create User
+  462:      */
+  463: 
+  464:     const userResult = await new sql.Request(transaction)
+  465:       .input("email", sql.NVarChar(320), challenge.pending_email)
+  466:       .input(
+  467:         "normalizedEmail",
+  468:         sql.NVarChar(320),
+  469:         challenge.normalized_pending_email,
+  470:       )
+  471:       .input("passwordHash", sql.NVarChar(500), passwordHash).query(`
+  472:         INSERT INTO dbo.users
+  473:         (
+  474:           email,
+  475:           normalized_email,
+  476:           password_hash,
+  477:           email_verified_at,
+  478:           account_status
+  479:         )
+  480:         OUTPUT
+  481:           inserted.id,
+  482:           inserted.email,
+  483:           inserted.normalized_email,
+  484:           inserted.email_verified_at,
+  485:           inserted.account_status,
+  486:           inserted.failed_login_count,
+  487:           inserted.locked_until,
+  488:           inserted.last_login_at,
+  489:           inserted.created_at,
+  490:           inserted.updated_at
+  491:         VALUES
+  492:         (
+  493:           @email,
+  494:           @normalizedEmail,
+  495:           @passwordHash,
+  496:           SYSUTCDATETIME(),
+  497:           N'active'
+  498:         );
+  499:       `);
+  500: 
+  501:     const user = userResult.recordset[0];
+  502: 
+  503:     /*
+  504:      * Create Profile and Settings
+  505:      */
+  506: 
+  507:     await new sql.Request(transaction).input(
+  508:       "userId",
+  509:       sql.UniqueIdentifier,
+  510:       user.id,
+  511:     ).query(`
+  512:         INSERT INTO dbo.user_profiles (user_id)
+  513:         VALUES (@userId);
+  514: 
+  515:         INSERT INTO dbo.user_settings (user_id)
+  516:         VALUES (@userId);
+  517:       `);
+  518: 
+  519:     /*
+  520:      * Find Standard User Role
+  521:      */
+  522: 
+  523:     const roleResult = await new sql.Request(transaction).query(`
+  524:       SELECT TOP (1) id
+  525:       FROM dbo.roles
+  526:       WHERE name = N'user';
+  527:     `);
+  528: 
+  529:     const role = roleResult.recordset[0];
+  530: 
+  531:     if (!role) {
+  532:       throw createRepositoryError({
+  533:         message: "The standard user role does not exist.",
+  534: 
+  535:         code: "STANDARD_USER_ROLE_MISSING",
+  536: 
+  537:         publicMessage: "The account could not be created.",
+  538:       });
+  539:     }
+  540: 
+  541:     /*
+  542:      * Assign Role, Consume Challenge and Audit
+  543:      */
+  544: 
+  545:     await new sql.Request(transaction)
+  546:       .input("userId", sql.UniqueIdentifier, user.id)
+  547:       .input("roleId", sql.UniqueIdentifier, role.id)
+  548:       .input("challengeId", sql.UniqueIdentifier, challengeId).query(`
+  549:         INSERT INTO dbo.user_roles
+  550:         (
+  551:           user_id,
+  552:           role_id
+  553:         )
+  554:         VALUES
+  555:         (
+  556:           @userId,
+  557:           @roleId
+  558:         );
+  559: 
+  560:         UPDATE dbo.auth_challenges
+  561:         SET consumed_at = SYSUTCDATETIME()
+  562:         WHERE id = @challengeId;
+  563: 
+  564:         INSERT INTO dbo.login_audit_events
+  565:         (
+  566:           user_id,
+  567:           email_attempted,
+  568:           event_type,
+  569:           was_successful,
+  570:           ip_address_hash
+  571:         )
+  572:         SELECT
+  573:           @userId,
+  574:           pending_email,
+  575:           N'registration_completed',
+  576:           1,
+  577:           request_ip_hash
+  578:         FROM dbo.auth_challenges
+  579:         WHERE id = @challengeId;
+  580:       `);
+  581: 
+  582:     await transaction.commit();
+  583: 
+  584:     return {
+  585:       user: mapUser(user),
+  586:       roles: ["user"],
+  587:     };
+  588:   } catch (error) {
+  589:     /*
+  590:      * Roll Back Every Registration Change
+  591:      */
+  592: 
+  593:     try {
+  594:       await transaction.rollback();
+  595:     } catch (rollbackError) {
+  596:       console.error("Registration transaction rollback failed:", rollbackError);
+  597:     }
+  598: 
+  599:     /*
+  600:      * Normalize Unique Constraint Errors
+  601:      */
+  602: 
+  603:     if (error.number === 2601 || error.number === 2627) {
+  604:       throw createRepositoryError({
+  605:         message: "A unique account value already exists.",

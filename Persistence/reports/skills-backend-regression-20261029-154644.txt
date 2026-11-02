@@ -1,0 +1,257 @@
+﻿========================================
+Backend syntax checks
+Command: npm run check
+Exit code: 0
+========================================
+
+> portfolio-platform-backend@1.0.0 check
+> node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js
+
+
+========================================
+Skills controller and routes syntax
+Command: node --check src/controllers/skillController.js && node --check src/routes/skillRoutes.js
+Exit code: 0
+========================================
+
+========================================
+Skills service tests
+Command: node --experimental-test-module-mocks --test --test-concurrency=1 test/services/skillService.test.js
+Exit code: 0
+========================================
+(node:12300) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12300) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+Γ£ö rejects unauthenticated Skill listing (2.7789ms)
+Γ£ö lists Skills scoped to authenticated user (0.8933ms)
+Γ£ö rejects missing Skill lookup (0.4075ms)
+Γ£ö creates a validated Skill with server-generated ID (5.1046ms)
+Γ£ö rejects invalid Skill data before database access (1.4765ms)
+Γ£ö rejects duplicate normalized primary names (0.5985ms)
+Γ£ö rejects a name conflicting with an existing alias (0.6798ms)
+Γ£ö rejects alias conflicts with another primary name (0.4841ms)
+Γ£ö includes archived Skills in duplicate checks (0.8714ms)
+Γ£ö partial proficiency updates preserve other fields (3.8501ms)
+Γ£ö rejects malformed row versions (0.3698ms)
+Γ£ö reports a concurrency conflict when update affects no record (0.5714ms)
+Γ£ö archives a Skill without changing its ID (0.4223ms)
+Γ£ö restores an archived Skill (0.3398ms)
+Γ£ö rejects invalid archive status (0.1924ms)
+Γ£ö permanent deletion remains disabled (0.1969ms)
+Γä╣ tests 16
+Γä╣ suites 0
+Γä╣ pass 16
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 867.9718
+
+========================================
+Skills API tests
+Command: node --experimental-test-module-mocks --test --test-concurrency=1 test/api/skillApi.test.js
+Exit code: 0
+========================================
+(node:10464) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Unhandled API error: {
+  method: 'GET',
+  url: '/api/skills',
+  name: 'AuthenticationError',
+  code: 'AUTHENTICATION_REQUIRED',
+  message: 'The request does not contain a refresh-token cookie.',
+  status: 401,
+  provider: undefined,
+  stack: undefined
+}
+Γû╢ skills API
+  Γ£ö rejects unauthenticated requests (36.8101ms)
+  Γ£ö lists Skills for the authenticated user (7.3642ms)
+  Γ£ö excludes archived Skills by default (4.6508ms)
+  Γ£ö includes archived Skills when requested (16.2968ms)
+  Γ£ö filters by category and type (4.6905ms)
+  Γ£ö searches Skill aliases (4.3715ms)
+  Γ£ö sorts Skills by name descending (4.028ms)
+Unhandled API error: {
+  method: 'GET',
+  url: '/api/skills?includeArchived=maybe',
+  name: 'SkillRequestError',
+  code: 'SKILL_REQUEST_INVALID',
+  message: 'The request contains invalid Skill parameters.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects invalid query parameters (5.2809ms)
+  Γ£ö retrieves a Skill by ID (5.1924ms)
+  Γ£ö creates a Skill without accepting ownership fields (15.4867ms)
+Unhandled API error: {
+  method: 'POST',
+  url: '/api/skills',
+  name: 'SkillRequestError',
+  code: 'SKILL_REQUEST_INVALID',
+  message: 'Unexpected request fields: userId.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects client-supplied userId (4.1478ms)
+  Γ£ö updates a Skill with its rowVersion (4.4377ms)
+Unhandled API error: {
+  method: 'PATCH',
+  url: '/api/skills/skill-550e8400-e29b-41d4-a716-446655440000',
+  name: 'SkillRequestError',
+  code: 'SKILL_REQUEST_INVALID',
+  message: 'Unexpected request fields: userId.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects unexpected update fields (4.1241ms)
+  Γ£ö archives a Skill (4.3022ms)
+  Γ£ö restores a Skill (3.9663ms)
+Unhandled API error: {
+  method: 'PATCH',
+  url: '/api/skills/skill-550e8400-e29b-41d4-a716-446655440000/archive',
+  name: 'SkillRequestError',
+  code: 'SKILL_REQUEST_INVALID',
+  message: 'Archive status must be true or false.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects invalid archive status (3.6261ms)
+Unhandled API error: {
+  method: 'DELETE',
+  url: '/api/skills/skill-550e8400-e29b-41d4-a716-446655440000',
+  name: 'Error',
+  code: 'SKILL_DELETE_NOT_AVAILABLE',
+  message: 'Permanent Skill deletion is unavailable.',
+  status: 409,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects permanent Skill deletion (4.0356ms)
+Unhandled API error: {
+  method: 'GET',
+  url: '/api/skills',
+  name: 'Error',
+  code: 'SKILL_VERSION_CONFLICT',
+  message: 'Skill conflict',
+  status: 409,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö passes service errors to the global handler (3.9198ms)
+Γ£ö skills API (139.511ms)
+Γä╣ tests 18
+Γä╣ suites 1
+Γä╣ pass 18
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 2854.0795
+
+========================================
+Experience API tests
+Command: node --experimental-test-module-mocks --test --test-concurrency=1 test/api/experienceApi.test.js
+Exit code: 0
+========================================
+(node:20864) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Unhandled API error: {
+  method: 'GET',
+  url: '/api/experiences',
+  name: 'AuthenticationError',
+  code: 'AUTHENTICATION_REQUIRED',
+  message: 'The request does not contain a refresh-token cookie.',
+  status: 401,
+  provider: undefined,
+  stack: undefined
+}
+Γû╢ experiences API
+  Γ£ö requires authentication before listing (42.0881ms)
+  Γ£ö lists only the authenticated user's Experiences (7.3334ms)
+  Γ£ö retrieves an Experience with authenticated ownership (4.584ms)
+  Γ£ö creates an Experience for the authenticated user (17.2189ms)
+  Γ£ö updates an Experience using rowVersion (6.6199ms)
+Unhandled API error: {
+  method: 'PUT',
+  url: '/api/experiences/experience-550e8400-e29b-41d4-a716-446655440000',
+  name: 'ExperienceRequestError',
+  code: 'EXPERIENCE_REQUEST_INVALID',
+  message: 'Unexpected request fields: userId.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects unexpected update request fields (5.0508ms)
+  Γ£ö archives an Experience (4.3054ms)
+  Γ£ö restores an archived Experience (4.7091ms)
+Unhandled API error: {
+  method: 'PATCH',
+  url: '/api/experiences/experience-550e8400-e29b-41d4-a716-446655440000/archive',
+  name: 'ExperienceRequestError',
+  code: 'EXPERIENCE_REQUEST_INVALID',
+  message: 'Unexpected request fields: userId.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects unexpected archive request fields (5.0678ms)
+  Γ£ö deletes an Experience using rowVersion (4.6191ms)
+Unhandled API error: {
+  method: 'DELETE',
+  url: '/api/experiences/experience-550e8400-e29b-41d4-a716-446655440000',
+  name: 'ExperienceRequestError',
+  code: 'EXPERIENCE_REQUEST_INVALID',
+  message: 'Unexpected request fields: userId.',
+  status: 400,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects unexpected delete request fields (5.2268ms)
+Unhandled API error: {
+  method: 'GET',
+  url: '/api/experiences/experience-550e8400-e29b-41d4-a716-446655440000',
+  name: 'Error',
+  code: 'EXPERIENCE_NOT_FOUND',
+  message: 'Experience not found.',
+  status: 404,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö propagates service errors to the global handler (4.8168ms)
+Unhandled API error: {
+  method: 'PUT',
+  url: '/api/experiences/experience-550e8400-e29b-41d4-a716-446655440000',
+  name: 'Error',
+  code: 'EXPERIENCE_VERSION_CONFLICT',
+  message: 'Experience version conflict.',
+  status: 409,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö preserves optimistic concurrency conflict errors (4.1731ms)
+Unhandled API error: {
+  method: 'DELETE',
+  url: '/api/experiences/experience-550e8400-e29b-41d4-a716-446655440000',
+  name: 'AuthenticationError',
+  code: 'AUTHENTICATION_REQUIRED',
+  message: 'The request does not contain a refresh-token cookie.',
+  status: 401,
+  provider: undefined,
+  stack: undefined
+}
+  Γ£ö rejects unauthenticated deletion (4.0395ms)
+Γ£ö experiences API (122.662ms)
+Γä╣ tests 14
+Γä╣ suites 1
+Γä╣ pass 14
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 540.9248
+

@@ -1,0 +1,22 @@
+﻿Γ£ö GET retrieves the Skills collection (30.3392ms)
+Γ£ö GET retrieves one Skill by ID (0.6137ms)
+Γ£ö POST creates a Skill (0.7558ms)
+Γ£ö PATCH updates a Skill with rowVersion (0.8001ms)
+Γ£ö PATCH archives a Skill (0.6253ms)
+Γ£ö PATCH restores an archived Skill (0.5939ms)
+Γ£ö setSkillArchivedApi rejects invalid archived values (0.699ms)
+Γ£ö DELETE sends rowVersion in the request body (1.5326ms)
+Γ£ö rejects invalid Skill IDs (0.3781ms)
+Γ£ö rejects missing rowVersion before sending requests (0.64ms)
+Γ£ö rejects invalid create and update payloads (0.293ms)
+Γ£ö preserves backend concurrency conflicts (0.7763ms)
+Γ£ö preserves authentication errors (0.5019ms)
+Γ£ö preserves backend validation errors (0.6371ms)
+Γä╣ tests 14
+Γä╣ suites 0
+Γä╣ pass 14
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 149.0147

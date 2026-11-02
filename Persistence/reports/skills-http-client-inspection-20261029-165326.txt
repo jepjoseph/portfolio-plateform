@@ -1,0 +1,2123 @@
+
+================================================================================
+FILE: frontend\src\services\apiClient.js
+================================================================================
+Total lines: 534
+    1: /*
+    2:  * =========================================
+    3:  * API Configuration
+    4:  * =========================================
+    5:  */
+    6: 
+    7: const DEFAULT_API_ORIGIN = "http://localhost:5000";
+    8: 
+    9: const DEFAULT_TIMEOUT_MS = 30000;
+   10: 
+   11: /*
+   12:  * =========================================
+   13:  * Authentication Session Event
+   14:  * =========================================
+   15:  */
+   16: 
+   17: export const AUTH_SESSION_INVALID_EVENT =
+   18:   "portfolio-platform:auth-session-invalid";
+   19: 
+   20: const INVALID_SESSION_CODES = new Set([
+   21:   "AUTHENTICATION_REQUIRED",
+   22:   "SESSION_REFRESH_TOKEN_INVALID",
+   23:   "SESSION_NOT_FOUND",
+   24:   "SESSION_REFRESH_CONFLICT",
+   25: ]);
+   26: 
+   27: /*
+   28:  * =========================================
+   29:  * Invalid Session Notification
+   30:  * =========================================
+   31:  */
+   32: 
+   33: function notifyInvalidAuthenticationSession(error) {
+   34:   if (
+   35:     typeof window === "undefined" ||
+   36:     (Number(error?.status) !== 401 &&
+   37:       error?.code !== "SESSION_REFRESH_CONFLICT")
+   38:   ) {
+   39:     return;
+   40:   }
+   41: 
+   42:   if (!INVALID_SESSION_CODES.has(error?.code)) {
+   43:     return;
+   44:   }
+   45: 
+   46:   window.dispatchEvent(
+   47:     new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+   48:       detail: {
+   49:         status: error.status,
+   50: 
+   51:         code: error.code,
+   52: 
+   53:         message: error.message,
+   54:       },
+   55:     }),
+   56:   );
+   57: }
+   58: 
+   59: /*
+   60:  * VITE_API_BASE_URL may be configured as:
+   61:  *
+   62:  * http://localhost:5000
+   63:  *
+   64:  * or:
+   65:  *
+   66:  * http://localhost:5000/api
+   67:  *
+   68:  * Both formats are supported.
+   69:  */
+   70: 
+   71: function normalizeApiBaseUrl(value) {
+   72:   const configuredValue = typeof value === "string" ? value.trim() : "";
+   73: 
+   74:   const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+   75: 
+   76:   return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+   77: }
+   78: 
+   79: export const API_BASE_URL = normalizeApiBaseUrl(
+   80:   import.meta.env?.VITE_API_BASE_URL,
+   81: );
+   82: 
+   83: /*
+   84:  * =========================================
+   85:  * API Error
+   86:  * =========================================
+   87:  */
+   88: 
+   89: export class ApiError extends Error {
+   90:   constructor({
+   91:     message,
+   92:     status = 0,
+   93:     code = "API_REQUEST_FAILED",
+   94:     fieldErrors = {},
+   95:     errors = [],
+   96:     details = null,
+   97:     method = "",
+   98:     url = "",
+   99:     cause,
+  100:   }) {
+  101:     super(message || "The request could not be completed.", {
+  102:       cause,
+  103:     });
+  104: 
+  105:     this.name = "ApiError";
+  106: 
+  107:     this.status = Number(status) || 0;
+  108: 
+  109:     this.code = code || "API_REQUEST_FAILED";
+  110: 
+  111:     this.fieldErrors =
+  112:       fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+  113: 
+  114:     this.errors = Array.isArray(errors) ? errors : [];
+  115: 
+  116:     this.details = details || null;
+  117: 
+  118:     this.method = method;
+  119: 
+  120:     this.url = url;
+  121:   }
+  122: }
+  123: 
+  124: /*
+  125:  * =========================================
+  126:  * Endpoint Normalization
+  127:  * =========================================
+  128:  */
+  129: 
+  130: function normalizeEndpoint(endpoint) {
+  131:   if (typeof endpoint !== "string" || !endpoint.trim()) {
+  132:     throw new TypeError("A relative API endpoint is required.");
+  133:   }
+  134: 
+  135:   const normalizedEndpoint = endpoint.trim();
+  136: 
+  137:   /*
+  138:    * Prevent accidental cookie-bearing
+  139:    * requests to arbitrary external origins.
+  140:    */
+  141: 
+  142:   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+  143:     throw new TypeError("API endpoints must be relative paths.");
+  144:   }
+  145: 
+  146:   return normalizedEndpoint.startsWith("/")
+  147:     ? normalizedEndpoint
+  148:     : `/${normalizedEndpoint}`;
+  149: }
+  150: 
+  151: /*
+  152:  * =========================================
+  153:  * Query Parameters
+  154:  * =========================================
+  155:  */
+  156: 
+  157: function appendQueryParameters(url, query) {
+  158:   if (!query || typeof query !== "object") {
+  159:     return url;
+  160:   }
+  161: 
+  162:   const requestUrl = new URL(url);
+  163: 
+  164:   for (const [name, value] of Object.entries(query)) {
+  165:     if (value === undefined || value === null || value === "") {
+  166:       continue;
+  167:     }
+  168: 
+  169:     if (Array.isArray(value)) {
+  170:       for (const item of value) {
+  171:         requestUrl.searchParams.append(name, String(item));
+  172:       }
+  173: 
+  174:       continue;
+  175:     }
+  176: 
+  177:     requestUrl.searchParams.set(name, String(value));
+  178:   }
+  179: 
+  180:   return requestUrl.toString();
+  181: }
+  182: 
+  183: /*
+  184:  * =========================================
+  185:  * Request Body Preparation
+  186:  * =========================================
+  187:  */
+  188: 
+  189: function isFormData(value) {
+  190:   return typeof FormData !== "undefined" && value instanceof FormData;
+  191: }
+  192: 
+  193: function isUrlSearchParams(value) {
+  194:   return (
+  195:     typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+  196:   );
+  197: }
+  198: 
+  199: function isBlob(value) {
+  200:   return typeof Blob !== "undefined" && value instanceof Blob;
+  201: }
+  202: 
+  203: function shouldSerializeAsJson(body) {
+  204:   return (
+  205:     body !== undefined &&
+  206:     body !== null &&
+  207:     typeof body === "object" &&
+  208:     !isFormData(body) &&
+  209:     !isUrlSearchParams(body) &&
+  210:     !isBlob(body) &&
+  211:     !(body instanceof ArrayBuffer)
+  212:   );
+  213: }
+  214: 
+  215: function prepareRequestBody({ body, headers }) {
+  216:   if (body === undefined || body === null) {
+  217:     return undefined;
+  218:   }
+  219: 
+  220:   if (shouldSerializeAsJson(body)) {
+  221:     if (!headers.has("Content-Type")) {
+  222:       headers.set("Content-Type", "application/json");
+  223:     }
+  224: 
+  225:     return JSON.stringify(body);
+  226:   }
+  227: 
+  228:   /*
+  229:    * Never set Content-Type manually for
+  230:    * FormData. The browser must add its
+  231:    * multipart boundary.
+  232:    */
+  233: 
+  234:   return body;
+  235: }
+  236: 
+  237: /*
+  238:  * =========================================
+  239:  * Response Parsing
+  240:  * =========================================
+  241:  */
+  242: 
+  243: async function parseResponseBody(response) {
+  244:   if (response.status === 204 || response.status === 205) {
+  245:     return null;
+  246:   }
+  247: 
+  248:   const text = await response.text();
+  249: 
+  250:   if (!text) {
+  251:     return null;
+  252:   }
+  253: 
+  254:   const contentType = response.headers.get("content-type") || "";
+  255: 
+  256:   if (contentType.includes("application/json")) {
+  257:     try {
+  258:       return JSON.parse(text);
+  259:     } catch {
+  260:       return {
+  261:         message: "The server returned an invalid JSON response.",
+  262:       };
+  263:     }
+  264:   }
+  265: 
+  266:   /*
+  267:    * Some development proxies may omit the
+  268:    * JSON content type. Attempt JSON parsing
+  269:    * before treating the body as plain text.
+  270:    */
+  271: 
+  272:   try {
+  273:     return JSON.parse(text);
+  274:   } catch {
+  275:     return {
+  276:       message: text,
+  277:     };
+  278:   }
+  279: }
+  280: 
+  281: /*
+  282:  * =========================================
+  283:  * API Error Creation
+  284:  * =========================================
+  285:  */
+  286: 
+  287: function createResponseError({ response, data, method, url }) {
+  288:   const error = new ApiError({
+  289:     message: data?.message || `The server returned HTTP ${response.status}.`,
+  290: 
+  291:     status: response.status,
+  292: 
+  293:     code: data?.code || "API_REQUEST_FAILED",
+  294: 
+  295:     fieldErrors: data?.fieldErrors,
+  296: 
+  297:     errors: data?.errors,
+  298: 
+  299:     details: data?.details,
+  300: 
+  301:     method,
+  302: 
+  303:     url,
+  304:   });
+  305: 
+  306:   notifyInvalidAuthenticationSession(error);
+  307: 
+  308:   return error;
+  309: }
+  310: 
+  311: /*
+  312:  * =========================================
+  313:  * Timeout and Abort Signal
+  314:  * =========================================
+  315:  */
+  316: 
+  317: function createRequestAbortController({ signal, timeoutMs }) {
+  318:   const controller = new AbortController();
+  319: 
+  320:   let wasTimedOut = false;
+  321: 
+  322:   const handleExternalAbort = () => {
+  323:     controller.abort(signal?.reason);
+  324:   };
+  325: 
+  326:   if (signal) {
+  327:     if (signal.aborted) {
+  328:       handleExternalAbort();
+  329:     } else {
+  330:       signal.addEventListener("abort", handleExternalAbort, {
+  331:         once: true,
+  332:       });
+  333:     }
+  334:   }
+  335: 
+  336:   const timeoutId = globalThis.setTimeout(() => {
+  337:     wasTimedOut = true;
+  338: 
+  339:     controller.abort();
+  340:   }, timeoutMs);
+  341: 
+  342:   return {
+  343:     signal: controller.signal,
+  344: 
+  345:     wasTimedOut() {
+  346:       return wasTimedOut;
+  347:     },
+  348: 
+  349:     cleanup() {
+  350:       globalThis.clearTimeout(timeoutId);
+  351: 
+  352:       signal?.removeEventListener?.("abort", handleExternalAbort);
+  353:     },
+  354:   };
+  355: }
+  356: 
+  357: /*
+  358:  * =========================================
+  359:  * API Request
+  360:  * =========================================
+  361:  */
+  362: 
+  363: export async function apiRequest(
+  364:   endpoint,
+  365:   {
+  366:     method = "GET",
+  367:     body,
+  368:     query,
+  369:     headers: customHeaders,
+  370:     signal,
+  371:     timeoutMs = DEFAULT_TIMEOUT_MS,
+  372:     cache = "no-store",
+  373:   } = {},
+  374: ) {
+  375:   const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+  376: 
+  377:   const normalizedEndpoint = normalizeEndpoint(endpoint);
+  378: 
+  379:   const requestUrl = appendQueryParameters(
+  380:     `${API_BASE_URL}${normalizedEndpoint}`,
+  381:     query,
+  382:   );
+  383: 
+  384:   const headers = new Headers(customHeaders || {});
+  385: 
+  386:   if (!headers.has("Accept")) {
+  387:     headers.set("Accept", "application/json");
+  388:   }
+  389: 
+  390:   const requestBody = prepareRequestBody({
+  391:     body,
+  392: 
+  393:     headers,
+  394:   });
+  395: 
+  396:   const abortState = createRequestAbortController({
+  397:     signal,
+  398: 
+  399:     timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+  400:   });
+  401: 
+  402:   try {
+  403:     const response = await fetch(requestUrl, {
+  404:       method: normalizedMethod,
+  405: 
+  406:       /*
+  407:        * Required for HttpOnly session
+  408:        * cookies on cross-origin requests.
+  409:        */
+  410: 
+  411:       credentials: "include",
+  412: 
+  413:       headers,
+  414: 
+  415:       body: ["GET", "HEAD"].includes(normalizedMethod)
+  416:         ? undefined
+  417:         : requestBody,
+  418: 
+  419:       signal: abortState.signal,
+  420: 
+  421:       cache,
+  422:     });
+  423: 
+  424:     const data = await parseResponseBody(response);
+  425: 
+  426:     if (!response.ok) {
+  427:       throw createResponseError({
+  428:         response,
+  429: 
+  430:         data,
+  431: 
+  432:         method: normalizedMethod,
+  433: 
+  434:         url: requestUrl,
+  435:       });
+  436:     }
+  437: 
+  438:     return data;
+  439:   } catch (error) {
+  440:     if (error instanceof ApiError) {
+  441:       throw error;
+  442:     }
+  443: 
+  444:     if (error?.name === "AbortError") {
+  445:       throw new ApiError({
+  446:         message: abortState.wasTimedOut()
+  447:           ? "The server took too long to respond."
+  448:           : "The request was canceled.",
+  449: 
+  450:         status: 0,
+  451: 
+  452:         code: abortState.wasTimedOut()
+  453:           ? "API_REQUEST_TIMEOUT"
+  454:           : "API_REQUEST_ABORTED",
+  455: 
+  456:         method: normalizedMethod,
+  457: 
+  458:         url: requestUrl,
+  459: 
+  460:         cause: error,
+  461:       });
+  462:     }
+  463: 
+  464:     throw new ApiError({
+  465:       message:
+  466:         "Unable to connect to the server. Check your connection and try again.",
+  467: 
+  468:       status: 0,
+  469: 
+  470:       code: "API_NETWORK_ERROR",
+  471: 
+  472:       method: normalizedMethod,
+  473: 
+  474:       url: requestUrl,
+  475: 
+  476:       cause: error,
+  477:     });
+  478:   } finally {
+  479:     abortState.cleanup();
+  480:   }
+  481: }
+  482: 
+  483: /*
+  484:  * =========================================
+  485:  * Convenience Methods
+  486:  * =========================================
+  487:  */
+  488: 
+  489: export function apiGet(endpoint, options = {}) {
+  490:   return apiRequest(endpoint, {
+  491:     ...options,
+  492: 
+  493:     method: "GET",
+  494:   });
+  495: }
+  496: 
+  497: export function apiPost(endpoint, body, options = {}) {
+  498:   return apiRequest(endpoint, {
+  499:     ...options,
+  500: 
+  501:     method: "POST",
+  502: 
+  503:     body,
+  504:   });
+  505: }
+  506: 
+  507: export function apiPut(endpoint, body, options = {}) {
+  508:   return apiRequest(endpoint, {
+  509:     ...options,
+  510: 
+  511:     method: "PUT",
+  512: 
+  513:     body,
+  514:   });
+  515: }
+  516: 
+  517: export function apiPatch(endpoint, body, options = {}) {
+  518:   return apiRequest(endpoint, {
+  519:     ...options,
+  520: 
+  521:     method: "PATCH",
+  522: 
+  523:     body,
+  524:   });
+  525: }
+  526: 
+  527: export function apiDelete(endpoint, options = {}) {
+  528:   return apiRequest(endpoint, {
+  529:     ...options,
+  530: 
+  531:     method: "DELETE",
+  532:   });
+  533: }
+  534: 
+
+================================================================================
+FILE: frontend\src\context\AuthContext.jsx
+================================================================================
+Total lines: 827
+    1: import {
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useRef,
+    8:   useState,
+    9: } from "react";
+   10: 
+   11: import {
+   12:   completeRegistration as completeRegistrationService,
+   13:   getCurrentSession,
+   14:   logout as logoutService,
+   15:   refreshSession,
+   16:   requestPasswordLogin,
+   17:   requestRegistrationOtp,
+   18:   verifyLoginOtp,
+   19:   verifyRegistrationOtp,
+   20: } from "../services/Auth/authService.js";
+   21: 
+   22: import { AUTH_SESSION_INVALID_EVENT } from "../services/apiClient.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Authentication Status
+   27:  * =========================================
+   28:  */
+   29: 
+   30: export const AUTH_STATUS = Object.freeze({
+   31:   INITIALIZING: "initializing",
+   32: 
+   33:   AUTHENTICATED: "authenticated",
+   34: 
+   35:   UNAUTHENTICATED: "unauthenticated",
+   36: 
+   37:   ERROR: "error",
+   38: });
+   39: 
+   40: /*
+   41:  * =========================================
+   42:  * Authentication Operations
+   43:  * =========================================
+   44:  */
+   45: 
+   46: export const AUTH_OPERATION = Object.freeze({
+   47:   IDLE: "idle",
+   48: 
+   49:   RESTORING: "restoring",
+   50: 
+   51:   REQUESTING_REGISTRATION: "requesting-registration",
+   52: 
+   53:   VERIFYING_REGISTRATION: "verifying-registration",
+   54: 
+   55:   COMPLETING_REGISTRATION: "completing-registration",
+   56: 
+   57:   REQUESTING_LOGIN: "requesting-login",
+   58: 
+   59:   VERIFYING_LOGIN: "verifying-login",
+   60: 
+   61:   REFRESHING: "refreshing",
+   62: 
+   63:   LOGGING_OUT: "logging-out",
+   64: });
+   65: 
+   66: /*
+   67:  * =========================================
+   68:  * Context
+   69:  * =========================================
+   70:  */
+   71: 
+   72: const AuthContext = createContext(null);
+   73: 
+   74: /*
+   75:  * =========================================
+   76:  * Role Normalization
+   77:  * =========================================
+   78:  */
+   79: 
+   80: function normalizeRoles(roles) {
+   81:   if (!Array.isArray(roles)) {
+   82:     return [];
+   83:   }
+   84: 
+   85:   return [
+   86:     ...new Set(
+   87:       roles
+   88:         .map((role) =>
+   89:           typeof role === "string" ? role.trim().toLowerCase() : "",
+   90:         )
+   91:         .filter(Boolean),
+   92:     ),
+   93:   ];
+   94: }
+   95: 
+   96: /*
+   97:  * =========================================
+   98:  * Authentication Data
+   99:  * =========================================
+  100:  */
+  101: 
+  102: function normalizeAuthentication(result) {
+  103:   if (!result?.user?.id || !result?.session?.id) {
+  104:     return null;
+  105:   }
+  106: 
+  107:   return {
+  108:     user: result.user,
+  109: 
+  110:     roles: normalizeRoles(result.roles),
+  111: 
+  112:     session: result.session,
+  113:   };
+  114: }
+  115: 
+  116: /*
+  117:  * =========================================
+  118:  * Expected Unauthenticated Errors
+  119:  * =========================================
+  120:  */
+  121: 
+  122: function isUnauthenticatedError(error) {
+  123:   return (
+  124:     Number(error?.status) === 401 ||
+  125:     [
+  126:       "AUTHENTICATION_REQUIRED",
+  127:       "SESSION_REFRESH_TOKEN_INVALID",
+  128:       "SESSION_NOT_FOUND",
+  129:     ].includes(error?.code)
+  130:   );
+  131: }
+  132: 
+  133: /*
+  134:  * =========================================
+  135:  * Provider
+  136:  * =========================================
+  137:  */
+  138: 
+  139: export function AuthProvider({ children }) {
+  140:   const [user, setUser] = useState(null);
+  141: 
+  142:   const [roles, setRoles] = useState([]);
+  143: 
+  144:   const [session, setSession] = useState(null);
+  145: 
+  146:   const [status, setStatus] = useState(AUTH_STATUS.INITIALIZING);
+  147: 
+  148:   const [operation, setOperation] = useState(AUTH_OPERATION.IDLE);
+  149: 
+  150:   const [error, setError] = useState(null);
+  151: 
+  152:   /*
+  153:    * Prevent state updates after an actual
+  154:    * provider unmount.
+  155:    */
+  156: 
+  157:   const isMountedRef = useRef(false);
+  158: 
+  159:   /*
+  160:    * Prevent duplicate restoration and token
+  161:    * rotation requests.
+  162:    */
+  163: 
+  164:   const restorationPromiseRef = useRef(null);
+  165: 
+  166:   const refreshPromiseRef = useRef(null);
+  167: 
+  168:   /*
+  169:    * =========================================
+  170:    * Safe State Helpers
+  171:    * =========================================
+  172:    */
+  173: 
+  174:   const clearAuthentication = useCallback(() => {
+  175:     if (!isMountedRef.current) {
+  176:       return;
+  177:     }
+  178: 
+  179:     setUser(null);
+  180: 
+  181:     setRoles([]);
+  182: 
+  183:     setSession(null);
+  184: 
+  185:     setStatus(AUTH_STATUS.UNAUTHENTICATED);
+  186:   }, []);
+  187: 
+  188:   const applyAuthentication = useCallback((result) => {
+  189:     const authentication = normalizeAuthentication(result);
+  190: 
+  191:     if (!authentication) {
+  192:       const authenticationError = new Error(
+  193:         "The server returned an incomplete authentication response.",
+  194:       );
+  195: 
+  196:       authenticationError.name = "AuthenticationResponseError";
+  197: 
+  198:       authenticationError.code = "AUTHENTICATION_RESPONSE_INVALID";
+  199: 
+  200:       throw authenticationError;
+  201:     }
+  202: 
+  203:     if (!isMountedRef.current) {
+  204:       return authentication;
+  205:     }
+  206: 
+  207:     setUser(authentication.user);
+  208: 
+  209:     setRoles(authentication.roles);
+  210: 
+  211:     setSession(authentication.session);
+  212: 
+  213:     setStatus(AUTH_STATUS.AUTHENTICATED);
+  214: 
+  215:     setError(null);
+  216: 
+  217:     return authentication;
+  218:   }, []);
+  219: 
+  220:   const clearError = useCallback(() => {
+  221:     if (isMountedRef.current) {
+  222:       setError(null);
+  223:     }
+  224:   }, []);
+  225: 
+  226:   /*
+  227:    * =========================================
+  228:    * Invalid Session Events
+  229:    * =========================================
+  230:    *
+  231:    * Protected API requests dispatch this event
+  232:    * when the server reports that the current
+  233:    * session was revoked, expired, or invalid.
+  234:    */
+  235: 
+  236:   useEffect(() => {
+  237:     function handleInvalidSession() {
+  238:       clearAuthentication();
+  239: 
+  240:       if (isMountedRef.current) {
+  241:         setError(null);
+  242: 
+  243:         setOperation(AUTH_OPERATION.IDLE);
+  244:       }
+  245:     }
+  246: 
+  247:     window.addEventListener(
+  248:       AUTH_SESSION_INVALID_EVENT,
+  249: 
+  250:       handleInvalidSession,
+  251:     );
+  252: 
+  253:     return () => {
+  254:       window.removeEventListener(
+  255:         AUTH_SESSION_INVALID_EVENT,
+  256: 
+  257:         handleInvalidSession,
+  258:       );
+  259:     };
+  260:   }, [clearAuthentication]);
+  261: 
+  262:   /*
+  263:    * =========================================
+  264:    * Restore Existing Session
+  265:    * =========================================
+  266:    *
+  267:    * A missing or expired cookie is an ordinary
+  268:    * unauthenticated state, not an application
+  269:    * failure.
+  270:    */
+  271: 
+  272:   const restoreAuthentication = useCallback(async () => {
+  273:     if (restorationPromiseRef.current) {
+  274:       return restorationPromiseRef.current;
+  275:     }
+  276: 
+  277:     const restorationPromise = (async () => {
+  278:       if (isMountedRef.current) {
+  279:         setOperation(AUTH_OPERATION.RESTORING);
+  280: 
+  281:         setError(null);
+  282:       }
+  283: 
+  284:       try {
+  285:         const result = await getCurrentSession();
+  286: 
+  287:         return applyAuthentication(result);
+  288:       } catch (restorationError) {
+  289:         if (isUnauthenticatedError(restorationError)) {
+  290:           clearAuthentication();
+  291: 
+  292:           return null;
+  293:         }
+  294: 
+  295:         if (isMountedRef.current) {
+  296:           setUser(null);
+  297: 
+  298:           setRoles([]);
+  299: 
+  300:           setSession(null);
+  301: 
+  302:           setStatus(AUTH_STATUS.ERROR);
+  303: 
+  304:           setError(restorationError);
+  305:         }
+  306: 
+  307:         return null;
+  308:       } finally {
+  309:         if (isMountedRef.current) {
+  310:           setOperation(AUTH_OPERATION.IDLE);
+  311:         }
+  312:       }
+  313:     })();
+  314: 
+  315:     restorationPromiseRef.current = restorationPromise;
+  316: 
+  317:     try {
+  318:       return await restorationPromise;
+  319:     } finally {
+  320:       if (restorationPromiseRef.current === restorationPromise) {
+  321:         restorationPromiseRef.current = null;
+  322:       }
+  323:     }
+  324:   }, [applyAuthentication, clearAuthentication]);
+  325: 
+  326:   /*
+  327:    * =========================================
+  328:    * Revalidate Returning Browsers
+  329:    * =========================================
+  330:    *
+  331:    * If another device revoked this browser's
+  332:    * session, returning to this tab triggers a
+  333:    * server validation before continued use.
+  334:    */
+  335: 
+  336:   useEffect(() => {
+  337:     function revalidateAuthentication() {
+  338:       if (!isMountedRef.current || status !== AUTH_STATUS.AUTHENTICATED) {
+  339:         return;
+  340:       }
+  341: 
+  342:       void restoreAuthentication();
+  343:     }
+  344: 
+  345:     function handleVisibilityChange() {
+  346:       if (document.visibilityState === "visible") {
+  347:         revalidateAuthentication();
+  348:       }
+  349:     }
+  350: 
+  351:     window.addEventListener("focus", revalidateAuthentication);
+  352: 
+  353:     document.addEventListener(
+  354:       "visibilitychange",
+  355: 
+  356:       handleVisibilityChange,
+  357:     );
+  358: 
+  359:     return () => {
+  360:       window.removeEventListener(
+  361:         "focus",
+  362: 
+  363:         revalidateAuthentication,
+  364:       );
+  365: 
+  366:       document.removeEventListener(
+  367:         "visibilitychange",
+  368: 
+  369:         handleVisibilityChange,
+  370:       );
+  371:     };
+  372:   }, [status, restoreAuthentication]);
+  373: 
+  374:   /*
+  375:    * =========================================
+  376:    * Begin Registration
+  377:    * =========================================
+  378:    *
+  379:    * This creates a registration challenge and
+  380:    * requests delivery of the registration OTP.
+  381:    * It does not authenticate the browser.
+  382:    */
+  383: 
+  384:   const beginRegistration = useCallback(async ({ email }) => {
+  385:     if (isMountedRef.current) {
+  386:       setOperation(AUTH_OPERATION.REQUESTING_REGISTRATION);
+  387: 
+  388:       setError(null);
+  389:     }
+  390: 
+  391:     try {
+  392:       return await requestRegistrationOtp({
+  393:         email,
+  394:       });
+  395:     } catch (registrationError) {
+  396:       if (isMountedRef.current) {
+  397:         setError(registrationError);
+  398:       }
+  399: 
+  400:       throw registrationError;
+  401:     } finally {
+  402:       if (isMountedRef.current) {
+  403:         setOperation(AUTH_OPERATION.IDLE);
+  404:       }
+  405:     }
+  406:   }, []);
+  407: 
+  408:   /*
+  409:    * =========================================
+  410:    * Verify Registration OTP
+  411:    * =========================================
+  412:    *
+  413:    * Successful verification returns a
+  414:    * short-lived continuation token. It does
+  415:    * not create the account or session yet.
+  416:    */
+  417: 
+  418:   const verifyRegistration = useCallback(async ({ challengeId, otp }) => {
+  419:     if (isMountedRef.current) {
+  420:       setOperation(AUTH_OPERATION.VERIFYING_REGISTRATION);
+  421: 
+  422:       setError(null);
+  423:     }
+  424: 
+  425:     try {
+  426:       return await verifyRegistrationOtp({
+  427:         challengeId,
+  428: 
+  429:         otp,
+  430:       });
+  431:     } catch (verificationError) {
+  432:       if (isMountedRef.current) {
+  433:         setError(verificationError);
+  434:       }
+  435: 
+  436:       throw verificationError;
+  437:     } finally {
+  438:       if (isMountedRef.current) {
+  439:         setOperation(AUTH_OPERATION.IDLE);
+  440:       }
+  441:     }
+  442:   }, []);
+  443: 
+  444:   /*
+  445:    * =========================================
+  446:    * Complete Registration
+  447:    * =========================================
+  448:    *
+  449:    * This creates the user, initial profile,
+  450:    * settings and standard user role. It does
+  451:    * not create an authenticated session.
+  452:    */
+  453: 
+  454:   const finishRegistration = useCallback(
+  455:     async ({ challengeId, continuationToken, password }) => {
+  456:       if (isMountedRef.current) {
+  457:         setOperation(AUTH_OPERATION.COMPLETING_REGISTRATION);
+  458: 
+  459:         setError(null);
+  460:       }
+  461: 
+  462:       try {
+  463:         return await completeRegistrationService({
+  464:           challengeId,
+  465: 
+  466:           continuationToken,
+  467: 
+  468:           password,
+  469:         });
+  470:       } catch (registrationError) {
+  471:         if (isMountedRef.current) {
+  472:           setError(registrationError);
+  473:         }
+  474: 
+  475:         throw registrationError;
+  476:       } finally {
+  477:         if (isMountedRef.current) {
+  478:           setOperation(AUTH_OPERATION.IDLE);
+  479:         }
+  480:       }
+  481:     },
+  482:     [],
+  483:   );
+  484: 
+  485:   /*
+  486:    * =========================================
+  487:    * Begin Password Login
+  488:    * =========================================
+  489:    *
+  490:    * This validates the password and requests
+  491:    * an OTP. It does not authenticate the
+  492:    * browser yet.
+  493:    */
+  494: 
+  495:   const beginPasswordLogin = useCallback(async ({ email, password }) => {
+  496:     if (isMountedRef.current) {
+  497:       setOperation(AUTH_OPERATION.REQUESTING_LOGIN);
+  498: 
+  499:       setError(null);
+  500:     }
+  501: 
+  502:     try {
+  503:       return await requestPasswordLogin({
+  504:         email,
+  505: 
+  506:         password,
+  507:       });
+  508:     } catch (loginError) {
+  509:       if (isMountedRef.current) {
+  510:         setError(loginError);
+  511:       }
+  512: 
+  513:       throw loginError;
+  514:     } finally {
+  515:       if (isMountedRef.current) {
+  516:         setOperation(AUTH_OPERATION.IDLE);
+  517:       }
+  518:     }
+  519:   }, []);
+  520: 
+  521:   /*
+  522:    * =========================================
+  523:    * Complete Login OTP
+  524:    * =========================================
+  525:    *
+  526:    * Successful verification creates the
+  527:    * server session and HttpOnly cookie.
+  528:    */
+  529: 
+  530:   const completeLogin = useCallback(
+  531:     async ({ challengeId, otp }) => {
+  532:       if (isMountedRef.current) {
+  533:         setOperation(AUTH_OPERATION.VERIFYING_LOGIN);
+  534: 
+  535:         setError(null);
+  536:       }
+  537: 
+  538:       try {
+  539:         const result = await verifyLoginOtp({
+  540:           challengeId,
+  541: 
+  542:           otp,
+  543:         });
+  544: 
+  545:         applyAuthentication(result);
+  546: 
+  547:         return result;
+  548:       } catch (verificationError) {
+  549:         if (isMountedRef.current) {
+  550:           setError(verificationError);
+  551:         }
+  552: 
+  553:         throw verificationError;
+  554:       } finally {
+  555:         if (isMountedRef.current) {
+  556:           setOperation(AUTH_OPERATION.IDLE);
+  557:         }
+  558:       }
+  559:     },
+  560:     [applyAuthentication],
+  561:   );
+  562: 
+  563:   /*
+  564:    * =========================================
+  565:    * Refresh Session
+  566:    * =========================================
+  567:    *
+  568:    * Only one refresh may run at a time because
+  569:    * every successful refresh invalidates the
+  570:    * previous refresh token.
+  571:    */
+  572: 
+  573:   const refreshAuthentication = useCallback(async () => {
+  574:     if (refreshPromiseRef.current) {
+  575:       return refreshPromiseRef.current;
+  576:     }
+  577: 
+  578:     const refreshPromise = (async () => {
+  579:       if (isMountedRef.current) {
+  580:         setOperation(AUTH_OPERATION.REFRESHING);
+  581: 
+  582:         setError(null);
+  583:       }
+  584: 
+  585:       try {
+  586:         const result = await refreshSession();
+  587: 
+  588:         applyAuthentication(result);
+  589: 
+  590:         return result;
+  591:       } catch (refreshError) {
+  592:         if (
+  593:           isUnauthenticatedError(refreshError) ||
+  594:           refreshError?.code === "SESSION_REFRESH_CONFLICT"
+  595:         ) {
+  596:           clearAuthentication();
+  597:         }
+  598: 
+  599:         if (isMountedRef.current) {
+  600:           setError(refreshError);
+  601:         }
+  602: 
+  603:         throw refreshError;
+  604:       } finally {
+  605:         if (isMountedRef.current) {
+  606:           setOperation(AUTH_OPERATION.IDLE);
+  607:         }
+  608:       }
+  609:     })();
+  610: 
+  611:     refreshPromiseRef.current = refreshPromise;
+  612: 
+  613:     try {
+  614:       return await refreshPromise;
+  615:     } finally {
+  616:       if (refreshPromiseRef.current === refreshPromise) {
+  617:         refreshPromiseRef.current = null;
+  618:       }
+  619:     }
+  620:   }, [applyAuthentication, clearAuthentication]);
+  621: 
+  622:   /*
+  623:    * =========================================
+  624:    * Logout
+  625:    * =========================================
+  626:    */
+  627: 
+  628:   const logout = useCallback(async () => {
+  629:     if (isMountedRef.current) {
+  630:       setOperation(AUTH_OPERATION.LOGGING_OUT);
+  631: 
+  632:       setError(null);
+  633:     }
+  634: 
+  635:     try {
+  636:       const result = await logoutService();
+  637: 
+  638:       clearAuthentication();
+  639: 
+  640:       return result;
+  641:     } catch (logoutError) {
+  642:       /*
+  643:        * The backend intentionally preserves
+  644:        * the cookie when database revocation
+  645:        * fails, so keep the local identity
+  646:        * until logout actually succeeds.
+  647:        */
+  648: 
+  649:       if (isMountedRef.current) {
+  650:         setError(logoutError);
+  651:       }
+  652: 
+  653:       throw logoutError;
+  654:     } finally {
+  655:       if (isMountedRef.current) {
+  656:         setOperation(AUTH_OPERATION.IDLE);
+  657:       }
+  658:     }
+  659:   }, [clearAuthentication]);
+  660: 
+  661:   /*
+  662:    * =========================================
+  663:    * Role Lookup
+  664:    * =========================================
+  665:    */
+  666: 
+  667:   const hasRole = useCallback(
+  668:     (roleName) => {
+  669:       const normalizedRole =
+  670:         typeof roleName === "string" ? roleName.trim().toLowerCase() : "";
+  671: 
+  672:       return Boolean(normalizedRole && roles.includes(normalizedRole));
+  673:     },
+  674:     [roles],
+  675:   );
+  676: 
+  677:   /*
+  678:    * =========================================
+  679:    * Initial Session Restoration
+  680:    * =========================================
+  681:    */
+  682: 
+  683:   useEffect(() => {
+  684:     isMountedRef.current = true;
+  685: 
+  686:     void restoreAuthentication();
+  687: 
+  688:     return () => {
+  689:       isMountedRef.current = false;
+  690:     };
+  691:   }, [restoreAuthentication]);
+  692: 
+  693:   /*
+  694:    * =========================================
+  695:    * Derived State
+  696:    * =========================================
+  697:    */
+  698: 
+  699:   const isAuthenticated = status === AUTH_STATUS.AUTHENTICATED;
+  700: 
+  701:   const isInitializing = status === AUTH_STATUS.INITIALIZING;
+  702: 
+  703:   const isBusy = operation !== AUTH_OPERATION.IDLE;
+  704: 
+  705:   /*
+  706:    * =========================================
+  707:    * Context Value
+  708:    * =========================================
+  709:    */
+  710: 
+  711:   const contextValue = useMemo(
+  712:     () => ({
+  713:       /*
+  714:        * Identity
+  715:        */
+  716: 
+  717:       user,
+  718: 
+  719:       roles,
+  720: 
+  721:       session,
+  722: 
+  723:       /*
+  724:        * Status
+  725:        */
+  726: 
+  727:       status,
+  728: 
+  729:       operation,
+  730: 
+  731:       error,
+  732: 
+  733:       isAuthenticated,
+  734: 
+  735:       isInitializing,
+  736: 
+  737:       isBusy,
+  738: 
+  739:       /*
+  740:        * Authentication Actions
+  741:        */
+  742: 
+  743:       restoreAuthentication,
+  744: 
+  745:       beginRegistration,
+  746: 
+  747:       verifyRegistration,
+  748: 
+  749:       finishRegistration,
+  750: 
+  751:       beginPasswordLogin,
+  752: 
+  753:       completeLogin,
+  754: 
+  755:       refreshAuthentication,
+  756: 
+  757:       logout,
+  758: 
+  759:       /*
+  760:        * Utilities
+  761:        */
+  762: 
+  763:       hasRole,
+  764: 
+  765:       clearError,
+  766:     }),
+  767:     [
+  768:       user,
+  769: 
+  770:       roles,
+  771: 
+  772:       session,
+  773: 
+  774:       status,
+  775: 
+  776:       operation,
+  777: 
+  778:       error,
+  779: 
+  780:       isAuthenticated,
+  781: 
+  782:       isInitializing,
+  783: 
+  784:       isBusy,
+  785: 
+  786:       restoreAuthentication,
+  787: 
+  788:       beginRegistration,
+  789: 
+  790:       verifyRegistration,
+  791: 
+  792:       finishRegistration,
+  793: 
+  794:       beginPasswordLogin,
+  795: 
+  796:       completeLogin,
+  797: 
+  798:       refreshAuthentication,
+  799: 
+  800:       logout,
+  801: 
+  802:       hasRole,
+  803: 
+  804:       clearError,
+  805:     ],
+  806:   );
+  807: 
+  808:   return (
+  809:     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  810:   );
+  811: }
+  812: 
+  813: /*
+  814:  * =========================================
+  815:  * Authentication Hook
+  816:  * =========================================
+  817:  */
+  818: 
+  819: export function useAuth() {
+  820:   const context = useContext(AuthContext);
+  821: 
+  822:   if (!context) {
+  823:     throw new Error("useAuth must be used inside AuthProvider.");
+  824:   }
+  825: 
+  826:   return context;
+  827: }
+
+================================================================================
+FILE: frontend\src\services\Skills\skillService.js
+================================================================================
+FILE NOT FOUND
+
+================================================================================
+FILE: frontend\src\context\SkillDataContext.jsx
+================================================================================
+Total lines: 713
+    1: import {
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveSkill as archiveSkillService,
+   12:   checkSkillNameAvailability as checkSkillNameAvailabilityService,
+   13:   createSkill as createSkillService,
+   14:   deleteSkill as deleteSkillService,
+   15:   findOrCreateSkill as findOrCreateSkillService,
+   16:   getSkillById as getSkillByIdService,
+   17:   getSkills as getSkillsService,
+   18:   replaceSkills as replaceSkillsService,
+   19:   resolveSkillMatch as resolveSkillMatchService,
+   20:   restoreSkill as restoreSkillService,
+   21:   updateSkill as updateSkillService,
+   22:   validateSkillDraft as validateSkillDraftService,
+   23: } from "../services/Skill/skillService.js";
+   24: 
+   25: import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
+   26: 
+   27: const SkillDataContext = createContext(null);
+   28: 
+   29: const INITIAL_OPERATION = {
+   30:   type: "",
+   31:   skillId: "",
+   32:   status: "idle",
+   33: };
+   34: 
+   35: function normalizeSkillContextError(error) {
+   36:   return {
+   37:     message:
+   38:       error?.publicMessage ||
+   39:       error?.message ||
+   40:       "An unexpected Skill Library error occurred.",
+   41: 
+   42:     code: error?.code || "SKILL_OPERATION_FAILED",
+   43: 
+   44:     status: Number(error?.status) || 500,
+   45: 
+   46:     errors: Array.isArray(error?.errors) ? error.errors : [],
+   47: 
+   48:     warnings: Array.isArray(error?.warnings) ? error.warnings : [],
+   49: 
+   50:     conflicts: Array.isArray(error?.conflicts) ? error.conflicts : [],
+   51: 
+   52:     fieldErrors:
+   53:       error?.fieldErrors && typeof error.fieldErrors === "object"
+   54:         ? error.fieldErrors
+   55:         : {},
+   56: 
+   57:     validation: error?.validation || null,
+   58: 
+   59:     usage: error?.usage && typeof error.usage === "object" ? error.usage : null,
+   60: 
+   61:     details:
+   62:       error?.details && typeof error.details === "object"
+   63:         ? error.details
+   64:         : null,
+   65: 
+   66:     originalError: error,
+   67:   };
+   68: }
+   69: 
+   70: function createSkillDeletionConflict(skillId, usage) {
+   71:   const experienceCount = Number(usage?.experienceCount) || 0;
+   72: 
+   73:   const error = new Error(`Skill "${skillId}" is still referenced.`);
+   74: 
+   75:   error.name = "SkillUsageConflictError";
+   76:   error.code = "SKILL_IN_USE";
+   77:   error.status = 409;
+   78: 
+   79:   error.publicMessage =
+   80:     experienceCount === 1
+   81:       ? "This skill cannot be permanently deleted because it is used by an experience. Archive it instead."
+   82:       : `This skill cannot be permanently deleted because it is used by ${experienceCount} experiences. Archive it instead.`;
+   83: 
+   84:   error.usage = usage;
+   85: 
+   86:   error.conflicts = [
+   87:     {
+   88:       field: "skillId",
+   89:       code: "skill_in_use",
+   90:       message: error.publicMessage,
+   91:       skillId,
+   92:       experienceCount,
+   93: 
+   94:       experienceSkillCount: Number(usage?.experienceSkillCount) || 0,
+   95: 
+   96:       experienceTechnologyCount: Number(usage?.experienceTechnologyCount) || 0,
+   97: 
+   98:       experienceIds: Array.isArray(usage?.experiences)
+   99:         ? usage.experiences.map((item) => item.id).filter(Boolean)
+  100:         : [],
+  101:     },
+  102:   ];
+  103: 
+  104:   return error;
+  105: }
+  106: 
+  107: function sortSkillLibrary(skills) {
+  108:   return [...skills].sort((firstSkill, secondSkill) =>
+  109:     firstSkill.name.localeCompare(secondSkill.name, undefined, {
+  110:       sensitivity: "base",
+  111:     }),
+  112:   );
+  113: }
+  114: 
+  115: export function SkillDataProvider({ children }) {
+  116:   const [skills, setSkills] = useState([]);
+  117:   const [isLoading, setIsLoading] = useState(true);
+  118:   const [loadStatus, setLoadStatus] = useState("idle");
+  119:   const [saveStatus, setSaveStatus] = useState("idle");
+  120:   const [error, setError] = useState(null);
+  121:   const [operation, setOperation] = useState(INITIAL_OPERATION);
+  122: 
+  123:   const clearError = useCallback(() => {
+  124:     setError(null);
+  125:   }, []);
+  126: 
+  127:   const resetSaveStatus = useCallback(() => {
+  128:     setSaveStatus("idle");
+  129:   }, []);
+  130: 
+  131:   const resetOperation = useCallback(() => {
+  132:     setOperation(INITIAL_OPERATION);
+  133:   }, []);
+  134: 
+  135:   const refreshSkills = useCallback(
+  136:     async ({ includeArchived = true, showLoading = true } = {}) => {
+  137:       try {
+  138:         if (showLoading) {
+  139:           setIsLoading(true);
+  140:           setLoadStatus("loading");
+  141:         }
+  142: 
+  143:         setError(null);
+  144: 
+  145:         const loadedSkills = await getSkillsService({
+  146:           includeArchived,
+  147:         });
+  148: 
+  149:         const nextSkills = sortSkillLibrary(
+  150:           Array.isArray(loadedSkills) ? loadedSkills : [],
+  151:         );
+  152: 
+  153:         setSkills(nextSkills);
+  154:         setLoadStatus("success");
+  155: 
+  156:         return nextSkills;
+  157:       } catch (loadError) {
+  158:         console.error("Unable to load skills:", loadError);
+  159: 
+  160:         setLoadStatus("error");
+  161: 
+  162:         setError(normalizeSkillContextError(loadError));
+  163: 
+  164:         throw loadError;
+  165:       } finally {
+  166:         if (showLoading) {
+  167:           setIsLoading(false);
+  168:         }
+  169:       }
+  170:     },
+  171:     [],
+  172:   );
+  173: 
+  174:   useEffect(() => {
+  175:     let isActive = true;
+  176: 
+  177:     getSkillsService({
+  178:       includeArchived: true,
+  179:     })
+  180:       .then((loadedSkills) => {
+  181:         if (!isActive) {
+  182:           return;
+  183:         }
+  184: 
+  185:         setSkills(
+  186:           sortSkillLibrary(Array.isArray(loadedSkills) ? loadedSkills : []),
+  187:         );
+  188: 
+  189:         setLoadStatus("success");
+  190:       })
+  191:       .catch((loadError) => {
+  192:         if (!isActive) {
+  193:           return;
+  194:         }
+  195: 
+  196:         console.error("Unable to load skills:", loadError);
+  197: 
+  198:         setSkills([]);
+  199:         setLoadStatus("error");
+  200: 
+  201:         setError(normalizeSkillContextError(loadError));
+  202:       })
+  203:       .finally(() => {
+  204:         if (isActive) {
+  205:           setIsLoading(false);
+  206:         }
+  207:       });
+  208: 
+  209:     return () => {
+  210:       isActive = false;
+  211:     };
+  212:   }, []);
+  213: 
+  214:   useEffect(() => {
+  215:     const handleStorageChange = (event) => {
+  216:       if (
+  217:         event.storageArea !== window.localStorage ||
+  218:         event.key !== SKILL_STORAGE_KEY
+  219:       ) {
+  220:         return;
+  221:       }
+  222: 
+  223:       refreshSkills({
+  224:         includeArchived: true,
+  225:         showLoading: false,
+  226:       }).catch(() => {});
+  227:     };
+  228: 
+  229:     window.addEventListener("storage", handleStorageChange);
+  230: 
+  231:     return () => {
+  232:       window.removeEventListener("storage", handleStorageChange);
+  233:     };
+  234:   }, [refreshSkills]);
+  235: 
+  236:   const getSkillById = useCallback(
+  237:     async (skillId) => {
+  238:       const existingSkill = skills.find((skill) => skill.id === skillId);
+  239: 
+  240:       if (existingSkill) {
+  241:         return existingSkill;
+  242:       }
+  243: 
+  244:       try {
+  245:         setError(null);
+  246: 
+  247:         return await getSkillByIdService(skillId);
+  248:       } catch (getError) {
+  249:         setError(normalizeSkillContextError(getError));
+  250: 
+  251:         throw getError;
+  252:       }
+  253:     },
+  254:     [skills],
+  255:   );
+  256: 
+  257:   const createSkill = useCallback(async (skillData) => {
+  258:     try {
+  259:       setSaveStatus("saving");
+  260:       setError(null);
+  261: 
+  262:       setOperation({
+  263:         type: "create",
+  264:         skillId: "",
+  265:         status: "loading",
+  266:       });
+  267: 
+  268:       const createdSkill = await createSkillService(skillData);
+  269: 
+  270:       setSkills((current) =>
+  271:         sortSkillLibrary([
+  272:           createdSkill,
+  273:           ...current.filter((skill) => skill.id !== createdSkill.id),
+  274:         ]),
+  275:       );
+  276: 
+  277:       setSaveStatus("success");
+  278: 
+  279:       setOperation({
+  280:         type: "create",
+  281:         skillId: createdSkill.id,
+  282:         status: "success",
+  283:       });
+  284: 
+  285:       return createdSkill;
+  286:     } catch (createError) {
+  287:       setSaveStatus("error");
+  288: 
+  289:       setOperation({
+  290:         type: "create",
+  291:         skillId: "",
+  292:         status: "error",
+  293:       });
+  294: 
+  295:       setError(normalizeSkillContextError(createError));
+  296: 
+  297:       throw createError;
+  298:     }
+  299:   }, []);
+  300: 
+  301:   const updateSkill = useCallback(async (skillId, updates) => {
+  302:     try {
+  303:       setSaveStatus("saving");
+  304:       setError(null);
+  305: 
+  306:       setOperation({
+  307:         type: "update",
+  308:         skillId,
+  309:         status: "loading",
+  310:       });
+  311: 
+  312:       const updatedSkill = await updateSkillService(skillId, updates);
+  313: 
+  314:       setSkills((current) =>
+  315:         sortSkillLibrary(
+  316:           current.map((skill) => (skill.id === skillId ? updatedSkill : skill)),
+  317:         ),
+  318:       );
+  319: 
+  320:       setSaveStatus("success");
+  321: 
+  322:       setOperation({
+  323:         type: "update",
+  324:         skillId,
+  325:         status: "success",
+  326:       });
+  327: 
+  328:       return updatedSkill;
+  329:     } catch (updateError) {
+  330:       setSaveStatus("error");
+  331: 
+  332:       setOperation({
+  333:         type: "update",
+  334:         skillId,
+  335:         status: "error",
+  336:       });
+  337: 
+  338:       setError(normalizeSkillContextError(updateError));
+  339: 
+  340:       throw updateError;
+  341:     }
+  342:   }, []);
+  343: 
+  344:   const findOrCreateSkill = useCallback(async (skillData, options = {}) => {
+  345:     try {
+  346:       setSaveStatus("saving");
+  347:       setError(null);
+  348: 
+  349:       setOperation({
+  350:         type: "find-or-create",
+  351:         skillId: "",
+  352:         status: "loading",
+  353:       });
+  354: 
+  355:       const result = await findOrCreateSkillService(skillData, options);
+  356: 
+  357:       const resolvedSkill = result.skill;
+  358: 
+  359:       setSkills((current) => {
+  360:         const exists = current.some((skill) => skill.id === resolvedSkill.id);
+  361: 
+  362:         const next = exists
+  363:           ? current.map((skill) =>
+  364:               skill.id === resolvedSkill.id ? resolvedSkill : skill,
+  365:             )
+  366:           : [resolvedSkill, ...current];
+  367: 
+  368:         return sortSkillLibrary(next);
+  369:       });
+  370: 
+  371:       setSaveStatus("success");
+  372: 
+  373:       setOperation({
+  374:         type: "find-or-create",
+  375:         skillId: resolvedSkill.id,
+  376:         status: "success",
+  377:       });
+  378: 
+  379:       return result;
+  380:     } catch (operationError) {
+  381:       setSaveStatus("error");
+  382: 
+  383:       setOperation({
+  384:         type: "find-or-create",
+  385:         skillId: "",
+  386:         status: "error",
+  387:       });
+  388: 
+  389:       setError(normalizeSkillContextError(operationError));
+  390: 
+  391:       throw operationError;
+  392:     }
+  393:   }, []);
+  394: 
+  395:   const archiveSkill = useCallback(async (skillId) => {
+  396:     try {
+  397:       setSaveStatus("saving");
+  398:       setError(null);
+  399: 
+  400:       setOperation({
+  401:         type: "archive",
+  402:         skillId,
+  403:         status: "loading",
+  404:       });
+  405: 
+  406:       const archivedSkill = await archiveSkillService(skillId);
+  407: 
+  408:       setSkills((current) =>
+  409:         sortSkillLibrary(
+  410:           current.map((skill) =>
+  411:             skill.id === skillId ? archivedSkill : skill,
+  412:           ),
+  413:         ),
+  414:       );
+  415: 
+  416:       setSaveStatus("success");
+  417: 
+  418:       setOperation({
+  419:         type: "archive",
+  420:         skillId,
+  421:         status: "success",
+  422:       });
+  423: 
+  424:       return archivedSkill;
+  425:     } catch (archiveError) {
+  426:       setSaveStatus("error");
+  427: 
+  428:       setOperation({
+  429:         type: "archive",
+  430:         skillId,
+  431:         status: "error",
+  432:       });
+  433: 
+  434:       setError(normalizeSkillContextError(archiveError));
+  435: 
+  436:       throw archiveError;
+  437:     }
+  438:   }, []);
+  439: 
+  440:   const restoreSkill = useCallback(async (skillId) => {
+  441:     try {
+  442:       setSaveStatus("saving");
+  443:       setError(null);
+  444: 
+  445:       setOperation({
+  446:         type: "restore",
+  447:         skillId,
+  448:         status: "loading",
+  449:       });
+  450: 
+  451:       const restoredSkill = await restoreSkillService(skillId);
+  452: 
+  453:       setSkills((current) =>
+  454:         sortSkillLibrary(
+  455:           current.map((skill) =>
+  456:             skill.id === skillId ? restoredSkill : skill,
+  457:           ),
+  458:         ),
+  459:       );
+  460: 
+  461:       setSaveStatus("success");
+  462: 
+  463:       setOperation({
+  464:         type: "restore",
+  465:         skillId,
+  466:         status: "success",
+  467:       });
+  468: 
+  469:       return restoredSkill;
+  470:     } catch (restoreError) {
+  471:       setSaveStatus("error");
+  472: 
+  473:       setOperation({
+  474:         type: "restore",
+  475:         skillId,
+  476:         status: "error",
+  477:       });
+  478: 
+  479:       setError(normalizeSkillContextError(restoreError));
+  480: 
+  481:       throw restoreError;
+  482:     }
+  483:   }, []);
+  484: 
+  485:   const deleteSkill = useCallback(async (skillId, { usage = null } = {}) => {
+  486:     try {
+  487:       setSaveStatus("saving");
+  488:       setError(null);
+  489: 
+  490:       setOperation({
+  491:         type: "delete",
+  492:         skillId,
+  493:         status: "loading",
+  494:       });
+  495: 
+  496:       if (Number(usage?.total ?? usage?.totalUsage) > 0) {
+  497:         throw createSkillDeletionConflict(skillId, usage);
+  498:       }
+  499: 
+  500:       const deletionResult = await deleteSkillService(skillId);
+  501: 
+  502:       setSkills((current) => current.filter((skill) => skill.id !== skillId));
+  503: 
+  504:       setSaveStatus("success");
+  505: 
+  506:       setOperation({
+  507:         type: "delete",
+  508:         skillId,
+  509:         status: "success",
+  510:       });
+  511: 
+  512:       return deletionResult;
+  513:     } catch (deleteError) {
+  514:       setSaveStatus("error");
+  515: 
+  516:       setOperation({
+  517:         type: "delete",
+  518:         skillId,
+  519:         status: "error",
+  520:       });
+  521: 
+  522:       setError(normalizeSkillContextError(deleteError));
+  523: 
+  524:       throw deleteError;
+  525:     }
+  526:   }, []);
+  527: 
+  528:   const replaceSkills = useCallback(async (skillValues) => {
+  529:     try {
+  530:       setSaveStatus("saving");
+  531:       setError(null);
+  532: 
+  533:       setOperation({
+  534:         type: "replace",
+  535:         skillId: "",
+  536:         status: "loading",
+  537:       });
+  538: 
+  539:       const replaced = await replaceSkillsService(skillValues);
+  540: 
+  541:       setSkills(sortSkillLibrary(replaced));
+  542: 
+  543:       setSaveStatus("success");
+  544: 
+  545:       setOperation({
+  546:         type: "replace",
+  547:         skillId: "",
+  548:         status: "success",
+  549:       });
+  550: 
+  551:       return replaced;
+  552:     } catch (replaceError) {
+  553:       setSaveStatus("error");
+  554: 
+  555:       setOperation({
+  556:         type: "replace",
+  557:         skillId: "",
+  558:         status: "error",
+  559:       });
+  560: 
+  561:       setError(normalizeSkillContextError(replaceError));
+  562: 
+  563:       throw replaceError;
+  564:     }
+  565:   }, []);
+  566: 
+  567:   const validateSkillDraft = useCallback(
+  568:     (skillData, options = {}) => validateSkillDraftService(skillData, options),
+  569:     [],
+  570:   );
+  571: 
+  572:   const checkSkillNameAvailability = useCallback(
+  573:     (name, options = {}) => checkSkillNameAvailabilityService(name, options),
+  574:     [],
+  575:   );
+  576: 
+  577:   const resolveSkillMatch = useCallback(
+  578:     (name) => resolveSkillMatchService(name),
+  579:     [],
+  580:   );
+  581: 
+  582:   const activeSkills = useMemo(
+  583:     () => skills.filter((skill) => skill.status !== "archived"),
+  584:     [skills],
+  585:   );
+  586: 
+  587:   const archivedSkills = useMemo(
+  588:     () => skills.filter((skill) => skill.status === "archived"),
+  589:     [skills],
+  590:   );
+  591: 
+  592:   const skillsById = useMemo(
+  593:     () => new Map(skills.map((skill) => [skill.id, skill])),
+  594:     [skills],
+  595:   );
+  596: 
+  597:   const skillsByCategory = useMemo(
+  598:     () =>
+  599:       activeSkills.reduce((groups, skill) => {
+  600:         if (!groups[skill.category]) {
+  601:           groups[skill.category] = [];
+  602:         }
+  603: 
+  604:         groups[skill.category].push(skill);
+  605: 
+  606:         return groups;
+  607:       }, {}),
+  608:     [activeSkills],
+  609:   );
+  610: 
+  611:   const statistics = useMemo(
+  612:     () => ({
+  613:       total: skills.length,
+  614:       active: activeSkills.length,
+  615:       archived: archivedSkills.length,
+  616: 
+  617:       technical: activeSkills.filter((skill) => skill.type === "technical")
+  618:         .length,
+  619: 
+  620:       professional: activeSkills.filter(
+  621:         (skill) => skill.type === "professional",
+  622:       ).length,
+  623: 
+  624:       languages: activeSkills.filter((skill) => skill.type === "language")
+  625:         .length,
+  626: 
+  627:       aiSuggested: activeSkills.filter(
+  628:         (skill) => skill.source === "ai-suggested",
+  629:       ).length,
+  630:     }),
+  631:     [skills, activeSkills, archivedSkills],
+  632:   );
+  633: 
+  634:   const contextValue = useMemo(
+  635:     () => ({
+  636:       skills,
+  637:       activeSkills,
+  638:       archivedSkills,
+  639:       skillsById,
+  640:       skillsByCategory,
+  641:       statistics,
+  642: 
+  643:       isLoading,
+  644:       loadStatus,
+  645:       saveStatus,
+  646:       operation,
+  647:       error,
+  648: 
+  649:       refreshSkills,
+  650:       getSkillById,
+  651:       resolveSkillMatch,
+  652: 
+  653:       createSkill,
+  654:       updateSkill,
+  655:       findOrCreateSkill,
+  656:       archiveSkill,
+  657:       restoreSkill,
+  658:       deleteSkill,
+  659:       replaceSkills,
+  660: 
+  661:       validateSkillDraft,
+  662:       checkSkillNameAvailability,
+  663: 
+  664:       clearError,
+  665:       resetSaveStatus,
+  666:       resetOperation,
+  667:     }),
+  668:     [
+  669:       skills,
+  670:       activeSkills,
+  671:       archivedSkills,
+  672:       skillsById,
+  673:       skillsByCategory,
+  674:       statistics,
+  675:       isLoading,
+  676:       loadStatus,
+  677:       saveStatus,
+  678:       operation,
+  679:       error,
+  680:       refreshSkills,
+  681:       getSkillById,
+  682:       resolveSkillMatch,
+  683:       createSkill,
+  684:       updateSkill,
+  685:       findOrCreateSkill,
+  686:       archiveSkill,
+  687:       restoreSkill,
+  688:       deleteSkill,
+  689:       replaceSkills,
+  690:       validateSkillDraft,
+  691:       checkSkillNameAvailability,
+  692:       clearError,
+  693:       resetSaveStatus,
+  694:       resetOperation,
+  695:     ],
+  696:   );
+  697: 
+  698:   return (
+  699:     <SkillDataContext.Provider value={contextValue}>
+  700:       {children}
+  701:     </SkillDataContext.Provider>
+  702:   );
+  703: }
+  704: 
+  705: export function useSkillData() {
+  706:   const context = useContext(SkillDataContext);
+  707: 
+  708:   if (!context) {
+  709:     throw new Error("useSkillData must be used inside SkillDataProvider.");
+  710:   }
+  711: 
+  712:   return context;
+  713: }
+
+================================================================================
+FILE: frontend\package.json
+================================================================================
+Total lines: 24
+    1: {
+    2:   "name": "frontend",
+    3:   "private": true,
+    4:   "version": "0.0.0",
+    5:   "type": "module",
+    6:   "scripts": {
+    7:     "dev": "vite",
+    8:     "build": "vite build",
+    9:     "lint": "oxlint",
+   10:     "preview": "vite preview"
+   11:   },
+   12:   "dependencies": {
+   13:     "react": "^19.2.8",
+   14:     "react-dom": "^19.2.8",
+   15:     "react-router-dom": "^7.18.2"
+   16:   },
+   17:   "devDependencies": {
+   18:     "@types/react": "^19.2.18",
+   19:     "@types/react-dom": "^19.2.4",
+   20:     "@vitejs/plugin-react": "^6.1.0",
+   21:     "oxlint": "^1.79.0",
+   22:     "vite": "^8.2.2"
+   23:   }
+   24: }

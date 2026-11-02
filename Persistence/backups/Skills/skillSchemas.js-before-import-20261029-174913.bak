@@ -1,0 +1,457 @@
+import { z } from "zod";
+
+/*
+ * =========================================
+ * Supported Values
+ * =========================================
+ */
+
+export const SKILL_CATEGORY_VALUES = [
+  "programming-languages",
+  "software-development",
+  "web-development",
+  "mobile-development",
+  "databases",
+  "data-ai",
+  "cloud-devops",
+  "cybersecurity",
+  "networking",
+  "it-infrastructure",
+  "hardware-electronics",
+  "embedded-iot",
+  "tools-platforms",
+  "project-management",
+  "leadership",
+  "communication",
+  "business",
+  "design",
+  "research-academic",
+  "language",
+  "industry-knowledge",
+  "interpersonal",
+  "other",
+];
+
+export const SKILL_TYPE_VALUES = [
+  "technical",
+  "professional",
+  "interpersonal",
+  "leadership",
+  "language",
+  "domain",
+  "tool",
+  "other",
+];
+
+export const SKILL_PROFICIENCY_VALUES = [
+  "",
+  "foundational",
+  "intermediate",
+  "advanced",
+  "expert",
+];
+
+export const LANGUAGE_PROFICIENCY_VALUES = [
+  "",
+  "basic",
+  "conversational",
+  "professional-working",
+  "full-professional",
+  "native-bilingual",
+];
+
+export const SKILL_SOURCE_VALUES = [
+  "manual",
+  "ai-suggested",
+  "imported",
+  "migration",
+];
+
+export const SKILL_STATUS_VALUES = ["active", "archived"];
+
+/*
+ * =========================================
+ * Primitive Schemas
+ * =========================================
+ */
+
+const skillIdSchema = z
+  .string()
+  .trim()
+  .min(1, "A skill ID is required.")
+  .max(200, "Skill ID cannot exceed 200 characters.");
+
+const skillNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Skill name must contain at least two characters.")
+  .max(150, "Skill name cannot exceed 150 characters.")
+  .refine(
+    (value) => /[\p{L}\p{N}]/u.test(value),
+    "Skill name must contain letters or numbers.",
+  );
+
+const aliasSchema = z
+  .string()
+  .trim()
+  .min(1, "Skill alias cannot be empty.")
+  .max(150, "Skill alias cannot exceed 150 characters.");
+
+const yearMonthSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Enter a valid month and year.");
+
+const optionalYearMonthSchema = z.union([z.literal(""), yearMonthSchema]);
+
+const nullableYearsSchema = z
+  .union([z.number(), z.string().trim(), z.null()])
+  .transform((value, context) => {
+    if (value === "" || value === null) {
+      return null;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Years of experience must be a number.",
+      });
+
+      return z.NEVER;
+    }
+
+    if (numericValue < 0 || numericValue > 80) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Years of experience must be between zero and 80.",
+      });
+
+      return z.NEVER;
+    }
+
+    if (Math.round(numericValue * 10) !== numericValue * 10) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Years of experience can contain no more than one decimal place.",
+      });
+
+      return z.NEVER;
+    }
+
+    return numericValue;
+  });
+
+/*
+ * =========================================
+ * Nested Skill Schemas
+ * =========================================
+ */
+
+const aliasesSchema = z
+  .array(aliasSchema)
+  .max(20, "Add no more than 20 aliases.")
+  .default([]);
+
+const proficiencySchema = z
+  .object({
+    level: z.enum(SKILL_PROFICIENCY_VALUES).default(""),
+
+    yearsOfExperience: nullableYearsSchema.default(null),
+
+    lastUsedDate: optionalYearMonthSchema.default(""),
+  })
+  .default({
+    level: "",
+    yearsOfExperience: null,
+    lastUsedDate: "",
+  });
+
+const proficiencyUpdateSchema = z.object({
+  level: z.enum(SKILL_PROFICIENCY_VALUES).optional(),
+
+  yearsOfExperience: nullableYearsSchema.optional(),
+
+  lastUsedDate: optionalYearMonthSchema.optional(),
+});
+
+const languageSchema = z
+  .object({
+    proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).default(""),
+  })
+  .default({
+    proficiency: "",
+  });
+
+const languageUpdateSchema = z.object({
+  proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).optional(),
+});
+
+/*
+ * =========================================
+ * Cross-Field Validation
+ * =========================================
+ */
+
+function validateSkillRelationships(skill, context) {
+  const isLanguageType = skill.type === "language";
+
+  const isLanguageCategory = skill.category === "language";
+
+  const languageProficiency = skill.language?.proficiency || "";
+
+  if (isLanguageType && !isLanguageCategory) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["category"],
+      message: 'A language skill must use the "Languages" category.',
+    });
+  }
+
+  if (isLanguageCategory && !isLanguageType) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["type"],
+      message:
+        'A skill in the "Languages" category must use the "Language Skill" type.',
+    });
+  }
+
+  if (!isLanguageType && languageProficiency) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["language", "proficiency"],
+      message: "Language proficiency can only be assigned to a language skill.",
+    });
+  }
+
+  const normalizedName = skill.name
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[._/\\-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  const seenAliases = new Set();
+
+  skill.aliases.forEach((alias, index) => {
+    const normalizedAlias = alias
+      .normalize("NFKC")
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/[._/\\-]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    if (normalizedAlias === normalizedName) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["aliases", index],
+        message: "An alias cannot be the same as the primary skill name.",
+      });
+    }
+
+    if (seenAliases.has(normalizedAlias)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["aliases", index],
+        message: "This skill alias has already been added.",
+      });
+    }
+
+    seenAliases.add(normalizedAlias);
+  });
+}
+
+/*
+ * =========================================
+ * Create Skill
+ * =========================================
+ */
+
+const createSkillBaseSchema = z.object({
+  name: skillNameSchema,
+
+  category: z.enum(SKILL_CATEGORY_VALUES).default("other"),
+
+  type: z.enum(SKILL_TYPE_VALUES).default("professional"),
+
+  description: z.string().trim().max(1500).default(""),
+
+  aliases: aliasesSchema,
+
+  proficiency: proficiencySchema,
+
+  language: languageSchema,
+
+  source: z.enum(SKILL_SOURCE_VALUES).default("manual"),
+
+  sourceContext: z.string().trim().max(100).default(""),
+
+  notes: z.string().trim().max(2000).default(""),
+
+  status: z.enum(SKILL_STATUS_VALUES).default("active"),
+});
+
+export const createSkillSchema = createSkillBaseSchema.superRefine(
+  validateSkillRelationships,
+);
+
+/*
+ * =========================================
+ * Update Skill
+ * =========================================
+ */
+
+const updateSkillBaseSchema = z.object({
+  name: skillNameSchema.optional(),
+
+  category: z.enum(SKILL_CATEGORY_VALUES).optional(),
+
+  type: z.enum(SKILL_TYPE_VALUES).optional(),
+
+  description: z.string().trim().max(1500).optional(),
+
+  aliases: z.array(aliasSchema).max(20).optional(),
+
+  proficiency: proficiencyUpdateSchema.optional(),
+
+  language: languageUpdateSchema.optional(),
+
+  source: z.enum(SKILL_SOURCE_VALUES).optional(),
+
+  sourceContext: z.string().trim().max(100).optional(),
+
+  notes: z.string().trim().max(2000).optional(),
+
+  status: z.enum(SKILL_STATUS_VALUES).optional(),
+});
+
+export const updateSkillSchema = updateSkillBaseSchema.refine(
+  (updates) => Object.keys(updates).length > 0,
+  {
+    message: "Provide at least one skill field to update.",
+  },
+);
+
+/*
+ * =========================================
+ * Complete Merged Skill
+ * =========================================
+ *
+ * The service uses this after merging an update
+ * with the existing database record.
+ */
+
+export const completeSkillSchema = createSkillBaseSchema.superRefine(
+  validateSkillRelationships,
+);
+
+/*
+ * =========================================
+ * Route Parameters
+ * =========================================
+ */
+
+export const skillIdParamsSchema = z.object({
+  skillId: skillIdSchema,
+});
+
+/*
+ * =========================================
+ * List Query
+ * =========================================
+ */
+
+function parseBooleanQuery(value) {
+  if (value === true || value === "true" || value === "1") {
+    return true;
+  }
+
+  if (
+    value === false ||
+    value === "false" ||
+    value === "0" ||
+    value === undefined
+  ) {
+    return false;
+  }
+
+  return value;
+}
+
+export const skillListQuerySchema = z.object({
+  includeArchived: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
+
+  category: z
+    .union([z.literal("all"), z.enum(SKILL_CATEGORY_VALUES)])
+    .default("all"),
+
+  type: z.union([z.literal("all"), z.enum(SKILL_TYPE_VALUES)]).default("all"),
+
+  query: z.string().trim().max(200).default(""),
+
+  sort: z
+    .enum([
+      "name-ascending",
+      "name-descending",
+      "recently-updated",
+      "oldest-updated",
+    ])
+    .default("name-ascending"),
+});
+
+/*
+ * =========================================
+ * Skill Name Resolution
+ * =========================================
+ */
+
+export const skillNameQuerySchema = z.object({
+  name: skillNameSchema,
+
+  excludeSkillId: z.string().trim().max(200).default(""),
+});
+
+/*
+ * =========================================
+ * Find or Create
+ * =========================================
+ */
+
+export const findOrCreateSkillSchema = z.object({
+  skill: createSkillBaseSchema,
+
+  restoreArchived: z.boolean().default(true),
+});
+
+/*
+ * =========================================
+ * Collection Replacement
+ * =========================================
+ */
+
+export const replaceSkillsSchema = z.object({
+  skills: z
+    .array(createSkillBaseSchema)
+    .max(1000, "The Skill Library is too large."),
+});
+
+/*
+ * =========================================
+ * Validation Error Formatter
+ * =========================================
+ */
+
+export function formatSkillSchemaErrors(error) {
+  if (!error?.issues) {
+    return [];
+  }
+
+  return error.issues.map((issue) => ({
+    field: issue.path.join("."),
+    message: issue.message,
+    code: issue.code,
+  }));
+}

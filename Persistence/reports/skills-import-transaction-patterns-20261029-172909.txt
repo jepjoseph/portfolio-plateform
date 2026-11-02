@@ -1,0 +1,1252 @@
+﻿SKILLS IMPORT TRANSACTION PATTERNS
+Generated: 2026-10-29 17:29:09
+
+================================================================================
+FILE: src\config\database.js
+================================================================================
+    1: import sql from "mssql";
+    2: 
+    3: import { getEnvironment, isDatabaseConfigured } from "./environment.js";
+    4: 
+    5: /*
+    6:  * =========================================
+    7:  * Shared Connection State
+    8:  * =========================================
+    9:  */
+   10: 
+   11: let connectionPool = null;
+   12: 
+   13: let connectionPromise = null;
+   14: 
+   15: /*
+   16:  * =========================================
+   17:  * Database Configuration
+   18:  * =========================================
+   19:  */
+   20: 
+   21: function createDatabaseConfig() {
+   22:   const environment = getEnvironment();
+   23: 
+   24:   return {
+   25:     server: environment.DB_HOST,
+   26: 
+   27:     port: environment.DB_PORT,
+   28: 
+   29:     database: environment.DB_NAME,
+   30: 
+   31:     user: environment.DB_USER,
+   32: 
+   33:     password: environment.DB_PASSWORD,
+   34: 
+   35:     connectionTimeout: environment.DB_CONNECTION_TIMEOUT_MS,
+   36: 
+   37:     requestTimeout: environment.DB_REQUEST_TIMEOUT_MS,
+   38: 
+   39:     pool: {
+   40:       min: environment.DB_POOL_MIN,
+   41: 
+   42:       max: environment.DB_POOL_MAX,
+   43: 
+   44:       idleTimeoutMillis: environment.DB_POOL_IDLE_TIMEOUT_MS,
+   45:     },
+   46: 
+   47:     options: {
+   48:       encrypt: environment.DB_ENCRYPT,
+   49: 
+   50:       trustServerCertificate: environment.DB_TRUST_SERVER_CERTIFICATE,
+   51: 
+   52:       enableArithAbort: true,
+   53:     },
+   54:   };
+   55: }
+   56: 
+   57: /*
+   58:  * =========================================
+   59:  * Connect to Database
+   60:  * =========================================
+   61:  */
+   62: 
+   63: export async function connectDatabase() {
+   64:   const environment = getEnvironment();
+   65: 
+   66:   if (!isDatabaseConfigured(environment)) {
+   67:     const error = new Error("Database access has not been configured.");
+   68: 
+   69:     error.name = "DatabaseConfigurationError";
+   70: 
+   71:     error.code = "DATABASE_NOT_CONFIGURED";
+   72: 
+   73:     error.status = 503;
+   74: 
+   75:     error.publicMessage = "Database service is not configured.";
+   76: 
+   77:     throw error;
+   78:   }
+   79: 
+   80:   /*
+   81:    * Reuse an existing connected pool.
+   82:    */
+   83: 
+   84:   if (connectionPool?.connected) {
+   85:     return connectionPool;
+   86:   }
+   87: 
+   88:   /*
+   89:    * Reuse an in-progress connection attempt.
+   90:    * This prevents multiple pools from being
+   91:    * created simultaneously.
+   92:    */
+   93: 
+   94:   if (connectionPromise) {
+   95:     return connectionPromise;
+   96:   }
+   97: 
+   98:   const nextPool = new sql.ConnectionPool(createDatabaseConfig());
+   99: 
+  100:   nextPool.on("error", (error) => {
+  101:     console.error("MSSQL connection pool error:", error.message);
+  102:   });
+  103: 
+  104:   connectionPromise = nextPool
+  105:     .connect()
+  106:     .then((connectedPool) => {
+  107:       connectionPool = connectedPool;
+  108: 
+  109:       console.log(
+  110:         `Connected to SQL Server database "${environment.DB_NAME}" on ${environment.DB_HOST}.`,
+  111:       );
+  112: 
+  113:       return connectedPool;
+  114:     })
+  115:     .catch((error) => {
+  116:       connectionPool = null;
+  117: 
+  118:       throw error;
+  119:     })
+  120:     .finally(() => {
+  121:       connectionPromise = null;
+  122:     });
+  123: 
+  124:   return connectionPromise;
+  125: }
+  126: 
+  127: /*
+  128:  * =========================================
+  129:  * Get Database Pool
+  130:  * =========================================
+  131:  */
+  132: 
+  133: export async function getDatabasePool() {
+  134:   return connectDatabase();
+  135: }
+  136: 
+  137: /*
+  138:  * =========================================
+  139:  * Database Health Check
+  140:  * =========================================
+  141:  */
+  142: 
+  143: export async function checkDatabaseHealth() {
+  144:   const startedAt = Date.now();
+  145: 
+  146:   try {
+  147:     const pool = await getDatabasePool();
+  148: 
+  149:     await pool.request().query("SELECT 1 AS healthy;");
+  150: 
+  151:     return {
+  152:       status: "ok",
+  153: 
+  154:       configured: true,
+  155: 
+  156:       responseTimeMs: Date.now() - startedAt,
+  157:     };
+  158:   } catch (error) {
+  159:     const isNotConfigured = error.code === "DATABASE_NOT_CONFIGURED";
+  160: 
+  161:     return {
+  162:       status: isNotConfigured ? "not-configured" : "error",
+  163: 
+  164:       configured: !isNotConfigured,
+  165: 
+  166:       responseTimeMs: Date.now() - startedAt,
+  167: 
+  168:       error,
+  169:     };
+  170:   }
+  171: }
+  172: 
+  173: /*
+  174:  * =========================================
+  175:  * Close Database Pool
+  176:  * =========================================
+  177:  */
+  178: 
+  179: export async function closeDatabase() {
+  180:   /*
+  181:    * If a connection attempt is still running,
+  182:    * wait for it before closing the pool.
+  183:    */
+  184: 
+  185:   if (connectionPromise) {
+  186:     try {
+  187:       await connectionPromise;
+  188:     } catch {
+  189:       /*
+  190:        * A failed connection does not leave
+  191:        * an active pool to close.
+  192:        */
+  193:     }
+  194:   }
+  195: 
+  196:   if (!connectionPool) {
+  197:     return;
+  198:   }
+  199: 
+  200:   const poolToClose = connectionPool;
+  201: 
+  202:   connectionPool = null;
+  203: 
+  204:   await poolToClose.close();
+  205: 
+  206:   console.log("SQL Server connection pool closed.");
+  207: }
+  208: 
+  209: /*
+  210:  * =========================================
+  211:  * SQL Types
+  212:  * =========================================
+  213:  *
+  214:  * Repositories can import sql from this module
+  215:  * when creating parameterized requests.
+  216:  */
+  217: 
+  218: export { sql };
+
+================================================================================
+FILE: src\repositories\skillRepository.js
+================================================================================
+    1: import { getDatabasePool, sql } from "../config/database.js";
+    2: 
+    3: const SKILL_COLUMNS = `
+    4:   id,
+    5:   user_id,
+    6:   name,
+    7:   normalized_name,
+    8:   category,
+    9:   skill_type,
+   10:   record_status,
+   11:   skill_data,
+   12:   created_at,
+   13:   updated_at,
+   14:   row_version
+   15: `;
+   16: 
+   17: function mapSkillRow(row) {
+   18:   if (!row) {
+   19:     return null;
+   20:   }
+   21: 
+   22:   const skillData =
+   23:     typeof row.skill_data === "string"
+   24:       ? JSON.parse(row.skill_data)
+   25:       : row.skill_data;
+   26: 
+   27:   if (
+   28:     !skillData ||
+   29:     typeof skillData !== "object" ||
+   30:     Array.isArray(skillData)
+   31:   ) {
+   32:     throw new Error("Stored Skill data is invalid.");
+   33:   }
+   34: 
+   35:   return {
+   36:     ...skillData,
+   37: 
+   38:     // Database columns are authoritative.
+   39:     id: row.id,
+   40:     name: row.name,
+   41:     normalizedName: row.normalized_name,
+   42:     category: row.category,
+   43:     type: row.skill_type,
+   44:     status: row.record_status,
+   45: 
+   46:     createdAt: row.created_at,
+   47:     updatedAt: row.updated_at,
+   48:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+   49:   };
+   50: }
+   51: 
+   52: function bindSkillParameters(request, userId, skill) {
+   53:   return request
+   54:     .input("id", sql.NVarChar(200), skill.id)
+   55:     .input("userId", sql.UniqueIdentifier, userId)
+   56:     .input("name", sql.NVarChar(150), skill.name)
+   57:     .input(
+   58:       "normalizedName",
+   59:       sql.NVarChar(150),
+   60:       skill.normalizedName,
+   61:     )
+   62:     .input("category", sql.NVarChar(100), skill.category)
+   63:     .input("skillType", sql.NVarChar(100), skill.type)
+   64:     .input("recordStatus", sql.NVarChar(20), skill.status)
+   65:     .input(
+   66:       "skillData",
+   67:       sql.NVarChar(sql.MAX),
+   68:       JSON.stringify(skill),
+   69:     );
+   70: }
+   71: 
+   72: export async function listSkillsByUser(userId) {
+   73:   const pool = await getDatabasePool();
+   74: 
+   75:   const result = await pool
+   76:     .request()
+   77:     .input("userId", sql.UniqueIdentifier, userId)
+   78:     .query(`
+   79:       SELECT ${SKILL_COLUMNS}
+   80:       FROM dbo.skills
+   81:       WHERE user_id = @userId
+   82:       ORDER BY updated_at DESC, id ASC;
+   83:     `);
+   84: 
+   85:   return result.recordset.map(mapSkillRow);
+   86: }
+   87: 
+   88: export async function findSkillById(userId, skillId) {
+   89:   const pool = await getDatabasePool();
+   90: 
+   91:   const result = await pool
+   92:     .request()
+   93:     .input("userId", sql.UniqueIdentifier, userId)
+   94:     .input("id", sql.NVarChar(200), skillId)
+   95:     .query(`
+   96:       SELECT ${SKILL_COLUMNS}
+   97:       FROM dbo.skills
+   98:       WHERE user_id = @userId
+   99:         AND id = @id;
+  100:     `);
+  101: 
+  102:   return mapSkillRow(result.recordset[0]);
+  103: }
+  104: 
+  105: export async function findSkillByNormalizedName(
+  106:   userId,
+  107:   normalizedName,
+  108: ) {
+  109:   const pool = await getDatabasePool();
+  110: 
+  111:   const result = await pool
+  112:     .request()
+  113:     .input("userId", sql.UniqueIdentifier, userId)
+  114:     .input("normalizedName", sql.NVarChar(150), normalizedName)
+  115:     .query(`
+  116:       SELECT ${SKILL_COLUMNS}
+  117:       FROM dbo.skills
+  118:       WHERE user_id = @userId
+  119:         AND normalized_name = @normalizedName;
+  120:     `);
+  121: 
+  122:   return mapSkillRow(result.recordset[0]);
+  123: }
+  124: 
+  125: export async function createSkill(userId, skill) {
+  126:   const pool = await getDatabasePool();
+  127: 
+  128:   await bindSkillParameters(
+  129:     pool.request(),
+  130:     userId,
+  131:     skill,
+  132:   ).query(`
+  133:     INSERT INTO dbo.skills (
+  134:       id,
+  135:       user_id,
+  136:       name,
+  137:       normalized_name,
+  138:       category,
+  139:       skill_type,
+  140:       record_status,
+  141:       skill_data
+  142:     )
+  143:     VALUES (
+  144:       @id,
+  145:       @userId,
+  146:       @name,
+  147:       @normalizedName,
+  148:       @category,
+  149:       @skillType,
+  150:       @recordStatus,
+  151:       @skillData
+  152:     );
+  153:   `);
+  154: 
+  155:   return findSkillById(userId, skill.id);
+  156: }
+  157: 
+  158: export async function updateSkill(
+  159:   userId,
+  160:   skill,
+  161:   expectedRowVersion,
+  162: ) {
+  163:   const pool = await getDatabasePool();
+  164: 
+  165:   const request = bindSkillParameters(
+  166:     pool.request(),
+  167:     userId,
+  168:     skill,
+  169:   ).input(
+  170:     "expectedRowVersion",
+  171:     sql.Binary(8),
+  172:     Buffer.from(expectedRowVersion, "base64"),
+  173:   );
+  174: 
+  175:   const result = await request.query(`
+  176:     UPDATE dbo.skills
+  177:     SET
+  178:       name = @name,
+  179:       normalized_name = @normalizedName,
+  180:       category = @category,
+  181:       skill_type = @skillType,
+  182:       record_status = @recordStatus,
+  183:       skill_data = @skillData,
+  184:       updated_at = SYSUTCDATETIME()
+  185:     WHERE id = @id
+  186:       AND user_id = @userId
+  187:       AND row_version = @expectedRowVersion;
+  188:   `);
+  189: 
+  190:   if (result.rowsAffected[0] === 0) {
+  191:     return null;
+  192:   }
+  193: 
+  194:   return findSkillById(userId, skill.id);
+  195: }
+  196: 
+  197: export async function deleteSkill(
+  198:   userId,
+  199:   skillId,
+  200:   expectedRowVersion,
+  201: ) {
+  202:   const pool = await getDatabasePool();
+  203: 
+  204:   const result = await pool
+  205:     .request()
+  206:     .input("userId", sql.UniqueIdentifier, userId)
+  207:     .input("id", sql.NVarChar(200), skillId)
+  208:     .input(
+  209:       "expectedRowVersion",
+  210:       sql.Binary(8),
+  211:       Buffer.from(expectedRowVersion, "base64"),
+  212:     )
+  213:     .query(`
+  214:       DELETE FROM dbo.skills
+  215:       WHERE id = @id
+  216:         AND user_id = @userId
+  217:         AND row_version = @expectedRowVersion;
+  218:     `);
+  219: 
+  220:   return result.rowsAffected[0] > 0;
+  221: }
+
+================================================================================
+FILE: test\services\skillService.test.js
+================================================================================
+    1: import assert from "node:assert/strict";
+    2: import { beforeEach, mock, test } from "node:test";
+    3: 
+    4: const USER_ID = "11111111-1111-4111-8111-111111111111";
+    5: const SKILL_ID = "skill-550e8400-e29b-41d4-a716-446655440000";
+    6: const VERSION = Buffer.alloc(8, 1).toString("base64");
+    7: const NEW_VERSION = Buffer.alloc(8, 2).toString("base64");
+    8: 
+    9: let records = [];
+   10: let calls = [];
+   11: let updateResult;
+   12: let createResult;
+   13: 
+   14: function validSkill(overrides = {}) {
+   15:   return {
+   16:     name: "JavaScript",
+   17:     category: "programming-languages",
+   18:     type: "technical",
+   19:     aliases: ["JS"],
+   20:     proficiency: {
+   21:       level: "advanced",
+   22:       yearsOfExperience: 5,
+   23:       lastUsedDate: "2026-10",
+   24:     },
+   25:     ...overrides,
+   26:   };
+   27: }
+   28: 
+   29: function storedSkill(overrides = {}) {
+   30:   return {
+   31:     modelVersion: 1,
+   32:     id: SKILL_ID,
+   33:     normalizedName: "javascript",
+   34:     description: "",
+   35:     language: { proficiency: "" },
+   36:     source: "manual",
+   37:     sourceContext: "",
+   38:     notes: "",
+   39:     status: "active",
+   40:     createdAt: "2026-10-20T12:00:00.000Z",
+   41:     updatedAt: "2026-10-20T12:00:00.000Z",
+   42:     rowVersion: VERSION,
+   43:     ...validSkill(),
+   44:     ...overrides,
+   45:   };
+   46: }
+   47: 
+   48: mock.module("../../src/repositories/skillRepository.js", {
+   49:   namedExports: {
+   50:     listSkillsByUser: async (userId) => {
+   51:       calls.push(["list", userId]);
+   52:       return records;
+   53:     },
+   54: 
+   55:     findSkillById: async (userId, skillId) => {
+   56:       calls.push(["find", userId, skillId]);
+   57:       return records.find((record) => record.id === skillId) ?? null;
+   58:     },
+   59: 
+   60:     findSkillByNormalizedName: async () => null,
+   61: 
+   62:     createSkill: async (userId, skill) => {
+   63:       calls.push(["create", userId, skill]);
+   64:       return createResult === undefined ? skill : createResult;
+   65:     },
+   66: 
+   67:     updateSkill: async (userId, skill, rowVersion) => {
+   68:       calls.push(["update", userId, skill, rowVersion]);
+   69: 
+   70:       if (updateResult !== undefined) {
+   71:         return updateResult;
+   72:       }
+   73: 
+   74:       return { ...skill, rowVersion: NEW_VERSION };
+   75:     },
+   76: 
+   77:     deleteSkill: async () => {
+   78:       throw new Error("Permanent deletion must not reach repository.");
+   79:     },
+   80:   },
+   81: });
+   82: 
+   83: const service = await import(
+   84:   "../../src/services/Service/skillService.js"
+   85: );
+   86: 
+   87: beforeEach(() => {
+   88:   records = [];
+   89:   calls = [];
+   90:   updateResult = undefined;
+   91:   createResult = undefined;
+   92: });
+   93: 
+   94: test("rejects unauthenticated Skill listing", async () => {
+   95:   await assert.rejects(
+   96:     service.getAuthenticatedSkills({ userId: "" }),
+   97:     { code: "SKILL_AUTHENTICATION_REQUIRED", status: 401 },
+   98:   );
+   99: 
+  100:   assert.equal(calls.length, 0);
+  101: });
+  102: 
+  103: test("lists Skills scoped to authenticated user", async () => {
+  104:   records = [storedSkill()];
+  105: 
+  106:   const result = await service.getAuthenticatedSkills({
+  107:     userId: USER_ID,
+  108:   });
+  109: 
+  110:   assert.equal(result.length, 1);
+  111:   assert.deepEqual(calls[0], ["list", USER_ID]);
+  112: });
+  113: 
+  114: test("rejects missing Skill lookup", async () => {
+  115:   await assert.rejects(
+  116:     service.getAuthenticatedSkill({
+  117:       userId: USER_ID,
+  118:       skillId: SKILL_ID,
+  119:     }),
+  120:     { code: "SKILL_NOT_FOUND", status: 404 },
+  121:   );
+  122: });
+  123: 
+  124: test("creates a validated Skill with server-generated ID", async () => {
+  125:   const result = await service.createAuthenticatedSkill({
+  126:     userId: USER_ID,
+  127:     skill: validSkill(),
+  128:   });
+  129: 
+  130:   assert.match(result.id, /^skill-[0-9a-f-]{36}$/);
+  131:   assert.equal(result.normalizedName, "javascript");
+  132:   assert.equal(result.modelVersion, 1);
+  133:   assert.equal(calls.at(-1)[0], "create");
+  134: });
+  135: 
+  136: test("rejects invalid Skill data before database access", async () => {
+  137:   await assert.rejects(
+  138:     service.createAuthenticatedSkill({
+  139:       userId: USER_ID,
+  140:       skill: validSkill({ name: "A" }),
+  141:     }),
+  142:     { code: "SKILL_VALIDATION_FAILED", status: 400 },
+  143:   );
+  144: 
+  145:   assert.equal(calls.length, 0);
+  146: });
+  147: 
+  148: test("rejects duplicate normalized primary names", async () => {
+  149:   records = [
+  150:     storedSkill({
+  151:       name: "Node.js",
+  152:       normalizedName: "node js",
+  153:       aliases: [],
+  154:     }),
+  155:   ];
+  156: 
+  157:   await assert.rejects(
+  158:     service.createAuthenticatedSkill({
+  159:       userId: USER_ID,
+  160:       skill: validSkill({
+  161:         name: "node-js",
+  162:         aliases: [],
+  163:       }),
+  164:     }),
+  165:     { code: "SKILL_NAME_CONFLICT", status: 409 },
+  166:   );
+  167: 
+  168:   assert.equal(calls.some(([operation]) => operation === "create"), false);
+  169: });
+  170: 
+  171: test("rejects a name conflicting with an existing alias", async () => {
+  172:   records = [storedSkill()];
+  173: 
+  174:   await assert.rejects(
+  175:     service.createAuthenticatedSkill({
+  176:       userId: USER_ID,
+  177:       skill: validSkill({
+  178:         name: "JS",
+  179:         aliases: [],
+  180:       }),
+  181:     }),
+  182:     { code: "SKILL_NAME_CONFLICT", status: 409 },
+  183:   );
+  184: });
+  185: 
+  186: test("rejects alias conflicts with another primary name", async () => {
+  187:   records = [storedSkill()];
+  188: 
+  189:   await assert.rejects(
+  190:     service.createAuthenticatedSkill({
+  191:       userId: USER_ID,
+  192:       skill: validSkill({
+  193:         name: "TypeScript",
+  194:         aliases: ["JavaScript"],
+  195:       }),
+  196:     }),
+  197:     { code: "SKILL_NAME_CONFLICT", status: 409 },
+  198:   );
+  199: });
+  200: 
+  201: test("includes archived Skills in duplicate checks", async () => {
+  202:   records = [storedSkill({ status: "archived" })];
+  203: 
+  204:   await assert.rejects(
+  205:     service.createAuthenticatedSkill({
+  206:       userId: USER_ID,
+  207:       skill: validSkill({ name: "JavaScript", aliases: [] }),
+  208:     }),
+  209:     { code: "SKILL_NAME_CONFLICT", status: 409 },
+  210:   );
+  211: });
+  212: 
+  213: test("partial proficiency updates preserve other fields", async () => {
+  214:   records = [storedSkill()];
+  215: 
+  216:   const result = await service.updateAuthenticatedSkill({
+  217:     userId: USER_ID,
+  218:     skillId: SKILL_ID,
+  219:     rowVersion: VERSION,
+  220:     updates: {
+  221:       proficiency: { level: "expert" },
+  222:     },
+  223:   });
+  224: 
+  225:   assert.equal(result.id, SKILL_ID);
+  226:   assert.equal(result.proficiency.level, "expert");
+  227:   assert.equal(result.proficiency.yearsOfExperience, 5);
+  228:   assert.equal(result.proficiency.lastUsedDate, "2026-10");
+  229:   assert.equal(calls.at(-1)[3], VERSION);
+  230: });
+  231: 
+  232: test("rejects malformed row versions", async () => {
+  233:   await assert.rejects(
+  234:     service.updateAuthenticatedSkill({
+  235:       userId: USER_ID,
+  236:       skillId: SKILL_ID,
+  237:       rowVersion: "invalid",
+  238:       updates: { notes: "Updated" },
+  239:     }),
+  240:     { code: "SKILL_ROW_VERSION_INVALID", status: 400 },
+  241:   );
+  242: 
+  243:   assert.equal(calls.length, 0);
+  244: });
+  245: 
+  246: test("reports a concurrency conflict when update affects no record", async () => {
+  247:   records = [storedSkill()];
+  248:   updateResult = null;
+  249: 
+  250:   await assert.rejects(
+  251:     service.updateAuthenticatedSkill({
+  252:       userId: USER_ID,
+  253:       skillId: SKILL_ID,
+  254:       rowVersion: VERSION,
+  255:       updates: { notes: "Updated" },
+  256:     }),
+  257:     { code: "SKILL_VERSION_CONFLICT", status: 409 },
+  258:   );
+  259: });
+  260: 
+  261: test("archives a Skill without changing its ID", async () => {
+  262:   records = [storedSkill()];
+  263: 
+  264:   const result = await service.setAuthenticatedSkillArchiveStatus({
+  265:     userId: USER_ID,
+  266:     skillId: SKILL_ID,
+  267:     rowVersion: VERSION,
+  268:     archived: true,
+  269:   });
+  270: 
+  271:   assert.equal(result.id, SKILL_ID);
+  272:   assert.equal(result.status, "archived");
+  273: });
+  274: 
+  275: test("restores an archived Skill", async () => {
+  276:   records = [storedSkill({ status: "archived" })];
+  277: 
+  278:   const result = await service.setAuthenticatedSkillArchiveStatus({
+  279:     userId: USER_ID,
+  280:     skillId: SKILL_ID,
+  281:     rowVersion: VERSION,
+  282:     archived: false,
+  283:   });
+  284: 
+  285:   assert.equal(result.id, SKILL_ID);
+  286:   assert.equal(result.status, "active");
+  287: });
+  288: 
+  289: test("rejects invalid archive status", async () => {
+  290:   await assert.rejects(
+  291:     service.setAuthenticatedSkillArchiveStatus({
+  292:       userId: USER_ID,
+  293:       skillId: SKILL_ID,
+  294:       rowVersion: VERSION,
+  295:       archived: "yes",
+  296:     }),
+  297:     { code: "SKILL_ARCHIVE_STATUS_INVALID", status: 400 },
+  298:   );
+  299: });
+  300: 
+  301: test("permanent deletion remains disabled", async () => {
+  302:   await assert.rejects(
+  303:     service.deleteAuthenticatedSkill({
+  304:       userId: USER_ID,
+  305:       skillId: SKILL_ID,
+  306:       rowVersion: VERSION,
+  307:     }),
+  308:     { code: "SKILL_DELETE_NOT_AVAILABLE", status: 409 },
+  309:   );
+  310: });
+
+================================================================================
+FILE: test\api\skillApi.test.js
+================================================================================
+    1: import "dotenv/config";
+    2: 
+    3: import assert from "node:assert/strict";
+    4: import { beforeEach, describe, it, mock } from "node:test";
+    5: import express from "express";
+    6: import supertest from "supertest";
+    7: 
+    8: process.env.NODE_ENV = "test";
+    9: process.env.SESSION_COOKIE_NAME = "portfolio_refresh_token";
+   10: process.env.SESSION_COOKIE_PATH = "/api";
+   11: process.env.SESSION_COOKIE_SAME_SITE = "lax";
+   12: delete process.env.SESSION_COOKIE_DOMAIN;
+   13: 
+   14: const USER_ID = "11111111-1111-4111-8111-111111111111";
+   15: const SESSION_ID = "22222222-2222-4222-8222-222222222222";
+   16: const SKILL_ID = "skill-550e8400-e29b-41d4-a716-446655440000";
+   17: const ROW_VERSION = "AAAAAAAAAAE=";
+   18: const TOKEN = "skills-test-refresh-token-12345678901234567890";
+   19: 
+   20: let state;
+   21: 
+   22: function skill(overrides = {}) {
+   23:   return {
+   24:     id: SKILL_ID,
+   25:     modelVersion: 1,
+   26:     name: "JavaScript",
+   27:     normalizedName: "javascript",
+   28:     category: "programming-languages",
+   29:     type: "technical",
+   30:     description: "Programming language",
+   31:     aliases: ["JS"],
+   32:     proficiency: {
+   33:       level: "advanced",
+   34:       yearsOfExperience: 5,
+   35:       lastUsedDate: "2026-10",
+   36:     },
+   37:     language: { proficiency: "" },
+   38:     source: "manual",
+   39:     sourceContext: "",
+   40:     notes: "",
+   41:     status: "active",
+   42:     createdAt: "2026-10-20T12:00:00.000Z",
+   43:     updatedAt: "2026-10-20T12:00:00.000Z",
+   44:     rowVersion: ROW_VERSION,
+   45:     ...overrides,
+   46:   };
+   47: }
+   48: 
+   49: function resetState() {
+   50:   state = {
+   51:     calls: [],
+   52:     error: null,
+   53:     skills: [skill()],
+   54:   };
+   55: }
+   56: 
+   57: resetState();
+   58: 
+   59: function record(operation, input) {
+   60:   state.calls.push({ operation, input });
+   61: 
+   62:   if (state.error) {
+   63:     throw state.error;
+   64:   }
+   65: }
+   66: 
+   67: mock.module("../../src/services/Service/sessionService.js", {
+   68:   exports: {
+   69:     async getAuthenticatedSession() {
+   70:       return {
+   71:         user: {
+   72:           id: USER_ID,
+   73:           email: "skills-test@example.com",
+   74:           emailVerifiedAt: "2026-09-23T00:00:00.000Z",
+   75:           accountStatus: "active",
+   76:         },
+   77:         roles: ["user"],
+   78:         session: {
+   79:           id: SESSION_ID,
+   80:           deviceName: "Test Browser",
+   81:           createdAt: "2026-09-23T00:00:00.000Z",
+   82:           lastUsedAt: "2026-09-23T00:00:00.000Z",
+   83:           expiresAt: "2026-12-23T00:00:00.000Z",
+   84:           isCurrent: true,
+   85:         },
+   86:       };
+   87:     },
+   88:   },
+   89: });
+   90: 
+   91: mock.module("../../src/services/Service/skillService.js", {
+   92:   exports: {
+   93:     async getAuthenticatedSkills(input) {
+   94:       record("list", input);
+   95:       return state.skills;
+   96:     },
+   97: 
+   98:     async getAuthenticatedSkill(input) {
+   99:       record("get", input);
+  100:       return state.skills.find((item) => item.id === input.skillId) ?? null;
+  101:     },
+  102: 
+  103:     async createAuthenticatedSkill(input) {
+  104:       record("create", input);
+  105:       return skill({ ...input.skill });
+  106:     },
+  107: 
+  108:     async updateAuthenticatedSkill(input) {
+  109:       record("update", input);
+  110:       return skill({ ...input.updates });
+  111:     },
+  112: 
+  113:     async setAuthenticatedSkillArchiveStatus(input) {
+  114:       record("archive", input);
+  115:       return skill({ status: input.archived ? "archived" : "active" });
+  116:     },
+  117: 
+  118:     async deleteAuthenticatedSkill(input) {
+  119:       record("delete", input);
+  120:       const error = new Error("Permanent Skill deletion is unavailable.");
+  121:       error.status = 409;
+  122:       error.code = "SKILL_DELETE_NOT_AVAILABLE";
+  123:       error.publicMessage = error.message;
+  124:       throw error;
+  125:     },
+  126:   },
+  127: });
+  128: 
+  129: const { default: skillRoutes } =
+  130:   await import("../../src/routes/skillRoutes.js");
+  131: 
+  132: const { globalErrorHandler, notFoundHandler } =
+  133:   await import("../../src/middleware/errorMiddleware.js");
+  134: 
+  135: const app = express();
+  136: 
+  137: app.use(express.json({ limit: "1mb" }));
+  138: app.use("/api/skills", skillRoutes);
+  139: app.use(notFoundHandler);
+  140: app.use(globalErrorHandler);
+  141: 
+  142: const api = supertest(app);
+  143: 
+  144: function authenticated(request) {
+  145:   return request.set(
+  146:     "Cookie",
+  147:     `portfolio_refresh_token=${encodeURIComponent(TOKEN)}`,
+  148:   );
+  149: }
+  150: 
+  151: function lastCall() {
+  152:   return state.calls.at(-1);
+  153: }
+  154: 
+  155: describe("skills API", () => {
+  156:   beforeEach(resetState);
+  157: 
+  158:   it("rejects unauthenticated requests", async () => {
+  159:     await api.get("/api/skills").expect(401);
+  160:     assert.equal(state.calls.length, 0);
+  161:   });
+  162: 
+  163:   it("lists Skills for the authenticated user", async () => {
+  164:     const response = await authenticated(
+  165:       api.get("/api/skills"),
+  166:     ).expect(200);
+  167: 
+  168:     assert.equal(response.body.data.skills.length, 1);
+  169:     assert.deepEqual(lastCall(), {
+  170:       operation: "list",
+  171:       input: { userId: USER_ID },
+  172:     });
+  173:     assert.match(response.headers["cache-control"], /no-store/);
+  174:   });
+  175: 
+  176:   it("excludes archived Skills by default", async () => {
+  177:     state.skills.push(skill({
+  178:       id: "skill-archived",
+  179:       name: "Python",
+  180:       status: "archived",
+  181:     }));
+  182: 
+  183:     const response = await authenticated(
+  184:       api.get("/api/skills"),
+  185:     ).expect(200);
+  186: 
+  187:     assert.equal(response.body.data.skills.length, 1);
+  188:   });
+  189: 
+  190:   it("includes archived Skills when requested", async () => {
+  191:     state.skills.push(skill({
+  192:       id: "skill-archived",
+  193:       name: "Python",
+  194:       status: "archived",
+  195:     }));
+  196: 
+  197:     const response = await authenticated(
+  198:       api.get("/api/skills?includeArchived=true"),
+  199:     ).expect(200);
+  200: 
+  201:     assert.equal(response.body.data.skills.length, 2);
+  202:   });
+  203: 
+  204:   it("filters by category and type", async () => {
+  205:     state.skills.push(skill({
+  206:       id: "skill-networking",
+  207:       name: "Routing",
+  208:       category: "networking",
+  209:       type: "technical",
+  210:     }));
+  211: 
+  212:     const response = await authenticated(
+  213:       api.get("/api/skills?category=networking&type=technical"),
+  214:     ).expect(200);
+  215: 
+  216:     assert.deepEqual(
+  217:       response.body.data.skills.map((item) => item.name),
+  218:       ["Routing"],
+  219:     );
+  220:   });
+  221: 
+  222:   it("searches Skill aliases", async () => {
+  223:     const response = await authenticated(
+  224:       api.get("/api/skills?query=js"),
+  225:     ).expect(200);
+  226: 
+  227:     assert.equal(response.body.data.skills.length, 1);
+  228:   });
+  229: 
+  230:   it("sorts Skills by name descending", async () => {
+  231:     state.skills.push(skill({
+  232:       id: "skill-python",
+  233:       name: "Python",
+  234:     }));
+  235: 
+  236:     const response = await authenticated(
+  237:       api.get("/api/skills?sort=name-descending"),
+  238:     ).expect(200);
+  239: 
+  240:     assert.deepEqual(
+  241:       response.body.data.skills.map((item) => item.name),
+  242:       ["Python", "JavaScript"],
+  243:     );
+  244:   });
+  245: 
+  246:   it("rejects invalid query parameters", async () => {
+  247:     const response = await authenticated(
+  248:       api.get("/api/skills?includeArchived=maybe"),
+  249:     ).expect(400);
+  250: 
+  251:     assert.equal(response.body.code, "SKILL_REQUEST_INVALID");
+  252:     assert.equal(state.calls.length, 0);
+  253:   });
+  254: 
+  255:   it("retrieves a Skill by ID", async () => {
+  256:     const response = await authenticated(
+  257:       api.get(`/api/skills/${SKILL_ID}`),
+  258:     ).expect(200);
+  259: 
+  260:     assert.equal(response.body.data.skill.id, SKILL_ID);
+  261:     assert.deepEqual(lastCall(), {
+  262:       operation: "get",
+  263:       input: { userId: USER_ID, skillId: SKILL_ID },
+  264:     });
+  265:   });
+  266: 
+  267:   it("creates a Skill without accepting ownership fields", async () => {
+  268:     const input = {
+  269:       name: "TypeScript",
+  270:       category: "programming-languages",
+  271:       type: "technical",
+  272:     };
+  273: 
+  274:     const response = await authenticated(
+  275:       api.post("/api/skills"),
+  276:     ).send(input).expect(201);
+  277: 
+  278:     assert.equal(response.body.data.skill.name, "TypeScript");
+  279:     assert.deepEqual(lastCall(), {
+  280:       operation: "create",
+  281:       input: { userId: USER_ID, skill: input },
+  282:     });
+  283:   });
+  284: 
+  285:   it("rejects client-supplied userId", async () => {
+  286:     await authenticated(
+  287:       api.post("/api/skills"),
+  288:     ).send({
+  289:       name: "TypeScript",
+  290:       userId: USER_ID,
+  291:     }).expect(400);
+  292: 
+  293:     assert.equal(state.calls.length, 0);
+  294:   });
+  295: 
+  296:   it("updates a Skill with its rowVersion", async () => {
+  297:     const updates = { notes: "Updated" };
+  298: 
+  299:     await authenticated(
+  300:       api.patch(`/api/skills/${SKILL_ID}`),
+  301:     ).send({
+  302:       updates,
+  303:       rowVersion: ROW_VERSION,
+  304:     }).expect(200);
+  305: 
+  306:     assert.deepEqual(lastCall(), {
+  307:       operation: "update",
+  308:       input: {
+  309:         userId: USER_ID,
+  310:         skillId: SKILL_ID,
+  311:         updates,
+  312:         rowVersion: ROW_VERSION,
+  313:       },
+  314:     });
+  315:   });
+  316: 
+  317:   it("rejects unexpected update fields", async () => {
+  318:     await authenticated(
+  319:       api.patch(`/api/skills/${SKILL_ID}`),
+  320:     ).send({
+  321:       updates: { notes: "Updated" },
+  322:       rowVersion: ROW_VERSION,
+  323:       userId: USER_ID,
+  324:     }).expect(400);
+  325: 
+  326:     assert.equal(state.calls.length, 0);
+  327:   });
+  328: 
+  329:   it("archives a Skill", async () => {
+  330:     const response = await authenticated(
+  331:       api.patch(`/api/skills/${SKILL_ID}/archive`),
+  332:     ).send({
+  333:       archived: true,
+  334:       rowVersion: ROW_VERSION,
+  335:     }).expect(200);
+  336: 
+  337:     assert.equal(response.body.data.skill.status, "archived");
+  338:   });
+  339: 
+  340:   it("restores a Skill", async () => {
+  341:     const response = await authenticated(
+  342:       api.patch(`/api/skills/${SKILL_ID}/archive`),
+  343:     ).send({
+  344:       archived: false,
+  345:       rowVersion: ROW_VERSION,
+  346:     }).expect(200);
+  347: 
+  348:     assert.equal(response.body.data.skill.status, "active");
+  349:   });
+  350: 
+  351:   it("rejects invalid archive status", async () => {
+  352:     const response = await authenticated(
+  353:       api.patch(`/api/skills/${SKILL_ID}/archive`),
+  354:     ).send({
+  355:       archived: "yes",
+  356:       rowVersion: ROW_VERSION,
+  357:     }).expect(400);
+  358: 
+  359:     assert.equal(
+  360:       response.body.code,
+  361:       "SKILL_REQUEST_INVALID",
+  362:     );
+  363: 
+  364:     assert.equal(state.calls.length, 0);
+  365:   });
+  366: 
+  367:   it("rejects permanent Skill deletion", async () => {
+  368:     const response = await authenticated(
+  369:       api.delete(`/api/skills/${SKILL_ID}`),
+  370:     ).send({
+  371:       rowVersion: ROW_VERSION,
+  372:     }).expect(409);
+  373: 
+  374:     assert.equal(
+  375:       response.body.code,
+  376:       "SKILL_DELETE_NOT_AVAILABLE",
+  377:     );
+  378:   });
+  379: 
+  380:   it("passes service errors to the global handler", async () => {
+  381:     const error = new Error("Skill conflict");
+  382:     error.status = 409;
+  383:     error.code = "SKILL_VERSION_CONFLICT";
+  384:     error.publicMessage = error.message;
+  385: 
+  386:     state.error = error;
+  387: 
+  388:     const response = await authenticated(
+  389:       api.get("/api/skills"),
+  390:     ).expect(409);
+  391: 
+  392:     assert.equal(response.body.code, "SKILL_VERSION_CONFLICT");
+  393:   });
+  394: });
+
+================================================================================
+FILE: package.json
+================================================================================
+    1: {
+    2:   "name": "portfolio-platform-backend",
+    3:   "version": "1.0.0",
+    4:   "description": "Backend API for the portfolio and resume platform",
+    5:   "main": "src/server.js",
+    6:   "scripts": {
+    7:     "dev": "nodemon src/server.js",
+    8:     "start": "node src/server.js",
+    9:     "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+   10:     "db:migrate": "node src/database/runMigrations.js",
+   11:     "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+   12:     "test:local-sql": "node test-local-sql.mjs",
+   13:     "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+   14:     "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+   15:     "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+   16:     "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+   17:     "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+   18:     "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+   19:     "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+   20:     "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+   21:     "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+   22:     "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+   23:     "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+   24:     "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+   25:     "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+   26:     "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+   27:     "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+   28:     "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+   29:     "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+   30:     "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+   31:   },
+   32:   "keywords": [],
+   33:   "type": "module",
+   34:   "dependencies": {
+   35:     "argon2": "^0.45.1",
+   36:     "cors": "^2.8.6",
+   37:     "dotenv": "^17.4.2",
+   38:     "express": "^5.2.1",
+   39:     "express-rate-limit": "^8.7.0",
+   40:     "file-type": "^22.1.1",
+   41:     "groq-sdk": "^1.6.0",
+   42:     "helmet": "^8.3.0",
+   43:     "mssql": "^12.7.2",
+   44:     "multer": "^2.4.0",
+   45:     "openai": "^7.9.0",
+   46:     "resend": "^6.28.1",
+   47:     "yauzl": "^3.4.0",
+   48:     "zod": "^4.5.4"
+   49:   },
+   50:   "devDependencies": {
+   51:     "nodemon": "^3.1.14",
+   52:     "supertest": "^7.2.2"
+   53:   }
+   54: }
+
+================================================================================
+EXISTING TRANSACTION USAGE
+================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\authRepository.js:395: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\authRepository.js:397: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\authRepository.js:582: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\authRepository.js:594: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:227: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:229: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:332: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:343: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:432: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:434: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:489: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:494: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:625: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:627: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:683: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:694: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:721: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:723: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:777: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:782: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:814: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:816: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:987: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\loginRepository.js:998: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:258: const transaction = new sql.Transaction(pool);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:259: await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:327: await transaction.rollback();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:355: await transaction.commit();
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\profileRepository.js:359: await transaction.rollback();

@@ -1,0 +1,882 @@
+﻿================================================================================
+FILE: src\services\Service\skillService.js
+================================================================================
+    1: import { randomUUID } from "node:crypto";
+    2: 
+    3: import {
+    4:   listSkillsByUser,
+    5:   findSkillById,
+    6:   createSkill,
+    7:   updateSkill,
+    8: } from "../../repositories/skillRepository.js";
+    9: 
+   10: import {
+   11:   createSkillSchema,
+   12:   updateSkillSchema,
+   13:   completeSkillSchema,
+   14:   formatSkillSchemaErrors,
+   15: } from "../../schemas/skillSchemas.js";
+   16: 
+   17: function skillError(code, status, message) {
+   18:   const error = new Error(message);
+   19:   error.name = "SkillServiceError";
+   20:   error.code = code;
+   21:   error.status = status;
+   22:   error.publicMessage = message;
+   23:   return error;
+   24: }
+   25: 
+   26: function assertUserId(userId) {
+   27:   if (typeof userId !== "string" || !userId.trim()) {
+   28:     throw skillError(
+   29:       "SKILL_AUTHENTICATION_REQUIRED",
+   30:       401,
+   31:       "You must sign in to access your Skills.",
+   32:     );
+   33:   }
+   34: 
+   35:   return userId.trim();
+   36: }
+   37: 
+   38: function assertSkillId(skillId) {
+   39:   if (
+   40:     typeof skillId !== "string" ||
+   41:     !skillId.trim() ||
+   42:     skillId.trim().length > 200
+   43:   ) {
+   44:     throw skillError(
+   45:       "SKILL_ID_INVALID",
+   46:       400,
+   47:       "A valid Skill identifier is required.",
+   48:     );
+   49:   }
+   50: 
+   51:   return skillId.trim();
+   52: }
+   53: 
+   54: function parseRowVersion(value) {
+   55:   if (
+   56:     typeof value !== "string" ||
+   57:     !/^[A-Za-z0-9+/]{11}=$/.test(value) ||
+   58:     Buffer.from(value, "base64").length !== 8 ||
+   59:     Buffer.from(value, "base64").toString("base64") !== value
+   60:   ) {
+   61:     throw skillError(
+   62:       "SKILL_ROW_VERSION_INVALID",
+   63:       400,
+   64:       "A valid Skill row version is required.",
+   65:     );
+   66:   }
+   67: 
+   68:   return value;
+   69: }
+   70: 
+   71: function parseSchema(schema, value) {
+   72:   const result = schema.safeParse(value);
+   73: 
+   74:   if (!result.success) {
+   75:     const error = skillError(
+   76:       "SKILL_VALIDATION_FAILED",
+   77:       400,
+   78:       "Correct the invalid Skill information before saving.",
+   79:     );
+   80: 
+   81:     error.validation = formatSkillSchemaErrors(result.error);
+   82:     error.errors = error.validation;
+   83:     error.fieldErrors = Object.fromEntries(
+   84:       error.validation.map(({ field, message }) => [field, message]),
+   85:     );
+   86: 
+   87:     throw error;
+   88:   }
+   89: 
+   90:   return result.data;
+   91: }
+   92: 
+   93: function normalizeName(value) {
+   94:   return value
+   95:     .normalize("NFKC")
+   96:     .trim()
+   97:     .toLocaleLowerCase()
+   98:     .replace(/[._/\\-]+/g, " ")
+   99:     .replace(/\s+/g, " ")
+  100:     .trim();
+  101: }
+  102: 
+  103: function getNames(skill) {
+  104:   return [
+  105:     skill.name,
+  106:     ...(Array.isArray(skill.aliases) ? skill.aliases : []),
+  107:   ].map(normalizeName);
+  108: }
+  109: 
+  110: function assertNoConflicts(candidate, existingSkills, excludeId = "") {
+  111:   const candidateNames = new Set(getNames(candidate));
+  112: 
+  113:   for (const existing of existingSkills) {
+  114:     if (existing.id === excludeId) {
+  115:       continue;
+  116:     }
+  117: 
+  118:     if (getNames(existing).some((name) => candidateNames.has(name))) {
+  119:       throw skillError(
+  120:         "SKILL_NAME_CONFLICT",
+  121:         409,
+  122:         `A Skill named "${existing.name}" already uses this name or alias.`,
+  123:       );
+  124:     }
+  125:   }
+  126: }
+  127: 
+  128: function notFound() {
+  129:   return skillError(
+  130:     "SKILL_NOT_FOUND",
+  131:     404,
+  132:     "The requested Skill could not be found.",
+  133:   );
+  134: }
+  135: 
+  136: function versionConflict() {
+  137:   return skillError(
+  138:     "SKILL_VERSION_CONFLICT",
+  139:     409,
+  140:     "This Skill was changed elsewhere. Reload it before saving.",
+  141:   );
+  142: }
+  143: 
+  144: function handleDatabaseConflict(error) {
+  145:   if (error.number === 2601 || error.number === 2627) {
+  146:     throw skillError(
+  147:       "SKILL_NAME_CONFLICT",
+  148:       409,
+  149:       "A Skill with this identifier or normalized name already exists.",
+  150:     );
+  151:   }
+  152: 
+  153:   throw error;
+  154: }
+  155: 
+  156: function toStoredSkill(id, validated) {
+  157:   return {
+  158:     ...validated,
+  159:     id,
+  160:     normalizedName: normalizeName(validated.name),
+  161:     modelVersion: 1,
+  162:   };
+  163: }
+  164: 
+  165: export async function getAuthenticatedSkills({ userId }) {
+  166:   return listSkillsByUser(assertUserId(userId));
+  167: }
+  168: 
+  169: export async function getAuthenticatedSkill({ userId, skillId }) {
+  170:   const skill = await findSkillById(
+  171:     assertUserId(userId),
+  172:     assertSkillId(skillId),
+  173:   );
+  174: 
+  175:   if (!skill) {
+  176:     throw notFound();
+  177:   }
+  178: 
+  179:   return skill;
+  180: }
+  181: 
+  182: export async function createAuthenticatedSkill({ userId, skill }) {
+  183:   const authenticatedUserId = assertUserId(userId);
+  184: 
+  185:   const validated = parseSchema(createSkillSchema, skill);
+  186: 
+  187:   const candidate = toStoredSkill(
+  188:     `skill-${randomUUID()}`,
+  189:     validated,
+  190:   );
+  191: 
+  192:   const existingSkills = await listSkillsByUser(authenticatedUserId);
+  193: 
+  194:   assertNoConflicts(candidate, existingSkills);
+  195: 
+  196:   try {
+  197:     return await createSkill(authenticatedUserId, candidate);
+  198:   } catch (error) {
+  199:     handleDatabaseConflict(error);
+  200:   }
+  201: }
+  202: 
+  203: export async function updateAuthenticatedSkill({
+  204:   userId,
+  205:   skillId,
+  206:   updates,
+  207:   rowVersion,
+  208: }) {
+  209:   const authenticatedUserId = assertUserId(userId);
+  210:   const normalizedSkillId = assertSkillId(skillId);
+  211:   const expectedRowVersion = parseRowVersion(rowVersion);
+  212: 
+  213:   const validatedUpdates = parseSchema(updateSkillSchema, updates);
+  214: 
+  215:   const existing = await findSkillById(
+  216:     authenticatedUserId,
+  217:     normalizedSkillId,
+  218:   );
+  219: 
+  220:   if (!existing) {
+  221:     throw notFound();
+  222:   }
+  223: 
+  224:   const merged = parseSchema(completeSkillSchema, {
+  225:     ...existing,
+  226:     ...validatedUpdates,
+  227: 
+  228:     proficiency: {
+  229:       ...existing.proficiency,
+  230:       ...validatedUpdates.proficiency,
+  231:     },
+  232: 
+  233:     language: {
+  234:       ...existing.language,
+  235:       ...validatedUpdates.language,
+  236:     },
+  237:   });
+  238: 
+  239:   const candidate = toStoredSkill(existing.id, merged);
+  240: 
+  241:   const existingSkills = await listSkillsByUser(authenticatedUserId);
+  242: 
+  243:   assertNoConflicts(candidate, existingSkills, existing.id);
+  244: 
+  245:   try {
+  246:     const updated = await updateSkill(
+  247:       authenticatedUserId,
+  248:       candidate,
+  249:       expectedRowVersion,
+  250:     );
+  251: 
+  252:     if (!updated) {
+  253:       throw versionConflict();
+  254:     }
+  255: 
+  256:     return updated;
+  257:   } catch (error) {
+  258:     handleDatabaseConflict(error);
+  259:   }
+  260: }
+  261: 
+  262: export async function setAuthenticatedSkillArchiveStatus({
+  263:   userId,
+  264:   skillId,
+  265:   rowVersion,
+  266:   archived,
+  267: }) {
+  268:   if (typeof archived !== "boolean") {
+  269:     throw skillError(
+  270:       "SKILL_ARCHIVE_STATUS_INVALID",
+  271:       400,
+  272:       "Archive status must be true or false.",
+  273:     );
+  274:   }
+  275: 
+  276:   return updateAuthenticatedSkill({
+  277:     userId,
+  278:     skillId,
+  279:     rowVersion,
+  280:     updates: {
+  281:       status: archived ? "archived" : "active",
+  282:     },
+  283:   });
+  284: }
+  285: 
+  286: export async function deleteAuthenticatedSkill() {
+  287:   throw skillError(
+  288:     "SKILL_DELETE_NOT_AVAILABLE",
+  289:     409,
+  290:     "Permanent Skill deletion is unavailable until relationship checks are implemented.",
+  291:   );
+  292: }
+
+================================================================================
+FILE: src\schemas\skillSchemas.js
+================================================================================
+    1: import { z } from "zod";
+    2: 
+    3: /*
+    4:  * =========================================
+    5:  * Supported Values
+    6:  * =========================================
+    7:  */
+    8: 
+    9: export const SKILL_CATEGORY_VALUES = [
+   10:   "programming-languages",
+   11:   "software-development",
+   12:   "web-development",
+   13:   "mobile-development",
+   14:   "databases",
+   15:   "data-ai",
+   16:   "cloud-devops",
+   17:   "cybersecurity",
+   18:   "networking",
+   19:   "it-infrastructure",
+   20:   "hardware-electronics",
+   21:   "embedded-iot",
+   22:   "tools-platforms",
+   23:   "project-management",
+   24:   "leadership",
+   25:   "communication",
+   26:   "business",
+   27:   "design",
+   28:   "research-academic",
+   29:   "language",
+   30:   "industry-knowledge",
+   31:   "interpersonal",
+   32:   "other",
+   33: ];
+   34: 
+   35: export const SKILL_TYPE_VALUES = [
+   36:   "technical",
+   37:   "professional",
+   38:   "interpersonal",
+   39:   "leadership",
+   40:   "language",
+   41:   "domain",
+   42:   "tool",
+   43:   "other",
+   44: ];
+   45: 
+   46: export const SKILL_PROFICIENCY_VALUES = [
+   47:   "",
+   48:   "foundational",
+   49:   "intermediate",
+   50:   "advanced",
+   51:   "expert",
+   52: ];
+   53: 
+   54: export const LANGUAGE_PROFICIENCY_VALUES = [
+   55:   "",
+   56:   "basic",
+   57:   "conversational",
+   58:   "professional-working",
+   59:   "full-professional",
+   60:   "native-bilingual",
+   61: ];
+   62: 
+   63: export const SKILL_SOURCE_VALUES = [
+   64:   "manual",
+   65:   "ai-suggested",
+   66:   "imported",
+   67:   "migration",
+   68: ];
+   69: 
+   70: export const SKILL_STATUS_VALUES = ["active", "archived"];
+   71: 
+   72: /*
+   73:  * =========================================
+   74:  * Primitive Schemas
+   75:  * =========================================
+   76:  */
+   77: 
+   78: const skillIdSchema = z
+   79:   .string()
+   80:   .trim()
+   81:   .min(1, "A skill ID is required.")
+   82:   .max(200, "Skill ID cannot exceed 200 characters.");
+   83: 
+   84: const skillNameSchema = z
+   85:   .string()
+   86:   .trim()
+   87:   .min(2, "Skill name must contain at least two characters.")
+   88:   .max(150, "Skill name cannot exceed 150 characters.")
+   89:   .refine(
+   90:     (value) => /[\p{L}\p{N}]/u.test(value),
+   91:     "Skill name must contain letters or numbers.",
+   92:   );
+   93: 
+   94: const aliasSchema = z
+   95:   .string()
+   96:   .trim()
+   97:   .min(1, "Skill alias cannot be empty.")
+   98:   .max(150, "Skill alias cannot exceed 150 characters.");
+   99: 
+  100: const yearMonthSchema = z
+  101:   .string()
+  102:   .trim()
+  103:   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Enter a valid month and year.");
+  104: 
+  105: const optionalYearMonthSchema = z.union([z.literal(""), yearMonthSchema]);
+  106: 
+  107: const nullableYearsSchema = z
+  108:   .union([z.number(), z.string().trim(), z.null()])
+  109:   .transform((value, context) => {
+  110:     if (value === "" || value === null) {
+  111:       return null;
+  112:     }
+  113: 
+  114:     const numericValue = Number(value);
+  115: 
+  116:     if (!Number.isFinite(numericValue)) {
+  117:       context.addIssue({
+  118:         code: z.ZodIssueCode.custom,
+  119:         message: "Years of experience must be a number.",
+  120:       });
+  121: 
+  122:       return z.NEVER;
+  123:     }
+  124: 
+  125:     if (numericValue < 0 || numericValue > 80) {
+  126:       context.addIssue({
+  127:         code: z.ZodIssueCode.custom,
+  128:         message: "Years of experience must be between zero and 80.",
+  129:       });
+  130: 
+  131:       return z.NEVER;
+  132:     }
+  133: 
+  134:     if (Math.round(numericValue * 10) !== numericValue * 10) {
+  135:       context.addIssue({
+  136:         code: z.ZodIssueCode.custom,
+  137:         message:
+  138:           "Years of experience can contain no more than one decimal place.",
+  139:       });
+  140: 
+  141:       return z.NEVER;
+  142:     }
+  143: 
+  144:     return numericValue;
+  145:   });
+  146: 
+  147: /*
+  148:  * =========================================
+  149:  * Nested Skill Schemas
+  150:  * =========================================
+  151:  */
+  152: 
+  153: const aliasesSchema = z
+  154:   .array(aliasSchema)
+  155:   .max(20, "Add no more than 20 aliases.")
+  156:   .default([]);
+  157: 
+  158: const proficiencySchema = z
+  159:   .object({
+  160:     level: z.enum(SKILL_PROFICIENCY_VALUES).default(""),
+  161: 
+  162:     yearsOfExperience: nullableYearsSchema.default(null),
+  163: 
+  164:     lastUsedDate: optionalYearMonthSchema.default(""),
+  165:   })
+  166:   .default({
+  167:     level: "",
+  168:     yearsOfExperience: null,
+  169:     lastUsedDate: "",
+  170:   });
+  171: 
+  172: const proficiencyUpdateSchema = z.object({
+  173:   level: z.enum(SKILL_PROFICIENCY_VALUES).optional(),
+  174: 
+  175:   yearsOfExperience: nullableYearsSchema.optional(),
+  176: 
+  177:   lastUsedDate: optionalYearMonthSchema.optional(),
+  178: });
+  179: 
+  180: const languageSchema = z
+  181:   .object({
+  182:     proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).default(""),
+  183:   })
+  184:   .default({
+  185:     proficiency: "",
+  186:   });
+  187: 
+  188: const languageUpdateSchema = z.object({
+  189:   proficiency: z.enum(LANGUAGE_PROFICIENCY_VALUES).optional(),
+  190: });
+  191: 
+  192: /*
+  193:  * =========================================
+  194:  * Cross-Field Validation
+  195:  * =========================================
+  196:  */
+  197: 
+  198: function validateSkillRelationships(skill, context) {
+  199:   const isLanguageType = skill.type === "language";
+  200: 
+  201:   const isLanguageCategory = skill.category === "language";
+  202: 
+  203:   const languageProficiency = skill.language?.proficiency || "";
+  204: 
+  205:   if (isLanguageType && !isLanguageCategory) {
+  206:     context.addIssue({
+  207:       code: z.ZodIssueCode.custom,
+  208:       path: ["category"],
+  209:       message: 'A language skill must use the "Languages" category.',
+  210:     });
+  211:   }
+  212: 
+  213:   if (isLanguageCategory && !isLanguageType) {
+  214:     context.addIssue({
+  215:       code: z.ZodIssueCode.custom,
+  216:       path: ["type"],
+  217:       message:
+  218:         'A skill in the "Languages" category must use the "Language Skill" type.',
+  219:     });
+  220:   }
+  221: 
+  222:   if (!isLanguageType && languageProficiency) {
+  223:     context.addIssue({
+  224:       code: z.ZodIssueCode.custom,
+  225:       path: ["language", "proficiency"],
+  226:       message: "Language proficiency can only be assigned to a language skill.",
+  227:     });
+  228:   }
+  229: 
+  230:   const normalizedName = skill.name
+  231:     .normalize("NFKC")
+  232:     .trim()
+  233:     .toLocaleLowerCase()
+  234:     .replace(/[._/\\-]+/g, " ")
+  235:     .replace(/\s+/g, " ");
+  236: 
+  237:   const seenAliases = new Set();
+  238: 
+  239:   skill.aliases.forEach((alias, index) => {
+  240:     const normalizedAlias = alias
+  241:       .normalize("NFKC")
+  242:       .trim()
+  243:       .toLocaleLowerCase()
+  244:       .replace(/[._/\\-]+/g, " ")
+  245:       .replace(/\s+/g, " ");
+  246: 
+  247:     if (normalizedAlias === normalizedName) {
+  248:       context.addIssue({
+  249:         code: z.ZodIssueCode.custom,
+  250:         path: ["aliases", index],
+  251:         message: "An alias cannot be the same as the primary skill name.",
+  252:       });
+  253:     }
+  254: 
+  255:     if (seenAliases.has(normalizedAlias)) {
+  256:       context.addIssue({
+  257:         code: z.ZodIssueCode.custom,
+  258:         path: ["aliases", index],
+  259:         message: "This skill alias has already been added.",
+  260:       });
+  261:     }
+  262: 
+  263:     seenAliases.add(normalizedAlias);
+  264:   });
+  265: }
+  266: 
+  267: /*
+  268:  * =========================================
+  269:  * Create Skill
+  270:  * =========================================
+  271:  */
+  272: 
+  273: const createSkillBaseSchema = z.object({
+  274:   name: skillNameSchema,
+  275: 
+  276:   category: z.enum(SKILL_CATEGORY_VALUES).default("other"),
+  277: 
+  278:   type: z.enum(SKILL_TYPE_VALUES).default("professional"),
+  279: 
+  280:   description: z.string().trim().max(1500).default(""),
+  281: 
+  282:   aliases: aliasesSchema,
+  283: 
+  284:   proficiency: proficiencySchema,
+  285: 
+  286:   language: languageSchema,
+  287: 
+  288:   source: z.enum(SKILL_SOURCE_VALUES).default("manual"),
+  289: 
+  290:   sourceContext: z.string().trim().max(100).default(""),
+  291: 
+  292:   notes: z.string().trim().max(2000).default(""),
+  293: 
+  294:   status: z.enum(SKILL_STATUS_VALUES).default("active"),
+  295: });
+  296: 
+  297: export const createSkillSchema = createSkillBaseSchema.superRefine(
+  298:   validateSkillRelationships,
+  299: );
+  300: 
+  301: /*
+  302:  * =========================================
+  303:  * Update Skill
+  304:  * =========================================
+  305:  */
+  306: 
+  307: const updateSkillBaseSchema = z.object({
+  308:   name: skillNameSchema.optional(),
+  309: 
+  310:   category: z.enum(SKILL_CATEGORY_VALUES).optional(),
+  311: 
+  312:   type: z.enum(SKILL_TYPE_VALUES).optional(),
+  313: 
+  314:   description: z.string().trim().max(1500).optional(),
+  315: 
+  316:   aliases: z.array(aliasSchema).max(20).optional(),
+  317: 
+  318:   proficiency: proficiencyUpdateSchema.optional(),
+  319: 
+  320:   language: languageUpdateSchema.optional(),
+  321: 
+  322:   source: z.enum(SKILL_SOURCE_VALUES).optional(),
+  323: 
+  324:   sourceContext: z.string().trim().max(100).optional(),
+  325: 
+  326:   notes: z.string().trim().max(2000).optional(),
+  327: 
+  328:   status: z.enum(SKILL_STATUS_VALUES).optional(),
+  329: });
+  330: 
+  331: export const updateSkillSchema = updateSkillBaseSchema.refine(
+  332:   (updates) => Object.keys(updates).length > 0,
+  333:   {
+  334:     message: "Provide at least one skill field to update.",
+  335:   },
+  336: );
+  337: 
+  338: /*
+  339:  * =========================================
+  340:  * Complete Merged Skill
+  341:  * =========================================
+  342:  *
+  343:  * The service uses this after merging an update
+  344:  * with the existing database record.
+  345:  */
+  346: 
+  347: export const completeSkillSchema = createSkillBaseSchema.superRefine(
+  348:   validateSkillRelationships,
+  349: );
+  350: 
+  351: /*
+  352:  * =========================================
+  353:  * Route Parameters
+  354:  * =========================================
+  355:  */
+  356: 
+  357: export const skillIdParamsSchema = z.object({
+  358:   skillId: skillIdSchema,
+  359: });
+  360: 
+  361: /*
+  362:  * =========================================
+  363:  * List Query
+  364:  * =========================================
+  365:  */
+  366: 
+  367: function parseBooleanQuery(value) {
+  368:   if (value === true || value === "true" || value === "1") {
+  369:     return true;
+  370:   }
+  371: 
+  372:   if (
+  373:     value === false ||
+  374:     value === "false" ||
+  375:     value === "0" ||
+  376:     value === undefined
+  377:   ) {
+  378:     return false;
+  379:   }
+  380: 
+  381:   return value;
+  382: }
+  383: 
+  384: export const skillListQuerySchema = z.object({
+  385:   includeArchived: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
+  386: 
+  387:   category: z
+  388:     .union([z.literal("all"), z.enum(SKILL_CATEGORY_VALUES)])
+  389:     .default("all"),
+  390: 
+  391:   type: z.union([z.literal("all"), z.enum(SKILL_TYPE_VALUES)]).default("all"),
+  392: 
+  393:   query: z.string().trim().max(200).default(""),
+  394: 
+  395:   sort: z
+  396:     .enum([
+  397:       "name-ascending",
+  398:       "name-descending",
+  399:       "recently-updated",
+  400:       "oldest-updated",
+  401:     ])
+  402:     .default("name-ascending"),
+  403: });
+  404: 
+  405: /*
+  406:  * =========================================
+  407:  * Skill Name Resolution
+  408:  * =========================================
+  409:  */
+  410: 
+  411: export const skillNameQuerySchema = z.object({
+  412:   name: skillNameSchema,
+  413: 
+  414:   excludeSkillId: z.string().trim().max(200).default(""),
+  415: });
+  416: 
+  417: /*
+  418:  * =========================================
+  419:  * Find or Create
+  420:  * =========================================
+  421:  */
+  422: 
+  423: export const findOrCreateSkillSchema = z.object({
+  424:   skill: createSkillBaseSchema,
+  425: 
+  426:   restoreArchived: z.boolean().default(true),
+  427: });
+  428: 
+  429: /*
+  430:  * =========================================
+  431:  * Collection Replacement
+  432:  * =========================================
+  433:  */
+  434: 
+  435: export const replaceSkillsSchema = z.object({
+  436:   skills: z
+  437:     .array(createSkillBaseSchema)
+  438:     .max(1000, "The Skill Library is too large."),
+  439: });
+  440: 
+  441: /*
+  442:  * =========================================
+  443:  * Validation Error Formatter
+  444:  * =========================================
+  445:  */
+  446: 
+  447: export function formatSkillSchemaErrors(error) {
+  448:   if (!error?.issues) {
+  449:     return [];
+  450:   }
+  451: 
+  452:   return error.issues.map((issue) => ({
+  453:     field: issue.path.join("."),
+  454:     message: issue.message,
+  455:     code: issue.code,
+  456:   }));
+  457: }
+
+================================================================================
+FILE: src\database\migrations\010_skills.sql
+================================================================================
+    1: /*
+    2:  * Portfolio Platform
+    3:  * Skills Persistence Foundation
+    4:  * Migration 010
+    5:  *
+    6:  * Stores Skill metadata and complete versioned JSON.
+    7:  *
+    8:  * Preserves existing Skill identifiers.
+    9:  *
+   10:  * Skill names are unique per user after normalization.
+   11:  *
+   12:  * Do not add GO statements.
+   13:  */
+   14: 
+   15: CREATE TABLE dbo.skills
+   16: (
+   17:     id NVARCHAR(200) NOT NULL,
+   18: 
+   19:     user_id UNIQUEIDENTIFIER NOT NULL,
+   20: 
+   21:     name NVARCHAR(150) NOT NULL,
+   22: 
+   23:     normalized_name NVARCHAR(150) NOT NULL,
+   24: 
+   25:     category NVARCHAR(100) NOT NULL,
+   26: 
+   27:     skill_type NVARCHAR(100) NOT NULL,
+   28: 
+   29:     record_status NVARCHAR(20) NOT NULL
+   30:         CONSTRAINT DF_skills_record_status
+   31:         DEFAULT N'active',
+   32: 
+   33:     skill_data NVARCHAR(MAX) NOT NULL,
+   34: 
+   35:     created_at DATETIME2(3) NOT NULL
+   36:         CONSTRAINT DF_skills_created_at
+   37:         DEFAULT SYSUTCDATETIME(),
+   38: 
+   39:     updated_at DATETIME2(3) NOT NULL
+   40:         CONSTRAINT DF_skills_updated_at
+   41:         DEFAULT SYSUTCDATETIME(),
+   42: 
+   43:     row_version ROWVERSION NOT NULL,
+   44: 
+   45:     CONSTRAINT PK_skills
+   46:         PRIMARY KEY CLUSTERED (id),
+   47: 
+   48:     CONSTRAINT FK_skills_user
+   49:         FOREIGN KEY (user_id)
+   50:         REFERENCES dbo.users(id),
+   51: 
+   52:     CONSTRAINT UQ_skills_id_user
+   53:         UNIQUE (id, user_id),
+   54: 
+   55:     CONSTRAINT CK_skills_id_not_blank
+   56:         CHECK (LEN(LTRIM(RTRIM(id))) > 0),
+   57: 
+   58:     CONSTRAINT CK_skills_name_not_blank
+   59:         CHECK (LEN(LTRIM(RTRIM(name))) > 0),
+   60: 
+   61:     CONSTRAINT CK_skills_normalized_name_not_blank
+   62:         CHECK (LEN(LTRIM(RTRIM(normalized_name))) > 0),
+   63: 
+   64:     CONSTRAINT CK_skills_record_status
+   65:         CHECK (
+   66:             record_status IN (
+   67:                 N'active',
+   68:                 N'archived'
+   69:             )
+   70:         ),
+   71: 
+   72:     CONSTRAINT CK_skills_data_json
+   73:         CHECK (ISJSON(skill_data) = 1),
+   74: 
+   75:     CONSTRAINT CK_skills_dates
+   76:         CHECK (updated_at >= created_at)
+   77: );
+   78: 
+   79: /*
+   80:  * Prevent duplicate Skill names within
+   81:  * the same user's library.
+   82:  *
+   83:  * Includes archived Skills.
+   84:  */
+   85: 
+   86: CREATE UNIQUE INDEX UX_skills_user_normalized_name
+   87:     ON dbo.skills (
+   88:         user_id,
+   89:         normalized_name
+   90:     );
+   91: 
+   92: /*
+   93:  * Owner-scoped listing and filtering.
+   94:  */
+   95: 
+   96: CREATE INDEX IX_skills_user_status_updated
+   97:     ON dbo.skills (
+   98:         user_id,
+   99:         record_status,
+  100:         updated_at DESC
+  101:     )
+  102:     INCLUDE (
+  103:         name,
+  104:         category,
+  105:         skill_type
+  106:     );
+  107: 
+  108: /*
+  109:  * Owner-scoped category lookup.
+  110:  */
+  111: 
+  112: CREATE INDEX IX_skills_user_category
+  113:     ON dbo.skills (
+  114:         user_id,
+  115:         category
+  116:     )
+  117:     INCLUDE (
+  118:         name,
+  119:         skill_type,
+  120:         record_status
+  121:     );
+

@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -20,9 +21,9 @@ import {
   restoreSkill as restoreSkillService,
   updateSkill as updateSkillService,
   validateSkillDraft as validateSkillDraftService,
-} from "../services/Skill/skillService.js";
+} from "../services/Skill/skillRemoteService.js";
 
-import { SKILL_STORAGE_KEY } from "../services/Skill/skillStorage.js";
+import { useAuth } from "./AuthContext.jsx";
 
 const SkillDataContext = createContext(null);
 
@@ -113,6 +114,18 @@ function sortSkillLibrary(skills) {
 }
 
 export function SkillDataProvider({ children }) {
+  const { user, isAuthenticated, isInitializing } = useAuth();
+
+  const userId = isAuthenticated ? user?.id || null : null;
+
+  // Invalidates pending reads whenever the authenticated identity changes.
+  const requestGenerationRef = useRef(0);
+  const activeUserRef = useRef(userId);
+
+  if (activeUserRef.current !== userId) {
+    activeUserRef.current = userId;
+    requestGenerationRef.current += 1;
+  }
   const [skills, setSkills] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadStatus, setLoadStatus] = useState("idle");
@@ -172,67 +185,48 @@ export function SkillDataProvider({ children }) {
   );
 
   useEffect(() => {
-    let isActive = true;
+    const generation = ++requestGenerationRef.current;
 
-    getSkillsService({
-      includeArchived: true,
-    })
+    if (!userId) {
+      setSkills([]);
+      setIsLoading(false);
+      setLoadStatus(isInitializing ? "idle" : "idle");
+      setSaveStatus("idle");
+      setError(null);
+      setOperation(INITIAL_OPERATION);
+      return;
+    }
+
+    setSkills([]);
+    setIsLoading(true);
+    setLoadStatus("loading");
+    setError(null);
+
+    getSkillsService({ includeArchived: true })
       .then((loadedSkills) => {
-        if (!isActive) {
-          return;
-        }
+        if (generation !== requestGenerationRef.current) return;
 
-        setSkills(
-          sortSkillLibrary(Array.isArray(loadedSkills) ? loadedSkills : []),
-        );
-
+        setSkills(sortSkillLibrary(loadedSkills));
         setLoadStatus("success");
       })
       .catch((loadError) => {
-        if (!isActive) {
-          return;
-        }
+        if (generation !== requestGenerationRef.current) return;
 
         console.error("Unable to load skills:", loadError);
-
         setSkills([]);
         setLoadStatus("error");
-
         setError(normalizeSkillContextError(loadError));
       })
       .finally(() => {
-        if (isActive) {
+        if (generation === requestGenerationRef.current) {
           setIsLoading(false);
         }
       });
 
     return () => {
-      isActive = false;
+      requestGenerationRef.current += 1;
     };
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (
-        event.storageArea !== window.localStorage ||
-        event.key !== SKILL_STORAGE_KEY
-      ) {
-        return;
-      }
-
-      refreshSkills({
-        includeArchived: true,
-        showLoading: false,
-      }).catch(() => {});
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [refreshSkills]);
-
+  }, [userId, isInitializing]);
   const getSkillById = useCallback(
     async (skillId) => {
       const existingSkill = skills.find((skill) => skill.id === skillId);
