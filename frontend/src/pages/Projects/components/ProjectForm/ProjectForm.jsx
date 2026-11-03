@@ -769,6 +769,7 @@ function ProjectForm({
        */}
 
       <ProjectMediaEditor
+        projectId={formData.id}
         media={formData.media || []}
         uploads={mediaUploads}
         featuredMediaId={formData.presentation.featuredMediaId}
@@ -787,6 +788,7 @@ function ProjectForm({
        */}
 
       <ProjectDocumentEditor
+        projectId={formData.id}
         documents={formData.supportingDocuments || []}
         uploads={documentUploads}
         disabled={isSaving}

@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -13,11 +13,13 @@ import {
   deleteProject as deleteProjectService,
   getProjects,
   restoreProject as restoreProjectService,
-  updateProject as updateProjectService,
 } from "../services/Project/projectService.js";
 
 import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
-import { fetchProjects } from "../services/Project/projectApiService.js";
+import {
+  fetchProjects,
+  updateProjectApi,
+} from "../services/Project/projectApiService.js";
 
 /*
  * =========================================
@@ -362,9 +364,51 @@ export function ProjectDataProvider({ children }) {
           type: "update",
           projectId,
         },
-        () => updateProjectService(projectId, projectData, options),
+        async () => {
+          const {
+            mediaUploads = [],
+            documentUploads = [],
+            removedAssetStorageKeys = [],
+          } = options;
+
+          if (
+            mediaUploads.length > 0 ||
+            documentUploads.length > 0 ||
+            removedAssetStorageKeys.length > 0
+          ) {
+            throw new Error(
+              "Project file changes are temporarily disabled until backend asset synchronization is verified.",
+            );
+          }
+
+          const currentProject = projects.find(
+            (project) => project.id === projectId,
+          );
+
+          if (!currentProject) {
+            throw new Error(
+              "The selected Project is not available in the current backend collection.",
+            );
+          }
+
+          const rowVersion = currentProject.rowVersion;
+
+          if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+            throw new Error(
+              "This Project does not have a valid backend rowVersion. Refresh the page before editing.",
+            );
+          }
+
+          const project = await updateProjectApi(
+            projectId,
+            projectData,
+            rowVersion,
+          );
+
+          return { project, warnings: [] };
+        },
       ),
-    [runOperation],
+    [runOperation, projects],
   );
 
   /*

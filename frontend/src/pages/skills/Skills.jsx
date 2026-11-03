@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useEducationData } from "../../context/EducationDataContext.jsx";
 import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
 import { useSkillData } from "../../context/SkillDataContext.jsx";
+import { useProjectData } from "../../context/ProjectDataContext.jsx";
 import { useTrainingData } from "../../context/TrainingDataContext.jsx";
 
 import {
@@ -45,6 +46,12 @@ function Skills() {
 
   const { trainingRecords, isLoading: isTrainingLoading } = useTrainingData();
 
+  const {
+    projects,
+    isLoading: areProjectsLoading,
+    loadStatus: projectLoadStatus,
+  } = useProjectData();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const [editingSkill, setEditingSkill] = useState(null);
@@ -60,12 +67,17 @@ function Skills() {
         experiences,
         educationRecords,
         trainingRecords,
+        projects,
       }),
-    [skills, experiences, educationRecords, trainingRecords],
+    [skills, experiences, educationRecords, trainingRecords, projects],
   );
 
   const isUsageLoading =
-    areExperiencesLoading || isEducationLoading || isTrainingLoading;
+    areExperiencesLoading ||
+    isEducationLoading ||
+    isTrainingLoading ||
+    areProjectsLoading ||
+    projectLoadStatus !== "success";
 
   const selectedSkills = showArchived ? archivedSkills : activeSkills;
 
@@ -143,6 +155,24 @@ function Skills() {
      * service so the structured SKILL_IN_USE conflict
      * is created from storage and displayed consistently.
      */
+
+    if (isUsageLoading) {
+      return;
+    }
+
+    if (usage.projectCount > 0) {
+      const names = usage.projects
+        .map((project) => project.title)
+        .join(", ");
+
+      window.alert(
+        `"${skill.name}" is referenced by ${usage.projectCount} saved ` +
+          `${usage.projectCount === 1 ? "project" : "projects"}: ${names}. ` +
+          "Remove the Project relationships before permanently deleting this skill.",
+      );
+
+      return;
+    }
 
     if (usage.isUsed) {
       try {

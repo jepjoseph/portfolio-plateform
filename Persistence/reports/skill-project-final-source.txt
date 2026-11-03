@@ -1,0 +1,1941 @@
+﻿SKILL PROJECT FINAL SOURCE
+Date: 2026-11-02T18:37:47.6260075-05:00
+
+===== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Skills\Skills.jsx =====
+import SkillsItem from "./SkillsItem/SkillsItem";
+
+import "./Skills.css";
+
+function Skills({ skills }) {
+  return (
+    <section
+      className="skills-section portfolio-editor-card"
+      aria-labelledby="skills-title"
+    >
+      <div className="skills-header">
+        <div>
+          <span className="skills-eyebrow">Professional Capabilities</span>
+
+          <h3 id="skills-title">Skills</h3>
+
+          <p>
+            Technical and professional skills that represent your experience and
+            capabilities.
+          </p>
+        </div>
+      </div>
+
+      <div className="skills-list">
+        {skills.map((skill) => (
+          <SkillsItem
+            key={skill.id}
+            name={skill.name}
+            category={skill.category}
+            level={skill.level}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default Skills;
+
+===== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\Skills.jsx =====
+import { useMemo, useState } from "react";
+
+import { useEducationData } from "../../context/EducationDataContext.jsx";
+import { useExperienceData } from "../../context/ExperienceDataContext.jsx";
+import { useSkillData } from "../../context/SkillDataContext.jsx";
+import { useTrainingData } from "../../context/TrainingDataContext.jsx";
+
+import {
+  createEmptySkillUsage,
+  createSkillUsageMap,
+  getSkillStatistics,
+} from "../../services/Skill/skillUtils.js";
+
+import SkillForm from "./components/SkillForm/SkillForm.jsx";
+import SkillsDashboard from "./components/SkillsDashboard/SkillsDashboard.jsx";
+import SkillsLibrary from "./components/SkillsLibrary/SkillsLibrary.jsx";
+import SkillsPageHeader from "./components/SkillsPageHeader/SkillsPageHeader.jsx";
+
+import "./Skills.css";
+
+function Skills() {
+  const {
+    skills,
+    activeSkills,
+    archivedSkills,
+    isLoading,
+    loadStatus,
+    saveStatus,
+    operation,
+    error,
+    refreshSkills,
+    createSkill,
+    updateSkill,
+    archiveSkill,
+    restoreSkill,
+    deleteSkill,
+    clearError,
+    resetSaveStatus,
+  } = useSkillData();
+
+  const { experiences, isLoading: areExperiencesLoading } = useExperienceData();
+
+  const { educationRecords, isLoading: isEducationLoading } =
+    useEducationData();
+
+  const { trainingRecords, isLoading: isTrainingLoading } = useTrainingData();
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const [editingSkill, setEditingSkill] = useState(null);
+
+  const [showArchived, setShowArchived] = useState(false);
+
+  const statistics = useMemo(() => getSkillStatistics(skills), [skills]);
+
+  const usageBySkillId = useMemo(
+    () =>
+      createSkillUsageMap({
+        skills,
+        experiences,
+        educationRecords,
+        trainingRecords,
+      }),
+    [skills, experiences, educationRecords, trainingRecords],
+  );
+
+  const isUsageLoading =
+    areExperiencesLoading || isEducationLoading || isTrainingLoading;
+
+  const selectedSkills = showArchived ? archivedSkills : activeSkills;
+
+
+
+  const scrollToForm = () => {
+    window.requestAnimationFrame(() => {
+      document.querySelector(".skills-page-form")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const handleAddSkill = () => {
+    setEditingSkill(null);
+    setIsFormOpen(true);
+    clearError();
+    resetSaveStatus();
+    scrollToForm();
+  };
+
+  const handleEditSkill = (skill) => {
+    setEditingSkill({ ...skill });
+    setIsFormOpen(true);
+    clearError();
+    resetSaveStatus();
+    scrollToForm();
+  };
+
+  const handleCloseForm = () => {
+    setEditingSkill(null);
+    setIsFormOpen(false);
+    clearError();
+    resetSaveStatus();
+  };
+
+  const handleSaveSkill = async (skillData) => {
+    if (editingSkill) {
+      await updateSkill(editingSkill.id, skillData, editingSkill.rowVersion);
+    } else {
+      await createSkill(skillData);
+    }
+
+    setEditingSkill(null);
+    setIsFormOpen(false);
+  };
+
+  const handleArchiveSkill = async (skill) => {
+    try {
+      await archiveSkill(skill.id, skill.rowVersion);
+
+      if (editingSkill?.id === skill.id) {
+        handleCloseForm();
+      }
+    } catch {
+      // Context displays the error.
+    }
+  };
+
+  const handleRestoreSkill = async (skill) => {
+    try {
+      await restoreSkill(skill.id, skill.rowVersion);
+    } catch {
+      // Context displays the error.
+    }
+  };
+
+  const handleDeleteSkill = async (skill) => {
+    const usage = usageBySkillId[skill.id] || createEmptySkillUsage(skill.id);
+
+    /*
+     * The page already knows the skill is referenced,
+     * but it still sends the delete request through the
+     * service so the structured SKILL_IN_USE conflict
+     * is created from storage and displayed consistently.
+     */
+
+    if (usage.isUsed) {
+      try {
+        await deleteSkill(skill.id, {
+          usage,
+        });
+      } catch {
+        // Context displays the conflict.
+      }
+
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Permanently delete "${skill.name}"?\n\nThis action cannot be undone.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    try {
+      await deleteSkill(skill.id, {
+        usage,
+      });
+
+      if (editingSkill?.id === skill.id) {
+        handleCloseForm();
+      }
+    } catch {
+      // Context displays the error.
+    }
+  };
+
+  const handleToggleArchived = () => {
+    setShowArchived((current) => !current);
+
+    setEditingSkill(null);
+    setIsFormOpen(false);
+    clearError();
+    resetSaveStatus();
+  };
+
+  const handleRetryLoading = () => {
+    refreshSkills({
+      includeArchived: true,
+    }).catch(() => {});
+  };
+
+  return (
+    <main className="skills-page">
+      <SkillsPageHeader
+        totalSkills={skills.length}
+        activeCount={activeSkills.length}
+        archivedCount={archivedSkills.length}
+        showArchived={showArchived}
+        isLoading={isLoading}
+        onAddSkill={handleAddSkill}
+        onToggleArchived={handleToggleArchived}
+      />
+
+      <SkillsDashboard statistics={statistics} isLoading={isLoading} />
+
+      {error && error.code !== "SKILL_IN_USE" && (
+        <section
+          className="skills-page-message skills-page-message--error"
+          role="alert"
+        >
+          <div>
+            <strong>Unable to complete the Skill Library operation</strong>
+
+            <p>{error.message}</p>
+          </div>
+
+          <button type="button" onClick={clearError}>
+            Dismiss
+          </button>
+        </section>
+      )}
+
+      {saveStatus === "success" && (
+        <section
+          className="skills-page-message skills-page-message--success"
+          role="status"
+        >
+          <div>
+            <strong>Skill Library changes saved</strong>
+
+            <p>The central Skill Library has been updated successfully.</p>
+          </div>
+
+          <button type="button" onClick={resetSaveStatus}>
+            Dismiss
+          </button>
+        </section>
+      )}
+
+      {saveStatus === "saving" && (
+        <section
+          className="skills-page-message skills-page-message--saving"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="skills-page-message-loader" aria-hidden="true" />
+
+          <div>
+            <strong>Saving skill</strong>
+
+            <p>Your Skill Library is being updated.</p>
+          </div>
+        </section>
+      )}
+
+      {isFormOpen && (
+        <section className="skills-page-form">
+          <header className="skills-page-form-header">
+            <div>
+              <span>Skill Editor</span>
+
+              <h2>
+                {editingSkill
+                  ? `Edit ${editingSkill.name}`
+                  : "Add Professional Skill"}
+              </h2>
+
+              <p>
+                Create a reusable Skill Library record for Experiences,
+                Education, Training, Resumes, and Portfolios.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="skills-page-form-close"
+              onClick={handleCloseForm}
+              aria-label="Close skill form"
+            >
+              Ã—
+            </button>
+          </header>
+
+          <SkillForm
+            initialSkill={editingSkill}
+            existingSkills={skills}
+            isSaving={saveStatus === "saving"}
+            onSubmit={handleSaveSkill}
+            onCancel={handleCloseForm}
+          />
+        </section>
+      )}
+
+      <SkillsLibrary
+        skills={selectedSkills}
+        showArchived={showArchived}
+        isLoading={isLoading}
+        isUsageLoading={isUsageLoading}
+        loadStatus={loadStatus}
+        operation={operation}
+        usageBySkillId={usageBySkillId}
+        conflictError={error?.code === "SKILL_IN_USE" ? error : null}
+        onDismissConflict={clearError}
+        onAddSkill={handleAddSkill}
+        onRetry={handleRetryLoading}
+        onEdit={handleEditSkill}
+        onArchive={handleArchiveSkill}
+        onRestore={handleRestoreSkill}
+        onDelete={handleDeleteSkill}
+      />
+    </main>
+  );
+}
+
+export default Skills;
+
+===== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillItem\SkillItem.jsx =====
+import { useState } from "react";
+
+import {
+  createEmptySkillUsage,
+  formatSkillLastUsedDate,
+  getSkillCategoryDisplay,
+  getSkillCompleteness,
+  getSkillProficiencyDisplay,
+  getSkillSourceDisplay,
+  getSkillTypeDisplay,
+  getSkillUsageSummary,
+  isSkillInUse,
+} from "../../../../services/Skill/skillUtils.js";
+
+import "./SkillItem.css";
+
+function SkillItem({
+  skill,
+  usage,
+  isWorking = false,
+  isUsageLoading = false,
+  conflictError = null,
+  onDismissConflict,
+  onEdit,
+  onArchive,
+  onRestore,
+  onDelete,
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!skill) {
+    return null;
+  }
+
+  const resolvedUsage = usage || createEmptySkillUsage(skill.id);
+
+  const isInUse = isSkillInUse(resolvedUsage);
+
+  const usageValue = (value) => (isUsageLoading ? "â€”" : value);
+
+  const completeness = getSkillCompleteness(skill);
+
+  const category = getSkillCategoryDisplay(skill);
+
+  const type = getSkillTypeDisplay(skill);
+
+  const proficiency = getSkillProficiencyDisplay(skill);
+
+  const source = getSkillSourceDisplay(skill);
+
+  const lastUsedDate = formatSkillLastUsedDate(skill.proficiency?.lastUsedDate);
+
+  const yearsOfExperience = skill.proficiency?.yearsOfExperience;
+
+  const hasYearsOfExperience =
+    yearsOfExperience !== null &&
+    yearsOfExperience !== undefined &&
+    yearsOfExperience !== "";
+
+  const aliases = Array.isArray(skill.aliases)
+    ? skill.aliases.filter(Boolean)
+    : [];
+
+  const isArchived = skill.status === "archived";
+
+  const hasAdditionalDetails = Boolean(
+    skill.description ||
+    aliases.length > 0 ||
+    hasYearsOfExperience ||
+    lastUsedDate ||
+    skill.notes ||
+    skill.sourceContext ||
+    resolvedUsage.experienceCount > 0 ||
+    resolvedUsage.educationCount > 0 ||
+    resolvedUsage.trainingCount > 0,
+  );
+
+  return (
+    <article
+      className={`skill-item ${isExpanded ? "skill-item--expanded" : ""} ${
+        isArchived ? "skill-item--archived" : ""
+      }`}
+    >
+      <header className="skill-item-summary">
+        <div className="skill-item-icon" aria-hidden="true">
+          {isArchived ? "â–¡" : "âœ¦"}
+        </div>
+
+        <div className="skill-item-heading">
+          <div className="skill-item-labels">
+            <span>{category}</span>
+            <span>{type}</span>
+
+            {(skill.type === "language" || skill.proficiency?.level) && (
+              <span>{proficiency}</span>
+            )}
+
+            {isArchived && (
+              <span className="skill-item-archived-label">Archived</span>
+            )}
+          </div>
+
+          <h3>{skill.name}</h3>
+
+          {skill.description && <p>{skill.description}</p>}
+
+          <div className="skill-item-summary-meta">
+            {hasYearsOfExperience && (
+              <span>
+                <strong>{yearsOfExperience}</strong>{" "}
+                {Number(yearsOfExperience) === 1 ? "year" : "years"} of
+                experience
+              </span>
+            )}
+
+            {lastUsedDate && (
+              <span>
+                Last used <strong>{lastUsedDate}</strong>
+              </span>
+            )}
+
+            <span>
+              <strong>{completeness.percentage}%</strong> complete
+            </span>
+          </div>
+        </div>
+
+        <div className="skill-item-actions">
+          {hasAdditionalDetails && (
+            <button
+              type="button"
+              className="skill-item-view-button"
+              onClick={() => setIsExpanded((current) => !current)}
+              disabled={isWorking}
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? "Hide Details" : "View"}
+            </button>
+          )}
+
+          {!isArchived && (
+            <button
+              type="button"
+              onClick={() => onEdit?.(skill)}
+              disabled={isWorking}
+            >
+              Edit
+            </button>
+          )}
+
+          {isArchived ? (
+            <button
+              type="button"
+              onClick={() => onRestore?.(skill)}
+              disabled={isWorking}
+            >
+              Restore
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onArchive?.(skill)}
+              disabled={isWorking}
+            >
+              Archive
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="skill-item-delete-button"
+            onClick={() => onDelete?.(skill)}
+            disabled={isWorking || isUsageLoading}
+            aria-disabled={isWorking || isUsageLoading}
+            title={
+              isInUse
+                ? "This skill is referenced by saved records. Select it to view the deletion conflict."
+                : "Permanently delete this skill"
+            }
+          >
+            {isInUse ? "Protected" : "Delete"}
+          </button>
+        </div>
+      </header>
+
+      {conflictError && (
+        <section className="skill-item-conflict" role="alert">
+          <div className="skill-item-conflict-content">
+            <strong>Skill is still in use</strong>
+
+            <p>{conflictError.message}</p>
+
+            {conflictError.usage?.experiences?.length > 0 && (
+              <div className="skill-item-conflict-group">
+                <span>Experience</span>
+
+                <ul>
+                  {conflictError.usage.experiences.map((experience) => (
+                    <li key={`experience-${experience.id}`}>
+                      <strong>{experience.positionTitle}</strong>
+
+                      <small>{experience.organizationName}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {conflictError.usage?.educationRecords?.length > 0 && (
+              <div className="skill-item-conflict-group">
+                <span>Education</span>
+
+                <ul>
+                  {conflictError.usage.educationRecords.map((education) => (
+                    <li key={`education-${education.id}`}>
+                      <strong>{education.credentialName}</strong>
+
+                      <small>{education.institutionName}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {conflictError.usage?.trainingRecords?.length > 0 && (
+              <div className="skill-item-conflict-group">
+                <span>Training</span>
+
+                <ul>
+                  {conflictError.usage.trainingRecords.map((training) => (
+                    <li key={`training-${training.id}`}>
+                      <strong>{training.title}</strong>
+
+                      <small>{training.providerName}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="skill-item-conflict-dismiss"
+            onClick={onDismissConflict}
+          >
+            Dismiss
+          </button>
+        </section>
+      )}
+
+      {isWorking && (
+        <div className="skill-item-operation" role="status" aria-live="polite">
+          <span aria-hidden="true" />
+
+          <small>Updating skill...</small>
+        </div>
+      )}
+
+      <section
+        className="skill-item-usage"
+        aria-label={`${skill.name} usage`}
+        aria-busy={isUsageLoading}
+      >
+        <header className="skill-item-usage-header">
+          <div>
+            <span>Library Usage</span>
+
+            <strong>
+              {isUsageLoading
+                ? "Checking relationships"
+                : getSkillUsageSummary(resolvedUsage)}
+            </strong>
+          </div>
+
+          <span
+            className={`skill-item-usage-total ${
+              isInUse ? "skill-item-usage-total--used" : ""
+            }`}
+          >
+            {usageValue(resolvedUsage.total)}
+          </span>
+        </header>
+
+        <div className="skill-item-usage-list">
+          <div>
+            <span>Experience</span>
+
+            <strong>{usageValue(resolvedUsage.experienceCount)}</strong>
+          </div>
+
+          <div>
+            <span>Education</span>
+
+            <strong>{usageValue(resolvedUsage.educationCount)}</strong>
+          </div>
+
+          <div>
+            <span>Training</span>
+
+            <strong>{usageValue(resolvedUsage.trainingCount)}</strong>
+          </div>
+
+          <div>
+            <span>RÃ©sumÃ©</span>
+
+            <strong>{usageValue(resolvedUsage.resumeCount)}</strong>
+          </div>
+
+          <div>
+            <span>Portfolio</span>
+
+            <strong>{usageValue(resolvedUsage.portfolioCount)}</strong>
+          </div>
+        </div>
+
+        {!isUsageLoading && resolvedUsage.experienceCount > 0 && (
+          <>
+            <div className="skill-item-usage-types">
+              <span>
+                Used as a skill
+                <strong>{resolvedUsage.experienceSkillCount}</strong>
+              </span>
+
+              <span>
+                Used as a technology
+                <strong>{resolvedUsage.experienceTechnologyCount}</strong>
+              </span>
+            </div>
+
+            <ul className="skill-item-experience-list">
+              {resolvedUsage.experiences.map((experience) => (
+                <li key={experience.id}>
+                  <div>
+                    <strong>{experience.positionTitle}</strong>
+
+                    <span>{experience.organizationName}</span>
+                  </div>
+
+                  <div className="skill-item-experience-types">
+                    {experience.usedAsSkill && <small>Skill</small>}
+
+                    {experience.usedAsTechnology && <small>Technology</small>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {!isUsageLoading && resolvedUsage.educationCount > 0 && (
+          <div className="skill-item-education-usage">
+            <div className="skill-item-usage-types">
+              <span>
+                Education relationships
+                <strong>{resolvedUsage.educationSkillCount}</strong>
+              </span>
+            </div>
+
+            <ul className="skill-item-education-list">
+              {resolvedUsage.educationRecords.map((education) => (
+                <li key={education.id}>
+                  <div>
+                    <strong>{education.credentialName}</strong>
+
+                    <span>{education.institutionName}</span>
+                  </div>
+
+                  <small>Education</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!isUsageLoading && resolvedUsage.trainingCount > 0 && (
+          <div className="skill-item-training-usage">
+            <div className="skill-item-usage-types">
+              <span>
+                Training relationships
+                <strong>{resolvedUsage.trainingSkillCount}</strong>
+              </span>
+            </div>
+
+            <ul className="skill-item-training-list">
+              {resolvedUsage.trainingRecords.map((training) => (
+                <li key={training.id}>
+                  <div>
+                    <strong>{training.title}</strong>
+
+                    <span>{training.providerName}</span>
+                  </div>
+
+                  <small>Training</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {isUsageLoading ? (
+          <small role="status">Checking Skill Library relationships...</small>
+        ) : (
+          !isInUse && (
+            <small>
+              This skill is not currently connected to an Experience, Education,
+              Training, RÃ©sumÃ©, or Portfolio record.
+            </small>
+          )
+        )}
+      </section>
+
+      {isExpanded && (
+        <div className="skill-item-details">
+          <div className="skill-item-detail-grid">
+            <Detail label="Category" value={category} />
+
+            <Detail label="Skill Type" value={type} />
+
+            <Detail label="Proficiency" value={proficiency} />
+
+            <Detail label="Record Source" value={source} />
+
+            {hasYearsOfExperience && (
+              <Detail
+                label="Years of Experience"
+                value={`${yearsOfExperience}`}
+              />
+            )}
+
+            {lastUsedDate && <Detail label="Last Used" value={lastUsedDate} />}
+
+            {skill.sourceContext && (
+              <Detail label="Source Context" value={skill.sourceContext} />
+            )}
+
+            <Detail
+              label="Record Status"
+              value={isArchived ? "Archived" : "Active"}
+            />
+          </div>
+
+          {aliases.length > 0 && (
+            <section className="skill-item-aliases">
+              <span>Alternative Names</span>
+
+              <div>
+                {aliases.map((alias, index) => (
+                  <small key={`${alias}-${index}`}>{alias}</small>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {skill.description && (
+            <section className="skill-item-description">
+              <span>Professional Description</span>
+
+              <p>{skill.description}</p>
+            </section>
+          )}
+
+          {skill.notes && (
+            <section className="skill-item-private-notes">
+              <header>
+                <span>Private Notes</span>
+
+                <small>Not public</small>
+              </header>
+
+              <p>{skill.notes}</p>
+            </section>
+          )}
+
+          <section className="skill-item-completeness">
+            <header>
+              <div>
+                <span>Record Quality</span>
+
+                <strong>{completeness.label}</strong>
+              </div>
+
+              <strong>{completeness.percentage}%</strong>
+            </header>
+
+            <div className="skill-item-completeness-progress">
+              <span
+                style={{
+                  width: `${completeness.percentage}%`,
+                }}
+              />
+            </div>
+
+            {completeness.missingChecks.length > 0 && (
+              <div className="skill-item-missing">
+                <span>Suggested improvements</span>
+
+                <ul>
+                  {completeness.missingChecks.map((check) => (
+                    <li key={check.id}>Add {check.label.toLowerCase()}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <footer className="skill-item-details-footer">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              disabled={isWorking}
+            >
+              Hide Details
+            </button>
+
+            {!isArchived && (
+              <button
+                type="button"
+                className="skill-item-details-edit"
+                onClick={() => onEdit?.(skill)}
+                disabled={isWorking}
+              >
+                Edit This Skill
+              </button>
+            )}
+          </footer>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function Detail({ label, value }) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  return (
+    <div className="skill-item-detail">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+export default SkillItem;
+
+===== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillsPageHeader\SkillsPageHeader.jsx =====
+import "./SkillsPageHeader.css";
+
+function SkillsPageHeader({
+  totalSkills = 0,
+  activeCount = 0,
+  archivedCount = 0,
+  showArchived = false,
+  isLoading = false,
+  onAddSkill,
+  onToggleArchived,
+}) {
+  return (
+    <header className="skills-page-header">
+      <div className="skills-page-header-content">
+        <span className="skills-page-header-eyebrow">
+          Professional Capabilities
+        </span>
+
+        <h1>Skills</h1>
+
+        <p>
+          Create and maintain a central library of professional skills,
+          technologies, tools, languages, and industry knowledge. Saved skills
+          can be connected to experiences and selected later for rÃ©sumÃ©s and
+          portfolios.
+        </p>
+
+        <div className="skills-page-header-meta">
+          <span>
+            <strong>{totalSkills}</strong>{" "}
+            {totalSkills === 1 ? "saved skill" : "saved skills"}
+          </span>
+
+          <span>
+            <strong>{activeCount}</strong> active
+          </span>
+
+          {archivedCount > 0 && (
+            <span>
+              <strong>{archivedCount}</strong>{" "}
+              {archivedCount === 1 ? "archived skill" : "archived skills"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="skills-page-header-actions">
+        {(showArchived || archivedCount > 0) && (
+          <button
+            type="button"
+            className={`skills-page-header-archive-button ${
+              showArchived ? "skills-page-header-archive-button--active" : ""
+            }`}
+            onClick={onToggleArchived}
+            disabled={isLoading}
+            aria-pressed={showArchived}
+          >
+            {showArchived ? "View Active" : "View Archived"}
+
+            {!showArchived && archivedCount > 0 && (
+              <span className="skills-page-header-archive-count">
+                {archivedCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="skills-page-header-add-button"
+          onClick={onAddSkill}
+          disabled={isLoading || showArchived}
+        >
+          <span aria-hidden="true">+</span>
+          Add Skill
+        </button>
+      </div>
+    </header>
+  );
+}
+
+export default SkillsPageHeader;
+
+===== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillUtils.js =====
+import {
+  getLanguageProficiencyLabel,
+  getSkillCategoryLabel,
+  getSkillProficiencyLabel,
+  getSkillSourceLabel,
+  getSkillStatusLabel,
+  getSkillTypeLabel,
+} from "../../config/skillConfig.js";
+
+import {
+  getSkillDisplayName,
+  normalizeSkillNameForComparison,
+} from "../../models/skillModel.js";
+
+/*
+ * =========================================
+ * Basic Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getNumericValue(value, fallback = 0) {
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
+/*
+ * =========================================
+ * Active and Archived Skills
+ * =========================================
+ */
+
+export function isActiveSkill(skill) {
+  return skill?.status !== "archived";
+}
+
+export function isArchivedSkill(skill) {
+  return skill?.status === "archived";
+}
+
+export function getActiveSkills(skills = []) {
+  return getArray(skills).filter(isActiveSkill);
+}
+
+export function getArchivedSkills(skills = []) {
+  return getArray(skills).filter(isArchivedSkill);
+}
+
+/*
+ * =========================================
+ * Skill Display Information
+ * =========================================
+ */
+
+export function getSkillPrimaryLabel(skill) {
+  return getSkillDisplayName(skill);
+}
+
+export function getSkillSecondaryLabel(skill) {
+  return [
+    getSkillCategoryLabel(skill?.category),
+    getSkillTypeLabel(skill?.type),
+  ]
+    .filter(Boolean)
+    .join(" Â· ");
+}
+
+export function getSkillCategoryDisplay(skill) {
+  return getSkillCategoryLabel(skill?.category);
+}
+
+export function getSkillTypeDisplay(skill) {
+  return getSkillTypeLabel(skill?.type);
+}
+
+export function getSkillProficiencyDisplay(skill) {
+  if (skill?.type === "language") {
+    return getLanguageProficiencyLabel(skill?.language?.proficiency);
+  }
+
+  return getSkillProficiencyLabel(skill?.proficiency?.level);
+}
+
+export function getSkillSourceDisplay(skill) {
+  return getSkillSourceLabel(skill?.source);
+}
+
+export function getSkillStatusDisplay(skill) {
+  return getSkillStatusLabel(skill?.status);
+}
+
+/*
+ * =========================================
+ * Skill Metadata
+ * =========================================
+ */
+
+export function getSkillMetadata(skill) {
+  const metadata = [getSkillCategoryDisplay(skill), getSkillTypeDisplay(skill)];
+
+  if (skill?.type === "language" || getText(skill?.proficiency?.level)) {
+    metadata.push(getSkillProficiencyDisplay(skill));
+  }
+
+  const years = getNumericValue(skill?.proficiency?.yearsOfExperience, -1);
+
+  if (years >= 0) {
+    metadata.push(`${years} ${years === 1 ? "year" : "years"}`);
+  }
+
+  return metadata.filter(Boolean);
+}
+
+/*
+ * =========================================
+ * Last Used Date
+ * =========================================
+ */
+
+export function formatSkillLastUsedDate(
+  value,
+  { locale = "en-US", fallback = "" } = {},
+) {
+  const normalizedValue = getText(value);
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(normalizedValue)) {
+    return fallback;
+  }
+
+  const [year, month] = normalizedValue.split("-").map(Number);
+
+  const date = new Date(Date.UTC(year, month - 1, 1));
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+/*
+ * =========================================
+ * Search
+ * =========================================
+ */
+
+export function createSkillSearchText(skill) {
+  return [
+    skill?.name,
+    skill?.description,
+    skill?.category,
+    skill?.type,
+    skill?.source,
+    skill?.sourceContext,
+    skill?.notes,
+    skill?.proficiency?.level,
+    skill?.language?.proficiency,
+    getSkillCategoryDisplay(skill),
+    getSkillTypeDisplay(skill),
+    getSkillProficiencyDisplay(skill),
+    ...getArray(skill?.aliases),
+  ]
+    .map(getText)
+    .filter(Boolean)
+    .join(" ")
+    .normalize("NFKC")
+    .toLocaleLowerCase();
+}
+
+export function searchSkills(skills = [], query = "") {
+  const normalizedQuery = normalizeSkillNameForComparison(query);
+
+  if (!normalizedQuery) {
+    return [...getArray(skills)];
+  }
+
+  const terms = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  return getArray(skills).filter((skill) => {
+    const searchableText = createSkillSearchText(skill);
+
+    return terms.every((term) => searchableText.includes(term));
+  });
+}
+
+/*
+ * =========================================
+ * Filtering
+ * =========================================
+ */
+
+export function filterSkills(skills = [], filters = {}) {
+  const {
+    category = "all",
+    type = "all",
+    proficiency = "all",
+    source = "all",
+    status = "all",
+  } = filters;
+
+  return getArray(skills).filter((skill) => {
+    if (category !== "all" && skill?.category !== category) {
+      return false;
+    }
+
+    if (type !== "all" && skill?.type !== type) {
+      return false;
+    }
+
+    if (proficiency !== "all" && skill?.proficiency?.level !== proficiency) {
+      return false;
+    }
+
+    if (source !== "all" && skill?.source !== source) {
+      return false;
+    }
+
+    if (status !== "all" && skill?.status !== status) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/*
+ * =========================================
+ * Sorting
+ * =========================================
+ */
+
+function compareText(firstValue, secondValue) {
+  return getText(firstValue).localeCompare(getText(secondValue), undefined, {
+    sensitivity: "base",
+  });
+}
+
+function getUpdatedTime(skill) {
+  const timestamp = new Date(skill?.updatedAt || 0).getTime();
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function getCreatedTime(skill) {
+  const timestamp = new Date(skill?.createdAt || 0).getTime();
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+export function sortSkills(skills = [], sortOption = "name-ascending") {
+  const sortedSkills = [...getArray(skills)];
+
+  sortedSkills.sort((firstSkill, secondSkill) => {
+    switch (sortOption) {
+      case "name-descending":
+        return compareText(secondSkill?.name, firstSkill?.name);
+
+      case "category-ascending":
+        return (
+          compareText(
+            getSkillCategoryDisplay(firstSkill),
+            getSkillCategoryDisplay(secondSkill),
+          ) || compareText(firstSkill?.name, secondSkill?.name)
+        );
+
+      case "type-ascending":
+        return (
+          compareText(
+            getSkillTypeDisplay(firstSkill),
+            getSkillTypeDisplay(secondSkill),
+          ) || compareText(firstSkill?.name, secondSkill?.name)
+        );
+
+      case "proficiency-descending": {
+        const proficiencyOrder = {
+          expert: 4,
+          advanced: 3,
+          intermediate: 2,
+          foundational: 1,
+          "": 0,
+        };
+
+        const firstLevel =
+          proficiencyOrder[firstSkill?.proficiency?.level || ""] || 0;
+
+        const secondLevel =
+          proficiencyOrder[secondSkill?.proficiency?.level || ""] || 0;
+
+        return (
+          secondLevel - firstLevel ||
+          compareText(firstSkill?.name, secondSkill?.name)
+        );
+      }
+
+      case "years-descending":
+        return (
+          getNumericValue(secondSkill?.proficiency?.yearsOfExperience) -
+            getNumericValue(firstSkill?.proficiency?.yearsOfExperience) ||
+          compareText(firstSkill?.name, secondSkill?.name)
+        );
+
+      case "recently-created":
+        return getCreatedTime(secondSkill) - getCreatedTime(firstSkill);
+
+      case "recently-updated":
+        return getUpdatedTime(secondSkill) - getUpdatedTime(firstSkill);
+
+      case "name-ascending":
+      default:
+        return compareText(firstSkill?.name, secondSkill?.name);
+    }
+  });
+
+  return sortedSkills;
+}
+
+export function prepareSkillCollection({
+  skills = [],
+  query = "",
+  filters = {},
+  sortOption = "name-ascending",
+} = {}) {
+  return sortSkills(
+    filterSkills(searchSkills(skills, query), filters),
+    sortOption,
+  );
+}
+
+/*
+ * =========================================
+ * Grouping
+ * =========================================
+ */
+
+export function groupSkillsByCategory(skills = []) {
+  return getArray(skills).reduce((groups, skill) => {
+    const category = skill?.category || "other";
+
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+
+    groups[category].push(skill);
+
+    return groups;
+  }, {});
+}
+
+/*
+ * =========================================
+ * Completeness
+ * =========================================
+ */
+
+export function getSkillCompleteness(skill) {
+  const isLanguage = skill?.type === "language";
+
+  const checks = [
+    {
+      id: "name",
+      label: "Skill name",
+      complete: Boolean(getText(skill?.name)),
+      weight: 3,
+    },
+    {
+      id: "category",
+      label: "Category",
+      complete: Boolean(getText(skill?.category) && skill.category !== "other"),
+      weight: 1,
+    },
+    {
+      id: "type",
+      label: "Skill type",
+      complete: Boolean(getText(skill?.type) && skill.type !== "other"),
+      weight: 1,
+    },
+    {
+      id: "description",
+      label: "Description",
+      complete: Boolean(getText(skill?.description)),
+      weight: 2,
+    },
+    {
+      id: "proficiency",
+      label: isLanguage ? "Language proficiency" : "Proficiency",
+      complete: isLanguage
+        ? Boolean(getText(skill?.language?.proficiency))
+        : Boolean(getText(skill?.proficiency?.level)),
+      weight: 1,
+    },
+    {
+      id: "experience",
+      label: "Experience information",
+      complete:
+        getNumericValue(skill?.proficiency?.yearsOfExperience, -1) >= 0 ||
+        Boolean(getText(skill?.proficiency?.lastUsedDate)),
+      weight: 1,
+    },
+  ];
+
+  const maximumScore = checks.reduce((total, check) => total + check.weight, 0);
+
+  const score = checks.reduce(
+    (total, check) => total + (check.complete ? check.weight : 0),
+    0,
+  );
+
+  const percentage =
+    maximumScore > 0 ? Math.round((score / maximumScore) * 100) : 0;
+
+  let level = "basic";
+  let label = "Basic";
+
+  if (percentage >= 90) {
+    level = "excellent";
+    label = "Excellent";
+  } else if (percentage >= 70) {
+    level = "strong";
+    label = "Strong";
+  } else if (percentage >= 45) {
+    level = "developing";
+    label = "Developing";
+  }
+
+  return {
+    score,
+    maximumScore,
+    percentage,
+    level,
+    label,
+    checks,
+
+    completedChecks: checks.filter((check) => check.complete),
+
+    missingChecks: checks.filter((check) => !check.complete),
+  };
+}
+/*
+ * =========================================
+ * Relationship Helpers
+ * =========================================
+ */
+
+function getRelationshipSkillId(relationship) {
+  if (typeof relationship === "string") {
+    return relationship.trim();
+  }
+
+  if (!relationship || typeof relationship !== "object") {
+    return "";
+  }
+
+  return String(
+    relationship.skillId || relationship.profileSkillId || "",
+  ).trim();
+}
+
+function countSkillRelationships(relationships, skillId) {
+  if (!skillId) {
+    return 0;
+  }
+
+  return getArray(relationships).filter(
+    (relationship) => getRelationshipSkillId(relationship) === skillId,
+  ).length;
+}
+
+function getExperienceLabels(experience) {
+  return {
+    positionTitle: getText(experience?.position?.title) || "Untitled Position",
+
+    organizationName:
+      getText(experience?.organization?.name) || "Organization not provided",
+  };
+}
+
+function getEducationLabels(education) {
+  return {
+    credentialName:
+      getText(education?.credential?.name) || "Unnamed Credential",
+
+    institutionName:
+      getText(education?.institution?.name) || "Institution not provided",
+  };
+}
+
+function getTrainingLabels(training) {
+  return {
+    title: getText(training?.title) || "Untitled Training",
+
+    providerName:
+      getText(training?.provider?.name) || "Training provider not provided",
+  };
+}
+
+/*
+ * =========================================
+ * Empty Usage
+ * =========================================
+ */
+
+export function createEmptySkillUsage(skillId = "") {
+  return {
+    skillId,
+
+    /*
+     * Unique parent records using this skill.
+     */
+
+    total: 0,
+    totalUsage: 0,
+
+    /*
+     * Unique parent-record totals.
+     */
+
+    experienceCount: 0,
+    educationCount: 0,
+    trainingCount: 0,
+    resumeCount: 0,
+    portfolioCount: 0,
+
+    /*
+     * Relationship totals.
+     */
+
+    experienceSkillCount: 0,
+    experienceTechnologyCount: 0,
+    educationSkillCount: 0,
+    trainingSkillCount: 0,
+
+    /*
+     * Referencing records.
+     */
+
+    experiences: [],
+    educationRecords: [],
+    trainingRecords: [],
+    resumes: [],
+    portfolios: [],
+
+    isUsed: false,
+  };
+}
+
+/*
+ * =========================================
+ * Experience Usage
+ * =========================================
+ */
+
+export function getSkillExperienceUsage(skillId, experiences = []) {
+  const result = {
+    experienceCount: 0,
+    experienceSkillCount: 0,
+    experienceTechnologyCount: 0,
+    experiences: [],
+  };
+
+  if (!skillId) {
+    return result;
+  }
+
+  getArray(experiences).forEach((experience) => {
+    const skillRelationshipCount = countSkillRelationships(
+      experience?.skills,
+      skillId,
+    );
+
+    const technologyRelationshipCount = countSkillRelationships(
+      experience?.technologies,
+      skillId,
+    );
+
+    const usedAsSkill = skillRelationshipCount > 0;
+    const usedAsTechnology = technologyRelationshipCount > 0;
+
+    if (!usedAsSkill && !usedAsTechnology) {
+      return;
+    }
+
+    const labels = getExperienceLabels(experience);
+
+    result.experienceSkillCount += skillRelationshipCount;
+    result.experienceTechnologyCount += technologyRelationshipCount;
+
+    result.experiences.push({
+      id: getText(experience?.id),
+
+      positionTitle: labels.positionTitle,
+      organizationName: labels.organizationName,
+
+      usedAsSkill,
+      usedAsTechnology,
+    });
+  });
+
+  result.experienceCount = result.experiences.length;
+
+  return result;
+}
+
+/*
+ * =========================================
+ * Education Usage
+ * =========================================
+ */
+
+export function getSkillEducationUsage(skillId, educationRecords = []) {
+  const result = {
+    educationCount: 0,
+    educationSkillCount: 0,
+    educationRecords: [],
+  };
+
+  if (!skillId) {
+    return result;
+  }
+
+  getArray(educationRecords).forEach((education) => {
+    const relationshipCount = countSkillRelationships(
+      education?.skillRelationships,
+      skillId,
+    );
+
+    if (relationshipCount === 0) {
+      return;
+    }
+
+    const labels = getEducationLabels(education);
+
+    result.educationSkillCount += relationshipCount;
+
+    result.educationRecords.push({
+      id: getText(education?.id),
+
+      credentialName: labels.credentialName,
+      institutionName: labels.institutionName,
+
+      relationshipCount,
+    });
+  });
+
+  result.educationCount = result.educationRecords.length;
+
+  return result;
+}
+
+/*
+ * =========================================
+ * Training Usage
+ * =========================================
+ */
+
+export function getSkillTrainingUsage(skillId, trainingRecords = []) {
+  const result = {
+    trainingCount: 0,
+    trainingSkillCount: 0,
+    trainingRecords: [],
+  };
+
+  if (!skillId) {
+    return result;
+  }
+
+  getArray(trainingRecords).forEach((training) => {
+    const relationshipCount = countSkillRelationships(
+      training?.skillRelationships,
+      skillId,
+    );
+
+    if (relationshipCount === 0) {
+      return;
+    }
+
+    const labels = getTrainingLabels(training);
+
+    result.trainingSkillCount += relationshipCount;
+
+    result.trainingRecords.push({
+      id: getText(training?.id),
+
+      title: labels.title,
+
+      providerName: labels.providerName,
+
+      relationshipCount,
+    });
+  });
+
+  result.trainingCount = result.trainingRecords.length;
+
+  return result;
+}
+
+/*
+ * =========================================
+ * Complete Skill Usage
+ * =========================================
+ */
+
+export function getSkillUsage(
+  skillId,
+  {
+    experiences = [],
+    educationRecords = [],
+    trainingRecords = [],
+    portfolios = [],
+    resumes = [],
+  } = {},
+) {
+  const usage = createEmptySkillUsage(skillId);
+
+  const experienceUsage = getSkillExperienceUsage(skillId, experiences);
+
+  const educationUsage = getSkillEducationUsage(skillId, educationRecords);
+
+  const trainingUsage = getSkillTrainingUsage(skillId, trainingRecords);
+
+  usage.experienceCount = experienceUsage.experienceCount;
+
+  usage.experienceSkillCount = experienceUsage.experienceSkillCount;
+
+  usage.experienceTechnologyCount = experienceUsage.experienceTechnologyCount;
+
+  usage.experiences = experienceUsage.experiences;
+
+  usage.educationCount = educationUsage.educationCount;
+
+  usage.educationSkillCount = educationUsage.educationSkillCount;
+
+  usage.educationRecords = educationUsage.educationRecords;
+
+  usage.trainingCount = trainingUsage.trainingCount;
+
+  usage.trainingSkillCount = trainingUsage.trainingSkillCount;
+
+  usage.trainingRecords = trainingUsage.trainingRecords;
+
+  /*
+   * RÃ©sumÃ© and Portfolio relationship models
+   * have not been implemented yet.
+   */
+
+  usage.resumeCount = 0;
+  usage.portfolioCount = 0;
+
+  usage.resumes = [];
+  usage.portfolios = [];
+
+  /*
+   * Total represents unique parent records,
+   * not the number of relationship rows.
+   */
+
+  usage.total =
+    usage.experienceCount +
+    usage.educationCount +
+    usage.trainingCount +
+    usage.resumeCount +
+    usage.portfolioCount;
+
+  usage.totalUsage = usage.total;
+
+  usage.isUsed = usage.total > 0;
+
+  void portfolios;
+  void resumes;
+
+  return usage;
+}
+
+/*
+ * =========================================
+ * Usage Map
+ * =========================================
+ */
+
+export function createSkillUsageMap({
+  skills = [],
+  experiences = [],
+  educationRecords = [],
+  trainingRecords = [],
+  portfolios = [],
+  resumes = [],
+} = {}) {
+  return getArray(skills).reduce((usageMap, skill) => {
+    if (!skill?.id) {
+      return usageMap;
+    }
+
+    usageMap[skill.id] = getSkillUsage(skill.id, {
+      experiences,
+      educationRecords,
+      trainingRecords,
+      portfolios,
+      resumes,
+    });
+
+    return usageMap;
+  }, {});
+}
+
+export function isSkillInUse(usage) {
+  return Number(usage?.total ?? usage?.totalUsage) > 0;
+}
+
+/*
+ * =========================================
+ * Usage Summary
+ * =========================================
+ */
+
+export function getSkillUsageSummary(usage) {
+  if (!isSkillInUse(usage)) {
+    return "Not currently used";
+  }
+
+  const parts = [];
+
+  const experienceCount = Number(usage?.experienceCount) || 0;
+
+  const educationCount = Number(usage?.educationCount) || 0;
+
+  const trainingCount = Number(usage?.trainingCount) || 0;
+
+  const resumeCount = Number(usage?.resumeCount) || 0;
+
+  const portfolioCount = Number(usage?.portfolioCount) || 0;
+
+  if (experienceCount > 0) {
+    parts.push(
+      `${experienceCount} ${
+        experienceCount === 1 ? "experience" : "experiences"
+      }`,
+    );
+  }
+
+  if (educationCount > 0) {
+    parts.push(
+      `${educationCount} education ${
+        educationCount === 1 ? "record" : "records"
+      }`,
+    );
+  }
+
+  if (trainingCount > 0) {
+    parts.push(
+      `${trainingCount} training ${trainingCount === 1 ? "record" : "records"}`,
+    );
+  }
+
+  if (resumeCount > 0) {
+    parts.push(`${resumeCount} ${resumeCount === 1 ? "rÃ©sumÃ©" : "rÃ©sumÃ©s"}`);
+  }
+
+  if (portfolioCount > 0) {
+    parts.push(
+      `${portfolioCount} ${portfolioCount === 1 ? "portfolio" : "portfolios"}`,
+    );
+  }
+
+  return parts.join(" Â· ");
+}
+
+/*
+ * =========================================
+ * Statistics
+ * =========================================
+ */
+
+export function getSkillStatistics(skills = []) {
+  const collection = getArray(skills);
+
+  const active = getActiveSkills(collection);
+
+  const archived = getArchivedSkills(collection);
+
+  return {
+    total: collection.length,
+
+    active: active.length,
+
+    archived: archived.length,
+
+    technical: active.filter((skill) => skill.type === "technical").length,
+
+    professional: active.filter((skill) => skill.type === "professional")
+      .length,
+
+    languages: active.filter((skill) => skill.type === "language").length,
+
+    tools: active.filter((skill) => skill.type === "tool").length,
+
+    aiSuggested: active.filter((skill) => skill.source === "ai-suggested")
+      .length,
+
+    withDescriptions: active.filter((skill) =>
+      Boolean(getText(skill.description)),
+    ).length,
+
+    withProficiency: active.filter((skill) =>
+      Boolean(
+        getText(skill.proficiency?.level) ||
+        getText(skill.language?.proficiency),
+      ),
+    ).length,
+
+    categoryCount: new Set(
+      active.map((skill) => skill.category).filter(Boolean),
+    ).size,
+  };
+}
+
+/*
+ * =========================================
+ * Selection Options
+ * =========================================
+ */
+
+export function createSkillSelectionOptions(skills = []) {
+  return sortSkills(getActiveSkills(skills), "name-ascending").map((skill) => ({
+    id: skill.id,
+    value: skill.id,
+    label: skill.name,
+    displayValue: skill.name,
+    category: skill.category,
+
+    categoryLabel: getSkillCategoryDisplay(skill),
+
+    type: skill.type,
+
+    typeLabel: getSkillTypeDisplay(skill),
+
+    proficiency: skill.proficiency?.level || "",
+  }));
+}

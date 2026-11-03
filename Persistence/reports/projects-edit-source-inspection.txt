@@ -1,0 +1,2454 @@
+﻿PROJECT EDIT SOURCE INSPECTION
+Generated: 2026-11-02T16:07:03.9592308-05:00
+Read-only source inspection
+
+
+====================================================
+FILE: context\ProjectDataContext.jsx
+LINES: 1-550
+====================================================
+    1: import {
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16:   updateProject as updateProjectService,
+   17: } from "../services/Project/projectService.js";
+   18: 
+   19: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   20: import { fetchProjects } from "../services/Project/projectApiService.js";
+   21: 
+   22: /*
+   23:  * =========================================
+   24:  * Project Data Context
+   25:  * =========================================
+   26:  */
+   27: 
+   28: const ProjectDataContext = createContext(null);
+   29: 
+   30: /*
+   31:  * =========================================
+   32:  * Error Normalization
+   33:  * =========================================
+   34:  */
+   35: 
+   36: function normalizeContextError(error) {
+   37:   return {
+   38:     name: error?.name || "ProjectError",
+   39: 
+   40:     code: error?.code || "PROJECT_OPERATION_ERROR",
+   41: 
+   42:     message:
+   43:       error?.publicMessage ||
+   44:       error?.message ||
+   45:       "The Project Library operation could not be completed.",
+   46: 
+   47:     fieldErrors: error?.fieldErrors || error?.validation?.fieldErrors || {},
+   48: 
+   49:     errors: error?.errors || error?.validation?.errors || [],
+   50: 
+   51:     warnings: error?.warnings || error?.validation?.warnings || [],
+   52: 
+   53:     projectId: error?.projectId || error?.details?.projectId || "",
+   54:   };
+   55: }
+   56: 
+   57: /*
+   58:  * =========================================
+   59:  * Warning Normalization
+   60:  * =========================================
+   61:  */
+   62: 
+   63: function normalizeOperationWarnings(result) {
+   64:   const operationWarnings = Array.isArray(result?.warnings)
+   65:     ? result.warnings
+   66:     : [];
+   67: 
+   68:   const assetCleanupWarning = result?.assetCleanupWarning;
+   69: 
+   70:   if (!assetCleanupWarning) {
+   71:     return operationWarnings;
+   72:   }
+   73: 
+   74:   const cleanupMessage =
+   75:     typeof assetCleanupWarning === "string"
+   76:       ? assetCleanupWarning
+   77:       : assetCleanupWarning?.publicMessage ||
+   78:         assetCleanupWarning?.message ||
+   79:         "The Project was saved, but one or more unused files could not be removed.";
+   80: 
+   81:   return [
+   82:     ...operationWarnings,
+   83: 
+   84:     {
+   85:       code: "PROJECT_ASSET_CLEANUP_WARNING",
+   86:       field: "media",
+   87:       message: cleanupMessage,
+   88:     },
+   89:   ];
+   90: }
+   91: 
+   92: /*
+   93:  * =========================================
+   94:  * Project Data Provider
+   95:  * =========================================
+   96:  */
+   97: 
+   98: export function ProjectDataProvider({ children }) {
+   99:   const [projects, setProjects] = useState([]);
+  100: 
+  101:   const [isLoading, setIsLoading] = useState(true);
+  102: 
+  103:   const [loadStatus, setLoadStatus] = useState("idle");
+  104: 
+  105:   const [saveStatus, setSaveStatus] = useState("idle");
+  106: 
+  107:   const [operation, setOperation] = useState(null);
+  108: 
+  109:   const [error, setError] = useState(null);
+  110: 
+  111:   const [warnings, setWarnings] = useState([]);
+  112: 
+  113:   const [backendStatus, setBackendStatus] = useState("idle");
+  114: 
+  115:   const [backendError, setBackendError] = useState(null);
+  116: 
+  117:   /*
+  118:    * =========================================
+  119:    * Load Project Records
+  120:    * =========================================
+  121:    */
+  122: 
+  123:   const refreshBackendProjects = useCallback(async (options = {}) => {
+  124:   setBackendStatus("loading");
+  125:   setBackendError(null);
+  126: 
+  127:   try {
+  128:     const records = await fetchProjects(options);
+  129: 
+  130:     if (!Array.isArray(records)) {
+  131:       throw new TypeError("The Project API did not return a Project array.");
+  132:     }
+  133: 
+  134:     setBackendStatus("success");
+  135: 
+  136:     // Do not replace browser-local Project records.
+  137:     return records;
+  138:   } catch (caughtError) {
+  139:     setBackendStatus("error");
+  140:     setBackendError(normalizeContextError(caughtError));
+  141:     throw caughtError;
+  142:   }
+  143: }, []);
+  144:   const refreshProjects = useCallback(
+  145:     async ({ includeArchived = true, preserveCurrentRecords = false } = {}) => {
+  146:       setIsLoading(true);
+  147:       setLoadStatus("loading");
+  148: 
+  149:       try {
+  150:         const records = await fetchProjects();
+  151: 
+  152:         if (!Array.isArray(records)) {
+  153:           throw new TypeError(
+  154:             "The Project API did not return a Project array."
+  155:           );
+  156:         }
+  157: 
+  158:         const filteredRecords = includeArchived
+  159:           ? records
+  160:           : records.filter(
+  161:               (project) => project.recordStatus !== "archived"
+  162:             );
+  163: 
+  164:         setProjects(filteredRecords);
+  165:         setLoadStatus("success");
+  166:         setError(null);
+  167: 
+  168:         return filteredRecords;
+  169:       } catch (caughtError) {
+  170:         const normalizedError = normalizeContextError(caughtError);
+  171: 
+  172:         if (!preserveCurrentRecords) {
+  173:           setProjects([]);
+  174:         }
+  175: 
+  176:         setLoadStatus("error");
+  177:         setError(normalizedError);
+  178: 
+  179:         throw caughtError;
+  180:       } finally {
+  181:         setIsLoading(false);
+  182:       }
+  183:     },
+  184:     [],
+  185:   );
+  186: 
+  187:   /*
+  188:    * =========================================
+  189:    * Silent Local Synchronization
+  190:    * =========================================
+  191:    *
+  192:    * Used after a successful mutation. This
+  193:    * avoids showing the full loading state
+  194:    * every time a Project is saved.
+  195:    */
+  196: 
+  197:   const synchronizeProjects = useCallback(async () => {
+  198:     const records = await fetchProjects();
+  199: 
+  200:     if (!Array.isArray(records)) {
+  201:       throw new TypeError(
+  202:         "The Project API did not return a Project array."
+  203:       );
+  204:     }
+  205: 
+  206:     setProjects(records);
+  207:     setLoadStatus("success");
+  208: 
+  209:     return records;
+  210:   }, []);
+  211: 
+  212:   /*
+  213:    * =========================================
+  214:    * Initial Load
+  215:    * =========================================
+  216:    */
+  217: 
+  218:   useEffect(() => {
+  219:     refreshProjects().catch(() => {
+  220:       /*
+  221:        * The normalized loading error is already
+  222:        * stored in the Context.
+  223:        */
+  224:     });
+  225:   }, [refreshProjects]);
+  226: 
+  227:   /*
+  228:    * =========================================
+  229:    * Cross-Tab Synchronization
+  230:    * =========================================
+  231:    */
+  232: 
+  233:   useEffect(() => {
+  234:     if (typeof window === "undefined") {
+  235:       return undefined;
+  236:     }
+  237: 
+  238:     const handleStorageChange = (event) => {
+  239:       if (
+  240:         event.storageArea !== window.localStorage ||
+  241:         event.key !== PROJECT_STORAGE_KEY
+  242:       ) {
+  243:         return;
+  244:       }
+  245: 
+  246:       refreshProjects({
+  247:         includeArchived: true,
+  248:         preserveCurrentRecords: true,
+  249:       }).catch(() => {
+  250:         /*
+  251:          * Keep the current in-memory collection
+  252:          * when another tab writes invalid data.
+  253:          */
+  254:       });
+  255:     };
+  256: 
+  257:     window.addEventListener("storage", handleStorageChange);
+  258: 
+  259:     return () => {
+  260:       window.removeEventListener("storage", handleStorageChange);
+  261:     };
+  262:   }, [refreshProjects]);
+  263: 
+  264:   /*
+  265:    * =========================================
+  266:    * Shared Operation Runner
+  267:    * =========================================
+  268:    */
+  269: 
+  270:   const runOperation = useCallback(
+  271:     async (nextOperation, action) => {
+  272:       setOperation({
+  273:         ...nextOperation,
+  274:         status: "loading",
+  275:       });
+  276: 
+  277:       setSaveStatus("saving");
+  278:       setError(null);
+  279:       setWarnings([]);
+  280: 
+  281:       try {
+  282:         const result = await action();
+  283: 
+  284:         /*
+  285:          * The service has already completed the
+  286:          * Project metadata and IndexedDB asset
+  287:          * transaction at this point.
+  288:          */
+  289: 
+  290:         await synchronizeProjects();
+  291: 
+  292:         const operationWarnings = normalizeOperationWarnings(result);
+  293: 
+  294:         setWarnings(operationWarnings);
+  295:         setSaveStatus("success");
+  296: 
+  297:         setOperation({
+  298:           ...nextOperation,
+  299:           status: "success",
+  300:         });
+  301: 
+  302:         /*
+  303:          * Create and update services return:
+  304:          *
+  305:          * {
+  306:          *   project,
+  307:          *   warnings,
+  308:          *   assetCleanupWarning
+  309:          * }
+  310:          *
+  311:          * Archive, restore, and delete may
+  312:          * return the Project directly.
+  313:          */
+  314: 
+  315:         return result?.project || result;
+  316:       } catch (caughtError) {
+  317:         const normalizedError = normalizeContextError(caughtError);
+  318: 
+  319:         setError(normalizedError);
+  320:         setWarnings(normalizedError.warnings);
+  321:         setSaveStatus("error");
+  322: 
+  323:         setOperation({
+  324:           ...nextOperation,
+  325:           status: "error",
+  326:         });
+  327: 
+  328:         throw caughtError;
+  329:       }
+  330:     },
+  331:     [synchronizeProjects],
+  332:   );
+  333: 
+  334:   /*
+  335:    * =========================================
+  336:    * Create Project
+  337:    * =========================================
+  338:    */
+  339: 
+  340:   const createProject = useCallback(
+  341:     (projectData, options = {}) =>
+  342:       runOperation(
+  343:         {
+  344:           type: "create",
+  345:           projectId: projectData?.id || "",
+  346:         },
+  347:         () => createProjectService(projectData, options),
+  348:       ),
+  349:     [runOperation],
+  350:   );
+  351: 
+  352:   /*
+  353:    * =========================================
+  354:    * Update Project
+  355:    * =========================================
+  356:    */
+  357: 
+  358:   const updateProject = useCallback(
+  359:     (projectId, projectData, options = {}) =>
+  360:       runOperation(
+  361:         {
+  362:           type: "update",
+  363:           projectId,
+  364:         },
+  365:         () => updateProjectService(projectId, projectData, options),
+  366:       ),
+  367:     [runOperation],
+  368:   );
+  369: 
+  370:   /*
+  371:    * =========================================
+  372:    * Archive Project
+  373:    * =========================================
+  374:    */
+  375: 
+  376:   const archiveProject = useCallback(
+  377:     (projectOrId) => {
+  378:       const projectId =
+  379:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+  380: 
+  381:       return runOperation(
+  382:         {
+  383:           type: "archive",
+  384:           projectId,
+  385:         },
+  386:         () => archiveProjectService(projectId),
+  387:       );
+  388:     },
+  389:     [runOperation],
+  390:   );
+  391: 
+  392:   /*
+  393:    * =========================================
+  394:    * Restore Project
+  395:    * =========================================
+  396:    */
+  397: 
+  398:   const restoreProject = useCallback(
+  399:     (projectOrId) => {
+  400:       const projectId =
+  401:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+  402: 
+  403:       return runOperation(
+  404:         {
+  405:           type: "restore",
+  406:           projectId,
+  407:         },
+  408:         () => restoreProjectService(projectId),
+  409:       );
+  410:     },
+  411:     [runOperation],
+  412:   );
+  413: 
+  414:   /*
+  415:    * =========================================
+  416:    * Delete Project
+  417:    * =========================================
+  418:    */
+  419: 
+  420:   const deleteProject = useCallback(
+  421:     (projectOrId) => {
+  422:       const projectId =
+  423:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+  424: 
+  425:       return runOperation(
+  426:         {
+  427:           type: "delete",
+  428:           projectId,
+  429:         },
+  430:         () => deleteProjectService(projectId),
+  431:       );
+  432:     },
+  433:     [runOperation],
+  434:   );
+  435: 
+  436:   /*
+  437:    * =========================================
+  438:    * Utility Actions
+  439:    * =========================================
+  440:    */
+  441: 
+  442:   const getProjectById = useCallback(
+  443:     (projectId, { includeArchived = true } = {}) => {
+  444:       const project =
+  445:         projects.find((record) => record.id === projectId) || null;
+  446: 
+  447:       if (project?.recordStatus === "archived" && !includeArchived) {
+  448:         return null;
+  449:       }
+  450: 
+  451:       return project;
+  452:     },
+  453:     [projects],
+  454:   );
+  455: 
+  456:   const clearError = useCallback(() => {
+  457:     setError(null);
+  458:   }, []);
+  459: 
+  460:   const clearWarnings = useCallback(() => {
+  461:     setWarnings([]);
+  462:   }, []);
+  463: 
+  464:   const resetSaveStatus = useCallback(() => {
+  465:     setSaveStatus("idle");
+  466:     setOperation(null);
+  467:   }, []);
+  468: 
+  469:   /*
+  470:    * =========================================
+  471:    * Derived Project Collections
+  472:    * =========================================
+  473:    */
+  474: 
+  475:   const activeProjects = useMemo(
+  476:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  477:     [projects],
+  478:   );
+  479: 
+  480:   const archivedProjects = useMemo(
+  481:     () => projects.filter((project) => project.recordStatus === "archived"),
+  482:     [projects],
+  483:   );
+  484: 
+  485:   /*
+  486:    * =========================================
+  487:    * Context Value
+  488:    * =========================================
+  489:    */
+  490: 
+  491:   const value = useMemo(
+  492:     () => ({
+  493:       projects,
+  494:       activeProjects,
+  495:       archivedProjects,
+  496: 
+  497:       isLoading,
+  498:       isSaving: saveStatus === "saving",
+  499: 
+  500:       loadStatus,
+  501:       saveStatus,
+  502:       operation,
+  503: 
+  504:       error,
+  505:       warnings,
+  506: 
+  507:        backendStatus,
+  508:     backendError,
+  509: 
+  510:       refreshProjects,
+  511:       refreshBackendProjects,
+  512:       getProjectById,
+  513: 
+  514:       createProject,
+  515:       updateProject,
+  516:       archiveProject,
+  517:       restoreProject,
+  518:       deleteProject,
+  519: 
+  520:       clearError,
+  521:       clearWarnings,
+  522:       resetSaveStatus,
+  523:     }),
+  524:     [
+  525:       projects,
+  526:       activeProjects,
+  527:       archivedProjects,
+  528:       isLoading,
+  529:       loadStatus,
+  530:       saveStatus,
+  531:       operation,
+  532:       error,
+  533:       warnings,
+  534:        backendStatus,
+  535:     backendError,
+  536:       refreshProjects,
+  537:       refreshBackendProjects,
+  538:       getProjectById,
+  539:       createProject,
+  540:       updateProject,
+  541:       archiveProject,
+  542:       restoreProject,
+  543:       deleteProject,
+  544:       clearError,
+  545:       clearWarnings,
+  546:       resetSaveStatus,
+  547:     ],
+  548:   );
+  549: 
+  550:   return (
+
+====================================================
+FILE: services\Project\projectService.js
+LINES: 1-740
+====================================================
+    1: import {
+    2:   createProject as createProjectModel,
+    3:   createProjectDocument,
+    4:   createProjectMedia,
+    5:   createPublicProject,
+    6:   normalizeProject,
+    7:   updateProjectModel,
+    8: } from "../../models/projectModel.js";
+    9: 
+   10: import {
+   11:   deleteProjectAssets,
+   12:   deleteProjectAssetsForProject,
+   13:   writeProjectAsset,
+   14: } from "./projectAssetStorage.js";
+   15: 
+   16: import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
+   17: 
+   18: import { validateProject } from "./projectValidation.js";
+   19: import { prepareFeaturedProjectMedia } from "./projectFeaturedMedia.js";
+   20: 
+   21: /*
+   22:  * =========================================
+   23:  * Primitive Helpers
+   24:  * =========================================
+   25:  */
+   26: 
+   27: function getText(value) {
+   28:   return typeof value === "string" ? value.trim() : "";
+   29: }
+   30: 
+   31: function getArray(value) {
+   32:   return Array.isArray(value) ? value : [];
+   33: }
+   34: 
+   35: /*
+   36:  * =========================================
+   37:  * Service Error
+   38:  * =========================================
+   39:  */
+   40: 
+   41: function createProjectServiceError(code, message, publicMessage, details = {}) {
+   42:   const error = new Error(message);
+   43: 
+   44:   error.name = "ProjectServiceError";
+   45:   error.code = code;
+   46:   error.publicMessage = publicMessage;
+   47: 
+   48:   Object.assign(error, details);
+   49: 
+   50:   return error;
+   51: }
+   52: 
+   53: /*
+   54:  * =========================================
+   55:  * Validate Project for Storage
+   56:  * =========================================
+   57:  */
+   58: 
+   59: function validateForSave(project, collections) {
+   60:   const validation = validateProject(project, collections);
+   61: 
+   62:   if (!validation.isValid) {
+   63:     throw createProjectServiceError(
+   64:       "PROJECT_VALIDATION_ERROR",
+   65:       "Project validation failed.",
+   66:       "Correct the highlighted Project fields before saving.",
+   67:       {
+   68:         validation,
+   69:         errors: validation.errors,
+   70:         warnings: validation.warnings,
+   71:         fieldErrors: validation.fieldErrors,
+   72:       },
+   73:     );
+   74:   }
+   75: 
+   76:   return validation;
+   77: }
+   78: 
+   79: /*
+   80:  * =========================================
+   81:  * Project Identifier Validation
+   82:  * =========================================
+   83:  */
+   84: 
+   85: function requireProjectId(projectId) {
+   86:   const normalizedProjectId = getText(projectId);
+   87: 
+   88:   if (!normalizedProjectId) {
+   89:     throw createProjectServiceError(
+   90:       "PROJECT_ID_REQUIRED",
+   91:       "A Project identifier is required.",
+   92:       "The selected Project could not be identified.",
+   93:     );
+   94:   }
+   95: 
+   96:   return normalizedProjectId;
+   97: }
+   98: 
+   99: /*
+  100:  * =========================================
+  101:  * Find Project
+  102:  * =========================================
+  103:  */
+  104: 
+  105: function findProjectIndex(records, projectId) {
+  106:   return records.findIndex((project) => project.id === projectId);
+  107: }
+  108: 
+  109: /*
+  110:  * =========================================
+  111:  * Duplicate Identity
+  112:  * =========================================
+  113:  *
+  114:  * Projects may share a title when they belong
+  115:  * to different organizations or clients.
+  116:  */
+  117: 
+  118: function createProjectIdentity(project) {
+  119:   const title = getText(project?.title).normalize("NFKC").toLocaleLowerCase();
+  120: 
+  121:   const organization = getText(
+  122:     project?.organization?.name || project?.organization?.clientName,
+  123:   )
+  124:     .normalize("NFKC")
+  125:     .toLocaleLowerCase();
+  126: 
+  127:   return {
+  128:     title,
+  129:     organization,
+  130:   };
+  131: }
+  132: 
+  133: function ensureUniqueProject(records, candidate, excludedProjectId = "") {
+  134:   const candidateIdentity = createProjectIdentity(candidate);
+  135: 
+  136:   if (!candidateIdentity.title) {
+  137:     return;
+  138:   }
+  139: 
+  140:   const duplicate = records.find((project) => {
+  141:     if (project.id === excludedProjectId) {
+  142:       return false;
+  143:     }
+  144: 
+  145:     const existingIdentity = createProjectIdentity(project);
+  146: 
+  147:     /*
+  148:      * When neither record identifies an
+  149:      * organization, the normalized title alone
+  150:      * is used to prevent accidental duplicates.
+  151:      */
+  152: 
+  153:     return (
+  154:       existingIdentity.title === candidateIdentity.title &&
+  155:       existingIdentity.organization === candidateIdentity.organization
+  156:     );
+  157:   });
+  158: 
+  159:   if (!duplicate) {
+  160:     return;
+  161:   }
+  162: 
+  163:   throw createProjectServiceError(
+  164:     "PROJECT_DUPLICATE",
+  165:     `A matching Project already exists: ${duplicate.id}`,
+  166:     candidateIdentity.organization
+  167:       ? "A Project with this title and organization already exists."
+  168:       : "A Project with this title already exists.",
+  169:     {
+  170:       project: duplicate,
+  171: 
+  172:       fieldErrors: {
+  173:         title: "A matching Project record already exists.",
+  174:       },
+  175:     },
+  176:   );
+  177: }
+  178: 
+  179: /*
+  180:  * =========================================
+  181:  * Store Upload Collection
+  182:  * =========================================
+  183:  */
+  184: 
+  185: async function storeProjectUploads(projectId, uploads, kind) {
+  186:   const uploadCollection = getArray(uploads);
+  187: 
+  188:   const metadata = [];
+  189: 
+  190:   const createdStorageKeys = [];
+  191: 
+  192:   try {
+  193:     for (let index = 0; index < uploadCollection.length; index += 1) {
+  194:       const upload = uploadCollection[index];
+  195: 
+  196:       if (!(upload?.file instanceof Blob)) {
+  197:         throw createProjectServiceError(
+  198:           "PROJECT_UPLOAD_FILE_INVALID",
+  199:           `Project ${kind} upload does not contain a valid Blob.`,
+  200:           `One of the selected Project ${
+  201:             kind === "media" ? "media files" : "documents"
+  202:           } is invalid.`,
+  203:         );
+  204:       }
+  205: 
+  206:       const storedAsset = await writeProjectAsset({
+  207:         file: upload.file,
+  208: 
+  209:         projectId,
+  210: 
+  211:         assetId: upload.assetId || upload.id,
+  212: 
+  213:         storageKey: upload.storageKey,
+  214: 
+  215:         kind,
+  216:       });
+  217: 
+  218:       createdStorageKeys.push(storedAsset.storageKey);
+  219: 
+  220:       const metadataValues = {
+  221:         ...upload,
+  222: 
+  223:         /*
+  224:          * File objects must never be included
+  225:          * in localStorage metadata.
+  226:          */
+  227: 
+  228:         file: undefined,
+  229: 
+  230:         id: storedAsset.assetId,
+  231: 
+  232:         fileName: storedAsset.fileName,
+  233: 
+  234:         mimeType: storedAsset.mimeType,
+  235: 
+  236:         fileSize: storedAsset.fileSize,
+  237: 
+  238:         storageProvider: "indexed-db",
+  239: 
+  240:         storageKey: storedAsset.storageKey,
+  241: 
+  242:         uploadedAt: storedAsset.updatedAt,
+  243:       };
+  244: 
+  245:       metadata.push(
+  246:         kind === "media"
+  247:           ? createProjectMedia(metadataValues, index)
+  248:           : createProjectDocument(metadataValues, index),
+  249:       );
+  250:     }
+  251: 
+  252:     return {
+  253:       metadata,
+  254:       createdStorageKeys,
+  255:     };
+  256:   } catch (error) {
+  257:     /*
+  258:      * If one upload fails, remove every asset
+  259:      * already created during this collection.
+  260:      */
+  261: 
+  262:     await deleteProjectAssets(createdStorageKeys).catch(() => {});
+  263: 
+  264:     throw error;
+  265:   }
+  266: }
+  267: 
+  268: /*
+  269:  * =========================================
+  270:  * Prepare Project Assets
+  271:  * =========================================
+  272:  */
+  273: 
+  274: async function prepareProjectAssets(
+  275:   project,
+  276:   { mediaUploads = [], documentUploads = [] } = {},
+  277: ) {
+  278:   const storedMedia = await storeProjectUploads(
+  279:     project.id,
+  280:     mediaUploads,
+  281:     "media",
+  282:   );
+  283: 
+  284:   try {
+  285:     const storedDocuments = await storeProjectUploads(
+  286:       project.id,
+  287:       documentUploads,
+  288:       "document",
+  289:     );
+  290: 
+  291:     /*
+  292:      * A staged upload selected in the Media
+  293:      * Editor must take priority. Before upload,
+  294:      * its ID cannot be resolved by normalizeProject
+  295:      * because it is not yet part of project.media.
+  296:      */
+  297: 
+  298:     const featuredMediaResult = prepareFeaturedProjectMedia(
+  299:       getArray(project.media),
+  300:       storedMedia.metadata,
+  301:       getText(project.presentation?.featuredMediaId),
+  302:     );
+  303:     const preparedProject = normalizeProject({
+  304:       ...project,
+  305: 
+  306:       media: featuredMediaResult.media,
+  307: 
+  308:       supportingDocuments: [
+  309:         ...getArray(project.supportingDocuments),
+  310: 
+  311:         ...storedDocuments.metadata,
+  312:       ],
+  313: 
+  314:       presentation: {
+  315:         ...project.presentation,
+  316: 
+  317:         featuredMediaId: featuredMediaResult.featuredMediaId,
+  318:       },
+  319:     });
+  320: 
+  321:     return {
+  322:       project: preparedProject,
+  323: 
+  324:       createdStorageKeys: [
+  325:         ...storedMedia.createdStorageKeys,
+  326:         ...storedDocuments.createdStorageKeys,
+  327:       ],
+  328:     };
+  329:   } catch (error) {
+  330:     /*
+  331:      * Document storage failed after media was
+  332:      * saved, so the new media must be rolled
+  333:      * back as well.
+  334:      */
+  335: 
+  336:     await deleteProjectAssets(storedMedia.createdStorageKeys).catch(() => {});
+  337: 
+  338:     throw error;
+  339:   }
+  340: }
+  341: 
+  342: /*
+  343:  * =========================================
+  344:  * Safe Removed-Asset Cleanup
+  345:  * =========================================
+  346:  */
+  347: 
+  348: async function removeUnreferencedAssets(project, requestedStorageKeys) {
+  349:   const referencedStorageKeys = new Set([
+  350:     ...getArray(project.media)
+  351:       .map((mediaItem) => getText(mediaItem.storageKey))
+  352:       .filter(Boolean),
+  353: 
+  354:     ...getArray(project.supportingDocuments)
+  355:       .map((documentRecord) => getText(documentRecord.storageKey))
+  356:       .filter(Boolean),
+  357:   ]);
+  358: 
+  359:   const removableStorageKeys = [
+  360:     ...new Set(getArray(requestedStorageKeys).map(getText).filter(Boolean)),
+  361:   ].filter((storageKey) => !referencedStorageKeys.has(storageKey));
+  362: 
+  363:   if (removableStorageKeys.length === 0) {
+  364:     return 0;
+  365:   }
+  366: 
+  367:   return deleteProjectAssets(removableStorageKeys);
+  368: }
+  369: 
+  370: /*
+  371:  * =========================================
+  372:  * Get Projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+  385:  * =========================================
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+  389: 
+  390: export function getProjectById(projectId, { includeArchived = true } = {}) {
+  391:   const normalizedProjectId = requireProjectId(projectId);
+  392: 
+  393:   const project =
+  394:     readStoredProjects().find((record) => record.id === normalizedProjectId) ||
+  395:     null;
+  396: 
+  397:   if (project?.recordStatus === "archived" && !includeArchived) {
+  398:     return null;
+  399:   }
+  400: 
+  401:   return project;
+  402: }
+  403: 
+  404: /*
+  405:  * =========================================
+  406:  * Public Projects
+  407:  * =========================================
+  408:  */
+  409: 
+  410: export function getPublicProjects() {
+  411:   return getProjects({
+  412:     includeArchived: false,
+  413:   }).map(createPublicProject);
+  414: }
+  415: 
+  416: /*
+  417:  * =========================================
+  418:  * Public Project by ID
+  419:  * =========================================
+  420:  */
+  421: 
+  422: export function getPublicProjectById(projectId) {
+  423:   const project = getProjectById(projectId, {
+  424:     includeArchived: false,
+  425:   });
+  426: 
+  427:   return project ? createPublicProject(project) : null;
+  428: }
+  429: 
+  430: /*
+  431:  * =========================================
+  432:  * Create Project
+  433:  * =========================================
+  434:  */
+  435: 
+  436: export async function createProject(
+  437:   projectData,
+  438:   {
+  439:     collections = {},
+  440:     mediaUploads = [],
+  441:     documentUploads = [],
+  442:     removedAssetStorageKeys = [],
+  443:   } = {},
+  444: ) {
+  445:   const records = readStoredProjects();
+  446: 
+  447:   let project = createProjectModel(projectData);
+  448: 
+  449:   ensureUniqueProject(records, project);
+  450: 
+  451:   const preparedAssets = await prepareProjectAssets(project, {
+  452:     mediaUploads,
+  453:     documentUploads,
+  454:   });
+  455: 
+  456:   project = preparedAssets.project;
+  457: 
+  458:   try {
+  459:     const validation = validateForSave(project, collections);
+  460: 
+  461:     /*
+  462:      * Store metadata only after every staged
+  463:      * asset was written successfully.
+  464:      */
+  465: 
+  466:     replaceStoredProjects([...records, project]);
+  467: 
+  468:     /*
+  469:      * This collection is normally empty while
+  470:      * creating, but accepting it keeps the
+  471:      * service contract consistent.
+  472:      */
+  473: 
+  474:     await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+  475:       () => {},
+  476:     );
+  477: 
+  478:     return {
+  479:       project,
+  480:       warnings: validation.warnings,
+  481:     };
+  482:   } catch (error) {
+  483:     /*
+  484:      * Metadata was not saved, so every new
+  485:      * IndexedDB asset must be removed.
+  486:      */
+  487: 
+  488:     await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+  489:       () => {},
+  490:     );
+  491: 
+  492:     throw error;
+  493:   }
+  494: }
+  495: 
+  496: /*
+  497:  * =========================================
+  498:  * Update Project
+  499:  * =========================================
+  500:  */
+  501: 
+  502: export async function updateProject(
+  503:   projectId,
+  504:   updates,
+  505:   {
+  506:     collections = {},
+  507:     mediaUploads = [],
+  508:     documentUploads = [],
+  509:     removedAssetStorageKeys = [],
+  510:   } = {},
+  511: ) {
+  512:   const normalizedProjectId = requireProjectId(projectId);
+  513: 
+  514:   const records = readStoredProjects();
+  515: 
+  516:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  517: 
+  518:   if (projectIndex < 0) {
+  519:     throw createProjectServiceError(
+  520:       "PROJECT_NOT_FOUND",
+  521:       `Project not found: ${normalizedProjectId}`,
+  522:       "The selected Project could not be found.",
+  523:       {
+  524:         projectId: normalizedProjectId,
+  525:       },
+  526:     );
+  527:   }
+  528: 
+  529:   let project = updateProjectModel(records[projectIndex], updates);
+  530: 
+  531:   ensureUniqueProject(records, project, project.id);
+  532: 
+  533:   const preparedAssets = await prepareProjectAssets(project, {
+  534:     mediaUploads,
+  535:     documentUploads,
+  536:   });
+  537: 
+  538:   project = preparedAssets.project;
+  539: 
+  540:   try {
+  541:     const validation = validateForSave(project, collections);
+  542: 
+  543:     const nextRecords = [...records];
+  544: 
+  545:     nextRecords[projectIndex] = project;
+  546: 
+  547:     /*
+  548:      * Save updated metadata before deleting
+  549:      * old assets. If this write fails, existing
+  550:      * files remain recoverable.
+  551:      */
+  552: 
+  553:     replaceStoredProjects(nextRecords);
+  554: 
+  555:     /*
+  556:      * Asset deletion occurs only after the new
+  557:      * Project record has been saved.
+  558:      */
+  559: 
+  560:     await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+  561:       () => {},
+  562:     );
+  563: 
+  564:     return {
+  565:       project,
+  566:       warnings: validation.warnings,
+  567:     };
+  568:   } catch (error) {
+  569:     /*
+  570:      * Preserve all pre-existing files and remove
+  571:      * only assets created during this attempt.
+  572:      */
+  573: 
+  574:     await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+  575:       () => {},
+  576:     );
+  577: 
+  578:     throw error;
+  579:   }
+  580: }
+  581: 
+  582: /*
+  583:  * =========================================
+  584:  * Archive Project
+  585:  * =========================================
+  586:  */
+  587: 
+  588: export async function archiveProject(projectId) {
+  589:   const normalizedProjectId = requireProjectId(projectId);
+  590: 
+  591:   const records = readStoredProjects();
+  592: 
+  593:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  594: 
+  595:   if (projectIndex < 0) {
+  596:     throw createProjectServiceError(
+  597:       "PROJECT_NOT_FOUND",
+  598:       `Project not found: ${normalizedProjectId}`,
+  599:       "The selected Project could not be found.",
+  600:       {
+  601:         projectId: normalizedProjectId,
+  602:       },
+  603:     );
+  604:   }
+  605: 
+  606:   const project = records[projectIndex];
+  607: 
+  608:   if (project.recordStatus === "archived") {
+  609:     return project;
+  610:   }
+  611: 
+  612:   const archivedProject = normalizeProject({
+  613:     ...project,
+  614: 
+  615:     recordStatus: "archived",
+  616: 
+  617:     updatedAt: new Date().toISOString(),
+  618:   });
+  619: 
+  620:   const nextRecords = [...records];
+  621: 
+  622:   nextRecords[projectIndex] = archivedProject;
+  623: 
+  624:   replaceStoredProjects(nextRecords);
+  625: 
+  626:   return archivedProject;
+  627: }
+  628: 
+  629: /*
+  630:  * =========================================
+  631:  * Restore Project
+  632:  * =========================================
+  633:  */
+  634: 
+  635: export async function restoreProject(projectId) {
+  636:   const normalizedProjectId = requireProjectId(projectId);
+  637: 
+  638:   const records = readStoredProjects();
+  639: 
+  640:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  641: 
+  642:   if (projectIndex < 0) {
+  643:     throw createProjectServiceError(
+  644:       "PROJECT_NOT_FOUND",
+  645:       `Project not found: ${normalizedProjectId}`,
+  646:       "The selected Project could not be found.",
+  647:       {
+  648:         projectId: normalizedProjectId,
+  649:       },
+  650:     );
+  651:   }
+  652: 
+  653:   const project = records[projectIndex];
+  654: 
+  655:   if (project.recordStatus === "active") {
+  656:     return project;
+  657:   }
+  658: 
+  659:   const restoredProject = normalizeProject({
+  660:     ...project,
+  661: 
+  662:     recordStatus: "active",
+  663: 
+  664:     updatedAt: new Date().toISOString(),
+  665:   });
+  666: 
+  667:   const nextRecords = [...records];
+  668: 
+  669:   nextRecords[projectIndex] = restoredProject;
+  670: 
+  671:   replaceStoredProjects(nextRecords);
+  672: 
+  673:   return restoredProject;
+  674: }
+  675: 
+  676: /*
+  677:  * =========================================
+  678:  * Delete Project Permanently
+  679:  * =========================================
+  680:  */
+  681: 
+  682: export async function deleteProject(projectId) {
+  683:   const normalizedProjectId = requireProjectId(projectId);
+  684: 
+  685:   const records = readStoredProjects();
+  686: 
+  687:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  688: 
+  689:   if (projectIndex < 0) {
+  690:     throw createProjectServiceError(
+  691:       "PROJECT_NOT_FOUND",
+  692:       `Project not found: ${normalizedProjectId}`,
+  693:       "The selected Project could not be found.",
+  694:       {
+  695:         projectId: normalizedProjectId,
+  696:       },
+  697:     );
+  698:   }
+  699: 
+  700:   const deletedProject = records[projectIndex];
+  701: 
+  702:   const nextRecords = records.filter(
+  703:     (project) => project.id !== normalizedProjectId,
+  704:   );
+  705: 
+  706:   /*
+  707:    * Delete metadata first. If localStorage
+  708:    * fails, the Project and all assets remain.
+  709:    */
+  710: 
+  711:   replaceStoredProjects(nextRecords);
+  712: 
+  713:   /*
+  714:    * Once metadata is removed, delete every
+  715:    * IndexedDB asset owned by this Project.
+  716:    *
+  717:    * Cleanup is best effort because the Project
+  718:    * metadata has already been deleted.
+  719:    */
+  720: 
+  721:   let assetCleanupError = null;
+  722: 
+  723:   try {
+  724:     await deleteProjectAssetsForProject(normalizedProjectId);
+  725:   } catch (error) {
+  726:     assetCleanupError = error;
+  727:   }
+  728: 
+  729:   return {
+  730:     ...deletedProject,
+  731: 
+  732:     assetCleanupWarning: assetCleanupError
+  733:       ? "The Project was deleted, but one or more locally stored files could not be cleaned up."
+  734:       : "",
+  735:   };
+  736: }
+  737: 
+  738: 
+  739: 
+
+====================================================
+FILE: services\Project\projectApiService.js
+LINES: 1-250
+====================================================
+    1: 
+    2: import {
+    3:   apiGet,
+    4:   apiPost,
+    5:   apiPut,
+    6:   apiPatch,
+    7:   apiDelete,
+    8: } from "../apiClient.js";
+    9: 
+   10: import { prepareProjectApiPayload } from "./projectApiAdapter.js";
+   11: 
+   12: const PROJECT_ENDPOINT = "/projects";
+   13: 
+   14: function projectPath(projectId) {
+   15:   if (typeof projectId !== "string" || !projectId.trim()) {
+   16:     throw new TypeError("A Project ID is required.");
+   17:   }
+   18: 
+   19:   return `${PROJECT_ENDPOINT}/${encodeURIComponent(projectId.trim())}`;
+   20: }
+   21: 
+   22: function requireRowVersion(rowVersion) {
+   23:   if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+   24:     throw new TypeError("A Project rowVersion is required.");
+   25:   }
+   26: 
+   27:   return rowVersion.trim();
+   28: }
+   29: 
+   30: export async function fetchProjects(options = {}) {
+   31:   const response = await apiGet(PROJECT_ENDPOINT, options);
+   32:   return response.data.projects;
+   33: }
+   34: 
+   35: export async function fetchProjectById(projectId, options = {}) {
+   36:   const response = await apiGet(projectPath(projectId), options);
+   37:   return response.data.project;
+   38: }
+   39: 
+   40: export async function createProjectApi(project, options = {}) {
+   41:   const response = await apiPost(PROJECT_ENDPOINT, prepareProjectApiPayload(project), options);
+   42:   return response.data.project;
+   43: }
+   44: 
+   45: export async function updateProjectApi(
+   46:   projectId,
+   47:   project,
+   48:   rowVersion,
+   49:   options = {},
+   50: ) {
+   51:   const response = await apiPut(
+   52:     projectPath(projectId),
+   53:     {
+   54:       project: prepareProjectApiPayload(project),
+   55:       rowVersion: requireRowVersion(rowVersion),
+   56:     },
+   57:     options,
+   58:   );
+   59: 
+   60:   return response.data.project;
+   61: }
+   62: 
+   63: export async function setProjectArchivedApi(
+   64:   projectId,
+   65:   archived,
+   66:   rowVersion,
+   67:   options = {},
+   68: ) {
+   69:   if (typeof archived !== "boolean") {
+   70:     throw new TypeError("archived must be a boolean.");
+   71:   }
+   72: 
+   73:   const response = await apiPatch(
+   74:     `${projectPath(projectId)}/archive`,
+   75:     {
+   76:       archived,
+   77:       rowVersion: requireRowVersion(rowVersion),
+   78:     },
+   79:     options,
+   80:   );
+   81: 
+   82:   return response.data.project;
+   83: }
+   84: 
+   85: export async function deleteProjectApi(
+   86:   projectId,
+   87:   rowVersion,
+   88:   options = {},
+   89: ) {
+   90:   const response = await apiDelete(projectPath(projectId), {
+   91:     ...options,
+   92:     body: {
+   93:       rowVersion: requireRowVersion(rowVersion),
+   94:     },
+   95:   });
+   96: 
+   97:   return response.data;
+   98: }
+   99: 
+
+====================================================
+FILE: services\Project\projectApiAdapter.js
+LINES: 1-250
+====================================================
+    1: 
+    2: const SERVER_OWNED_PROJECT_FIELDS = [
+    3:   "userId",
+    4:   "user_id",
+    5:   "createdAt",
+    6:   "updatedAt",
+    7:   "rowVersion",
+    8: ];
+    9: 
+   10: export function prepareProjectApiPayload(project) {
+   11:   if (
+   12:     !project ||
+   13:     typeof project !== "object" ||
+   14:     Array.isArray(project)
+   15:   ) {
+   16:     throw new TypeError("A valid Project object is required.");
+   17:   }
+   18: 
+   19:   const payload = structuredClone(project);
+   20: 
+   21:   for (const field of SERVER_OWNED_PROJECT_FIELDS) {
+   22:     delete payload[field];
+   23:   }
+   24: 
+   25:   return payload;
+   26: }
+   27: 
+   28: export function getProjectRowVersion(project) {
+   29:   const rowVersion = project?.rowVersion;
+   30: 
+   31:   if (
+   32:     typeof rowVersion !== "string" ||
+   33:     !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+   34:   ) {
+   35:     throw new TypeError(
+   36:       "A valid Project rowVersion is required.",
+   37:     );
+   38:   }
+   39: 
+   40:   return rowVersion;
+   41: }
+
+====================================================
+FILE: services\Project\projectAssetResolver.js
+LINES: 1-200
+====================================================
+    1: import {
+    2:   createProjectAssetUrl,
+    3:   revokeProjectAssetUrl,
+    4: } from "./projectAssetStorage.js";
+    5: 
+    6: import {
+    7:   createProjectMediaObjectUrl,
+    8: } from "./projectMediaApiService.js";
+    9: 
+   10: import {
+   11:   createProjectDocumentObjectUrl,
+   12: } from "./projectDocumentApiService.js";
+   13: 
+   14: export function isBackendProjectAsset(asset) {
+   15:   return ["backend", "azure-sql"].includes(
+   16:     String(asset?.storageProvider || "").trim().toLowerCase(),
+   17:   );
+   18: }
+   19: 
+   20: export async function resolveProjectAssetUrl({
+   21:   projectId,
+   22:   asset,
+   23:   kind,
+   24:   signal,
+   25: }) {
+   26:   if (!asset) return "";
+   27: 
+   28:   if (isBackendProjectAsset(asset)) {
+   29:     if (!projectId || !asset.backendAssetId) {
+   30:       throw new Error("Project and asset IDs are required for backend files.");
+   31:     }
+   32: 
+   33:     if (kind === "media") {
+   34:       return createProjectMediaObjectUrl(projectId, asset.backendAssetId, { signal });
+   35:     }
+   36: 
+   37:     if (kind === "document") {
+   38:       return createProjectDocumentObjectUrl(projectId, asset.backendAssetId, { signal });
+   39:     }
+   40: 
+   41:     throw new Error("Unsupported Project asset kind.");
+   42:   }
+   43: 
+   44:   if (asset.storageKey) {
+   45:     return createProjectAssetUrl(asset.storageKey);
+   46:   }
+   47: 
+   48:   return asset.externalUrl || "";
+   49: }
+   50: 
+   51: export function releaseProjectAssetUrl(url) {
+   52:   if (typeof url === "string" && url.startsWith("blob:")) {
+   53:     revokeProjectAssetUrl(url);
+   54:   }
+   55: }
+
+====================================================
+FILE: services\Project\projectBinaryApi.js
+LINES: 1-250
+====================================================
+    1: import { API_BASE_URL, ApiError } from "../apiClient.js";
+    2: 
+    3: export async function fetchProjectBinary(endpoint, options = {}) {
+    4:   if (
+    5:     typeof endpoint !== "string" ||
+    6:     !endpoint.startsWith("/projects/") ||
+    7:     endpoint.startsWith("//")
+    8:   ) {
+    9:     throw new TypeError("A valid Project asset endpoint is required.");
+   10:   }
+   11: 
+   12:   const controller = new AbortController();
+   13:   const timeoutMs = options.timeoutMs ?? 180000;
+   14:   let timedOut = false;
+   15: 
+   16:   const onAbort = () => controller.abort();
+   17: 
+   18:   if (options.signal?.aborted) {
+   19:     controller.abort();
+   20:   } else {
+   21:     options.signal?.addEventListener("abort", onAbort, { once: true });
+   22:   }
+   23: 
+   24:   const timeout = setTimeout(() => {
+   25:     timedOut = true;
+   26:     controller.abort();
+   27:   }, timeoutMs);
+   28: 
+   29:   try {
+   30:     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+   31:       method: "GET",
+   32:       credentials: "include",
+   33:       headers: { Accept: "*/*" },
+   34:       cache: "no-store",
+   35:       signal: controller.signal,
+   36:     });
+   37: 
+   38:     if (!response.ok) {
+   39:       let errorData = null;
+   40: 
+   41:       try {
+   42:         errorData = await response.json();
+   43:       } catch {
+   44:         // Non-JSON error responses are handled below.
+   45:       }
+   46: 
+   47:       throw new ApiError({
+   48:         message:
+   49:           errorData?.message ||
+   50:           `Project asset request failed (HTTP ${response.status}).`,
+   51:         status: response.status,
+   52:         code: errorData?.code || "PROJECT_ASSET_REQUEST_FAILED",
+   53:         url: `${API_BASE_URL}${endpoint}`,
+   54:         method: "GET",
+   55:       });
+   56:     }
+   57: 
+   58:     return response.blob();
+   59:   } catch (error) {
+   60:     if (error instanceof ApiError) throw error;
+   61: 
+   62:     if (error?.name === "AbortError") {
+   63:       throw new ApiError({
+   64:         message: timedOut
+   65:           ? "The Project asset download timed out."
+   66:           : "The Project asset download was canceled.",
+   67:         code: timedOut
+   68:           ? "PROJECT_ASSET_TIMEOUT"
+   69:           : "PROJECT_ASSET_ABORTED",
+   70:         cause: error,
+   71:       });
+   72:     }
+   73: 
+   74:     throw new ApiError({
+   75:       message: "Unable to download the Project asset.",
+   76:       code: "PROJECT_ASSET_NETWORK_ERROR",
+   77:       cause: error,
+   78:     });
+   79:   } finally {
+   80:     clearTimeout(timeout);
+   81:     options.signal?.removeEventListener?.("abort", onAbort);
+   82:   }
+   83: }
+   84: 
+   85: export async function createProjectBinaryObjectUrl(endpoint, options = {}) {
+   86:   const blob = await fetchProjectBinary(endpoint, options);
+   87: 
+   88:   return URL.createObjectURL(blob);
+   89: }
+
+====================================================
+FILE: pages\Projects\Projects.jsx
+LINES: 1-300
+====================================================
+    1: import { useMemo, useState } from "react";
+    2: 
+    3: import { useProjectData } from "../../context/ProjectDataContext.jsx";
+    4: 
+    5: import {
+    6:   getProjectStatistics,
+    7:   prepareProjectCollection,
+    8: } from "../../services/Project/projectUtils.js";
+    9: 
+   10: import ProjectFilters, {
+   11:   DEFAULT_PROJECT_FILTERS,
+   12: } from "./components/ProjectFilters/ProjectFilters.jsx";
+   13: 
+   14: import ProjectForm from "./components/ProjectForm/ProjectForm.jsx";
+   15: import ProjectList from "./components/ProjectList/ProjectList.jsx";
+   16: import ProjectDetailViewer from "./components/ProjectDetailViewer/ProjectDetailViewer.jsx";
+   17: 
+   18: import "./Projects.css";
+   19: 
+   20: /*
+   21:  * =========================================
+   22:  * Default Project Sort
+   23:  * =========================================
+   24:  */
+   25: 
+   26: const DEFAULT_PROJECT_SORT = "newest-started";
+   27: 
+   28: /*
+   29:  * =========================================
+   30:  * Projects Page Content
+   31:  * =========================================
+   32:  */
+   33: 
+   34: function Projects({ relationshipCollections = {} }) {
+   35:   const {
+   36:     projects,
+   37:     isLoading,
+   38:     loadStatus,
+   39:     saveStatus,
+   40:     error,
+   41:     warnings,
+   42:     refreshProjects,
+   43:     createProject,
+   44:     updateProject,
+   45:     archiveProject,
+   46:     restoreProject,
+   47:     deleteProject,
+   48:     clearError,
+   49:     clearWarnings,
+   50:   } = useProjectData();
+   51: 
+   52:   const [isFormOpen, setIsFormOpen] = useState(false);
+   53: 
+   54:   const [editingProject, setEditingProject] = useState(null);
+   55: 
+   56:   const [viewingProject, setViewingProject] = useState(null);
+   57: 
+   58:   const [showArchived, setShowArchived] = useState(false);
+   59: 
+   60:   const [query, setQuery] = useState("");
+   61: 
+   62:   const [filters, setFilters] = useState(DEFAULT_PROJECT_FILTERS);
+   63: 
+   64:   const [sortOption, setSortOption] = useState(DEFAULT_PROJECT_SORT);
+   65: 
+   66:   const isSaving = saveStatus === "saving";
+   67: 
+   68:   /*
+   69:    * =========================================
+   70:    * Relationship Collections
+   71:    * =========================================
+   72:    */
+   73: 
+   74:   const normalizedCollections = useMemo(
+   75:     () => ({
+   76:       skills: Array.isArray(relationshipCollections.skills)
+   77:         ? relationshipCollections.skills
+   78:         : [],
+   79: 
+   80:       experiences: Array.isArray(relationshipCollections.experiences)
+   81:         ? relationshipCollections.experiences
+   82:         : [],
+   83: 
+   84:       educationRecords: Array.isArray(relationshipCollections.educationRecords)
+   85:         ? relationshipCollections.educationRecords
+   86:         : [],
+   87: 
+   88:       trainingRecords: Array.isArray(relationshipCollections.trainingRecords)
+   89:         ? relationshipCollections.trainingRecords
+   90:         : [],
+   91: 
+   92:       certifications: Array.isArray(relationshipCollections.certifications)
+   93:         ? relationshipCollections.certifications
+   94:         : [],
+   95: 
+   96:       isLoading: Boolean(relationshipCollections.isLoading),
+   97:     }),
+   98:     [relationshipCollections],
+   99:   );
+  100: 
+  101:   /*
+  102:    * =========================================
+  103:    * Project Statistics
+  104:    * =========================================
+  105:    */
+  106: 
+  107:   const statistics = useMemo(() => getProjectStatistics(projects), [projects]);
+  108: 
+  109:   /*
+  110:    * =========================================
+  111:    * Active or Archived Collection
+  112:    * =========================================
+  113:    */
+  114: 
+  115:   const statusCollection = useMemo(
+  116:     () =>
+  117:       projects.filter((project) =>
+  118:         showArchived
+  119:           ? project.recordStatus === "archived"
+  120:           : project.recordStatus !== "archived",
+  121:       ),
+  122:     [projects, showArchived],
+  123:   );
+  124: 
+  125:   /*
+  126:    * =========================================
+  127:    * Search, Filter, and Sort
+  128:    * =========================================
+  129:    */
+  130: 
+  131:   const displayedProjects = useMemo(
+  132:     () =>
+  133:       prepareProjectCollection({
+  134:         projects: statusCollection,
+  135:         query,
+  136:         filters,
+  137:         sortOption,
+  138:       }),
+  139:     [statusCollection, query, filters, sortOption],
+  140:   );
+  141: 
+  142:   const hasActiveFilters =
+  143:     Boolean(query.trim()) ||
+  144:     Object.entries(DEFAULT_PROJECT_FILTERS).some(
+  145:       ([key, defaultValue]) => filters[key] !== defaultValue,
+  146:     );
+  147: 
+  148:   /*
+  149:    * =========================================
+  150:    * Create and Edit
+  151:    * =========================================
+  152:    */
+  153: 
+  154:   const openCreateForm = () => {
+  155:     clearError();
+  156:     clearWarnings();
+  157: 
+  158:     setViewingProject(null);
+  159:     setEditingProject(null);
+  160:     setIsFormOpen(true);
+  161:   };
+  162: 
+  163:   const openEditForm = (project) => {
+  164:     if (!project || project.recordStatus === "archived") {
+  165:       return;
+  166:     }
+  167: 
+  168:     clearError();
+  169:     clearWarnings();
+  170: 
+  171:     setViewingProject(null);
+  172:     setEditingProject(project);
+  173:     setIsFormOpen(true);
+  174:   };
+  175: 
+  176:   const closeForm = () => {
+  177:     if (isSaving) {
+  178:       return;
+  179:     }
+  180: 
+  181:     clearError();
+  182: 
+  183:     setEditingProject(null);
+  184:     setIsFormOpen(false);
+  185:   };
+  186: 
+  187:   /*
+  188:    * =========================================
+  189:    * Save Project
+  190:    * =========================================
+  191:    */
+  192: 
+  193:   const handleSaveProject = async (projectData, assetOptions = {}) => {
+  194:     const options = {
+  195:       ...assetOptions,
+  196: 
+  197:       collections: {
+  198:         skills: normalizedCollections.skills,
+  199: 
+  200:         experiences: normalizedCollections.experiences,
+  201: 
+  202:         educationRecords: normalizedCollections.educationRecords,
+  203: 
+  204:         trainingRecords: normalizedCollections.trainingRecords,
+  205: 
+  206:         certifications: normalizedCollections.certifications,
+  207:       },
+  208:     };
+  209: 
+  210:     if (editingProject?.id) {
+  211:       await updateProject(editingProject.id, projectData, options);
+  212:     } else {
+  213:       await createProject(projectData, options);
+  214:     }
+  215: 
+  216:     setEditingProject(null);
+  217:     setIsFormOpen(false);
+  218:   };
+  219: 
+  220:   /*
+  221:    * =========================================
+  222:    * Archive Project
+  223:    * =========================================
+  224:    */
+  225: 
+  226:   const handleArchive = async (project) => {
+  227:     const projectTitle = project?.title || "this project";
+  228: 
+  229:     const confirmed = window.confirm(`Archive â€œ${projectTitle}â€?`);
+  230: 
+  231:     if (!confirmed) {
+  232:       return;
+  233:     }
+  234: 
+  235:     try {
+  236:       await archiveProject(project);
+  237: 
+  238:       if (viewingProject?.id === project.id) {
+  239:         setViewingProject(null);
+  240:       }
+  241:     } catch {
+  242:       /*
+  243:        * ProjectDataContext displays the
+  244:        * normalized service error.
+  245:        */
+  246:     }
+  247:   };
+  248: 
+  249:   /*
+  250:    * =========================================
+  251:    * Restore Project
+  252:    * =========================================
+  253:    */
+  254: 
+  255:   const handleRestore = async (project) => {
+  256:     try {
+  257:       await restoreProject(project);
+  258: 
+  259:       if (viewingProject?.id === project.id) {
+  260:         setViewingProject(null);
+  261:       }
+  262:     } catch {
+  263:       /*
+  264:        * ProjectDataContext displays the
+  265:        * normalized service error.
+  266:        */
+  267:     }
+  268:   };
+  269: 
+  270:   /*
+  271:    * =========================================
+  272:    * Permanently Delete Project
+  273:    * =========================================
+  274:    */
+  275: 
+  276:   const handleDelete = async (project) => {
+  277:     const projectTitle = project?.title || "this project";
+  278: 
+  279:     const confirmed = window.confirm(
+  280:       `Permanently delete â€œ${projectTitle}â€ and all of its stored files? This action cannot be undone.`,
+  281:     );
+  282: 
+  283:     if (!confirmed) {
+  284:       return;
+  285:     }
+  286: 
+  287:     try {
+  288:       await deleteProject(project);
+  289: 
+  290:       if (viewingProject?.id === project.id) {
+  291:         setViewingProject(null);
+  292:       }
+  293: 
+  294:       if (editingProject?.id === project.id) {
+  295:         setEditingProject(null);
+  296:         setIsFormOpen(false);
+  297:       }
+  298:     } catch {
+  299:       /*
+  300:        * ProjectDataContext displays the
+
+====================================================
+FILE: pages\Projects\components\ProjectForm\ProjectForm.jsx
+LINES: 1-160
+====================================================
+    1: import { useEffect, useId, useMemo, useState } from "react";
+    2: 
+    3: import {
+    4:   PROJECT_AWARD_PLACEMENT_OPTIONS,
+    5:   PROJECT_CATEGORY_OPTIONS,
+    6:   PROJECT_FIELD_LIMITS,
+    7:   PROJECT_LIFECYCLE_STATUS_OPTIONS,
+    8:   PROJECT_OWNERSHIP_OPTIONS,
+    9:   PROJECT_RECOGNITION_TYPE_OPTIONS,
+   10:   PROJECT_RECORD_STATUS_OPTIONS,
+   11:   PROJECT_SOURCE_OPTIONS,
+   12:   PROJECT_TECHNOLOGY_CATEGORY_OPTIONS,
+   13: } from "../../../../config/projectConfig.js";
+   14: import {
+   15:   createEmptyProject,
+   16:   createProjectId,
+   17:   normalizeProject,
+   18: } from "../../../../models/projectModel.js";
+   19: import {
+   20:   getProjectValidationSummary,
+   21:   validateProject,
+   22: } from "../../../../services/Project/projectValidation.js";
+   23: 
+   24: import ProjectRelationshipEditor from "../ProjectRelationshipEditor/ProjectRelationshipEditor.jsx";
+   25: import ProjectMediaEditor from "../ProjectMediaEditor/ProjectMediaEditor.jsx";
+   26: import ProjectDocumentEditor from "../ProjectDocumentEditor/ProjectDocumentEditor.jsx";
+   27: 
+   28: import "./ProjectForm.css";
+   29: 
+   30: const createFormData = (project) =>
+   31:   project ? normalizeProject(project) : createEmptyProject();
+   32: 
+   33: function ProjectForm({
+   34:   initialProject = null,
+   35:   relationshipCollections = {},
+   36:   isSaving = false,
+   37:   onSubmit,
+   38:   onCancel,
+   39: }) {
+   40:   const formId = useId();
+   41:   const [formData, setFormData] = useState(() =>
+   42:     createFormData(initialProject),
+   43:   );
+   44:   const [fieldErrors, setFieldErrors] = useState({});
+   45:   const [warnings, setWarnings] = useState([]);
+   46:   const [submitError, setSubmitError] = useState("");
+   47: 
+   48:   /*
+   49:    * Files selected in the editors but not yet
+   50:    * written to IndexedDB.
+   51:    */
+   52: 
+   53:   const [mediaUploads, setMediaUploads] = useState([]);
+   54:   const [documentUploads, setDocumentUploads] = useState([]);
+   55: 
+   56:   /*
+   57:    * Existing IndexedDB records removed while
+   58:    * editing. These are deleted only after the
+   59:    * Project record saves successfully.
+   60:    */
+   61: 
+   62:   const [removedAssetStorageKeys, setRemovedAssetStorageKeys] = useState([]);
+   63: 
+   64:   useEffect(() => {
+   65:     setFormData(createFormData(initialProject));
+   66: 
+   67:     setFieldErrors({});
+   68:     setWarnings([]);
+   69:     setSubmitError("");
+   70: 
+   71:     setMediaUploads([]);
+   72:     setDocumentUploads([]);
+   73:     setRemovedAssetStorageKeys([]);
+   74:   }, [initialProject]);
+   75: 
+   76:   const validationSummary = useMemo(
+   77:     () => getProjectValidationSummary(formData),
+   78:     [formData],
+   79:   );
+   80: 
+   81:   const isEditing = Boolean(initialProject?.id);
+   82: 
+   83:   const availableDocuments = Array.isArray(formData.supportingDocuments)
+   84:     ? formData.supportingDocuments
+   85:     : [];
+   86: 
+   87:   const clearFieldError = (field) => {
+   88:     setFieldErrors((current) =>
+   89:       Object.fromEntries(
+   90:         Object.entries(current).filter(
+   91:           ([key]) => key !== field && !key.startsWith(field + "."),
+   92:         ),
+   93:       ),
+   94:     );
+   95:     setSubmitError("");
+   96:   };
+   97: 
+   98:   const updateTopLevel = (field, value) => {
+   99:     setFormData((current) => ({ ...current, [field]: value }));
+  100:     clearFieldError(field);
+  101:   };
+  102: 
+  103:   const updateNested = (section, field, value) => {
+  104:     setFormData((current) => ({
+  105:       ...current,
+  106:       [section]: { ...current[section], [field]: value },
+  107:     }));
+  108:     clearFieldError(section + "." + field);
+  109:   };
+  110: 
+  111:   const updateCollection = (section, field, values) => {
+  112:     updateNested(section, field, values);
+  113:   };
+  114: 
+  115:   const updateRelatedRecords = (relationshipKey, relationships) => {
+  116:     setFormData((currentData) => ({
+  117:       ...currentData,
+  118: 
+  119:       relatedRecords: {
+  120:         ...currentData.relatedRecords,
+  121:         [relationshipKey]: relationships,
+  122:       },
+  123:     }));
+  124: 
+  125:     clearFieldError(`relatedRecords.${relationshipKey}`);
+  126:   };
+  127: 
+  128:   const registerRemovedAsset = (storageKey) => {
+  129:     const normalizedStorageKey =
+  130:       typeof storageKey === "string" ? storageKey.trim() : "";
+  131: 
+  132:     if (!normalizedStorageKey) {
+  133:       return;
+  134:     }
+  135: 
+  136:     setRemovedAssetStorageKeys((currentKeys) => [
+  137:       ...new Set([...currentKeys, normalizedStorageKey]),
+  138:     ]);
+  139:   };
+  140: 
+  141:   const unregisterRemovedAssets = (records = []) => {
+  142:     const activeStorageKeys = new Set(
+  143:       (Array.isArray(records) ? records : [])
+  144:         .map((record) =>
+  145:           typeof record?.storageKey === "string"
+  146:             ? record.storageKey.trim()
+  147:             : "",
+  148:         )
+  149:         .filter(Boolean),
+  150:     );
+  151: 
+  152:     if (activeStorageKeys.size === 0) {
+  153:       return;
+  154:     }
+  155: 
+  156:     setRemovedAssetStorageKeys((currentKeys) =>
+  157:       currentKeys.filter((storageKey) => !activeStorageKeys.has(storageKey)),
+  158:     );
+  159:   };
+  160: 
+
+====================================================
+FILE: pages\Projects\components\ProjectForm\ProjectForm.jsx
+LINES: 700-1000
+====================================================
+  700: 
+  701:         <div className="project-form-grid">
+  702:           {[
+  703:             [
+  704:               "lessonsLearned",
+  705:               "Lessons Learned",
+  706:               PROJECT_FIELD_LIMITS.lessonsLearned,
+  707:             ],
+  708:             [
+  709:               "futureImprovements",
+  710:               "Future Improvements",
+  711:               PROJECT_FIELD_LIMITS.futureImprovements,
+  712:             ],
+  713:           ].map(([field, label, limit]) => (
+  714:             <TextAreaField
+  715:               key={field}
+  716:               field={"results." + field}
+  717:               label={label}
+  718:               value={formData.results[field]}
+  719:               limit={limit}
+  720:               rows={4}
+  721:               error={fieldErrors["results." + field]}
+  722:               disabled={isSaving}
+  723:               onChange={(value) => updateNested("results", field, value)}
+  724:             />
+  725:           ))}
+  726:         </div>
+  727:       </FormSection>
+  728: 
+  729:       <FormSection
+  730:         label="Technology and Recognition"
+  731:         title="Technology Stack and Awards"
+  732:         description="Document the tools behind the work and any external recognition it received."
+  733:       >
+  734:         <TechnologyEditor
+  735:           values={formData.technologies}
+  736:           disabled={isSaving}
+  737:           onChange={(values) => updateTopLevel("technologies", values)}
+  738:         />
+  739:         <AwardEditor
+  740:           values={formData.awards}
+  741:           documents={availableDocuments}
+  742:           disabled={isSaving}
+  743:           onChange={(values) => updateTopLevel("awards", values)}
+  744:         />
+  745:       </FormSection>
+  746: 
+  747:       {/*
+  748:        * =========================================
+  749:        * Professional Relationships
+  750:        * =========================================
+  751:        */}
+  752: 
+  753:       <ProjectRelationshipEditor
+  754:         project={formData}
+  755:         collections={relationshipCollections}
+  756:         isLoading={Boolean(relationshipCollections.isLoading)}
+  757:         disabled={isSaving}
+  758:         fieldErrors={fieldErrors}
+  759:         onSkillRelationshipsChange={(relationships) =>
+  760:           updateTopLevel("skillRelationships", relationships)
+  761:         }
+  762:         onRelatedRecordsChange={updateRelatedRecords}
+  763:       />
+  764: 
+  765:       {/*
+  766:        * =========================================
+  767:        * Project Images and Videos
+  768:        * =========================================
+  769:        */}
+  770: 
+  771:       <ProjectMediaEditor
+  772:         media={formData.media || []}
+  773:         uploads={mediaUploads}
+  774:         featuredMediaId={formData.presentation.featuredMediaId}
+  775:         disabled={isSaving}
+  776:         error={fieldErrors.media}
+  777:         onChange={handleMediaChange}
+  778:         onUploadsChange={setMediaUploads}
+  779:         onFeaturedMediaChange={handleFeaturedMediaChange}
+  780:         onRemoveStoredAsset={registerRemovedAsset}
+  781:       />
+  782: 
+  783:       {/*
+  784:        * =========================================
+  785:        * Project Documents
+  786:        * =========================================
+  787:        */}
+  788: 
+  789:       <ProjectDocumentEditor
+  790:         documents={formData.supportingDocuments || []}
+  791:         uploads={documentUploads}
+  792:         disabled={isSaving}
+  793:         error={fieldErrors.supportingDocuments}
+  794:         onChange={handleDocumentsChange}
+  795:         onUploadsChange={setDocumentUploads}
+  796:         onRemoveStoredAsset={registerRemovedAsset}
+  797:       />
+  798: 
+  799:       <FormSection
+  800:         label="Portfolio Presentation"
+  801:         title="Public Project Story"
+  802:         description="Prepare the concise summary and detailed case study used by your professional portfolio."
+  803:       >
+  804:         <label className="project-form-featured-option">
+  805:           <input
+  806:             type="checkbox"
+  807:             checked={formData.presentation.isFeatured}
+  808:             onChange={(event) =>
+  809:               updateNested("presentation", "isFeatured", event.target.checked)
+  810:             }
+  811:             disabled={isSaving}
+  812:           />
+  813:           <span>
+  814:             <strong>Feature this project</strong>
+  815:             <small>
+  816:               Featured projects appear first in the portfolio library.
+  817:             </small>
+  818:           </span>
+  819:         </label>
+  820: 
+  821:         <div className="project-form-grid">
+  822:           <TextAreaField
+  823:             field="presentation.shortSummary"
+  824:             label="Portfolio Summary"
+  825:             value={formData.presentation.shortSummary}
+  826:             limit={PROJECT_FIELD_LIMITS.shortSummary}
+  827:             rows={4}
+  828:             error={fieldErrors["presentation.shortSummary"]}
+  829:             help="Write two or three strong sentences for the Project Item."
+  830:             disabled={isSaving}
+  831:             onChange={(value) =>
+  832:               updateNested("presentation", "shortSummary", value)
+  833:             }
+  834:           />
+  835:           <TextAreaField
+  836:             field="presentation.caseStudy"
+  837:             label="Detailed Case Study"
+  838:             value={formData.presentation.caseStudy}
+  839:             limit={PROJECT_FIELD_LIMITS.caseStudy}
+  840:             rows={10}
+  841:             error={fieldErrors["presentation.caseStudy"]}
+  842:             disabled={isSaving}
+  843:             onChange={(value) =>
+  844:               updateNested("presentation", "caseStudy", value)
+  845:             }
+  846:           />
+  847:         </div>
+  848:       </FormSection>
+  849: 
+  850:       <FormSection
+  851:         label="Management"
+  852:         title="Visibility and Record Settings"
+  853:         description="Control public presentation, private notes, record origin, and archive availability."
+  854:       >
+  855:         <div className="project-form-visibility">
+  856:           {[
+  857:             ["showOrganization", "Show organization"],
+  858:             ["showDates", "Show project dates"],
+  859:             ["showLocation", "Show project location"],
+  860:             ["showLinks", "Show project links"],
+  861:             ["showProblem", "Show problem and purpose"],
+  862:             ["showSolution", "Show solution"],
+  863:             ["showResults", "Show results and impact"],
+  864:             ["showSkills", "Show related skills"],
+  865:             ["showTechnologies", "Show technologies"],
+  866:             ["showRelatedRecords", "Show related professional records"],
+  867:             ["showAwards", "Show awards"],
+  868:             ["showMedia", "Show images and videos"],
+  869:             ["showSupportingDocuments", "Show public documents"],
+  870:           ].map(([field, label]) => (
+  871:             <label key={field} className="project-form-checkbox">
+  872:               <input
+  873:                 type="checkbox"
+  874:                 checked={Boolean(formData.visibility[field])}
+  875:                 onChange={(event) =>
+  876:                   updateNested("visibility", field, event.target.checked)
+  877:                 }
+  878:                 disabled={isSaving}
+  879:               />
+  880:               <span>
+  881:                 <strong>{label}</strong>
+  882:               </span>
+  883:             </label>
+  884:           ))}
+  885:         </div>
+  886: 
+  887:         <div className="project-form-grid">
+  888:           <SelectField
+  889:             id={fieldId("source")}
+  890:             field="source"
+  891:             label="Record Source"
+  892:             value={formData.source}
+  893:             options={PROJECT_SOURCE_OPTIONS}
+  894:             error={fieldErrors.source}
+  895:             disabled={isSaving}
+  896:             onChange={(value) => updateTopLevel("source", value)}
+  897:           />
+  898:           <SelectField
+  899:             id={fieldId("record-status")}
+  900:             field="recordStatus"
+  901:             label="Record Status"
+  902:             value={formData.recordStatus}
+  903:             options={PROJECT_RECORD_STATUS_OPTIONS}
+  904:             error={fieldErrors.recordStatus}
+  905:             disabled={isSaving}
+  906:             onChange={(value) => updateTopLevel("recordStatus", value)}
+  907:           />
+  908:           <FormField
+  909:             field="sourceContext"
+  910:             label="Source Context"
+  911:             error={fieldErrors.sourceContext}
+  912:             wide
+  913:             count={
+  914:               formData.sourceContext.length +
+  915:               "/" +
+  916:               PROJECT_FIELD_LIMITS.sourceContext
+  917:             }
+  918:           >
+  919:             <input
+  920:               type="text"
+  921:               value={formData.sourceContext}
+  922:               onChange={(event) =>
+  923:                 updateTopLevel("sourceContext", event.target.value)
+  924:               }
+  925:               maxLength={PROJECT_FIELD_LIMITS.sourceContext}
+  926:               disabled={isSaving}
+  927:             />
+  928:           </FormField>
+  929:           <TextAreaField
+  930:             field="privateInformation.notes"
+  931:             label="Private Notes"
+  932:             value={formData.privateInformation.notes}
+  933:             limit={PROJECT_FIELD_LIMITS.privateNotes}
+  934:             rows={5}
+  935:             error={fieldErrors["privateInformation.notes"]}
+  936:             help="Private notes are excluded from public Project output."
+  937:             disabled={isSaving}
+  938:             onChange={(value) =>
+  939:               updateNested("privateInformation", "notes", value)
+  940:             }
+  941:           />
+  942:         </div>
+  943:       </FormSection>
+  944: 
+  945:       {warnings.length > 0 && (
+  946:         <section className="project-form-warnings">
+  947:           <strong>Suggestions for a stronger portfolio project</strong>
+  948:           <ul>
+  949:             {warnings.map((warning, index) => (
+  950:               <li key={(warning.code || warning.field) + "-" + index}>
+  951:                 {warning.message}
+  952:               </li>
+  953:             ))}
+  954:           </ul>
+  955:         </section>
+  956:       )}
+  957: 
+  958:       {submitError && (
+  959:         <div className="project-form-submit-error" role="alert">
+  960:           <strong>Unable to save this project</strong>
+  961:           <p>{submitError}</p>
+  962:         </div>
+  963:       )}
+  964: 
+  965:       <footer className="project-form-footer">
+  966:         <div>
+  967:           <span>Project Profile</span>
+  968:           <strong>{validationSummary}</strong>
+  969:         </div>
+  970:         <div>
+  971:           <button type="button" onClick={onCancel} disabled={isSaving}>
+  972:             Cancel
+  973:           </button>
+  974:           <button
+  975:             type="submit"
+  976:             className="project-form-submit"
+  977:             disabled={isSaving}
+  978:           >
+  979:             {isSaving
+  980:               ? "Saving..."
+  981:               : isEditing
+  982:                 ? "Save Changes"
+  983:                 : "Create Project"}
+  984:           </button>
+  985:         </div>
+  986:       </footer>
+  987:     </form>
+  988:   );
+  989: }
+  990: 
+  991: function FormSection({ label, title, description, children }) {
+  992:   return (
+  993:     <section className="project-form-section">
+  994:       <header className="project-form-section-header">
+  995:         <span aria-hidden="true" />
+  996:         <div>
+  997:           <small>{label}</small>
+  998:           <h3>{title}</h3>
+  999:           <p>{description}</p>
+ 1000:         </div>
+
+====================================================
+FILE: services\Project\projectAssetStorage.js
+LINES: 525-590
+====================================================
+  525: 
+  526: /*
+  527:  * =========================================
+  528:  * Asset Existence
+  529:  * =========================================
+  530:  */
+  531: 
+  532: export async function hasProjectAsset(storageKey) {
+  533:   const record = await readProjectAsset(storageKey);
+  534: 
+  535:   return Boolean(record?.blob);
+  536: }
+  537: 
+  538: /*
+  539:  * =========================================
+  540:  * Create Object URL
+  541:  * =========================================
+  542:  */
+  543: 
+  544: export async function createProjectAssetUrl(storageKey) {
+  545:   const normalizedStorageKey = getText(storageKey);
+  546: 
+  547:   if (!normalizedStorageKey) {
+  548:     throw createProjectAssetStorageError({
+  549:       code: "PROJECT_ASSET_STORAGE_KEY_REQUIRED",
+  550: 
+  551:       message: "An asset storage key is required.",
+  552: 
+  553:       publicMessage: "The Project file could not be identified.",
+  554:     });
+  555:   }
+  556: 
+  557:   const record = await readProjectAsset(normalizedStorageKey);
+  558: 
+  559:   if (!record?.blob) {
+  560:     throw createProjectAssetStorageError({
+  561:       code: "PROJECT_ASSET_NOT_FOUND",
+  562: 
+  563:       message: `Project asset not found: ${normalizedStorageKey}`,
+  564: 
+  565:       publicMessage:
+  566:         "The Project file is no longer available in browser storage.",
+  567:     });
+  568:   }
+  569: 
+  570:   if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+  571:     throw createProjectAssetStorageError({
+  572:       code: "PROJECT_ASSET_URL_UNAVAILABLE",
+  573: 
+  574:       message: "Object URLs are unavailable.",
+  575: 
+  576:       publicMessage:
+  577:         "The Project file cannot be previewed in this environment.",
+  578:     });
+  579:   }
+  580: 
+  581:   return URL.createObjectURL(record.blob);
+  582: }
+  583: 
+  584: /*
+  585:  * =========================================
+  586:  * Revoke Object URL
+  587:  * =========================================
+  588:  */
+  589: 
+  590: export function revokeProjectAssetUrl(objectUrl) {

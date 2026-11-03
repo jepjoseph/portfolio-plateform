@@ -10,10 +10,9 @@ import {
 import { createProjectId } from "../../../../models/projectModel.js";
 
 import {
-  createProjectAssetUrl,
-  revokeProjectAssetUrl,
-} from "../../../../services/Project/projectAssetStorage.js";
-
+  resolveProjectAssetUrl,
+  releaseProjectAssetUrl,
+} from "../../../../services/Project/projectAssetResolver.js";
 import "./ProjectMediaEditor.css";
 
 /*
@@ -121,12 +120,16 @@ function normalizeFeaturedMedia(
  */
 
 function StoredMediaPreview({
-  storageKey,
-  externalUrl = "",
+  projectId,
+  asset,
   type,
   name,
   altText,
 }) {
+  const storageKey = asset?.storageKey || "";
+  const externalUrl = asset?.externalUrl || "";
+  const storageProvider = asset?.storageProvider || "";
+  const backendAssetId = asset?.backendAssetId || "";
   const [previewUrl, setPreviewUrl] = useState(externalUrl);
 
   const [previewError, setPreviewError] = useState("");
@@ -135,46 +138,65 @@ function StoredMediaPreview({
     let isActive = true;
     let objectUrl = "";
 
-    setPreviewError("");
+    const hasBackendAsset = ["backend", "azure-sql"].includes(
+      String(storageProvider).trim().toLowerCase(),
+    );
 
-    if (!storageKey) {
+    if (!storageKey && !hasBackendAsset) {
       setPreviewUrl(externalUrl);
-
+      setPreviewError("");
       return undefined;
     }
 
     setPreviewUrl("");
+    setPreviewError("");
 
-    createProjectAssetUrl(storageKey)
+    resolveProjectAssetUrl({
+      projectId,
+      asset: {
+        storageKey,
+        externalUrl,
+        storageProvider,
+        backendAssetId,
+      },
+      kind: "media",
+    })
       .then((url) => {
         objectUrl = url;
 
         if (!isActive) {
-          revokeProjectAssetUrl(url);
-
+          releaseProjectAssetUrl(url);
           return;
         }
 
         setPreviewUrl(url);
       })
       .catch((error) => {
-        if (!isActive) {
-          return;
-        }
+        if (!isActive) return;
 
         setPreviewUrl("");
 
-        setPreviewError(error?.publicMessage || "Preview unavailable");
+        setPreviewError(
+          error?.publicMessage ||
+          error?.message ||
+          "Preview unavailable",
+        );
       });
 
     return () => {
       isActive = false;
 
       if (objectUrl) {
-        revokeProjectAssetUrl(objectUrl);
+        releaseProjectAssetUrl(objectUrl);
       }
     };
-  }, [storageKey, externalUrl]);
+  }, [
+    projectId,
+    storageKey,
+    externalUrl,
+    storageProvider,
+    backendAssetId,
+  ]);
 
   if (!previewUrl) {
     return (
@@ -325,6 +347,7 @@ function MediaActions({
  */
 
 function ProjectMediaEditor({
+  projectId,
   media = [],
   uploads = [],
   featuredMediaId = "",
@@ -678,8 +701,8 @@ function ProjectMediaEditor({
             >
               <div className="project-media-thumbnail">
                 <StoredMediaPreview
-                  storageKey={item.storageKey}
-                  externalUrl={item.externalUrl}
+                  projectId={projectId}
+                  asset={item}
                   type={item.type}
                   name={item.name}
                   altText={item.altText}

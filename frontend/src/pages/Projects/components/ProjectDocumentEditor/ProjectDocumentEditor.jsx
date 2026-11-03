@@ -11,10 +11,13 @@ import {
 import { createProjectId } from "../../../../models/projectModel.js";
 
 import {
-  createProjectAssetUrl,
+  resolveProjectAssetUrl,
+  releaseProjectAssetUrl,
+} from "../../../../services/Project/projectAssetResolver.js";
+
+import {
   revokeProjectAssetUrl,
 } from "../../../../services/Project/projectAssetStorage.js";
-
 import "./ProjectDocumentEditor.css";
 
 /*
@@ -65,6 +68,7 @@ function getDocumentLabel(document) {
  */
 
 function ProjectDocumentEditor({
+  projectId,
   documents = [],
   uploads = [],
   disabled = false,
@@ -91,7 +95,7 @@ function ProjectDocumentEditor({
 
   const revokePreviewUrl = (previewValue) => {
     if (previewValue?.ownsObjectUrl) {
-      revokeProjectAssetUrl(previewValue.url);
+      releaseProjectAssetUrl(previewValue.url);
     }
   };
 
@@ -305,17 +309,17 @@ function ProjectDocumentEditor({
       let url = "";
       let ownsObjectUrl = false;
 
-      if (document.storageKey) {
-        url = await createProjectAssetUrl(document.storageKey);
+      url = await resolveProjectAssetUrl({
+          projectId,
+          asset: document,
+          kind: "document",
+        });
 
-        ownsObjectUrl = true;
-      } else {
-        url = getText(document.externalUrl);
-      }
+        ownsObjectUrl = Boolean(url && url.startsWith("blob:"));
 
       if (requestId !== previewRequestRef.current || !mountedRef.current) {
         if (ownsObjectUrl) {
-          revokeProjectAssetUrl(url);
+          releaseProjectAssetUrl(url);
         }
 
         return;

@@ -1,0 +1,178 @@
+﻿PROJECT EDIT AND MEDIA DIAGNOSTICS
+Generated: 2026-11-02T16:06:16.1092745-05:00
+Root: D:\Documents\Project\Portfolio\portfolio-plateform
+Read-only inspection
+
+=== TARGET FILES ===
+FOUND: context\ProjectDataContext.jsx
+FOUND: pages\Projects\components\ProjectForm\ProjectForm.jsx
+FOUND: pages\Projects\components\ProjectMediaViewer\ProjectMediaViewer.jsx
+FOUND: pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx
+
+=== PROJECT SERVICE FILES ===
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiAdapter.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.bak-20261020-234542
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.before-restore-20261020-234859.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetResolver.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectBinaryApi.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectDocumentApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectFeaturedMedia.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectMediaApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.featured-media.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.helper-integration.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectValidation.js
+
+=== ERROR MESSAGES AND DATA FLOW ===
+
+--- Pattern: selected Project could not be found ---
+services\Project\projectService.js:522: "The selected Project could not be found.",
+services\Project\projectService.js:599: "The selected Project could not be found.",
+services\Project\projectService.js:646: "The selected Project could not be found.",
+services\Project\projectService.js:693: "The selected Project could not be found.",
+
+--- Pattern: Project file is no longer available ---
+services\Project\projectAssetStorage.js:566: "The Project file is no longer available in browser storage.",
+
+--- Pattern: Unable to save this project ---
+pages\Projects\components\ProjectForm\ProjectForm.jsx:960: <strong>Unable to save this project</strong>
+
+--- Pattern: updateProject ---
+context\ProjectDataContext.jsx:16: updateProject as updateProjectService,
+context\ProjectDataContext.jsx:358: const updateProject = useCallback(
+context\ProjectDataContext.jsx:365: () => updateProjectService(projectId, projectData, options),
+context\ProjectDataContext.jsx:515: updateProject,
+context\ProjectDataContext.jsx:540: updateProject,
+models\projectModel.js:1133: export function updateProjectModel(currentProject, updates = {}) {
+pages\Projects\Projects.jsx:44: updateProject,
+pages\Projects\Projects.jsx:211: await updateProject(editingProject.id, projectData, options);
+services\Project\projectApiService.js:45: export async function updateProjectApi(
+services\Project\projectService.js:7: updateProjectModel,
+services\Project\projectService.js:502: export async function updateProject(
+services\Project\projectService.js:529: let project = updateProjectModel(records[projectIndex], updates);
+
+--- Pattern: getProjectById ---
+context\ProjectDataContext.jsx:442: const getProjectById = useCallback(
+context\ProjectDataContext.jsx:512: getProjectById,
+context\ProjectDataContext.jsx:538: getProjectById,
+services\Project\projectService.js:390: export function getProjectById(projectId, { includeArchived = true } = {}) {
+services\Project\projectService.js:423: const project = getProjectById(projectId, {
+
+--- Pattern: resolveProjectAssetUrl ---
+pages\Portfolio\PortfolioView\PortfolioView.jsx:9: import { resolveProjectAssetUrl } from "../../../services/Project/projectAssetResolver.js";
+pages\Portfolio\PortfolioView\PortfolioView.jsx:511: resolveProjectAssetUrl({
+pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx:16: resolveProjectAssetUrl,
+pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx:119: resolveProjectAssetUrl({ projectId: project?.id, asset: featuredMedia, kind: "media" })
+pages\Projects\components\ProjectDetailViewer\ProjectDetailViewer.jsx:1039: resolveProjectAssetUrl({ projectId, asset: documentRecord, kind: "document" })
+pages\Projects\components\ProjectItem\ProjectItem.jsx:10: resolveProjectAssetUrl,
+pages\Projects\components\ProjectItem\ProjectItem.jsx:110: resolveProjectAssetUrl({
+pages\Projects\components\ProjectMediaViewer\ProjectMediaViewer.jsx:4: resolveProjectAssetUrl,
+pages\Projects\components\ProjectMediaViewer\ProjectMediaViewer.jsx:133: resolveProjectAssetUrl({ projectId: project?.id, asset: selectedMedia, kind: "media" })
+services\Project\projectAssetResolver.js:20: export async function resolveProjectAssetUrl({
+
+--- Pattern: localStorage ---
+context\CertificationDataContext.jsx:179: event.storageArea !== window.localStorage ||
+context\EducationDataContext.jsx:239: event.storageArea !== window.localStorage ||
+context\ProfileDataContext.localStorage.backup.jsx:369: event.storageArea !== window.localStorage ||
+context\ProjectDataContext.jsx:240: event.storageArea !== window.localStorage ||
+context\ResumeDataContext.jsx:127: const storedValue = window.localStorage.getItem(RESUME_STORAGE_KEY);
+context\ResumeDataContext.jsx:160: window.localStorage.setItem(
+context\TrainingDataContext.jsx:278: event.storageArea !== window.localStorage ||
+pages\Portfolio\PortfolioPublic\PortfolioPublic.jsx:97: * different browser tab changes localStorage.
+pages\Portfolio\PortfolioPublic\PortfolioPublic.jsx:106: event.storageArea !== window.localStorage ||
+services\Certification\certificationStorage.js:37: if (typeof window === "undefined" || !window.localStorage) {
+services\Certification\certificationStorage.js:44: return window.localStorage;
+services\Certification\certificationStorage.js:175: * keys are written to localStorage.
+services\Certification\certificationTrainingMigrationService.js:75: if (typeof window === "undefined" || !window.localStorage) {
+services\Certification\certificationTrainingMigrationService.js:88: return window.localStorage;
+services\Certification\certificationValidation.js:596: * localStorage with the actual Blob in IndexedDB.
+services\Education\educationService.js:445: * IndexedDB and localStorage cannot share one
+services\Education\educationService.js:455: "deleted, but its localStorage metadata could not be removed.",
+services\Education\educationStorage.js:52: if (!window.localStorage) {
+services\Education\educationStorage.js:59: return window.localStorage;
+services\Experience\experienceContextCompatibility.js:11: * Does not access localStorage.
+services\Experience\experienceDatabaseService.js:22: * Never reads or writes browser localStorage.
+services\Experience\experienceStorage.js:50: if (!window.localStorage) {
+services\Experience\experienceStorage.js:57: return window.localStorage;
+services\Portfolio\portfolioService.js:57: function requireLocalStorage() {
+services\Portfolio\portfolioService.js:58: if (typeof window === "undefined" || !window.localStorage) {
+services\Portfolio\portfolioService.js:61: "Browser localStorage is unavailable.",
+services\Portfolio\portfolioService.js:66: return window.localStorage;
+services\Portfolio\portfolioService.js:304: const storage = requireLocalStorage();
+services\Portfolio\portfolioService.js:333: const storage = requireLocalStorage();
+services\Profile\profileStorage.js:59: function getLocalStorage() {
+services\Profile\profileStorage.js:60: if (typeof window === "undefined" || !window.localStorage) {
+services\Profile\profileStorage.js:68: return window.localStorage;
+services\Profile\profileStorage.js:94: "The browser does not have enough localStorage capacity to save the Profile.",
+services\Profile\profileStorage.js:273: const storage = getLocalStorage();
+services\Profile\profileStorage.js:304: storage = getLocalStorage();
+services\Profile\profileStorage.js:406: const storage = getLocalStorage();
+services\Profile\profileStorage.js:449: const storage = getLocalStorage();
+services\Profile\profileStorage.js:465: const storage = getLocalStorage();
+services\Project\projectService.js:225: * in localStorage metadata.
+services\Project\projectService.js:707: * Delete metadata first. If localStorage
+services\Project\projectStorage.js:61: if (!window.localStorage) {
+services\Project\projectStorage.js:62: throw new Error("localStorage is unavailable.");
+services\Project\projectStorage.js:65: return window.localStorage;
+services\Project\projectStorage.js:69: "Browser localStorage could not be accessed.",
+services\Project\projectStorage.js:346: ? "Project localStorage quota was exceeded."
+services\Skill\skillStorage.js:50: if (!window.localStorage) {
+services\Skill\skillStorage.js:57: return window.localStorage;
+services\Training\trainingStorage.js:25: if (typeof window === "undefined" || !window.localStorage) {
+services\Training\trainingStorage.js:32: return window.localStorage;
+
+--- Pattern: indexedDB ---
+context\ProjectDataContext.jsx:286: * Project metadata and IndexedDB asset
+models\certificationModel.js:251: * The actual Blob is stored in IndexedDB.
+models\certificationModel.js:252: * Only the IndexedDB reference is stored here.
+models\certificationModel.js:708: * Education IDs, and IndexedDB storage keys are
+pages\Projects\components\ProjectForm\ProjectForm.jsx:50: * written to IndexedDB.
+pages\Projects\components\ProjectForm\ProjectForm.jsx:57: * Existing IndexedDB records removed while
+pages\Projects\components\ProjectMediaViewer\ProjectMediaViewer.jsx:118: * Load IndexedDB Asset
+services\Certification\certificationDocumentStorage.js:81: * IndexedDB Availability
+services\Certification\certificationDocumentStorage.js:85: function getIndexedDb() {
+services\Certification\certificationDocumentStorage.js:86: if (typeof window === "undefined" || !window.indexedDB) {
+services\Certification\certificationDocumentStorage.js:88: "IndexedDB is unavailable.",
+services\Certification\certificationDocumentStorage.js:93: return window.indexedDB;
+services\Certification\certificationDocumentStorage.js:137: * IndexedDB Request Helpers
+services\Certification\certificationDocumentStorage.js:151: "An IndexedDB request failed.",
+services\Certification\certificationDocumentStorage.js:169: "The IndexedDB transaction failed.",
+services\Certification\certificationDocumentStorage.js:179: "The IndexedDB transaction was aborted.",
+services\Certification\certificationDocumentStorage.js:194: const indexedDb = getIndexedDb();
+services\Certification\certificationDocumentStorage.js:197: const request = indexedDb.open(
+services\Certification\certificationService.js:225: * Orphaned IndexedDB files can be removed later
+services\Certification\certificationService.js:667: * If IndexedDB cleanup fails, the deleted
+services\Certification\certificationStorage.js:174: * Only document metadata and IndexedDB storage
+services\Certification\certificationValidation.js:596: * localStorage with the actual Blob in IndexedDB.
+services\Documents\documentStorage.js:9: * IndexedDB Configuration
+services\Documents\documentStorage.js:52: function getIndexedDb() {
+services\Documents\documentStorage.js:53: if (typeof window === "undefined" || !window.indexedDB) {
+services\Documents\documentStorage.js:55: message: "IndexedDB is unavailable.",
+services\Documents\documentStorage.js:63: return window.indexedDB;
+services\Documents\documentStorage.js:77: request = getIndexedDb().open(
+services\Documents\documentStorage.js:394: * All document deletions run inside one IndexedDB
+services\Documents\documentStorage.js:395: * transaction. If a request fails, IndexedDB aborts
+services\Documents\documentStorage.js:509: "The IndexedDB deletion transaction failed.",
+services\Documents\documentStorage.js:580: * cleaned because nothing remains in IndexedDB.
+services\Education\educationService.js:371: * Step 2: Collect unique valid IndexedDB keys.
+services\Education\educationService.js:373: * belong to IndexedDB and are not deleted here.
+services\Education\educationService.js:383: * deleteStoredDocuments() uses one IndexedDB
+services\Education\educationService.js:434: * the IndexedDB transaction completes successfully.
+services\Education\educationService.js:445: * IndexedDB and localStorage cannot share one
+services\Project\projectAssetStorage.js:12: * IndexedDB Configuration
+services\Project\projectAssetStorage.js:85: * IndexedDB Availability
+services\Project\projectAssetStorage.js:89: function getIndexedDb() {
+services\Project\projectAssetStorage.js:90: if (typeof window === "undefined" || !window.indexedDB) {
+services\Project\projectAssetStorage.js:94: message: "IndexedDB is unavailable.",
+services\Project\projectAssetStorage.js:101: return window.indexedDB;
+services\Project\projectAssetStorage.js:135: new Error("The IndexedDB transaction was aborted."),
+services\Project\projectAssetStorage.js:149: const request = getIndexedDb().open(
+services\Project\projectAssetStorage.js:469: ? "IndexedDB storage quota was exceeded."
+services\Project\projectService.js:485: * IndexedDB asset must be removed.
+services\Project\projectService.js:715: * IndexedDB asset owned by this Project.

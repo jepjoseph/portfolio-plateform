@@ -1,0 +1,41 @@
+﻿=== PROJECT PREVIEW REPAIR ===
+Date: 2026-11-02T18:15:19.3770102-05:00
+Root: D:\Documents\Project\Portfolio\portfolio-plateform
+
+=== VERIFY SOURCE FILES ===
+FOUND: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx
+FOUND: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectMediaEditor\ProjectMediaEditor.jsx
+FOUND: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.jsx
+FOUND: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetResolver.js
+
+=== PREPARE PROJECTFORM PATCH ===
+Prepared Project ID propagation.
+
+=== PREPARE MEDIA EDITOR PATCH ===
+Prepared backend-aware media previews.
+
+=== PREPARE DOCUMENT EDITOR PATCH ===
+Prepared backend-aware document previews.
+
+=== CREATE BACKUPS ===
+BACKUP: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\Projects\preview-fix-20261102-181519\Form.jsx.bak
+BACKUP: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\Projects\preview-fix-20261102-181519\Media.jsx.bak
+BACKUP: D:\Documents\Project\Portfolio\portfolio-plateform\Persistence\backups\Projects\preview-fix-20261102-181519\Document.jsx.bak
+
+=== APPLY PATCHES ===
+UPDATED: ProjectForm.jsx
+UPDATED: ProjectMediaEditor.jsx
+UPDATED: ProjectDocumentEditor.jsx
+
+=== SOURCE VERIFICATION ===
+PASS: Source verification.
+
+=== FRONTEND VALIDATION ===
+Running npm run build...
+
+ERROR: [33m[plugin builtin:vite-reporter] 
+=== RESTORING ORIGINAL FILES ===
+RESTORED: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx
+RESTORED: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectMediaEditor\ProjectMediaEditor.jsx
+RESTORED: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.jsx
+Status: PATCH ROLLED BACK

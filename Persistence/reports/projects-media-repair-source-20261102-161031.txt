@@ -1,0 +1,3263 @@
+PROJECT MEDIA REPAIR - SOURCE SNAPSHOT
+Generated: 2026-11-02T16:10:31.8373811-05:00
+Root: D:\Documents\Project\Portfolio\portfolio-plateform
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx
+SHA256: B2853B64326A84D5D88E7C3F06BF4465D1C9DE633033D5BAC2C8BD661C5E625F
+==========================================================================================
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  archiveProject as archiveProjectService,
+  createProject as createProjectService,
+  deleteProject as deleteProjectService,
+  getProjects,
+  restoreProject as restoreProjectService,
+  updateProject as updateProjectService,
+} from "../services/Project/projectService.js";
+
+import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+import { fetchProjects } from "../services/Project/projectApiService.js";
+
+/*
+ * =========================================
+ * Project Data Context
+ * =========================================
+ */
+
+const ProjectDataContext = createContext(null);
+
+/*
+ * =========================================
+ * Error Normalization
+ * =========================================
+ */
+
+function normalizeContextError(error) {
+  return {
+    name: error?.name || "ProjectError",
+
+    code: error?.code || "PROJECT_OPERATION_ERROR",
+
+    message:
+      error?.publicMessage ||
+      error?.message ||
+      "The Project Library operation could not be completed.",
+
+    fieldErrors: error?.fieldErrors || error?.validation?.fieldErrors || {},
+
+    errors: error?.errors || error?.validation?.errors || [],
+
+    warnings: error?.warnings || error?.validation?.warnings || [],
+
+    projectId: error?.projectId || error?.details?.projectId || "",
+  };
+}
+
+/*
+ * =========================================
+ * Warning Normalization
+ * =========================================
+ */
+
+function normalizeOperationWarnings(result) {
+  const operationWarnings = Array.isArray(result?.warnings)
+    ? result.warnings
+    : [];
+
+  const assetCleanupWarning = result?.assetCleanupWarning;
+
+  if (!assetCleanupWarning) {
+    return operationWarnings;
+  }
+
+  const cleanupMessage =
+    typeof assetCleanupWarning === "string"
+      ? assetCleanupWarning
+      : assetCleanupWarning?.publicMessage ||
+        assetCleanupWarning?.message ||
+        "The Project was saved, but one or more unused files could not be removed.";
+
+  return [
+    ...operationWarnings,
+
+    {
+      code: "PROJECT_ASSET_CLEANUP_WARNING",
+      field: "media",
+      message: cleanupMessage,
+    },
+  ];
+}
+
+/*
+ * =========================================
+ * Project Data Provider
+ * =========================================
+ */
+
+export function ProjectDataProvider({ children }) {
+  const [projects, setProjects] = useState([]);
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [loadStatus, setLoadStatus] = useState("idle");
+
+  const [saveStatus, setSaveStatus] = useState("idle");
+
+  const [operation, setOperation] = useState(null);
+
+  const [error, setError] = useState(null);
+
+  const [warnings, setWarnings] = useState([]);
+
+  const [backendStatus, setBackendStatus] = useState("idle");
+
+  const [backendError, setBackendError] = useState(null);
+
+  /*
+   * =========================================
+   * Load Project Records
+   * =========================================
+   */
+
+  const refreshBackendProjects = useCallback(async (options = {}) => {
+  setBackendStatus("loading");
+  setBackendError(null);
+
+  try {
+    const records = await fetchProjects(options);
+
+    if (!Array.isArray(records)) {
+      throw new TypeError("The Project API did not return a Project array.");
+    }
+
+    setBackendStatus("success");
+
+    // Do not replace browser-local Project records.
+    return records;
+  } catch (caughtError) {
+    setBackendStatus("error");
+    setBackendError(normalizeContextError(caughtError));
+    throw caughtError;
+  }
+}, []);
+  const refreshProjects = useCallback(
+    async ({ includeArchived = true, preserveCurrentRecords = false } = {}) => {
+      setIsLoading(true);
+      setLoadStatus("loading");
+
+      try {
+        const records = await fetchProjects();
+
+        if (!Array.isArray(records)) {
+          throw new TypeError(
+            "The Project API did not return a Project array."
+          );
+        }
+
+        const filteredRecords = includeArchived
+          ? records
+          : records.filter(
+              (project) => project.recordStatus !== "archived"
+            );
+
+        setProjects(filteredRecords);
+        setLoadStatus("success");
+        setError(null);
+
+        return filteredRecords;
+      } catch (caughtError) {
+        const normalizedError = normalizeContextError(caughtError);
+
+        if (!preserveCurrentRecords) {
+          setProjects([]);
+        }
+
+        setLoadStatus("error");
+        setError(normalizedError);
+
+        throw caughtError;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
+  /*
+   * =========================================
+   * Silent Local Synchronization
+   * =========================================
+   *
+   * Used after a successful mutation. This
+   * avoids showing the full loading state
+   * every time a Project is saved.
+   */
+
+  const synchronizeProjects = useCallback(async () => {
+    const records = await fetchProjects();
+
+    if (!Array.isArray(records)) {
+      throw new TypeError(
+        "The Project API did not return a Project array."
+      );
+    }
+
+    setProjects(records);
+    setLoadStatus("success");
+
+    return records;
+  }, []);
+
+  /*
+   * =========================================
+   * Initial Load
+   * =========================================
+   */
+
+  useEffect(() => {
+    refreshProjects().catch(() => {
+      /*
+       * The normalized loading error is already
+       * stored in the Context.
+       */
+    });
+  }, [refreshProjects]);
+
+  /*
+   * =========================================
+   * Cross-Tab Synchronization
+   * =========================================
+   */
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleStorageChange = (event) => {
+      if (
+        event.storageArea !== window.localStorage ||
+        event.key !== PROJECT_STORAGE_KEY
+      ) {
+        return;
+      }
+
+      refreshProjects({
+        includeArchived: true,
+        preserveCurrentRecords: true,
+      }).catch(() => {
+        /*
+         * Keep the current in-memory collection
+         * when another tab writes invalid data.
+         */
+      });
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [refreshProjects]);
+
+  /*
+   * =========================================
+   * Shared Operation Runner
+   * =========================================
+   */
+
+  const runOperation = useCallback(
+    async (nextOperation, action) => {
+      setOperation({
+        ...nextOperation,
+        status: "loading",
+      });
+
+      setSaveStatus("saving");
+      setError(null);
+      setWarnings([]);
+
+      try {
+        const result = await action();
+
+        /*
+         * The service has already completed the
+         * Project metadata and IndexedDB asset
+         * transaction at this point.
+         */
+
+        await synchronizeProjects();
+
+        const operationWarnings = normalizeOperationWarnings(result);
+
+        setWarnings(operationWarnings);
+        setSaveStatus("success");
+
+        setOperation({
+          ...nextOperation,
+          status: "success",
+        });
+
+        /*
+         * Create and update services return:
+         *
+         * {
+         *   project,
+         *   warnings,
+         *   assetCleanupWarning
+         * }
+         *
+         * Archive, restore, and delete may
+         * return the Project directly.
+         */
+
+        return result?.project || result;
+      } catch (caughtError) {
+        const normalizedError = normalizeContextError(caughtError);
+
+        setError(normalizedError);
+        setWarnings(normalizedError.warnings);
+        setSaveStatus("error");
+
+        setOperation({
+          ...nextOperation,
+          status: "error",
+        });
+
+        throw caughtError;
+      }
+    },
+    [synchronizeProjects],
+  );
+
+  /*
+   * =========================================
+   * Create Project
+   * =========================================
+   */
+
+  const createProject = useCallback(
+    (projectData, options = {}) =>
+      runOperation(
+        {
+          type: "create",
+          projectId: projectData?.id || "",
+        },
+        () => createProjectService(projectData, options),
+      ),
+    [runOperation],
+  );
+
+  /*
+   * =========================================
+   * Update Project
+   * =========================================
+   */
+
+  const updateProject = useCallback(
+    (projectId, projectData, options = {}) =>
+      runOperation(
+        {
+          type: "update",
+          projectId,
+        },
+        () => updateProjectService(projectId, projectData, options),
+      ),
+    [runOperation],
+  );
+
+  /*
+   * =========================================
+   * Archive Project
+   * =========================================
+   */
+
+  const archiveProject = useCallback(
+    (projectOrId) => {
+      const projectId =
+        typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+
+      return runOperation(
+        {
+          type: "archive",
+          projectId,
+        },
+        () => archiveProjectService(projectId),
+      );
+    },
+    [runOperation],
+  );
+
+  /*
+   * =========================================
+   * Restore Project
+   * =========================================
+   */
+
+  const restoreProject = useCallback(
+    (projectOrId) => {
+      const projectId =
+        typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+
+      return runOperation(
+        {
+          type: "restore",
+          projectId,
+        },
+        () => restoreProjectService(projectId),
+      );
+    },
+    [runOperation],
+  );
+
+  /*
+   * =========================================
+   * Delete Project
+   * =========================================
+   */
+
+  const deleteProject = useCallback(
+    (projectOrId) => {
+      const projectId =
+        typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+
+      return runOperation(
+        {
+          type: "delete",
+          projectId,
+        },
+        () => deleteProjectService(projectId),
+      );
+    },
+    [runOperation],
+  );
+
+  /*
+   * =========================================
+   * Utility Actions
+   * =========================================
+   */
+
+  const getProjectById = useCallback(
+    (projectId, { includeArchived = true } = {}) => {
+      const project =
+        projects.find((record) => record.id === projectId) || null;
+
+      if (project?.recordStatus === "archived" && !includeArchived) {
+        return null;
+      }
+
+      return project;
+    },
+    [projects],
+  );
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const clearWarnings = useCallback(() => {
+    setWarnings([]);
+  }, []);
+
+  const resetSaveStatus = useCallback(() => {
+    setSaveStatus("idle");
+    setOperation(null);
+  }, []);
+
+  /*
+   * =========================================
+   * Derived Project Collections
+   * =========================================
+   */
+
+  const activeProjects = useMemo(
+    () => projects.filter((project) => project.recordStatus !== "archived"),
+    [projects],
+  );
+
+  const archivedProjects = useMemo(
+    () => projects.filter((project) => project.recordStatus === "archived"),
+    [projects],
+  );
+
+  /*
+   * =========================================
+   * Context Value
+   * =========================================
+   */
+
+  const value = useMemo(
+    () => ({
+      projects,
+      activeProjects,
+      archivedProjects,
+
+      isLoading,
+      isSaving: saveStatus === "saving",
+
+      loadStatus,
+      saveStatus,
+      operation,
+
+      error,
+      warnings,
+
+       backendStatus,
+    backendError,
+
+      refreshProjects,
+      refreshBackendProjects,
+      getProjectById,
+
+      createProject,
+      updateProject,
+      archiveProject,
+      restoreProject,
+      deleteProject,
+
+      clearError,
+      clearWarnings,
+      resetSaveStatus,
+    }),
+    [
+      projects,
+      activeProjects,
+      archivedProjects,
+      isLoading,
+      loadStatus,
+      saveStatus,
+      operation,
+      error,
+      warnings,
+       backendStatus,
+    backendError,
+      refreshProjects,
+      refreshBackendProjects,
+      getProjectById,
+      createProject,
+      updateProject,
+      archiveProject,
+      restoreProject,
+      deleteProject,
+      clearError,
+      clearWarnings,
+      resetSaveStatus,
+    ],
+  );
+
+  return (
+    <ProjectDataContext.Provider value={value}>
+      {children}
+    </ProjectDataContext.Provider>
+  );
+}
+
+/*
+ * =========================================
+ * Project Data Hook
+ * =========================================
+ */
+
+export function useProjectData() {
+  const context = useContext(ProjectDataContext);
+
+  if (!context) {
+    throw new Error("useProjectData must be used inside ProjectDataProvider.");
+  }
+
+  return context;
+}
+
+export default ProjectDataContext;
+
+
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectDocumentEditor\ProjectDocumentEditor.jsx
+SHA256: C7FFE11B4A0AB45E2BD491550790E0A752D43ED1872A9A3ECE64FE637551A690
+==========================================================================================
+import { useEffect, useRef, useState } from "react";
+
+import {
+  PROJECT_DOCUMENT_ACCEPT,
+  PROJECT_DOCUMENT_TYPE_OPTIONS,
+  PROJECT_FIELD_LIMITS,
+  isProjectDocumentWithinSizeLimit,
+  isSupportedProjectDocument,
+} from "../../../../config/projectConfig.js";
+
+import { createProjectId } from "../../../../models/projectModel.js";
+
+import {
+  createProjectAssetUrl,
+  revokeProjectAssetUrl,
+} from "../../../../services/Project/projectAssetStorage.js";
+
+import "./ProjectDocumentEditor.css";
+
+/*
+ * =========================================
+ * Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isActiveDocument(document) {
+  return document?.status !== "archived";
+}
+
+function formatFileSize(value) {
+  const size = Number(value);
+
+  if (!Number.isFinite(size) || size <= 0) {
+    return "";
+  }
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function getDocumentLabel(document) {
+  return (
+    getText(document?.name) ||
+    getText(document?.fileName) ||
+    getText(document?.file?.name) ||
+    "Project document"
+  );
+}
+
+/*
+ * =========================================
+ * Document Editor
+ * =========================================
+ */
+
+function ProjectDocumentEditor({
+  documents = [],
+  uploads = [],
+  disabled = false,
+  error = "",
+  onChange,
+  onUploadsChange,
+  onRemoveStoredAsset,
+}) {
+  const [localError, setLocalError] = useState("");
+
+  const [preview, setPreview] = useState(null);
+
+  const previewRef = useRef(null);
+  const previewRequestRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const activeDocuments = documents.filter(isActiveDocument);
+
+  /*
+   * =========================================
+   * Safe Preview Cleanup
+   * =========================================
+   */
+
+  const revokePreviewUrl = (previewValue) => {
+    if (previewValue?.ownsObjectUrl) {
+      revokeProjectAssetUrl(previewValue.url);
+    }
+  };
+
+  const closePreview = () => {
+    previewRequestRef.current += 1;
+
+    revokePreviewUrl(previewRef.current);
+
+    previewRef.current = null;
+    setPreview(null);
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      previewRequestRef.current += 1;
+
+      revokePreviewUrl(previewRef.current);
+
+      previewRef.current = null;
+    };
+  }, []);
+
+  /*
+   * =========================================
+   * File Selection
+   * =========================================
+   */
+
+  const handleFileSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    const availableSlots =
+      PROJECT_FIELD_LIMITS.maximumDocuments -
+      activeDocuments.length -
+      uploads.length;
+
+    if (availableSlots <= 0) {
+      setLocalError(
+        `This Project can contain no more than ${PROJECT_FIELD_LIMITS.maximumDocuments} documents.`,
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    const acceptedUploads = [];
+
+    let nextError = "";
+
+    files.slice(0, availableSlots).forEach((file) => {
+      if (!isSupportedProjectDocument(file)) {
+        nextError =
+          "Upload a supported PDF, Word, PowerPoint, JPG, PNG, or WebP document.";
+
+        return;
+      }
+
+      if (!isProjectDocumentWithinSizeLimit(file)) {
+        nextError =
+          "Each supporting document must be non-empty and 20 MB or smaller.";
+
+        return;
+      }
+
+      const normalizedFileName = getText(file.name).toLocaleLowerCase();
+
+      const duplicate = [
+        ...activeDocuments,
+        ...uploads,
+        ...acceptedUploads,
+      ].some((item) => {
+        const existingFileName = getText(
+          item.file?.name || item.fileName || item.name,
+        ).toLocaleLowerCase();
+
+        return existingFileName && existingFileName === normalizedFileName;
+      });
+
+      if (duplicate) {
+        nextError = `"${file.name}" has already been added.`;
+
+        return;
+      }
+
+      acceptedUploads.push({
+        assetId: createProjectId("project-document"),
+
+        file,
+
+        name: file.name,
+
+        description: "",
+
+        documentType: "supporting-evidence",
+
+        visibility: "private",
+
+        status: "active",
+      });
+    });
+
+    if (files.length > availableSlots) {
+      nextError = `Only ${availableSlots} additional ${
+        availableSlots === 1 ? "document" : "documents"
+      } can be added.`;
+    }
+
+    if (acceptedUploads.length > 0) {
+      onUploadsChange?.([...uploads, ...acceptedUploads]);
+    }
+
+    setLocalError(nextError);
+
+    event.target.value = "";
+  };
+
+  /*
+   * =========================================
+   * Document Updates
+   * =========================================
+   */
+
+  const updateExistingDocument = (documentId, field, value) => {
+    onChange?.(
+      documents.map((document) =>
+        document.id === documentId
+          ? {
+              ...document,
+              [field]: value,
+            }
+          : document,
+      ),
+    );
+
+    setLocalError("");
+  };
+
+  const updateStagedDocument = (assetId, field, value) => {
+    onUploadsChange?.(
+      uploads.map((upload) =>
+        upload.assetId === assetId
+          ? {
+              ...upload,
+              [field]: value,
+            }
+          : upload,
+      ),
+    );
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Removal
+   * =========================================
+   */
+
+  const removeExistingDocument = (document) => {
+    onChange?.(documents.filter((candidate) => candidate.id !== document.id));
+
+    if (document.storageKey) {
+      onRemoveStoredAsset?.(document.storageKey);
+    }
+
+    if (previewRef.current?.documentId === document.id) {
+      closePreview();
+    }
+
+    setLocalError("");
+  };
+
+  const removeStagedDocument = (upload) => {
+    onUploadsChange?.(
+      uploads.filter((item) => item.assetId !== upload.assetId),
+    );
+
+    if (previewRef.current?.documentId === upload.assetId) {
+      closePreview();
+    }
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Preview
+   * =========================================
+   */
+
+  const showPreview = (previewValue) => {
+    revokePreviewUrl(previewRef.current);
+
+    previewRef.current = previewValue;
+
+    setPreview(previewValue);
+  };
+
+  const handleViewStoredDocument = async (document) => {
+    const requestId = previewRequestRef.current + 1;
+
+    previewRequestRef.current = requestId;
+
+    setLocalError("");
+
+    try {
+      let url = "";
+      let ownsObjectUrl = false;
+
+      if (document.storageKey) {
+        url = await createProjectAssetUrl(document.storageKey);
+
+        ownsObjectUrl = true;
+      } else {
+        url = getText(document.externalUrl);
+      }
+
+      if (requestId !== previewRequestRef.current || !mountedRef.current) {
+        if (ownsObjectUrl) {
+          revokeProjectAssetUrl(url);
+        }
+
+        return;
+      }
+
+      if (!url) {
+        throw new Error("The document does not have a preview address.");
+      }
+
+      showPreview({
+        documentId: document.id,
+        title: getDocumentLabel(document),
+        url,
+        mimeType: document.mimeType || "",
+        ownsObjectUrl,
+      });
+    } catch (caughtError) {
+      if (requestId !== previewRequestRef.current || !mountedRef.current) {
+        return;
+      }
+
+      setLocalError(
+        caughtError?.publicMessage ||
+          caughtError?.message ||
+          "The selected Project document could not be opened.",
+      );
+    }
+  };
+
+  const handleViewStagedDocument = (upload) => {
+    if (
+      !upload?.file ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      setLocalError("The selected Project document cannot be previewed.");
+
+      return;
+    }
+
+    previewRequestRef.current += 1;
+
+    const objectUrl = URL.createObjectURL(upload.file);
+
+    showPreview({
+      documentId: upload.assetId,
+      title: getDocumentLabel(upload),
+      url: objectUrl,
+      mimeType: upload.file.type || "",
+      ownsObjectUrl: true,
+    });
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * Render
+   * =========================================
+   */
+
+  return (
+    <section
+      className="project-form-section project-document-editor"
+      data-field="supportingDocuments"
+    >
+      <header className="project-form-section-header">
+        <span aria-hidden="true" />
+
+        <div>
+          <small>Supporting Evidence</small>
+
+          <h3>Project Documents</h3>
+
+          <p>
+            Attach reports, presentations, diagrams, award evidence, source
+            material, and technical documentation.
+          </p>
+        </div>
+      </header>
+
+      <label
+        className={[
+          "project-document-upload",
+          disabled ? "project-document-upload--disabled" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <input
+          type="file"
+          multiple
+          accept={PROJECT_DOCUMENT_ACCEPT}
+          onChange={handleFileSelection}
+          disabled={
+            disabled ||
+            activeDocuments.length + uploads.length >=
+              PROJECT_FIELD_LIMITS.maximumDocuments
+          }
+        />
+
+        <span>
+          <strong>Select supporting documents</strong>
+
+          <small>
+            PDF, Word, PowerPoint, JPG, PNG, or WebP Â· 20 MB maximum per
+            document
+          </small>
+
+          <em>
+            {activeDocuments.length + uploads.length}/
+            {PROJECT_FIELD_LIMITS.maximumDocuments} documents
+          </em>
+        </span>
+      </label>
+
+      {(localError || error) && (
+        <p className="project-document-error" role="alert">
+          {localError || error}
+        </p>
+      )}
+
+      {activeDocuments.length === 0 && uploads.length === 0 ? (
+        <div className="project-document-empty">
+          No supporting documents added.
+        </div>
+      ) : (
+        <div className="project-document-list">
+          {activeDocuments.map((document) => (
+            <DocumentRow
+              key={document.id}
+              document={document}
+              disabled={disabled}
+              onChange={(field, value) =>
+                updateExistingDocument(document.id, field, value)
+              }
+              onView={() => handleViewStoredDocument(document)}
+              onRemove={() => removeExistingDocument(document)}
+            />
+          ))}
+
+          {uploads.map((upload) => (
+            <DocumentRow
+              key={upload.assetId}
+              document={upload}
+              staged
+              disabled={disabled}
+              onChange={(field, value) =>
+                updateStagedDocument(upload.assetId, field, value)
+              }
+              onView={() => handleViewStagedDocument(upload)}
+              onRemove={() => removeStagedDocument(upload)}
+            />
+          ))}
+        </div>
+      )}
+
+      {preview && <DocumentPreview preview={preview} onClose={closePreview} />}
+    </section>
+  );
+}
+
+/*
+ * =========================================
+ * Document Row
+ * =========================================
+ */
+
+function DocumentRow({
+  document,
+  staged = false,
+  disabled,
+  onChange,
+  onView,
+  onRemove,
+}) {
+  const label = getDocumentLabel(document);
+
+  const fileName = getText(document.fileName) || getText(document.file?.name);
+
+  const fileSize = document.fileSize ?? document.file?.size;
+
+  return (
+    <article className="project-document-row">
+      <div className="project-document-icon" aria-hidden="true">
+        {staged ? "NEW" : "DOC"}
+      </div>
+
+      <div className="project-document-content">
+        <div className="project-document-file">
+          <strong>{fileName || label}</strong>
+
+          <small>
+            {[
+              staged ? "Ready to upload" : "Saved document",
+              formatFileSize(fileSize),
+            ]
+              .filter(Boolean)
+              .join(" Â· ")}
+          </small>
+        </div>
+
+        <div className="project-document-fields">
+          <label>
+            <span>Document Name</span>
+
+            <input
+              type="text"
+              value={document.name || ""}
+              onChange={(event) => onChange("name", event.target.value)}
+              maxLength={PROJECT_FIELD_LIMITS.documentName}
+              placeholder="Document name"
+              disabled={disabled}
+            />
+          </label>
+
+          <label>
+            <span>Description</span>
+
+            <textarea
+              rows={2}
+              value={document.description || ""}
+              onChange={(event) => onChange("description", event.target.value)}
+              maxLength={PROJECT_FIELD_LIMITS.documentDescription}
+              placeholder="Explain what this document demonstrates."
+              disabled={disabled}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="project-document-controls">
+        <label>
+          <span>Document Type</span>
+
+          <select
+            value={document.documentType || "supporting-evidence"}
+            onChange={(event) => onChange("documentType", event.target.value)}
+            disabled={disabled}
+            aria-label={`Document type for ${label}`}
+          >
+            {PROJECT_DOCUMENT_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Visibility</span>
+
+          <select
+            value={document.visibility || "private"}
+            onChange={(event) => onChange("visibility", event.target.value)}
+            disabled={disabled}
+            aria-label={`Visibility for ${label}`}
+          >
+            <option value="private">Private</option>
+
+            <option value="public">Public</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={onView}
+          disabled={disabled}
+          aria-label={`View ${label}`}
+        >
+          View
+        </button>
+
+        <button
+          type="button"
+          className="project-document-remove"
+          onClick={onRemove}
+          disabled={disabled}
+          aria-label={`Remove ${label}`}
+        >
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/*
+ * =========================================
+ * Document Preview
+ * =========================================
+ */
+
+function MarkdownTextPreview({ url }) {
+  const [content, setContent] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setContent("");
+    setError("");
+
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load Markdown document.");
+        }
+
+        return response.text();
+      })
+      .then(setContent)
+      .catch((loadError) => {
+        if (loadError.name !== "AbortError") {
+          setError("Markdown preview unavailable.");
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  if (error) {
+    return <p role="alert">{error}</p>;
+  }
+
+  return (
+    <pre style={{
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      padding: "1rem",
+      overflow: "auto",
+      width: "100%",
+      maxHeight: "70vh",
+    }}>
+      {content}
+    </pre>
+  );
+}
+function DocumentPreview({ preview, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  const isImage = preview.mimeType.startsWith("image/");
+  const isMarkdown = preview.mimeType === "text/markdown" || /\.md$/i.test(preview.title);
+
+  return (
+    <div
+      className="project-document-preview-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className="project-document-preview"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Preview ${preview.title}`}
+      >
+        <header>
+          <div>
+            <small>Project Document</small>
+
+            <h4>{preview.title}</h4>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close document preview"
+          >
+            Ã—
+          </button>
+        </header>
+
+        <div className="project-document-preview-content">
+          {isImage ? (
+            <img src={preview.url} alt={preview.title} />
+          ) : isMarkdown ? (
+            <MarkdownTextPreview url={preview.url} />
+          ) : (
+            <iframe src={preview.url} title={preview.title} />
+          )}
+        </div>
+
+        <footer>
+          <a href={preview.url} target="_blank" rel="noopener noreferrer">
+            Open in New Tab
+          </a>
+
+          <a href={preview.url} download={preview.title}>
+            Download
+          </a>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+export default ProjectDocumentEditor;
+
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectMediaEditor\ProjectMediaEditor.jsx
+SHA256: 86F6745530C66C44516D528CC458D287234F3B4603029CD62A7859FEB875028B
+==========================================================================================
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  PROJECT_FIELD_LIMITS,
+  PROJECT_MEDIA_ACCEPT,
+  isProjectMediaWithinSizeLimit,
+  isSupportedProjectMedia,
+} from "../../../../config/projectConfig.js";
+
+import { createProjectId } from "../../../../models/projectModel.js";
+
+import {
+  createProjectAssetUrl,
+  revokeProjectAssetUrl,
+} from "../../../../services/Project/projectAssetStorage.js";
+
+import "./ProjectMediaEditor.css";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isActiveMedia(item) {
+  return item?.status !== "archived";
+}
+
+function isPublicMedia(item) {
+  return isActiveMedia(item) && item?.visibility !== "private";
+}
+
+/*
+ * =========================================
+ * Featured Media Normalization
+ * =========================================
+ */
+
+function normalizeFeaturedMedia(
+  media,
+  uploads,
+  preferredAssetId = "",
+  preferredSource = "",
+) {
+  const existingMedia = Array.isArray(media) ? media : [];
+
+  const stagedUploads = Array.isArray(uploads) ? uploads : [];
+
+  let selectedSource = "";
+  let selectedId = "";
+
+  if (
+    preferredSource === "stored" &&
+    existingMedia.some(
+      (item) => item.id === preferredAssetId && isPublicMedia(item),
+    )
+  ) {
+    selectedSource = "stored";
+    selectedId = preferredAssetId;
+  } else if (
+    preferredSource === "staged" &&
+    stagedUploads.some(
+      (item) => item.assetId === preferredAssetId && isPublicMedia(item),
+    )
+  ) {
+    selectedSource = "staged";
+    selectedId = preferredAssetId;
+  } else {
+    const existingFeatured = existingMedia.find(
+      (item) => item.isFeatured && isPublicMedia(item),
+    );
+
+    const stagedFeatured = stagedUploads.find(
+      (item) => item.isFeatured && isPublicMedia(item),
+    );
+
+    const fallbackExisting = existingMedia.find(isPublicMedia);
+
+    const fallbackStaged = stagedUploads.find(isPublicMedia);
+
+    if (existingFeatured) {
+      selectedSource = "stored";
+      selectedId = existingFeatured.id;
+    } else if (stagedFeatured) {
+      selectedSource = "staged";
+      selectedId = stagedFeatured.assetId;
+    } else if (fallbackExisting) {
+      selectedSource = "stored";
+      selectedId = fallbackExisting.id;
+    } else if (fallbackStaged) {
+      selectedSource = "staged";
+      selectedId = fallbackStaged.assetId;
+    }
+  }
+
+  return {
+    media: existingMedia.map((item) => ({
+      ...item,
+
+      isFeatured: selectedSource === "stored" && item.id === selectedId,
+    })),
+
+    uploads: stagedUploads.map((item) => ({
+      ...item,
+
+      isFeatured: selectedSource === "staged" && item.assetId === selectedId,
+    })),
+
+    featuredId: selectedId,
+  };
+}
+
+/*
+ * =========================================
+ * Stored Media Preview
+ * =========================================
+ */
+
+function StoredMediaPreview({
+  storageKey,
+  externalUrl = "",
+  type,
+  name,
+  altText,
+}) {
+  const [previewUrl, setPreviewUrl] = useState(externalUrl);
+
+  const [previewError, setPreviewError] = useState("");
+
+  useEffect(() => {
+    let isActive = true;
+    let objectUrl = "";
+
+    setPreviewError("");
+
+    if (!storageKey) {
+      setPreviewUrl(externalUrl);
+
+      return undefined;
+    }
+
+    setPreviewUrl("");
+
+    createProjectAssetUrl(storageKey)
+      .then((url) => {
+        objectUrl = url;
+
+        if (!isActive) {
+          revokeProjectAssetUrl(url);
+
+          return;
+        }
+
+        setPreviewUrl(url);
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+
+        setPreviewUrl("");
+
+        setPreviewError(error?.publicMessage || "Preview unavailable");
+      });
+
+    return () => {
+      isActive = false;
+
+      if (objectUrl) {
+        revokeProjectAssetUrl(objectUrl);
+      }
+    };
+  }, [storageKey, externalUrl]);
+
+  if (!previewUrl) {
+    return (
+      <div className="project-media-preview-empty" title={previewError}>
+        {previewError || "Loading previewâ€¦"}
+      </div>
+    );
+  }
+
+  if (type === "video") {
+    return (
+      <video
+        src={previewUrl}
+        muted
+        playsInline
+        preload="metadata"
+        aria-label={altText || name || "Project video preview"}
+      />
+    );
+  }
+
+  return (
+    <img src={previewUrl} alt={altText || name || "Project media preview"} />
+  );
+}
+
+/*
+ * =========================================
+ * Staged Media Preview
+ * =========================================
+ */
+
+function StagedMediaPreview({ file, type, name, altText }) {
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (
+      !file ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      setPreviewUrl("");
+
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
+
+  if (!previewUrl) {
+    return (
+      <div className="project-media-preview-empty">Preview unavailable</div>
+    );
+  }
+
+  if (type === "video" || file?.type?.startsWith("video/")) {
+    return (
+      <video
+        src={previewUrl}
+        muted
+        playsInline
+        preload="metadata"
+        aria-label={altText || name || file?.name || "New project video"}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={previewUrl}
+      alt={altText || name || file?.name || "New project image"}
+    />
+  );
+}
+
+/*
+ * =========================================
+ * Media Actions
+ * =========================================
+ */
+
+function MediaActions({
+  item,
+  isFeatured,
+  disabled,
+  onFeatured,
+  onVisibility,
+  onRemove,
+}) {
+  const isPrivate = item.visibility === "private";
+
+  return (
+    <div className="project-media-actions">
+      <label className="project-media-item-selection">
+        <input
+          type="radio"
+          name="project-item-media"
+          checked={isFeatured}
+          onChange={onFeatured}
+          disabled={disabled || isPrivate}
+        />
+
+        <span>
+          <strong>Show by default</strong>
+
+          <small>Use this media as the default Project thumbnail.</small>
+        </span>
+      </label>
+
+      <label className="project-media-visibility">
+        <span>Visibility</span>
+
+        <select
+          value={item.visibility || "public"}
+          onChange={(event) => onVisibility(event.target.value)}
+          disabled={disabled}
+          aria-label={`Visibility for ${item.name || "project media"}`}
+        >
+          <option value="public">Public</option>
+
+          <option value="private">Private</option>
+        </select>
+      </label>
+
+      <button
+        type="button"
+        className="project-media-remove"
+        onClick={onRemove}
+        disabled={disabled}
+        aria-label={`Remove ${item.name || "project media"}`}
+      >
+        Remove
+      </button>
+    </div>
+  );
+}
+
+/*
+ * =========================================
+ * Project Media Editor
+ * =========================================
+ */
+
+function ProjectMediaEditor({
+  media = [],
+  uploads = [],
+  featuredMediaId = "",
+  disabled = false,
+  error = "",
+  onChange,
+  onUploadsChange,
+  onFeaturedMediaChange,
+  onRemoveStoredAsset,
+}) {
+  const [localError, setLocalError] = useState("");
+
+  const activeMedia = useMemo(() => media.filter(isActiveMedia), [media]);
+
+  const featuredId = useMemo(() => {
+    const storedSelectionExists = activeMedia.some(
+      (item) => item.id === featuredMediaId,
+    );
+
+    const stagedSelectionExists = uploads.some(
+      (item) => item.assetId === featuredMediaId,
+    );
+
+    const preferredSource = storedSelectionExists
+      ? "stored"
+      : stagedSelectionExists
+        ? "staged"
+        : "";
+
+    const normalized = normalizeFeaturedMedia(
+      activeMedia,
+      uploads,
+      featuredMediaId,
+      preferredSource,
+    );
+
+    return normalized.featuredId;
+  }, [activeMedia, uploads, featuredMediaId]);
+
+  /*
+   * =========================================
+   * Commit Both Media Collections
+   * =========================================
+   */
+
+  const commitCollections = (
+    nextMedia,
+    nextUploads,
+    preferredAssetId = "",
+    preferredSource = "",
+  ) => {
+    const normalized = normalizeFeaturedMedia(
+      nextMedia,
+      nextUploads,
+      preferredAssetId,
+      preferredSource,
+    );
+
+    onChange?.(normalized.media);
+
+    onUploadsChange?.(normalized.uploads);
+
+    onFeaturedMediaChange?.(normalized.featuredId);
+
+    setLocalError("");
+  };
+
+  /*
+   * =========================================
+   * File Selection
+   * =========================================
+   */
+
+  const handleFileSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    const availableSlots =
+      PROJECT_FIELD_LIMITS.maximumMedia - activeMedia.length - uploads.length;
+
+    if (availableSlots <= 0) {
+      setLocalError(
+        `This Project can contain no more than ${PROJECT_FIELD_LIMITS.maximumMedia} media items.`,
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    const acceptedUploads = [];
+
+    let nextError = "";
+
+    files.slice(0, availableSlots).forEach((file) => {
+      if (!isSupportedProjectMedia(file)) {
+        nextError = "Upload JPG, PNG, WebP, GIF, MP4, or WebM files.";
+
+        return;
+      }
+
+      if (!isProjectMediaWithinSizeLimit(file)) {
+        nextError = file.type.startsWith("video/")
+          ? "Videos must be 150 MB or smaller and cannot be empty."
+          : "Images must be 12 MB or smaller and cannot be empty.";
+
+        return;
+      }
+
+      const normalizedFileName = getText(file.name).toLocaleLowerCase();
+
+      const duplicate = [...activeMedia, ...uploads, ...acceptedUploads].some(
+        (item) => {
+          const existingFileName = getText(
+            item.file?.name || item.fileName || item.name,
+          ).toLocaleLowerCase();
+
+          return existingFileName && existingFileName === normalizedFileName;
+        },
+      );
+
+      if (duplicate) {
+        nextError = `"${file.name}" has already been added.`;
+
+        return;
+      }
+
+      const isVideo = file.type.startsWith("video/");
+
+      acceptedUploads.push({
+        assetId: createProjectId("project-media"),
+
+        file,
+
+        type: isVideo ? "video" : "image",
+
+        name: file.name,
+
+        caption: "",
+
+        altText: isVideo ? `Video demonstration for ${file.name}` : "",
+
+        visibility: "public",
+
+        status: "active",
+
+        isFeatured: false,
+      });
+    });
+
+    if (files.length > availableSlots) {
+      nextError = `Only ${availableSlots} additional ${
+        availableSlots === 1 ? "media item" : "media items"
+      } can be added.`;
+    }
+
+    if (acceptedUploads.length > 0) {
+      commitCollections(media, [...uploads, ...acceptedUploads]);
+    }
+
+    setLocalError(nextError);
+
+    event.target.value = "";
+  };
+
+  /*
+   * =========================================
+   * Existing Media Updates
+   * =========================================
+   */
+
+  const updateExistingMedia = (mediaId, field, value) => {
+    const nextMedia = media.map((item) =>
+      item.id === mediaId
+        ? {
+            ...item,
+            [field]: value,
+          }
+        : item,
+    );
+
+    commitCollections(nextMedia, uploads);
+  };
+
+  /*
+   * =========================================
+   * Staged Media Updates
+   * =========================================
+   */
+
+  const updateStagedMedia = (assetId, field, value) => {
+    const nextUploads = uploads.map((item) =>
+      item.assetId === assetId
+        ? {
+            ...item,
+            [field]: value,
+          }
+        : item,
+    );
+
+    commitCollections(media, nextUploads);
+  };
+
+  /*
+   * =========================================
+   * Featured Media
+   * =========================================
+   */
+
+  const setFeaturedMedia = (assetId, source) => {
+    commitCollections(media, uploads, assetId, source);
+  };
+
+  /*
+   * =========================================
+   * Visibility
+   * =========================================
+   */
+
+  const updateExistingVisibility = (mediaId, visibility) => {
+    const nextMedia = media.map((item) =>
+      item.id === mediaId
+        ? {
+            ...item,
+            visibility,
+            isFeatured: visibility === "private" ? false : item.isFeatured,
+          }
+        : item,
+    );
+
+    commitCollections(nextMedia, uploads);
+  };
+
+  const updateStagedVisibility = (assetId, visibility) => {
+    const nextUploads = uploads.map((item) =>
+      item.assetId === assetId
+        ? {
+            ...item,
+            visibility,
+            isFeatured: visibility === "private" ? false : item.isFeatured,
+          }
+        : item,
+    );
+
+    commitCollections(media, nextUploads);
+  };
+
+  /*
+   * =========================================
+   * Removal
+   * =========================================
+   */
+
+  const removeExistingMedia = (item) => {
+    const nextMedia = media.filter((candidate) => candidate.id !== item.id);
+
+    commitCollections(nextMedia, uploads);
+
+    if (item.storageKey) {
+      onRemoveStoredAsset?.(item.storageKey);
+    }
+  };
+
+  const removeStagedMedia = (assetId) => {
+    const nextUploads = uploads.filter((item) => item.assetId !== assetId);
+
+    commitCollections(media, nextUploads);
+  };
+
+  /*
+   * =========================================
+   * Render
+   * =========================================
+   */
+
+  return (
+    <section
+      className="project-form-section project-media-editor"
+      data-field="media"
+    >
+      <header className="project-form-section-header">
+        <span aria-hidden="true" />
+
+        <div>
+          <small>Media Gallery</small>
+
+          <h3>Project Images and Videos</h3>
+
+          <p>
+            Upload images and videos, then select â€œShow on Project Itemâ€ for the
+            media that should appear as the Projectâ€™s default thumbnail.
+          </p>
+        </div>
+      </header>
+
+      <label
+        className={[
+          "project-media-upload",
+          disabled ? "project-media-upload--disabled" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <input
+          type="file"
+          multiple
+          accept={PROJECT_MEDIA_ACCEPT}
+          onChange={handleFileSelection}
+          disabled={
+            disabled ||
+            activeMedia.length + uploads.length >=
+              PROJECT_FIELD_LIMITS.maximumMedia
+          }
+        />
+
+        <span>
+          <strong>Select project images or videos</strong>
+
+          <small>
+            JPG, PNG, WebP, GIF, MP4, or WebM Â· Images up to 12 MB Â· Videos up
+            to 150 MB
+          </small>
+
+          <em>
+            {activeMedia.length + uploads.length}/
+            {PROJECT_FIELD_LIMITS.maximumMedia} media items
+          </em>
+        </span>
+      </label>
+
+      {(localError || error) && (
+        <p className="project-media-error" role="alert">
+          {localError || error}
+        </p>
+      )}
+
+      {activeMedia.length === 0 && uploads.length === 0 ? (
+        <div className="project-media-empty">
+          No project media added. A professional featured visual is recommended.
+        </div>
+      ) : (
+        <div className="project-media-list">
+          {activeMedia.map((item) => (
+            <article
+              key={item.id}
+              className={[
+                "project-media-item",
+                item.id === featuredId ? "project-media-item--featured" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <div className="project-media-thumbnail">
+                <StoredMediaPreview
+                  storageKey={item.storageKey}
+                  externalUrl={item.externalUrl}
+                  type={item.type}
+                  name={item.name}
+                  altText={item.altText}
+                />
+
+                <span>{item.type}</span>
+              </div>
+
+              <div className="project-media-fields">
+                <label>
+                  <span>Media Name</span>
+
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(event) =>
+                      updateExistingMedia(item.id, "name", event.target.value)
+                    }
+                    maxLength={PROJECT_FIELD_LIMITS.mediaName}
+                    placeholder="Media name"
+                    disabled={disabled}
+                  />
+                </label>
+
+                <label>
+                  <span>Alternative Text</span>
+
+                  <input
+                    type="text"
+                    value={item.altText || ""}
+                    onChange={(event) =>
+                      updateExistingMedia(
+                        item.id,
+                        "altText",
+                        event.target.value,
+                      )
+                    }
+                    maxLength={PROJECT_FIELD_LIMITS.mediaAltText}
+                    placeholder="Describe what is visible for accessibility"
+                    disabled={disabled}
+                  />
+                </label>
+
+                <label>
+                  <span>Caption</span>
+
+                  <textarea
+                    rows={2}
+                    value={item.caption || ""}
+                    onChange={(event) =>
+                      updateExistingMedia(
+                        item.id,
+                        "caption",
+                        event.target.value,
+                      )
+                    }
+                    maxLength={PROJECT_FIELD_LIMITS.mediaCaption}
+                    placeholder="Explain what this visual demonstrates"
+                    disabled={disabled}
+                  />
+                </label>
+              </div>
+
+              <MediaActions
+                item={item}
+                isFeatured={item.id === featuredId}
+                disabled={disabled}
+                onFeatured={() => setFeaturedMedia(item.id, "stored")}
+                onVisibility={(value) =>
+                  updateExistingVisibility(item.id, value)
+                }
+                onRemove={() => removeExistingMedia(item)}
+              />
+            </article>
+          ))}
+
+          {uploads.map((upload) => (
+            <article
+              key={upload.assetId}
+              className={[
+                "project-media-item",
+                upload.assetId === featuredId
+                  ? "project-media-item--featured"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <div className="project-media-thumbnail">
+                <StagedMediaPreview
+                  file={upload.file}
+                  type={upload.type}
+                  name={upload.name}
+                  altText={upload.altText}
+                />
+
+                <span>New {upload.type}</span>
+              </div>
+
+              <div className="project-media-fields">
+                <label>
+                  <span>Media Name</span>
+
+                  <input
+                    type="text"
+                    value={upload.name || ""}
+                    onChange={(event) =>
+                      updateStagedMedia(
+                        upload.assetId,
+                        "name",
+                        event.target.value,
+                      )
+                    }
+                    maxLength={PROJECT_FIELD_LIMITS.mediaName}
+                    placeholder="Media name"
+                    disabled={disabled}
+                  />
+                </label>
+
+                <label>
+                  <span>Alternative Text</span>
+
+                  <input
+                    type="text"
+                    value={upload.altText || ""}
+                    onChange={(event) =>
+                      updateStagedMedia(
+                        upload.assetId,
+                        "altText",
+                        event.target.value,
+                      )
+                    }
+                    maxLength={PROJECT_FIELD_LIMITS.mediaAltText}
+                    placeholder="Describe what is visible for accessibility"
+                    disabled={disabled}
+                  />
+                </label>
+
+                <label>
+                  <span>Caption</span>
+
+                  <textarea
+                    rows={2}
+                    value={upload.caption || ""}
+                    onChange={(event) =>
+                      updateStagedMedia(
+                        upload.assetId,
+                        "caption",
+                        event.target.value,
+                      )
+                    }
+                    maxLength={PROJECT_FIELD_LIMITS.mediaCaption}
+                    placeholder="Explain what this visual demonstrates"
+                    disabled={disabled}
+                  />
+                </label>
+              </div>
+
+              <MediaActions
+                item={upload}
+                isFeatured={upload.assetId === featuredId}
+                disabled={disabled}
+                onFeatured={() => setFeaturedMedia(upload.assetId, "staged")}
+                onVisibility={(value) =>
+                  updateStagedVisibility(upload.assetId, value)
+                }
+                onRemove={() => removeStagedMedia(upload.assetId)}
+              />
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default ProjectMediaEditor;
+
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js
+SHA256: 7DA873744FE63BE2A9B178210AE727D9FB577E5CF356570E3C6EE0A0F47FCDFF
+==========================================================================================
+
+import {
+  apiGet,
+  apiPost,
+  apiPut,
+  apiPatch,
+  apiDelete,
+} from "../apiClient.js";
+
+import { prepareProjectApiPayload } from "./projectApiAdapter.js";
+
+const PROJECT_ENDPOINT = "/projects";
+
+function projectPath(projectId) {
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    throw new TypeError("A Project ID is required.");
+  }
+
+  return `${PROJECT_ENDPOINT}/${encodeURIComponent(projectId.trim())}`;
+}
+
+function requireRowVersion(rowVersion) {
+  if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+    throw new TypeError("A Project rowVersion is required.");
+  }
+
+  return rowVersion.trim();
+}
+
+export async function fetchProjects(options = {}) {
+  const response = await apiGet(PROJECT_ENDPOINT, options);
+  return response.data.projects;
+}
+
+export async function fetchProjectById(projectId, options = {}) {
+  const response = await apiGet(projectPath(projectId), options);
+  return response.data.project;
+}
+
+export async function createProjectApi(project, options = {}) {
+  const response = await apiPost(PROJECT_ENDPOINT, prepareProjectApiPayload(project), options);
+  return response.data.project;
+}
+
+export async function updateProjectApi(
+  projectId,
+  project,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiPut(
+    projectPath(projectId),
+    {
+      project: prepareProjectApiPayload(project),
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.project;
+}
+
+export async function setProjectArchivedApi(
+  projectId,
+  archived,
+  rowVersion,
+  options = {},
+) {
+  if (typeof archived !== "boolean") {
+    throw new TypeError("archived must be a boolean.");
+  }
+
+  const response = await apiPatch(
+    `${projectPath(projectId)}/archive`,
+    {
+      archived,
+      rowVersion: requireRowVersion(rowVersion),
+    },
+    options,
+  );
+
+  return response.data.project;
+}
+
+export async function deleteProjectApi(
+  projectId,
+  rowVersion,
+  options = {},
+) {
+  const response = await apiDelete(projectPath(projectId), {
+    ...options,
+    body: {
+      rowVersion: requireRowVersion(rowVersion),
+    },
+  });
+
+  return response.data;
+}
+
+
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectDocumentApiService.js
+SHA256: A3899E4878A8D886D00DD94AB4B495AA6A6B42C5954852408E556C7096285F02
+==========================================================================================
+import {
+  apiGet,
+  apiPost,
+  apiDelete,
+} from "../apiClient.js";
+
+import {
+  fetchProjectBinary,
+  createProjectBinaryObjectUrl,
+} from "./projectBinaryApi.js";
+
+function documentBasePath(projectId) {
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    throw new TypeError("A Project ID is required.");
+  }
+
+  return `/projects/${encodeURIComponent(projectId.trim())}/documents`;
+}
+
+function documentPath(projectId, documentId) {
+  if (typeof documentId !== "string" || !documentId.trim()) {
+    throw new TypeError("A document ID is required.");
+  }
+
+  return `${documentBasePath(projectId)}/${encodeURIComponent(documentId.trim())}`;
+}
+
+export async function fetchProjectDocuments(projectId, options = {}) {
+  return apiGet(documentBasePath(projectId), options);
+}
+
+export async function uploadProjectDocument(projectId, file, options = {}) {
+  if (!(file instanceof Blob)) {
+    throw new TypeError("A document File or Blob is required.");
+  }
+
+  const formData = new FormData();
+  formData.append("document", file, file.name || "document");
+
+  return apiPost(documentBasePath(projectId), formData, {
+    timeoutMs: 180000,
+    ...options,
+  });
+}
+
+export async function fetchProjectDocumentBlob(
+  projectId,
+  documentId,
+  options = {},
+) {
+  return fetchProjectBinary(
+    documentPath(projectId, documentId),
+    options,
+  );
+}
+
+export async function createProjectDocumentObjectUrl(
+  projectId,
+  documentId,
+  options = {},
+) {
+  return createProjectBinaryObjectUrl(
+    documentPath(projectId, documentId),
+    options,
+  );
+}
+
+export async function deleteProjectDocument(
+  projectId,
+  documentId,
+  options = {},
+) {
+  return apiDelete(documentPath(projectId, documentId), options);
+}
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectMediaApiService.js
+SHA256: 5CF9B3D6930F8BFD4227C21F899DAE73AF787B411680A42F11AD121C47C61885
+==========================================================================================
+import {
+  apiGet,
+  apiPost,
+  apiDelete,
+} from "../apiClient.js";
+
+import {
+  fetchProjectBinary,
+  createProjectBinaryObjectUrl,
+} from "./projectBinaryApi.js";
+
+function mediaBasePath(projectId) {
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    throw new TypeError("A Project ID is required.");
+  }
+
+  return `/projects/${encodeURIComponent(projectId.trim())}/media`;
+}
+
+function mediaPath(projectId, mediaId) {
+  if (typeof mediaId !== "string" || !mediaId.trim()) {
+    throw new TypeError("A media ID is required.");
+  }
+
+  return `${mediaBasePath(projectId)}/${encodeURIComponent(mediaId.trim())}`;
+}
+
+export async function fetchProjectMedia(projectId, options = {}) {
+  return apiGet(mediaBasePath(projectId), options);
+}
+
+export async function uploadProjectMedia(projectId, file, options = {}) {
+  if (!(file instanceof Blob)) {
+    throw new TypeError("A media File or Blob is required.");
+  }
+
+  const formData = new FormData();
+  formData.append("media", file, file.name || "media");
+
+  return apiPost(mediaBasePath(projectId), formData, {
+    timeoutMs: 180000,
+    ...options,
+  });
+}
+
+export async function fetchProjectMediaBlob(
+  projectId,
+  mediaId,
+  options = {},
+) {
+  return fetchProjectBinary(mediaPath(projectId, mediaId), options);
+}
+
+export async function createProjectMediaObjectUrl(
+  projectId,
+  mediaId,
+  options = {},
+) {
+  return createProjectBinaryObjectUrl(
+    mediaPath(projectId, mediaId),
+    options,
+  );
+}
+
+export async function deleteProjectMedia(
+  projectId,
+  mediaId,
+  options = {},
+) {
+  return apiDelete(mediaPath(projectId, mediaId), options);
+}
+
+==========================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+SHA256: 94F8FC7D968087956FA7982B495B34018F0B9CFF8DD911D69F1691E9C705A5F4
+==========================================================================================
+import {
+  createProject as createProjectModel,
+  createProjectDocument,
+  createProjectMedia,
+  createPublicProject,
+  normalizeProject,
+  updateProjectModel,
+} from "../../models/projectModel.js";
+
+import {
+  deleteProjectAssets,
+  deleteProjectAssetsForProject,
+  writeProjectAsset,
+} from "./projectAssetStorage.js";
+
+import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
+
+import { validateProject } from "./projectValidation.js";
+import { prepareFeaturedProjectMedia } from "./projectFeaturedMedia.js";
+
+/*
+ * =========================================
+ * Primitive Helpers
+ * =========================================
+ */
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/*
+ * =========================================
+ * Service Error
+ * =========================================
+ */
+
+function createProjectServiceError(code, message, publicMessage, details = {}) {
+  const error = new Error(message);
+
+  error.name = "ProjectServiceError";
+  error.code = code;
+  error.publicMessage = publicMessage;
+
+  Object.assign(error, details);
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Validate Project for Storage
+ * =========================================
+ */
+
+function validateForSave(project, collections) {
+  const validation = validateProject(project, collections);
+
+  if (!validation.isValid) {
+    throw createProjectServiceError(
+      "PROJECT_VALIDATION_ERROR",
+      "Project validation failed.",
+      "Correct the highlighted Project fields before saving.",
+      {
+        validation,
+        errors: validation.errors,
+        warnings: validation.warnings,
+        fieldErrors: validation.fieldErrors,
+      },
+    );
+  }
+
+  return validation;
+}
+
+/*
+ * =========================================
+ * Project Identifier Validation
+ * =========================================
+ */
+
+function requireProjectId(projectId) {
+  const normalizedProjectId = getText(projectId);
+
+  if (!normalizedProjectId) {
+    throw createProjectServiceError(
+      "PROJECT_ID_REQUIRED",
+      "A Project identifier is required.",
+      "The selected Project could not be identified.",
+    );
+  }
+
+  return normalizedProjectId;
+}
+
+/*
+ * =========================================
+ * Find Project
+ * =========================================
+ */
+
+function findProjectIndex(records, projectId) {
+  return records.findIndex((project) => project.id === projectId);
+}
+
+/*
+ * =========================================
+ * Duplicate Identity
+ * =========================================
+ *
+ * Projects may share a title when they belong
+ * to different organizations or clients.
+ */
+
+function createProjectIdentity(project) {
+  const title = getText(project?.title).normalize("NFKC").toLocaleLowerCase();
+
+  const organization = getText(
+    project?.organization?.name || project?.organization?.clientName,
+  )
+    .normalize("NFKC")
+    .toLocaleLowerCase();
+
+  return {
+    title,
+    organization,
+  };
+}
+
+function ensureUniqueProject(records, candidate, excludedProjectId = "") {
+  const candidateIdentity = createProjectIdentity(candidate);
+
+  if (!candidateIdentity.title) {
+    return;
+  }
+
+  const duplicate = records.find((project) => {
+    if (project.id === excludedProjectId) {
+      return false;
+    }
+
+    const existingIdentity = createProjectIdentity(project);
+
+    /*
+     * When neither record identifies an
+     * organization, the normalized title alone
+     * is used to prevent accidental duplicates.
+     */
+
+    return (
+      existingIdentity.title === candidateIdentity.title &&
+      existingIdentity.organization === candidateIdentity.organization
+    );
+  });
+
+  if (!duplicate) {
+    return;
+  }
+
+  throw createProjectServiceError(
+    "PROJECT_DUPLICATE",
+    `A matching Project already exists: ${duplicate.id}`,
+    candidateIdentity.organization
+      ? "A Project with this title and organization already exists."
+      : "A Project with this title already exists.",
+    {
+      project: duplicate,
+
+      fieldErrors: {
+        title: "A matching Project record already exists.",
+      },
+    },
+  );
+}
+
+/*
+ * =========================================
+ * Store Upload Collection
+ * =========================================
+ */
+
+async function storeProjectUploads(projectId, uploads, kind) {
+  const uploadCollection = getArray(uploads);
+
+  const metadata = [];
+
+  const createdStorageKeys = [];
+
+  try {
+    for (let index = 0; index < uploadCollection.length; index += 1) {
+      const upload = uploadCollection[index];
+
+      if (!(upload?.file instanceof Blob)) {
+        throw createProjectServiceError(
+          "PROJECT_UPLOAD_FILE_INVALID",
+          `Project ${kind} upload does not contain a valid Blob.`,
+          `One of the selected Project ${
+            kind === "media" ? "media files" : "documents"
+          } is invalid.`,
+        );
+      }
+
+      const storedAsset = await writeProjectAsset({
+        file: upload.file,
+
+        projectId,
+
+        assetId: upload.assetId || upload.id,
+
+        storageKey: upload.storageKey,
+
+        kind,
+      });
+
+      createdStorageKeys.push(storedAsset.storageKey);
+
+      const metadataValues = {
+        ...upload,
+
+        /*
+         * File objects must never be included
+         * in localStorage metadata.
+         */
+
+        file: undefined,
+
+        id: storedAsset.assetId,
+
+        fileName: storedAsset.fileName,
+
+        mimeType: storedAsset.mimeType,
+
+        fileSize: storedAsset.fileSize,
+
+        storageProvider: "indexed-db",
+
+        storageKey: storedAsset.storageKey,
+
+        uploadedAt: storedAsset.updatedAt,
+      };
+
+      metadata.push(
+        kind === "media"
+          ? createProjectMedia(metadataValues, index)
+          : createProjectDocument(metadataValues, index),
+      );
+    }
+
+    return {
+      metadata,
+      createdStorageKeys,
+    };
+  } catch (error) {
+    /*
+     * If one upload fails, remove every asset
+     * already created during this collection.
+     */
+
+    await deleteProjectAssets(createdStorageKeys).catch(() => {});
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Prepare Project Assets
+ * =========================================
+ */
+
+async function prepareProjectAssets(
+  project,
+  { mediaUploads = [], documentUploads = [] } = {},
+) {
+  const storedMedia = await storeProjectUploads(
+    project.id,
+    mediaUploads,
+    "media",
+  );
+
+  try {
+    const storedDocuments = await storeProjectUploads(
+      project.id,
+      documentUploads,
+      "document",
+    );
+
+    /*
+     * A staged upload selected in the Media
+     * Editor must take priority. Before upload,
+     * its ID cannot be resolved by normalizeProject
+     * because it is not yet part of project.media.
+     */
+
+    const featuredMediaResult = prepareFeaturedProjectMedia(
+      getArray(project.media),
+      storedMedia.metadata,
+      getText(project.presentation?.featuredMediaId),
+    );
+    const preparedProject = normalizeProject({
+      ...project,
+
+      media: featuredMediaResult.media,
+
+      supportingDocuments: [
+        ...getArray(project.supportingDocuments),
+
+        ...storedDocuments.metadata,
+      ],
+
+      presentation: {
+        ...project.presentation,
+
+        featuredMediaId: featuredMediaResult.featuredMediaId,
+      },
+    });
+
+    return {
+      project: preparedProject,
+
+      createdStorageKeys: [
+        ...storedMedia.createdStorageKeys,
+        ...storedDocuments.createdStorageKeys,
+      ],
+    };
+  } catch (error) {
+    /*
+     * Document storage failed after media was
+     * saved, so the new media must be rolled
+     * back as well.
+     */
+
+    await deleteProjectAssets(storedMedia.createdStorageKeys).catch(() => {});
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Safe Removed-Asset Cleanup
+ * =========================================
+ */
+
+async function removeUnreferencedAssets(project, requestedStorageKeys) {
+  const referencedStorageKeys = new Set([
+    ...getArray(project.media)
+      .map((mediaItem) => getText(mediaItem.storageKey))
+      .filter(Boolean),
+
+    ...getArray(project.supportingDocuments)
+      .map((documentRecord) => getText(documentRecord.storageKey))
+      .filter(Boolean),
+  ]);
+
+  const removableStorageKeys = [
+    ...new Set(getArray(requestedStorageKeys).map(getText).filter(Boolean)),
+  ].filter((storageKey) => !referencedStorageKeys.has(storageKey));
+
+  if (removableStorageKeys.length === 0) {
+    return 0;
+  }
+
+  return deleteProjectAssets(removableStorageKeys);
+}
+
+/*
+ * =========================================
+ * Get Projects
+ * =========================================
+ */
+
+export function getProjects({ includeArchived = false } = {}) {
+  const projects = readStoredProjects();
+
+  return includeArchived
+    ? projects
+    : projects.filter((project) => project.recordStatus !== "archived");
+}
+
+/*
+ * =========================================
+ * Get Project by ID
+ * =========================================
+ */
+
+export function getProjectById(projectId, { includeArchived = true } = {}) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const project =
+    readStoredProjects().find((record) => record.id === normalizedProjectId) ||
+    null;
+
+  if (project?.recordStatus === "archived" && !includeArchived) {
+    return null;
+  }
+
+  return project;
+}
+
+/*
+ * =========================================
+ * Public Projects
+ * =========================================
+ */
+
+export function getPublicProjects() {
+  return getProjects({
+    includeArchived: false,
+  }).map(createPublicProject);
+}
+
+/*
+ * =========================================
+ * Public Project by ID
+ * =========================================
+ */
+
+export function getPublicProjectById(projectId) {
+  const project = getProjectById(projectId, {
+    includeArchived: false,
+  });
+
+  return project ? createPublicProject(project) : null;
+}
+
+/*
+ * =========================================
+ * Create Project
+ * =========================================
+ */
+
+export async function createProject(
+  projectData,
+  {
+    collections = {},
+    mediaUploads = [],
+    documentUploads = [],
+    removedAssetStorageKeys = [],
+  } = {},
+) {
+  const records = readStoredProjects();
+
+  let project = createProjectModel(projectData);
+
+  ensureUniqueProject(records, project);
+
+  const preparedAssets = await prepareProjectAssets(project, {
+    mediaUploads,
+    documentUploads,
+  });
+
+  project = preparedAssets.project;
+
+  try {
+    const validation = validateForSave(project, collections);
+
+    /*
+     * Store metadata only after every staged
+     * asset was written successfully.
+     */
+
+    replaceStoredProjects([...records, project]);
+
+    /*
+     * This collection is normally empty while
+     * creating, but accepting it keeps the
+     * service contract consistent.
+     */
+
+    await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+      () => {},
+    );
+
+    return {
+      project,
+      warnings: validation.warnings,
+    };
+  } catch (error) {
+    /*
+     * Metadata was not saved, so every new
+     * IndexedDB asset must be removed.
+     */
+
+    await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+      () => {},
+    );
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Update Project
+ * =========================================
+ */
+
+export async function updateProject(
+  projectId,
+  updates,
+  {
+    collections = {},
+    mediaUploads = [],
+    documentUploads = [],
+    removedAssetStorageKeys = [],
+  } = {},
+) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  let project = updateProjectModel(records[projectIndex], updates);
+
+  ensureUniqueProject(records, project, project.id);
+
+  const preparedAssets = await prepareProjectAssets(project, {
+    mediaUploads,
+    documentUploads,
+  });
+
+  project = preparedAssets.project;
+
+  try {
+    const validation = validateForSave(project, collections);
+
+    const nextRecords = [...records];
+
+    nextRecords[projectIndex] = project;
+
+    /*
+     * Save updated metadata before deleting
+     * old assets. If this write fails, existing
+     * files remain recoverable.
+     */
+
+    replaceStoredProjects(nextRecords);
+
+    /*
+     * Asset deletion occurs only after the new
+     * Project record has been saved.
+     */
+
+    await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+      () => {},
+    );
+
+    return {
+      project,
+      warnings: validation.warnings,
+    };
+  } catch (error) {
+    /*
+     * Preserve all pre-existing files and remove
+     * only assets created during this attempt.
+     */
+
+    await deleteProjectAssets(preparedAssets.createdStorageKeys).catch(
+      () => {},
+    );
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * Archive Project
+ * =========================================
+ */
+
+export async function archiveProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const project = records[projectIndex];
+
+  if (project.recordStatus === "archived") {
+    return project;
+  }
+
+  const archivedProject = normalizeProject({
+    ...project,
+
+    recordStatus: "archived",
+
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextRecords = [...records];
+
+  nextRecords[projectIndex] = archivedProject;
+
+  replaceStoredProjects(nextRecords);
+
+  return archivedProject;
+}
+
+/*
+ * =========================================
+ * Restore Project
+ * =========================================
+ */
+
+export async function restoreProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const project = records[projectIndex];
+
+  if (project.recordStatus === "active") {
+    return project;
+  }
+
+  const restoredProject = normalizeProject({
+    ...project,
+
+    recordStatus: "active",
+
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextRecords = [...records];
+
+  nextRecords[projectIndex] = restoredProject;
+
+  replaceStoredProjects(nextRecords);
+
+  return restoredProject;
+}
+
+/*
+ * =========================================
+ * Delete Project Permanently
+ * =========================================
+ */
+
+export async function deleteProject(projectId) {
+  const normalizedProjectId = requireProjectId(projectId);
+
+  const records = readStoredProjects();
+
+  const projectIndex = findProjectIndex(records, normalizedProjectId);
+
+  if (projectIndex < 0) {
+    throw createProjectServiceError(
+      "PROJECT_NOT_FOUND",
+      `Project not found: ${normalizedProjectId}`,
+      "The selected Project could not be found.",
+      {
+        projectId: normalizedProjectId,
+      },
+    );
+  }
+
+  const deletedProject = records[projectIndex];
+
+  const nextRecords = records.filter(
+    (project) => project.id !== normalizedProjectId,
+  );
+
+  /*
+   * Delete metadata first. If localStorage
+   * fails, the Project and all assets remain.
+   */
+
+  replaceStoredProjects(nextRecords);
+
+  /*
+   * Once metadata is removed, delete every
+   * IndexedDB asset owned by this Project.
+   *
+   * Cleanup is best effort because the Project
+   * metadata has already been deleted.
+   */
+
+  let assetCleanupError = null;
+
+  try {
+    await deleteProjectAssetsForProject(normalizedProjectId);
+  } catch (error) {
+    assetCleanupError = error;
+  }
+
+  return {
+    ...deletedProject,
+
+    assetCleanupWarning: assetCleanupError
+      ? "The Project was deleted, but one or more locally stored files could not be cleaned up."
+      : "",
+  };
+}
+
+
+
+
+
+==========================================================================================
+PROJECT REFERENCES
+==========================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\main.jsx:27: import { ProjectDataProvider } from "./context/ProjectDataContext.jsx";
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx:28: const ProjectDataContext = createContext(null);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx:551: <ProjectDataContext.Provider value={value}>
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx:553: </ProjectDataContext.Provider>
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx:564: const context = useContext(ProjectDataContext);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProjectDataContext.jsx:573: export default ProjectDataContext;
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\Certifications.jsx:149: documentUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\Certifications.jsx:153: documentUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:46: const [documentUploads, setDocumentUploads] = useState([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:65: setDocumentUploads([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:244: documentUploads.length;
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:277: ...documentUploads.map((upload) => upload.file.name),
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:295: documentUploads.some((upload) => upload.isPrimary) ||
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:318: setDocumentUploads((currentUploads) => [
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:328: setDocumentUploads((currentUploads) => {
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:381: setDocumentUploads((currentUploads) =>
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:390: setDocumentUploads((currentUploads) =>
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:427: documentUploads.length > 0
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:496: await onSubmit?.(formData, documentUploads);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:925: documentUploads.length > 0) && (
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx:966: {documentUploads.map((upload, index) => (
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Dashboard\Dashboard.jsx:9: import { useProjectData } from "../../context/ProjectDataContext.jsx";
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\Portfolio.jsx:7: import { useProjectData } from "../../context/ProjectDataContext.jsx";
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx:3: import { useProjectData } from "../../context/ProjectDataContext.jsx";
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx:243: * ProjectDataContext displays the
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx:264: * ProjectDataContext displays the
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\Projects.jsx:300: * ProjectDataContext displays the
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:53: const [mediaUploads, setMediaUploads] = useState([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:54: const [documentUploads, setDocumentUploads] = useState([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:62: const [removedAssetStorageKeys, setRemovedAssetStorageKeys] = useState([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:71: setMediaUploads([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:72: setDocumentUploads([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:73: setRemovedAssetStorageKeys([]);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:136: setRemovedAssetStorageKeys((currentKeys) => [
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:156: setRemovedAssetStorageKeys((currentKeys) =>
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:268: mediaUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:269: documentUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:270: removedAssetStorageKeys,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:773: uploads={mediaUploads}
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:778: onUploadsChange={setMediaUploads}
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:791: uploads={documentUploads}
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Projects\components\ProjectForm\ProjectForm.jsx:795: onUploadsChange={setDocumentUploads}
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\Training.jsx:131: const documentUploads = file
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\Training.jsx:170: documentUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js:237: async function storeDocumentUploads(certificationId, uploads = []) {
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js:374: documentUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js:384: const stored = await storeDocumentUploads(certification.id, documentUploads);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js:445: documentUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js:471: const stored = await storeDocumentUploads(normalizedId, documentUploads);
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js:711: documentUploads: [
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetResolver.js:8: } from "./projectMediaApiService.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetResolver.js:12: } from "./projectDocumentApiService.js";
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:276: { mediaUploads = [], documentUploads = [] } = {},
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:280: mediaUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:287: documentUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:440: mediaUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:441: documentUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:442: removedAssetStorageKeys = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:452: mediaUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:453: documentUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:474: await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:507: mediaUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:508: documentUploads = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:509: removedAssetStorageKeys = [],
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:534: mediaUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:535: documentUploads,
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js:560: await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+
+RESULT: READ-ONLY INSPECTION COMPLETED

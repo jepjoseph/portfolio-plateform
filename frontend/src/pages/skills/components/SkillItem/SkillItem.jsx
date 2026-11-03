@@ -72,7 +72,8 @@ function SkillItem({
     skill.sourceContext ||
     resolvedUsage.experienceCount > 0 ||
     resolvedUsage.educationCount > 0 ||
-    resolvedUsage.trainingCount > 0,
+    resolvedUsage.trainingCount > 0 ||
+    resolvedUsage.projectCount > 0,
   );
 
   return (
@@ -312,6 +313,12 @@ function SkillItem({
 
             <strong>{usageValue(resolvedUsage.portfolioCount)}</strong>
           </div>
+
+          <div>
+            <span>Projects</span>
+
+            <strong>{usageValue(resolvedUsage.projectCount)}</strong>
+          </div>
         </div>
 
         {!isUsageLoading && resolvedUsage.experienceCount > 0 && (
@@ -398,6 +405,32 @@ function SkillItem({
           </div>
         )}
 
+        {!isUsageLoading && resolvedUsage.projectCount > 0 && (
+          <div className="skill-item-training-usage">
+            <div className="skill-item-usage-types">
+              <span>
+                Project relationships
+                <strong>{resolvedUsage.projectSkillCount}</strong>
+              </span>
+            </div>
+
+            <ul className="skill-item-training-list">
+              {resolvedUsage.projects.map((project) => (
+                <li key={project.id}>
+                  <div>
+                    <strong>{project.title}</strong>
+
+                    {project.recordStatus === "archived" && (
+                      <span>Archived</span>
+                    )}
+                  </div>
+
+                  <small>Project</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {isUsageLoading ? (
           <small role="status">Checking Skill Library relationships...</small>
         ) : (

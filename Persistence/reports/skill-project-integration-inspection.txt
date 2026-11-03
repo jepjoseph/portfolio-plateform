@@ -1,0 +1,2905 @@
+﻿SKILL PROJECT INTEGRATION INSPECTION
+Date: 2026-11-02T18:35:28.7035625-05:00
+
+=====================================
+FILE: context\SkillDataContext.jsx
+TOTAL LINES: 836
+
+MATCH: deleteSkill
+    7:   useRef,
+    8:   useState,
+    9: } from "react";
+   10: 
+   11: import {
+   12:   archiveSkill as archiveSkillService,
+   13:   checkSkillNameAvailability as checkSkillNameAvailabilityService,
+   14:   createSkill as createSkillService,
+   15:   deleteSkill as deleteSkillService,
+   16:   findOrCreateSkill as findOrCreateSkillService,
+   17:   getSkillById as getSkillByIdService,
+   18:   getSkills as getSkillsService,
+   19:   replaceSkills as replaceSkillsService,
+   20:   resolveSkillMatch as resolveSkillMatchService,
+   21:   restoreSkill as restoreSkillService,
+   22:   updateSkill as updateSkillService,
+   23:   validateSkillDraft as validateSkillDraftService,
+   24: } from "../services/Skill/skillRemoteService.js";
+   25: 
+   26: import { useAuth } from "./AuthContext.jsx";
+   27: 
+
+MATCH: deleteSkill
+  578:       setError(normalizeSkillContextError(restoreError));
+  579: 
+  580:             }
+  581: 
+  582:       throw restoreError;
+  583:     }
+  584:   }, [captureRequest, isRequestCurrent]);
+  585: 
+  586:   const deleteSkill = useCallback(async (skillId, { usage = null } = {}) => {
+  587:     const request = captureRequest();
+  588: 
+  589:     try {
+  590:       setSaveStatus("saving");
+  591:       setError(null);
+  592: 
+  593:       setOperation({
+  594:         type: "delete",
+  595:         skillId,
+  596:         status: "loading",
+  597:       });
+  598: 
+
+MATCH: deleteSkill
+  595:         skillId,
+  596:         status: "loading",
+  597:       });
+  598: 
+  599:       if (Number(usage?.total ?? usage?.totalUsage) > 0) {
+  600:         throw createSkillDeletionConflict(skillId, usage);
+  601:       }
+  602: 
+  603:       const deletionResult = await deleteSkillService(skillId);
+  604: 
+  605:       if (!isRequestCurrent(request)) {
+  606:         return deletionResult;
+  607:       }
+  608: 
+  609:       refreshGenerationRef.current += 1;
+  610: 
+  611:       setSkills((current) => current.filter((skill) => skill.id !== skillId));
+  612: 
+  613:       setSaveStatus("success");
+  614: 
+  615:       setOperation({
+
+MATCH: deleteSkill
+  773:       getSkillById,
+  774:       resolveSkillMatch,
+  775: 
+  776:       createSkill,
+  777:       updateSkill,
+  778:       findOrCreateSkill,
+  779:       archiveSkill,
+  780:       restoreSkill,
+  781:       deleteSkill,
+  782:       replaceSkills,
+  783: 
+  784:       validateSkillDraft,
+  785:       checkSkillNameAvailability,
+  786: 
+  787:       clearError,
+  788:       resetSaveStatus,
+  789:       resetOperation,
+  790:     }),
+  791:     [
+  792:       skills,
+  793:       activeSkills,
+
+MATCH: deleteSkill
+  803:       refreshSkills,
+  804:       getSkillById,
+  805:       resolveSkillMatch,
+  806:       createSkill,
+  807:       updateSkill,
+  808:       findOrCreateSkill,
+  809:       archiveSkill,
+  810:       restoreSkill,
+  811:       deleteSkill,
+  812:       replaceSkills,
+  813:       validateSkillDraft,
+  814:       checkSkillNameAvailability,
+  815:       clearError,
+  816:       resetSaveStatus,
+  817:       resetOperation,
+  818:     ],
+  819:   );
+  820: 
+  821:   return (
+  822:     <SkillDataContext.Provider value={contextValue}>
+  823:       {children}
+
+=====================================
+FILE: context\ProjectDataContext.jsx
+TOTAL LINES: 618
+
+MATCH: projects
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+
+MATCH: projects
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+
+MATCH: projects
+    5:   useEffect,
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+   25:  * =========================================
+
+MATCH: projects
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Project Data Context
+
+MATCH: projects
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Project Data Context
+   27:  * =========================================
+
+MATCH: projects
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Project Data Context
+   27:  * =========================================
+   28:  */
+
+MATCH: projects
+   10: import {
+   11:   archiveProject as archiveProjectService,
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Project Data Context
+   27:  * =========================================
+   28:  */
+   29: 
+   30: const ProjectDataContext = createContext(null);
+
+MATCH: projects
+   12:   createProject as createProjectService,
+   13:   deleteProject as deleteProjectService,
+   14:   getProjects,
+   15:   restoreProject as restoreProjectService,
+   16: } from "../services/Project/projectService.js";
+   17: 
+   18: import { PROJECT_STORAGE_KEY } from "../services/Project/projectStorage.js";
+   19: import {
+   20:   fetchProjects,
+   21:   updateProjectApi,
+   22: } from "../services/Project/projectApiService.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Project Data Context
+   27:  * =========================================
+   28:  */
+   29: 
+   30: const ProjectDataContext = createContext(null);
+   31: 
+   32: /*
+
+MATCH: ProjectDataProvider
+   92: }
+   93: 
+   94: /*
+   95:  * =========================================
+   96:  * Project Data Provider
+   97:  * =========================================
+   98:  */
+   99: 
+  100: export function ProjectDataProvider({ children }) {
+  101:   const [projects, setProjects] = useState([]);
+  102: 
+  103:   const [isLoading, setIsLoading] = useState(true);
+  104: 
+  105:   const [loadStatus, setLoadStatus] = useState("idle");
+  106: 
+  107:   const [saveStatus, setSaveStatus] = useState("idle");
+  108: 
+  109:   const [operation, setOperation] = useState(null);
+  110: 
+  111:   const [error, setError] = useState(null);
+  112: 
+
+MATCH: projects
+   93: 
+   94: /*
+   95:  * =========================================
+   96:  * Project Data Provider
+   97:  * =========================================
+   98:  */
+   99: 
+  100: export function ProjectDataProvider({ children }) {
+  101:   const [projects, setProjects] = useState([]);
+  102: 
+  103:   const [isLoading, setIsLoading] = useState(true);
+  104: 
+  105:   const [loadStatus, setLoadStatus] = useState("idle");
+  106: 
+  107:   const [saveStatus, setSaveStatus] = useState("idle");
+  108: 
+  109:   const [operation, setOperation] = useState(null);
+  110: 
+  111:   const [error, setError] = useState(null);
+  112: 
+  113:   const [warnings, setWarnings] = useState([]);
+
+MATCH: projects
+  117:   const [backendError, setBackendError] = useState(null);
+  118: 
+  119:   /*
+  120:    * =========================================
+  121:    * Load Project Records
+  122:    * =========================================
+  123:    */
+  124: 
+  125:   const refreshBackendProjects = useCallback(async (options = {}) => {
+  126:   setBackendStatus("loading");
+  127:   setBackendError(null);
+  128: 
+  129:   try {
+  130:     const records = await fetchProjects(options);
+  131: 
+  132:     if (!Array.isArray(records)) {
+  133:       throw new TypeError("The Project API did not return a Project array.");
+  134:     }
+  135: 
+  136:     setBackendStatus("success");
+  137: 
+
+MATCH: projects
+  122:    * =========================================
+  123:    */
+  124: 
+  125:   const refreshBackendProjects = useCallback(async (options = {}) => {
+  126:   setBackendStatus("loading");
+  127:   setBackendError(null);
+  128: 
+  129:   try {
+  130:     const records = await fetchProjects(options);
+  131: 
+  132:     if (!Array.isArray(records)) {
+  133:       throw new TypeError("The Project API did not return a Project array.");
+  134:     }
+  135: 
+  136:     setBackendStatus("success");
+  137: 
+  138:     // Do not replace browser-local Project records.
+  139:     return records;
+  140:   } catch (caughtError) {
+  141:     setBackendStatus("error");
+  142:     setBackendError(normalizeContextError(caughtError));
+
+MATCH: projects
+  138:     // Do not replace browser-local Project records.
+  139:     return records;
+  140:   } catch (caughtError) {
+  141:     setBackendStatus("error");
+  142:     setBackendError(normalizeContextError(caughtError));
+  143:     throw caughtError;
+  144:   }
+  145: }, []);
+  146:   const refreshProjects = useCallback(
+  147:     async ({ includeArchived = true, preserveCurrentRecords = false } = {}) => {
+  148:       setIsLoading(true);
+  149:       setLoadStatus("loading");
+  150: 
+  151:       try {
+  152:         const records = await fetchProjects();
+  153: 
+  154:         if (!Array.isArray(records)) {
+  155:           throw new TypeError(
+  156:             "The Project API did not return a Project array."
+  157:           );
+  158:         }
+
+MATCH: projects
+  144:   }
+  145: }, []);
+  146:   const refreshProjects = useCallback(
+  147:     async ({ includeArchived = true, preserveCurrentRecords = false } = {}) => {
+  148:       setIsLoading(true);
+  149:       setLoadStatus("loading");
+  150: 
+  151:       try {
+  152:         const records = await fetchProjects();
+  153: 
+  154:         if (!Array.isArray(records)) {
+  155:           throw new TypeError(
+  156:             "The Project API did not return a Project array."
+  157:           );
+  158:         }
+  159: 
+  160:         const filteredRecords = includeArchived
+  161:           ? records
+  162:           : records.filter(
+  163:               (project) => project.recordStatus !== "archived"
+  164:             );
+
+MATCH: projects
+  158:         }
+  159: 
+  160:         const filteredRecords = includeArchived
+  161:           ? records
+  162:           : records.filter(
+  163:               (project) => project.recordStatus !== "archived"
+  164:             );
+  165: 
+  166:         setProjects(filteredRecords);
+  167:         setLoadStatus("success");
+  168:         setError(null);
+  169: 
+  170:         return filteredRecords;
+  171:       } catch (caughtError) {
+  172:         const normalizedError = normalizeContextError(caughtError);
+  173: 
+  174:         if (!preserveCurrentRecords) {
+  175:           setProjects([]);
+  176:         }
+  177: 
+  178:         setLoadStatus("error");
+
+MATCH: projects
+  167:         setLoadStatus("success");
+  168:         setError(null);
+  169: 
+  170:         return filteredRecords;
+  171:       } catch (caughtError) {
+  172:         const normalizedError = normalizeContextError(caughtError);
+  173: 
+  174:         if (!preserveCurrentRecords) {
+  175:           setProjects([]);
+  176:         }
+  177: 
+  178:         setLoadStatus("error");
+  179:         setError(normalizedError);
+  180: 
+  181:         throw caughtError;
+  182:       } finally {
+  183:         setIsLoading(false);
+  184:       }
+  185:     },
+  186:     [],
+  187:   );
+
+MATCH: projects
+  191:    * Silent Local Synchronization
+  192:    * =========================================
+  193:    *
+  194:    * Used after a successful mutation. This
+  195:    * avoids showing the full loading state
+  196:    * every time a Project is saved.
+  197:    */
+  198: 
+  199:   const synchronizeProjects = useCallback(async () => {
+  200:     const records = await fetchProjects();
+  201: 
+  202:     if (!Array.isArray(records)) {
+  203:       throw new TypeError(
+  204:         "The Project API did not return a Project array."
+  205:       );
+  206:     }
+  207: 
+  208:     setProjects(records);
+  209:     setLoadStatus("success");
+  210: 
+  211:     return records;
+
+MATCH: projects
+  192:    * =========================================
+  193:    *
+  194:    * Used after a successful mutation. This
+  195:    * avoids showing the full loading state
+  196:    * every time a Project is saved.
+  197:    */
+  198: 
+  199:   const synchronizeProjects = useCallback(async () => {
+  200:     const records = await fetchProjects();
+  201: 
+  202:     if (!Array.isArray(records)) {
+  203:       throw new TypeError(
+  204:         "The Project API did not return a Project array."
+  205:       );
+  206:     }
+  207: 
+  208:     setProjects(records);
+  209:     setLoadStatus("success");
+  210: 
+  211:     return records;
+  212:   }, []);
+
+MATCH: projects
+  200:     const records = await fetchProjects();
+  201: 
+  202:     if (!Array.isArray(records)) {
+  203:       throw new TypeError(
+  204:         "The Project API did not return a Project array."
+  205:       );
+  206:     }
+  207: 
+  208:     setProjects(records);
+  209:     setLoadStatus("success");
+  210: 
+  211:     return records;
+  212:   }, []);
+  213: 
+  214:   /*
+  215:    * =========================================
+  216:    * Initial Load
+  217:    * =========================================
+  218:    */
+  219: 
+  220:   useEffect(() => {
+
+MATCH: projects
+  213: 
+  214:   /*
+  215:    * =========================================
+  216:    * Initial Load
+  217:    * =========================================
+  218:    */
+  219: 
+  220:   useEffect(() => {
+  221:     refreshProjects().catch(() => {
+  222:       /*
+  223:        * The normalized loading error is already
+  224:        * stored in the Context.
+  225:        */
+  226:     });
+  227:   }, [refreshProjects]);
+  228: 
+  229:   /*
+  230:    * =========================================
+  231:    * Cross-Tab Synchronization
+  232:    * =========================================
+  233:    */
+
+MATCH: projects
+  219: 
+  220:   useEffect(() => {
+  221:     refreshProjects().catch(() => {
+  222:       /*
+  223:        * The normalized loading error is already
+  224:        * stored in the Context.
+  225:        */
+  226:     });
+  227:   }, [refreshProjects]);
+  228: 
+  229:   /*
+  230:    * =========================================
+  231:    * Cross-Tab Synchronization
+  232:    * =========================================
+  233:    */
+  234: 
+  235:   useEffect(() => {
+  236:     if (typeof window === "undefined") {
+  237:       return undefined;
+  238:     }
+  239: 
+
+MATCH: projects
+  240:     const handleStorageChange = (event) => {
+  241:       if (
+  242:         event.storageArea !== window.localStorage ||
+  243:         event.key !== PROJECT_STORAGE_KEY
+  244:       ) {
+  245:         return;
+  246:       }
+  247: 
+  248:       refreshProjects({
+  249:         includeArchived: true,
+  250:         preserveCurrentRecords: true,
+  251:       }).catch(() => {
+  252:         /*
+  253:          * Keep the current in-memory collection
+  254:          * when another tab writes invalid data.
+  255:          */
+  256:       });
+  257:     };
+  258: 
+  259:     window.addEventListener("storage", handleStorageChange);
+  260: 
+
+MATCH: projects
+  256:       });
+  257:     };
+  258: 
+  259:     window.addEventListener("storage", handleStorageChange);
+  260: 
+  261:     return () => {
+  262:       window.removeEventListener("storage", handleStorageChange);
+  263:     };
+  264:   }, [refreshProjects]);
+  265: 
+  266:   /*
+  267:    * =========================================
+  268:    * Shared Operation Runner
+  269:    * =========================================
+  270:    */
+  271: 
+  272:   const runOperation = useCallback(
+  273:     async (nextOperation, action) => {
+  274:       setOperation({
+  275:         ...nextOperation,
+  276:         status: "loading",
+
+MATCH: projects
+  284:         const result = await action();
+  285: 
+  286:         /*
+  287:          * The service has already completed the
+  288:          * Project metadata and IndexedDB asset
+  289:          * transaction at this point.
+  290:          */
+  291: 
+  292:         await synchronizeProjects();
+  293: 
+  294:         const operationWarnings = normalizeOperationWarnings(result);
+  295: 
+  296:         setWarnings(operationWarnings);
+  297:         setSaveStatus("success");
+  298: 
+  299:         setOperation({
+  300:           ...nextOperation,
+  301:           status: "success",
+  302:         });
+  303: 
+  304:         /*
+
+MATCH: projects
+  325:         setOperation({
+  326:           ...nextOperation,
+  327:           status: "error",
+  328:         });
+  329: 
+  330:         throw caughtError;
+  331:       }
+  332:     },
+  333:     [synchronizeProjects],
+  334:   );
+  335: 
+  336:   /*
+  337:    * =========================================
+  338:    * Create Project
+  339:    * =========================================
+  340:    */
+  341: 
+  342:   const createProject = useCallback(
+  343:     (projectData, options = {}) =>
+  344:       runOperation(
+  345:         {
+
+MATCH: projects
+  341: 
+  342:   const createProject = useCallback(
+  343:     (projectData, options = {}) =>
+  344:       runOperation(
+  345:         {
+  346:           type: "create",
+  347:           projectId: projectData?.id || "",
+  348:         },
+  349:         () => createProjectService(projectData, options),
+  350:       ),
+  351:     [runOperation],
+  352:   );
+  353: 
+  354:   /*
+  355:    * =========================================
+  356:    * Update Project
+  357:    * =========================================
+  358:    */
+  359: 
+  360:   const updateProject = useCallback(
+  361:     (projectId, projectData, options = {}) =>
+
+MATCH: projects
+  376:             documentUploads.length > 0 ||
+  377:             removedAssetStorageKeys.length > 0
+  378:           ) {
+  379:             throw new Error(
+  380:               "Project file changes are temporarily disabled until backend asset synchronization is verified.",
+  381:             );
+  382:           }
+  383: 
+  384:           const currentProject = projects.find(
+  385:             (project) => project.id === projectId,
+  386:           );
+  387: 
+  388:           if (!currentProject) {
+  389:             throw new Error(
+  390:               "The selected Project is not available in the current backend collection.",
+  391:             );
+  392:           }
+  393: 
+  394:           const rowVersion = currentProject.rowVersion;
+  395: 
+  396:           if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+
+MATCH: projects
+  403:             projectId,
+  404:             projectData,
+  405:             rowVersion,
+  406:           );
+  407: 
+  408:           return { project, warnings: [] };
+  409:         },
+  410:       ),
+  411:     [runOperation, projects],
+  412:   );
+  413: 
+  414:   /*
+  415:    * =========================================
+  416:    * Archive Project
+  417:    * =========================================
+  418:    */
+  419: 
+  420:   const archiveProject = useCallback(
+  421:     (projectOrId) => {
+  422:       const projectId =
+  423:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+
+MATCH: projects
+  422:       const projectId =
+  423:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+  424: 
+  425:       return runOperation(
+  426:         {
+  427:           type: "archive",
+  428:           projectId,
+  429:         },
+  430:         () => archiveProjectService(projectId),
+  431:       );
+  432:     },
+  433:     [runOperation],
+  434:   );
+  435: 
+  436:   /*
+  437:    * =========================================
+  438:    * Restore Project
+  439:    * =========================================
+  440:    */
+  441: 
+  442:   const restoreProject = useCallback(
+
+MATCH: projects
+  444:       const projectId =
+  445:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+  446: 
+  447:       return runOperation(
+  448:         {
+  449:           type: "restore",
+  450:           projectId,
+  451:         },
+  452:         () => restoreProjectService(projectId),
+  453:       );
+  454:     },
+  455:     [runOperation],
+  456:   );
+  457: 
+  458:   /*
+  459:    * =========================================
+  460:    * Delete Project
+  461:    * =========================================
+  462:    */
+  463: 
+  464:   const deleteProject = useCallback(
+
+MATCH: projects
+  466:       const projectId =
+  467:         typeof projectOrId === "string" ? projectOrId : projectOrId?.id;
+  468: 
+  469:       return runOperation(
+  470:         {
+  471:           type: "delete",
+  472:           projectId,
+  473:         },
+  474:         () => deleteProjectService(projectId),
+  475:       );
+  476:     },
+  477:     [runOperation],
+  478:   );
+  479: 
+  480:   /*
+  481:    * =========================================
+  482:    * Utility Actions
+  483:    * =========================================
+  484:    */
+  485: 
+  486:   const getProjectById = useCallback(
+
+MATCH: projects
+  481:    * =========================================
+  482:    * Utility Actions
+  483:    * =========================================
+  484:    */
+  485: 
+  486:   const getProjectById = useCallback(
+  487:     (projectId, { includeArchived = true } = {}) => {
+  488:       const project =
+  489:         projects.find((record) => record.id === projectId) || null;
+  490: 
+  491:       if (project?.recordStatus === "archived" && !includeArchived) {
+  492:         return null;
+  493:       }
+  494: 
+  495:       return project;
+  496:     },
+  497:     [projects],
+  498:   );
+  499: 
+  500:   const clearError = useCallback(() => {
+  501:     setError(null);
+
+MATCH: projects
+  489:         projects.find((record) => record.id === projectId) || null;
+  490: 
+  491:       if (project?.recordStatus === "archived" && !includeArchived) {
+  492:         return null;
+  493:       }
+  494: 
+  495:       return project;
+  496:     },
+  497:     [projects],
+  498:   );
+  499: 
+  500:   const clearError = useCallback(() => {
+  501:     setError(null);
+  502:   }, []);
+  503: 
+  504:   const clearWarnings = useCallback(() => {
+  505:     setWarnings([]);
+  506:   }, []);
+  507: 
+  508:   const resetSaveStatus = useCallback(() => {
+  509:     setSaveStatus("idle");
+
+MATCH: projects
+  511:   }, []);
+  512: 
+  513:   /*
+  514:    * =========================================
+  515:    * Derived Project Collections
+  516:    * =========================================
+  517:    */
+  518: 
+  519:   const activeProjects = useMemo(
+  520:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  521:     [projects],
+  522:   );
+  523: 
+  524:   const archivedProjects = useMemo(
+  525:     () => projects.filter((project) => project.recordStatus === "archived"),
+  526:     [projects],
+  527:   );
+  528: 
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+
+MATCH: projects
+  512: 
+  513:   /*
+  514:    * =========================================
+  515:    * Derived Project Collections
+  516:    * =========================================
+  517:    */
+  518: 
+  519:   const activeProjects = useMemo(
+  520:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  521:     [projects],
+  522:   );
+  523: 
+  524:   const archivedProjects = useMemo(
+  525:     () => projects.filter((project) => project.recordStatus === "archived"),
+  526:     [projects],
+  527:   );
+  528: 
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+
+MATCH: projects
+  513:   /*
+  514:    * =========================================
+  515:    * Derived Project Collections
+  516:    * =========================================
+  517:    */
+  518: 
+  519:   const activeProjects = useMemo(
+  520:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  521:     [projects],
+  522:   );
+  523: 
+  524:   const archivedProjects = useMemo(
+  525:     () => projects.filter((project) => project.recordStatus === "archived"),
+  526:     [projects],
+  527:   );
+  528: 
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+
+MATCH: projects
+  516:    * =========================================
+  517:    */
+  518: 
+  519:   const activeProjects = useMemo(
+  520:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  521:     [projects],
+  522:   );
+  523: 
+  524:   const archivedProjects = useMemo(
+  525:     () => projects.filter((project) => project.recordStatus === "archived"),
+  526:     [projects],
+  527:   );
+  528: 
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+  534: 
+  535:   const value = useMemo(
+  536:     () => ({
+
+MATCH: projects
+  517:    */
+  518: 
+  519:   const activeProjects = useMemo(
+  520:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  521:     [projects],
+  522:   );
+  523: 
+  524:   const archivedProjects = useMemo(
+  525:     () => projects.filter((project) => project.recordStatus === "archived"),
+  526:     [projects],
+  527:   );
+  528: 
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+  534: 
+  535:   const value = useMemo(
+  536:     () => ({
+  537:       projects,
+
+MATCH: projects
+  518: 
+  519:   const activeProjects = useMemo(
+  520:     () => projects.filter((project) => project.recordStatus !== "archived"),
+  521:     [projects],
+  522:   );
+  523: 
+  524:   const archivedProjects = useMemo(
+  525:     () => projects.filter((project) => project.recordStatus === "archived"),
+  526:     [projects],
+  527:   );
+  528: 
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+  534: 
+  535:   const value = useMemo(
+  536:     () => ({
+  537:       projects,
+  538:       activeProjects,
+
+MATCH: projects
+  529:   /*
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+  534: 
+  535:   const value = useMemo(
+  536:     () => ({
+  537:       projects,
+  538:       activeProjects,
+  539:       archivedProjects,
+  540: 
+  541:       isLoading,
+  542:       isSaving: saveStatus === "saving",
+  543: 
+  544:       loadStatus,
+  545:       saveStatus,
+  546:       operation,
+  547: 
+  548:       error,
+  549:       warnings,
+
+MATCH: projects
+  530:    * =========================================
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+  534: 
+  535:   const value = useMemo(
+  536:     () => ({
+  537:       projects,
+  538:       activeProjects,
+  539:       archivedProjects,
+  540: 
+  541:       isLoading,
+  542:       isSaving: saveStatus === "saving",
+  543: 
+  544:       loadStatus,
+  545:       saveStatus,
+  546:       operation,
+  547: 
+  548:       error,
+  549:       warnings,
+  550: 
+
+MATCH: projects
+  531:    * Context Value
+  532:    * =========================================
+  533:    */
+  534: 
+  535:   const value = useMemo(
+  536:     () => ({
+  537:       projects,
+  538:       activeProjects,
+  539:       archivedProjects,
+  540: 
+  541:       isLoading,
+  542:       isSaving: saveStatus === "saving",
+  543: 
+  544:       loadStatus,
+  545:       saveStatus,
+  546:       operation,
+  547: 
+  548:       error,
+  549:       warnings,
+  550: 
+  551:        backendStatus,
+
+MATCH: projects
+  546:       operation,
+  547: 
+  548:       error,
+  549:       warnings,
+  550: 
+  551:        backendStatus,
+  552:     backendError,
+  553: 
+  554:       refreshProjects,
+  555:       refreshBackendProjects,
+  556:       getProjectById,
+  557: 
+  558:       createProject,
+  559:       updateProject,
+  560:       archiveProject,
+  561:       restoreProject,
+  562:       deleteProject,
+  563: 
+  564:       clearError,
+  565:       clearWarnings,
+  566:       resetSaveStatus,
+
+MATCH: projects
+  547: 
+  548:       error,
+  549:       warnings,
+  550: 
+  551:        backendStatus,
+  552:     backendError,
+  553: 
+  554:       refreshProjects,
+  555:       refreshBackendProjects,
+  556:       getProjectById,
+  557: 
+  558:       createProject,
+  559:       updateProject,
+  560:       archiveProject,
+  561:       restoreProject,
+  562:       deleteProject,
+  563: 
+  564:       clearError,
+  565:       clearWarnings,
+  566:       resetSaveStatus,
+  567:     }),
+
+MATCH: projects
+  561:       restoreProject,
+  562:       deleteProject,
+  563: 
+  564:       clearError,
+  565:       clearWarnings,
+  566:       resetSaveStatus,
+  567:     }),
+  568:     [
+  569:       projects,
+  570:       activeProjects,
+  571:       archivedProjects,
+  572:       isLoading,
+  573:       loadStatus,
+  574:       saveStatus,
+  575:       operation,
+  576:       error,
+  577:       warnings,
+  578:        backendStatus,
+  579:     backendError,
+  580:       refreshProjects,
+  581:       refreshBackendProjects,
+
+MATCH: projects
+  562:       deleteProject,
+  563: 
+  564:       clearError,
+  565:       clearWarnings,
+  566:       resetSaveStatus,
+  567:     }),
+  568:     [
+  569:       projects,
+  570:       activeProjects,
+  571:       archivedProjects,
+  572:       isLoading,
+  573:       loadStatus,
+  574:       saveStatus,
+  575:       operation,
+  576:       error,
+  577:       warnings,
+  578:        backendStatus,
+  579:     backendError,
+  580:       refreshProjects,
+  581:       refreshBackendProjects,
+  582:       getProjectById,
+
+MATCH: projects
+  563: 
+  564:       clearError,
+  565:       clearWarnings,
+  566:       resetSaveStatus,
+  567:     }),
+  568:     [
+  569:       projects,
+  570:       activeProjects,
+  571:       archivedProjects,
+  572:       isLoading,
+  573:       loadStatus,
+  574:       saveStatus,
+  575:       operation,
+  576:       error,
+  577:       warnings,
+  578:        backendStatus,
+  579:     backendError,
+  580:       refreshProjects,
+  581:       refreshBackendProjects,
+  582:       getProjectById,
+  583:       createProject,
+
+MATCH: projects
+  572:       isLoading,
+  573:       loadStatus,
+  574:       saveStatus,
+  575:       operation,
+  576:       error,
+  577:       warnings,
+  578:        backendStatus,
+  579:     backendError,
+  580:       refreshProjects,
+  581:       refreshBackendProjects,
+  582:       getProjectById,
+  583:       createProject,
+  584:       updateProject,
+  585:       archiveProject,
+  586:       restoreProject,
+  587:       deleteProject,
+  588:       clearError,
+  589:       clearWarnings,
+  590:       resetSaveStatus,
+  591:     ],
+  592:   );
+
+MATCH: projects
+  573:       loadStatus,
+  574:       saveStatus,
+  575:       operation,
+  576:       error,
+  577:       warnings,
+  578:        backendStatus,
+  579:     backendError,
+  580:       refreshProjects,
+  581:       refreshBackendProjects,
+  582:       getProjectById,
+  583:       createProject,
+  584:       updateProject,
+  585:       archiveProject,
+  586:       restoreProject,
+  587:       deleteProject,
+  588:       clearError,
+  589:       clearWarnings,
+  590:       resetSaveStatus,
+  591:     ],
+  592:   );
+  593: 
+
+MATCH: useProjectData
+  599: }
+  600: 
+  601: /*
+  602:  * =========================================
+  603:  * Project Data Hook
+  604:  * =========================================
+  605:  */
+  606: 
+  607: export function useProjectData() {
+  608:   const context = useContext(ProjectDataContext);
+  609: 
+  610:   if (!context) {
+  611:     throw new Error("useProjectData must be used inside ProjectDataProvider.");
+  612:   }
+  613: 
+  614:   return context;
+  615: }
+  616: 
+  617: export default ProjectDataContext;
+  618: 
+
+MATCH: useProjectData
+  603:  * Project Data Hook
+  604:  * =========================================
+  605:  */
+  606: 
+  607: export function useProjectData() {
+  608:   const context = useContext(ProjectDataContext);
+  609: 
+  610:   if (!context) {
+  611:     throw new Error("useProjectData must be used inside ProjectDataProvider.");
+  612:   }
+  613: 
+  614:   return context;
+  615: }
+  616: 
+  617: export default ProjectDataContext;
+  618: 
+
+=====================================
+FILE: pages\skills\components\SkillItem\SkillItem.jsx
+TOTAL LINES: 546
+
+MATCH: getSkillUsage
+    3: import {
+    4:   createEmptySkillUsage,
+    5:   formatSkillLastUsedDate,
+    6:   getSkillCategoryDisplay,
+    7:   getSkillCompleteness,
+    8:   getSkillProficiencyDisplay,
+    9:   getSkillSourceDisplay,
+   10:   getSkillTypeDisplay,
+   11:   getSkillUsageSummary,
+   12:   isSkillInUse,
+   13: } from "../../../../services/Skill/skillUtils.js";
+   14: 
+   15: import "./SkillItem.css";
+   16: 
+   17: function SkillItem({
+   18:   skill,
+   19:   usage,
+   20:   isWorking = false,
+   21:   isUsageLoading = false,
+   22:   conflictError = null,
+   23:   onDismissConflict,
+
+MATCH: resolvedUsage
+   27:   onDelete,
+   28: }) {
+   29:   const [isExpanded, setIsExpanded] = useState(false);
+   30: 
+   31:   if (!skill) {
+   32:     return null;
+   33:   }
+   34: 
+   35:   const resolvedUsage = usage || createEmptySkillUsage(skill.id);
+   36: 
+   37:   const isInUse = isSkillInUse(resolvedUsage);
+   38: 
+   39:   const usageValue = (value) => (isUsageLoading ? "â€”" : value);
+   40: 
+   41:   const completeness = getSkillCompleteness(skill);
+   42: 
+   43:   const category = getSkillCategoryDisplay(skill);
+   44: 
+   45:   const type = getSkillTypeDisplay(skill);
+   46: 
+   47:   const proficiency = getSkillProficiencyDisplay(skill);
+
+MATCH: resolvedUsage
+   29:   const [isExpanded, setIsExpanded] = useState(false);
+   30: 
+   31:   if (!skill) {
+   32:     return null;
+   33:   }
+   34: 
+   35:   const resolvedUsage = usage || createEmptySkillUsage(skill.id);
+   36: 
+   37:   const isInUse = isSkillInUse(resolvedUsage);
+   38: 
+   39:   const usageValue = (value) => (isUsageLoading ? "â€”" : value);
+   40: 
+   41:   const completeness = getSkillCompleteness(skill);
+   42: 
+   43:   const category = getSkillCategoryDisplay(skill);
+   44: 
+   45:   const type = getSkillTypeDisplay(skill);
+   46: 
+   47:   const proficiency = getSkillProficiencyDisplay(skill);
+   48: 
+   49:   const source = getSkillSourceDisplay(skill);
+
+MATCH: resolvedUsage
+   65: 
+   66:   const hasAdditionalDetails = Boolean(
+   67:     skill.description ||
+   68:     aliases.length > 0 ||
+   69:     hasYearsOfExperience ||
+   70:     lastUsedDate ||
+   71:     skill.notes ||
+   72:     skill.sourceContext ||
+   73:     resolvedUsage.experienceCount > 0 ||
+   74:     resolvedUsage.educationCount > 0 ||
+   75:     resolvedUsage.trainingCount > 0,
+   76:   );
+   77: 
+   78:   return (
+   79:     <article
+   80:       className={`skill-item ${isExpanded ? "skill-item--expanded" : ""} ${
+   81:         isArchived ? "skill-item--archived" : ""
+   82:       }`}
+   83:     >
+   84:       <header className="skill-item-summary">
+   85:         <div className="skill-item-icon" aria-hidden="true">
+
+MATCH: resolvedUsage
+   66:   const hasAdditionalDetails = Boolean(
+   67:     skill.description ||
+   68:     aliases.length > 0 ||
+   69:     hasYearsOfExperience ||
+   70:     lastUsedDate ||
+   71:     skill.notes ||
+   72:     skill.sourceContext ||
+   73:     resolvedUsage.experienceCount > 0 ||
+   74:     resolvedUsage.educationCount > 0 ||
+   75:     resolvedUsage.trainingCount > 0,
+   76:   );
+   77: 
+   78:   return (
+   79:     <article
+   80:       className={`skill-item ${isExpanded ? "skill-item--expanded" : ""} ${
+   81:         isArchived ? "skill-item--archived" : ""
+   82:       }`}
+   83:     >
+   84:       <header className="skill-item-summary">
+   85:         <div className="skill-item-icon" aria-hidden="true">
+   86:           {isArchived ? "â–¡" : "âœ¦"}
+
+MATCH: resolvedUsage
+   67:     skill.description ||
+   68:     aliases.length > 0 ||
+   69:     hasYearsOfExperience ||
+   70:     lastUsedDate ||
+   71:     skill.notes ||
+   72:     skill.sourceContext ||
+   73:     resolvedUsage.experienceCount > 0 ||
+   74:     resolvedUsage.educationCount > 0 ||
+   75:     resolvedUsage.trainingCount > 0,
+   76:   );
+   77: 
+   78:   return (
+   79:     <article
+   80:       className={`skill-item ${isExpanded ? "skill-item--expanded" : ""} ${
+   81:         isArchived ? "skill-item--archived" : ""
+   82:       }`}
+   83:     >
+   84:       <header className="skill-item-summary">
+   85:         <div className="skill-item-icon" aria-hidden="true">
+   86:           {isArchived ? "â–¡" : "âœ¦"}
+   87:         </div>
+
+MATCH: Library Usage
+  259: 
+  260:       <section
+  261:         className="skill-item-usage"
+  262:         aria-label={`${skill.name} usage`}
+  263:         aria-busy={isUsageLoading}
+  264:       >
+  265:         <header className="skill-item-usage-header">
+  266:           <div>
+  267:             <span>Library Usage</span>
+  268: 
+  269:             <strong>
+  270:               {isUsageLoading
+  271:                 ? "Checking relationships"
+  272:                 : getSkillUsageSummary(resolvedUsage)}
+  273:             </strong>
+  274:           </div>
+  275: 
+  276:           <span
+  277:             className={`skill-item-usage-total ${
+  278:               isInUse ? "skill-item-usage-total--used" : ""
+  279:             }`}
+
+MATCH: getSkillUsage
+  264:       >
+  265:         <header className="skill-item-usage-header">
+  266:           <div>
+  267:             <span>Library Usage</span>
+  268: 
+  269:             <strong>
+  270:               {isUsageLoading
+  271:                 ? "Checking relationships"
+  272:                 : getSkillUsageSummary(resolvedUsage)}
+  273:             </strong>
+  274:           </div>
+  275: 
+  276:           <span
+  277:             className={`skill-item-usage-total ${
+  278:               isInUse ? "skill-item-usage-total--used" : ""
+  279:             }`}
+  280:           >
+  281:             {usageValue(resolvedUsage.total)}
+  282:           </span>
+  283:         </header>
+  284: 
+
+MATCH: resolvedUsage
+  273:             </strong>
+  274:           </div>
+  275: 
+  276:           <span
+  277:             className={`skill-item-usage-total ${
+  278:               isInUse ? "skill-item-usage-total--used" : ""
+  279:             }`}
+  280:           >
+  281:             {usageValue(resolvedUsage.total)}
+  282:           </span>
+  283:         </header>
+  284: 
+  285:         <div className="skill-item-usage-list">
+  286:           <div>
+  287:             <span>Experience</span>
+  288: 
+  289:             <strong>{usageValue(resolvedUsage.experienceCount)}</strong>
+  290:           </div>
+  291: 
+  292:           <div>
+  293:             <span>Education</span>
+
+MATCH: resolvedUsage
+  281:             {usageValue(resolvedUsage.total)}
+  282:           </span>
+  283:         </header>
+  284: 
+  285:         <div className="skill-item-usage-list">
+  286:           <div>
+  287:             <span>Experience</span>
+  288: 
+  289:             <strong>{usageValue(resolvedUsage.experienceCount)}</strong>
+  290:           </div>
+  291: 
+  292:           <div>
+  293:             <span>Education</span>
+  294: 
+  295:             <strong>{usageValue(resolvedUsage.educationCount)}</strong>
+  296:           </div>
+  297: 
+  298:           <div>
+  299:             <span>Training</span>
+  300: 
+  301:             <strong>{usageValue(resolvedUsage.trainingCount)}</strong>
+
+MATCH: resolvedUsage
+  287:             <span>Experience</span>
+  288: 
+  289:             <strong>{usageValue(resolvedUsage.experienceCount)}</strong>
+  290:           </div>
+  291: 
+  292:           <div>
+  293:             <span>Education</span>
+  294: 
+  295:             <strong>{usageValue(resolvedUsage.educationCount)}</strong>
+  296:           </div>
+  297: 
+  298:           <div>
+  299:             <span>Training</span>
+  300: 
+  301:             <strong>{usageValue(resolvedUsage.trainingCount)}</strong>
+  302:           </div>
+  303: 
+  304:           <div>
+  305:             <span>RÃ©sumÃ©</span>
+  306: 
+  307:             <strong>{usageValue(resolvedUsage.resumeCount)}</strong>
+
+MATCH: resolvedUsage
+  293:             <span>Education</span>
+  294: 
+  295:             <strong>{usageValue(resolvedUsage.educationCount)}</strong>
+  296:           </div>
+  297: 
+  298:           <div>
+  299:             <span>Training</span>
+  300: 
+  301:             <strong>{usageValue(resolvedUsage.trainingCount)}</strong>
+  302:           </div>
+  303: 
+  304:           <div>
+  305:             <span>RÃ©sumÃ©</span>
+  306: 
+  307:             <strong>{usageValue(resolvedUsage.resumeCount)}</strong>
+  308:           </div>
+  309: 
+  310:           <div>
+  311:             <span>Portfolio</span>
+  312: 
+  313:             <strong>{usageValue(resolvedUsage.portfolioCount)}</strong>
+
+MATCH: resolvedUsage
+  299:             <span>Training</span>
+  300: 
+  301:             <strong>{usageValue(resolvedUsage.trainingCount)}</strong>
+  302:           </div>
+  303: 
+  304:           <div>
+  305:             <span>RÃ©sumÃ©</span>
+  306: 
+  307:             <strong>{usageValue(resolvedUsage.resumeCount)}</strong>
+  308:           </div>
+  309: 
+  310:           <div>
+  311:             <span>Portfolio</span>
+  312: 
+  313:             <strong>{usageValue(resolvedUsage.portfolioCount)}</strong>
+  314:           </div>
+  315:         </div>
+  316: 
+  317:         {!isUsageLoading && resolvedUsage.experienceCount > 0 && (
+  318:           <>
+  319:             <div className="skill-item-usage-types">
+
+MATCH: resolvedUsage
+  305:             <span>RÃ©sumÃ©</span>
+  306: 
+  307:             <strong>{usageValue(resolvedUsage.resumeCount)}</strong>
+  308:           </div>
+  309: 
+  310:           <div>
+  311:             <span>Portfolio</span>
+  312: 
+  313:             <strong>{usageValue(resolvedUsage.portfolioCount)}</strong>
+  314:           </div>
+  315:         </div>
+  316: 
+  317:         {!isUsageLoading && resolvedUsage.experienceCount > 0 && (
+  318:           <>
+  319:             <div className="skill-item-usage-types">
+  320:               <span>
+  321:                 Used as a skill
+  322:                 <strong>{resolvedUsage.experienceSkillCount}</strong>
+  323:               </span>
+  324: 
+  325:               <span>
+
+MATCH: resolvedUsage
+  309: 
+  310:           <div>
+  311:             <span>Portfolio</span>
+  312: 
+  313:             <strong>{usageValue(resolvedUsage.portfolioCount)}</strong>
+  314:           </div>
+  315:         </div>
+  316: 
+  317:         {!isUsageLoading && resolvedUsage.experienceCount > 0 && (
+  318:           <>
+  319:             <div className="skill-item-usage-types">
+  320:               <span>
+  321:                 Used as a skill
+  322:                 <strong>{resolvedUsage.experienceSkillCount}</strong>
+  323:               </span>
+  324: 
+  325:               <span>
+  326:                 Used as a technology
+  327:                 <strong>{resolvedUsage.experienceTechnologyCount}</strong>
+  328:               </span>
+  329:             </div>
+
+MATCH: resolvedUsage
+  314:           </div>
+  315:         </div>
+  316: 
+  317:         {!isUsageLoading && resolvedUsage.experienceCount > 0 && (
+  318:           <>
+  319:             <div className="skill-item-usage-types">
+  320:               <span>
+  321:                 Used as a skill
+  322:                 <strong>{resolvedUsage.experienceSkillCount}</strong>
+  323:               </span>
+  324: 
+  325:               <span>
+  326:                 Used as a technology
+  327:                 <strong>{resolvedUsage.experienceTechnologyCount}</strong>
+  328:               </span>
+  329:             </div>
+  330: 
+  331:             <ul className="skill-item-experience-list">
+  332:               {resolvedUsage.experiences.map((experience) => (
+  333:                 <li key={experience.id}>
+  334:                   <div>
+
+MATCH: resolvedUsage
+  319:             <div className="skill-item-usage-types">
+  320:               <span>
+  321:                 Used as a skill
+  322:                 <strong>{resolvedUsage.experienceSkillCount}</strong>
+  323:               </span>
+  324: 
+  325:               <span>
+  326:                 Used as a technology
+  327:                 <strong>{resolvedUsage.experienceTechnologyCount}</strong>
+  328:               </span>
+  329:             </div>
+  330: 
+  331:             <ul className="skill-item-experience-list">
+  332:               {resolvedUsage.experiences.map((experience) => (
+  333:                 <li key={experience.id}>
+  334:                   <div>
+  335:                     <strong>{experience.positionTitle}</strong>
+  336: 
+  337:                     <span>{experience.organizationName}</span>
+  338:                   </div>
+  339: 
+
+MATCH: resolvedUsage
+  324: 
+  325:               <span>
+  326:                 Used as a technology
+  327:                 <strong>{resolvedUsage.experienceTechnologyCount}</strong>
+  328:               </span>
+  329:             </div>
+  330: 
+  331:             <ul className="skill-item-experience-list">
+  332:               {resolvedUsage.experiences.map((experience) => (
+  333:                 <li key={experience.id}>
+  334:                   <div>
+  335:                     <strong>{experience.positionTitle}</strong>
+  336: 
+  337:                     <span>{experience.organizationName}</span>
+  338:                   </div>
+  339: 
+  340:                   <div className="skill-item-experience-types">
+  341:                     {experience.usedAsSkill && <small>Skill</small>}
+  342: 
+  343:                     {experience.usedAsTechnology && <small>Technology</small>}
+  344:                   </div>
+
+MATCH: resolvedUsage
+  343:                     {experience.usedAsTechnology && <small>Technology</small>}
+  344:                   </div>
+  345:                 </li>
+  346:               ))}
+  347:             </ul>
+  348:           </>
+  349:         )}
+  350: 
+  351:         {!isUsageLoading && resolvedUsage.educationCount > 0 && (
+  352:           <div className="skill-item-education-usage">
+  353:             <div className="skill-item-usage-types">
+  354:               <span>
+  355:                 Education relationships
+  356:                 <strong>{resolvedUsage.educationSkillCount}</strong>
+  357:               </span>
+  358:             </div>
+  359: 
+  360:             <ul className="skill-item-education-list">
+  361:               {resolvedUsage.educationRecords.map((education) => (
+  362:                 <li key={education.id}>
+  363:                   <div>
+
+MATCH: resolvedUsage
+  348:           </>
+  349:         )}
+  350: 
+  351:         {!isUsageLoading && resolvedUsage.educationCount > 0 && (
+  352:           <div className="skill-item-education-usage">
+  353:             <div className="skill-item-usage-types">
+  354:               <span>
+  355:                 Education relationships
+  356:                 <strong>{resolvedUsage.educationSkillCount}</strong>
+  357:               </span>
+  358:             </div>
+  359: 
+  360:             <ul className="skill-item-education-list">
+  361:               {resolvedUsage.educationRecords.map((education) => (
+  362:                 <li key={education.id}>
+  363:                   <div>
+  364:                     <strong>{education.credentialName}</strong>
+  365: 
+  366:                     <span>{education.institutionName}</span>
+  367:                   </div>
+  368: 
+
+MATCH: resolvedUsage
+  353:             <div className="skill-item-usage-types">
+  354:               <span>
+  355:                 Education relationships
+  356:                 <strong>{resolvedUsage.educationSkillCount}</strong>
+  357:               </span>
+  358:             </div>
+  359: 
+  360:             <ul className="skill-item-education-list">
+  361:               {resolvedUsage.educationRecords.map((education) => (
+  362:                 <li key={education.id}>
+  363:                   <div>
+  364:                     <strong>{education.credentialName}</strong>
+  365: 
+  366:                     <span>{education.institutionName}</span>
+  367:                   </div>
+  368: 
+  369:                   <small>Education</small>
+  370:                 </li>
+  371:               ))}
+  372:             </ul>
+  373:           </div>
+
+MATCH: resolvedUsage
+  368: 
+  369:                   <small>Education</small>
+  370:                 </li>
+  371:               ))}
+  372:             </ul>
+  373:           </div>
+  374:         )}
+  375: 
+  376:         {!isUsageLoading && resolvedUsage.trainingCount > 0 && (
+  377:           <div className="skill-item-training-usage">
+  378:             <div className="skill-item-usage-types">
+  379:               <span>
+  380:                 Training relationships
+  381:                 <strong>{resolvedUsage.trainingSkillCount}</strong>
+  382:               </span>
+  383:             </div>
+  384: 
+  385:             <ul className="skill-item-training-list">
+  386:               {resolvedUsage.trainingRecords.map((training) => (
+  387:                 <li key={training.id}>
+  388:                   <div>
+
+MATCH: resolvedUsage
+  373:           </div>
+  374:         )}
+  375: 
+  376:         {!isUsageLoading && resolvedUsage.trainingCount > 0 && (
+  377:           <div className="skill-item-training-usage">
+  378:             <div className="skill-item-usage-types">
+  379:               <span>
+  380:                 Training relationships
+  381:                 <strong>{resolvedUsage.trainingSkillCount}</strong>
+  382:               </span>
+  383:             </div>
+  384: 
+  385:             <ul className="skill-item-training-list">
+  386:               {resolvedUsage.trainingRecords.map((training) => (
+  387:                 <li key={training.id}>
+  388:                   <div>
+  389:                     <strong>{training.title}</strong>
+  390: 
+  391:                     <span>{training.providerName}</span>
+  392:                   </div>
+  393: 
+
+MATCH: resolvedUsage
+  378:             <div className="skill-item-usage-types">
+  379:               <span>
+  380:                 Training relationships
+  381:                 <strong>{resolvedUsage.trainingSkillCount}</strong>
+  382:               </span>
+  383:             </div>
+  384: 
+  385:             <ul className="skill-item-training-list">
+  386:               {resolvedUsage.trainingRecords.map((training) => (
+  387:                 <li key={training.id}>
+  388:                   <div>
+  389:                     <strong>{training.title}</strong>
+  390: 
+  391:                     <span>{training.providerName}</span>
+  392:                   </div>
+  393: 
+  394:                   <small>Training</small>
+  395:                 </li>
+  396:               ))}
+  397:             </ul>
+  398:           </div>
+
+=====================================
+FILE: services\Skill\skillUsage.js
+NOT FOUND
+
+=====================================
+FILE: services\Skill\skillRemoteService.js
+TOTAL LINES: 259
+
+MATCH: deleteSkill
+  237: 
+  238:   return validateSkillNameAvailability(
+  239:     name,
+  240:     skills,
+  241:     excludeSkillId,
+  242:   );
+  243: }
+  244: 
+  245: export async function deleteSkill() {
+  246:   throw makeError(
+  247:     "Permanent Skill deletion is not available. Archive the skill instead.",
+  248:     "SKILL_DELETE_NOT_AVAILABLE",
+  249:     409,
+  250:   );
+  251: }
+  252: 
+  253: export async function replaceSkills() {
+  254:   throw makeError(
+  255:     "Replacing the entire Skill Library is not supported by the backend.",
+  256:     "SKILL_REPLACE_NOT_AVAILABLE",
+  257:     409,
+
+=====================================
+FILE: services\Project\projectService.js
+TOTAL LINES: 739
+
+MATCH: projects
+    8: } from "../../models/projectModel.js";
+    9: 
+   10: import {
+   11:   deleteProjectAssets,
+   12:   deleteProjectAssetsForProject,
+   13:   writeProjectAsset,
+   14: } from "./projectAssetStorage.js";
+   15: 
+   16: import { readStoredProjects, replaceStoredProjects } from "./projectStorage.js";
+   17: 
+   18: import { validateProject } from "./projectValidation.js";
+   19: import { prepareFeaturedProjectMedia } from "./projectFeaturedMedia.js";
+   20: 
+   21: /*
+   22:  * =========================================
+   23:  * Primitive Helpers
+   24:  * =========================================
+   25:  */
+   26: 
+   27: function getText(value) {
+   28:   return typeof value === "string" ? value.trim() : "";
+
+MATCH: projects
+   33: }
+   34: 
+   35: /*
+   36:  * =========================================
+   37:  * Service Error
+   38:  * =========================================
+   39:  */
+   40: 
+   41: function createProjectServiceError(code, message, publicMessage, details = {}) {
+   42:   const error = new Error(message);
+   43: 
+   44:   error.name = "ProjectServiceError";
+   45:   error.code = code;
+   46:   error.publicMessage = publicMessage;
+   47: 
+   48:   Object.assign(error, details);
+   49: 
+   50:   return error;
+   51: }
+   52: 
+   53: /*
+
+MATCH: projects
+   36:  * =========================================
+   37:  * Service Error
+   38:  * =========================================
+   39:  */
+   40: 
+   41: function createProjectServiceError(code, message, publicMessage, details = {}) {
+   42:   const error = new Error(message);
+   43: 
+   44:   error.name = "ProjectServiceError";
+   45:   error.code = code;
+   46:   error.publicMessage = publicMessage;
+   47: 
+   48:   Object.assign(error, details);
+   49: 
+   50:   return error;
+   51: }
+   52: 
+   53: /*
+   54:  * =========================================
+   55:  * Validate Project for Storage
+   56:  * =========================================
+
+MATCH: projects
+   55:  * Validate Project for Storage
+   56:  * =========================================
+   57:  */
+   58: 
+   59: function validateForSave(project, collections) {
+   60:   const validation = validateProject(project, collections);
+   61: 
+   62:   if (!validation.isValid) {
+   63:     throw createProjectServiceError(
+   64:       "PROJECT_VALIDATION_ERROR",
+   65:       "Project validation failed.",
+   66:       "Correct the highlighted Project fields before saving.",
+   67:       {
+   68:         validation,
+   69:         errors: validation.errors,
+   70:         warnings: validation.warnings,
+   71:         fieldErrors: validation.fieldErrors,
+   72:       },
+   73:     );
+   74:   }
+   75: 
+
+MATCH: projects
+   81:  * Project Identifier Validation
+   82:  * =========================================
+   83:  */
+   84: 
+   85: function requireProjectId(projectId) {
+   86:   const normalizedProjectId = getText(projectId);
+   87: 
+   88:   if (!normalizedProjectId) {
+   89:     throw createProjectServiceError(
+   90:       "PROJECT_ID_REQUIRED",
+   91:       "A Project identifier is required.",
+   92:       "The selected Project could not be identified.",
+   93:     );
+   94:   }
+   95: 
+   96:   return normalizedProjectId;
+   97: }
+   98: 
+   99: /*
+  100:  * =========================================
+  101:  * Find Project
+
+MATCH: projects
+  106:   return records.findIndex((project) => project.id === projectId);
+  107: }
+  108: 
+  109: /*
+  110:  * =========================================
+  111:  * Duplicate Identity
+  112:  * =========================================
+  113:  *
+  114:  * Projects may share a title when they belong
+  115:  * to different organizations or clients.
+  116:  */
+  117: 
+  118: function createProjectIdentity(project) {
+  119:   const title = getText(project?.title).normalize("NFKC").toLocaleLowerCase();
+  120: 
+  121:   const organization = getText(
+  122:     project?.organization?.name || project?.organization?.clientName,
+  123:   )
+  124:     .normalize("NFKC")
+  125:     .toLocaleLowerCase();
+  126: 
+
+MATCH: projects
+  155:       existingIdentity.organization === candidateIdentity.organization
+  156:     );
+  157:   });
+  158: 
+  159:   if (!duplicate) {
+  160:     return;
+  161:   }
+  162: 
+  163:   throw createProjectServiceError(
+  164:     "PROJECT_DUPLICATE",
+  165:     `A matching Project already exists: ${duplicate.id}`,
+  166:     candidateIdentity.organization
+  167:       ? "A Project with this title and organization already exists."
+  168:       : "A Project with this title already exists.",
+  169:     {
+  170:       project: duplicate,
+  171: 
+  172:       fieldErrors: {
+  173:         title: "A matching Project record already exists.",
+  174:       },
+  175:     },
+
+MATCH: projects
+  189: 
+  190:   const createdStorageKeys = [];
+  191: 
+  192:   try {
+  193:     for (let index = 0; index < uploadCollection.length; index += 1) {
+  194:       const upload = uploadCollection[index];
+  195: 
+  196:       if (!(upload?.file instanceof Blob)) {
+  197:         throw createProjectServiceError(
+  198:           "PROJECT_UPLOAD_FILE_INVALID",
+  199:           `Project ${kind} upload does not contain a valid Blob.`,
+  200:           `One of the selected Project ${
+  201:             kind === "media" ? "media files" : "documents"
+  202:           } is invalid.`,
+  203:         );
+  204:       }
+  205: 
+  206:       const storedAsset = await writeProjectAsset({
+  207:         file: upload.file,
+  208: 
+  209:         projectId,
+
+MATCH: projects
+  364:     return 0;
+  365:   }
+  366: 
+  367:   return deleteProjectAssets(removableStorageKeys);
+  368: }
+  369: 
+  370: /*
+  371:  * =========================================
+  372:  * Get Projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+
+MATCH: projects
+  368: }
+  369: 
+  370: /*
+  371:  * =========================================
+  372:  * Get Projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+  385:  * =========================================
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+
+MATCH: projects
+  369: 
+  370: /*
+  371:  * =========================================
+  372:  * Get Projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+  385:  * =========================================
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+  389: 
+
+MATCH: projects
+  372:  * Get Projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+  385:  * =========================================
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+  389: 
+  390: export function getProjectById(projectId, { includeArchived = true } = {}) {
+  391:   const normalizedProjectId = requireProjectId(projectId);
+  392: 
+
+MATCH: projects
+  373:  * =========================================
+  374:  */
+  375: 
+  376: export function getProjects({ includeArchived = false } = {}) {
+  377:   const projects = readStoredProjects();
+  378: 
+  379:   return includeArchived
+  380:     ? projects
+  381:     : projects.filter((project) => project.recordStatus !== "archived");
+  382: }
+  383: 
+  384: /*
+  385:  * =========================================
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+  389: 
+  390: export function getProjectById(projectId, { includeArchived = true } = {}) {
+  391:   const normalizedProjectId = requireProjectId(projectId);
+  392: 
+  393:   const project =
+
+MATCH: projects
+  386:  * Get Project by ID
+  387:  * =========================================
+  388:  */
+  389: 
+  390: export function getProjectById(projectId, { includeArchived = true } = {}) {
+  391:   const normalizedProjectId = requireProjectId(projectId);
+  392: 
+  393:   const project =
+  394:     readStoredProjects().find((record) => record.id === normalizedProjectId) ||
+  395:     null;
+  396: 
+  397:   if (project?.recordStatus === "archived" && !includeArchived) {
+  398:     return null;
+  399:   }
+  400: 
+  401:   return project;
+  402: }
+  403: 
+  404: /*
+  405:  * =========================================
+  406:  * Public Projects
+
+MATCH: projects
+  398:     return null;
+  399:   }
+  400: 
+  401:   return project;
+  402: }
+  403: 
+  404: /*
+  405:  * =========================================
+  406:  * Public Projects
+  407:  * =========================================
+  408:  */
+  409: 
+  410: export function getPublicProjects() {
+  411:   return getProjects({
+  412:     includeArchived: false,
+  413:   }).map(createPublicProject);
+  414: }
+  415: 
+  416: /*
+  417:  * =========================================
+  418:  * Public Project by ID
+
+MATCH: projects
+  402: }
+  403: 
+  404: /*
+  405:  * =========================================
+  406:  * Public Projects
+  407:  * =========================================
+  408:  */
+  409: 
+  410: export function getPublicProjects() {
+  411:   return getProjects({
+  412:     includeArchived: false,
+  413:   }).map(createPublicProject);
+  414: }
+  415: 
+  416: /*
+  417:  * =========================================
+  418:  * Public Project by ID
+  419:  * =========================================
+  420:  */
+  421: 
+  422: export function getPublicProjectById(projectId) {
+
+MATCH: projects
+  403: 
+  404: /*
+  405:  * =========================================
+  406:  * Public Projects
+  407:  * =========================================
+  408:  */
+  409: 
+  410: export function getPublicProjects() {
+  411:   return getProjects({
+  412:     includeArchived: false,
+  413:   }).map(createPublicProject);
+  414: }
+  415: 
+  416: /*
+  417:  * =========================================
+  418:  * Public Project by ID
+  419:  * =========================================
+  420:  */
+  421: 
+  422: export function getPublicProjectById(projectId) {
+  423:   const project = getProjectById(projectId, {
+
+MATCH: projects
+  437:   projectData,
+  438:   {
+  439:     collections = {},
+  440:     mediaUploads = [],
+  441:     documentUploads = [],
+  442:     removedAssetStorageKeys = [],
+  443:   } = {},
+  444: ) {
+  445:   const records = readStoredProjects();
+  446: 
+  447:   let project = createProjectModel(projectData);
+  448: 
+  449:   ensureUniqueProject(records, project);
+  450: 
+  451:   const preparedAssets = await prepareProjectAssets(project, {
+  452:     mediaUploads,
+  453:     documentUploads,
+  454:   });
+  455: 
+  456:   project = preparedAssets.project;
+  457: 
+
+MATCH: projects
+  458:   try {
+  459:     const validation = validateForSave(project, collections);
+  460: 
+  461:     /*
+  462:      * Store metadata only after every staged
+  463:      * asset was written successfully.
+  464:      */
+  465: 
+  466:     replaceStoredProjects([...records, project]);
+  467: 
+  468:     /*
+  469:      * This collection is normally empty while
+  470:      * creating, but accepting it keeps the
+  471:      * service contract consistent.
+  472:      */
+  473: 
+  474:     await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+  475:       () => {},
+  476:     );
+  477: 
+  478:     return {
+
+MATCH: projects
+  506:     collections = {},
+  507:     mediaUploads = [],
+  508:     documentUploads = [],
+  509:     removedAssetStorageKeys = [],
+  510:   } = {},
+  511: ) {
+  512:   const normalizedProjectId = requireProjectId(projectId);
+  513: 
+  514:   const records = readStoredProjects();
+  515: 
+  516:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  517: 
+  518:   if (projectIndex < 0) {
+  519:     throw createProjectServiceError(
+  520:       "PROJECT_NOT_FOUND",
+  521:       `Project not found: ${normalizedProjectId}`,
+  522:       "The selected Project could not be found.",
+  523:       {
+  524:         projectId: normalizedProjectId,
+  525:       },
+  526:     );
+
+MATCH: projects
+  511: ) {
+  512:   const normalizedProjectId = requireProjectId(projectId);
+  513: 
+  514:   const records = readStoredProjects();
+  515: 
+  516:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  517: 
+  518:   if (projectIndex < 0) {
+  519:     throw createProjectServiceError(
+  520:       "PROJECT_NOT_FOUND",
+  521:       `Project not found: ${normalizedProjectId}`,
+  522:       "The selected Project could not be found.",
+  523:       {
+  524:         projectId: normalizedProjectId,
+  525:       },
+  526:     );
+  527:   }
+  528: 
+  529:   let project = updateProjectModel(records[projectIndex], updates);
+  530: 
+  531:   ensureUniqueProject(records, project, project.id);
+
+MATCH: projects
+  545:     nextRecords[projectIndex] = project;
+  546: 
+  547:     /*
+  548:      * Save updated metadata before deleting
+  549:      * old assets. If this write fails, existing
+  550:      * files remain recoverable.
+  551:      */
+  552: 
+  553:     replaceStoredProjects(nextRecords);
+  554: 
+  555:     /*
+  556:      * Asset deletion occurs only after the new
+  557:      * Project record has been saved.
+  558:      */
+  559: 
+  560:     await removeUnreferencedAssets(project, removedAssetStorageKeys).catch(
+  561:       () => {},
+  562:     );
+  563: 
+  564:     return {
+  565:       project,
+
+MATCH: projects
+  583:  * =========================================
+  584:  * Archive Project
+  585:  * =========================================
+  586:  */
+  587: 
+  588: export async function archiveProject(projectId) {
+  589:   const normalizedProjectId = requireProjectId(projectId);
+  590: 
+  591:   const records = readStoredProjects();
+  592: 
+  593:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  594: 
+  595:   if (projectIndex < 0) {
+  596:     throw createProjectServiceError(
+  597:       "PROJECT_NOT_FOUND",
+  598:       `Project not found: ${normalizedProjectId}`,
+  599:       "The selected Project could not be found.",
+  600:       {
+  601:         projectId: normalizedProjectId,
+  602:       },
+  603:     );
+
+MATCH: projects
+  588: export async function archiveProject(projectId) {
+  589:   const normalizedProjectId = requireProjectId(projectId);
+  590: 
+  591:   const records = readStoredProjects();
+  592: 
+  593:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  594: 
+  595:   if (projectIndex < 0) {
+  596:     throw createProjectServiceError(
+  597:       "PROJECT_NOT_FOUND",
+  598:       `Project not found: ${normalizedProjectId}`,
+  599:       "The selected Project could not be found.",
+  600:       {
+  601:         projectId: normalizedProjectId,
+  602:       },
+  603:     );
+  604:   }
+  605: 
+  606:   const project = records[projectIndex];
+  607: 
+  608:   if (project.recordStatus === "archived") {
+
+MATCH: projects
+  616: 
+  617:     updatedAt: new Date().toISOString(),
+  618:   });
+  619: 
+  620:   const nextRecords = [...records];
+  621: 
+  622:   nextRecords[projectIndex] = archivedProject;
+  623: 
+  624:   replaceStoredProjects(nextRecords);
+  625: 
+  626:   return archivedProject;
+  627: }
+  628: 
+  629: /*
+  630:  * =========================================
+  631:  * Restore Project
+  632:  * =========================================
+  633:  */
+  634: 
+  635: export async function restoreProject(projectId) {
+  636:   const normalizedProjectId = requireProjectId(projectId);
+
+MATCH: projects
+  630:  * =========================================
+  631:  * Restore Project
+  632:  * =========================================
+  633:  */
+  634: 
+  635: export async function restoreProject(projectId) {
+  636:   const normalizedProjectId = requireProjectId(projectId);
+  637: 
+  638:   const records = readStoredProjects();
+  639: 
+  640:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  641: 
+  642:   if (projectIndex < 0) {
+  643:     throw createProjectServiceError(
+  644:       "PROJECT_NOT_FOUND",
+  645:       `Project not found: ${normalizedProjectId}`,
+  646:       "The selected Project could not be found.",
+  647:       {
+  648:         projectId: normalizedProjectId,
+  649:       },
+  650:     );
+
+MATCH: projects
+  635: export async function restoreProject(projectId) {
+  636:   const normalizedProjectId = requireProjectId(projectId);
+  637: 
+  638:   const records = readStoredProjects();
+  639: 
+  640:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  641: 
+  642:   if (projectIndex < 0) {
+  643:     throw createProjectServiceError(
+  644:       "PROJECT_NOT_FOUND",
+  645:       `Project not found: ${normalizedProjectId}`,
+  646:       "The selected Project could not be found.",
+  647:       {
+  648:         projectId: normalizedProjectId,
+  649:       },
+  650:     );
+  651:   }
+  652: 
+  653:   const project = records[projectIndex];
+  654: 
+  655:   if (project.recordStatus === "active") {
+
+MATCH: projects
+  663: 
+  664:     updatedAt: new Date().toISOString(),
+  665:   });
+  666: 
+  667:   const nextRecords = [...records];
+  668: 
+  669:   nextRecords[projectIndex] = restoredProject;
+  670: 
+  671:   replaceStoredProjects(nextRecords);
+  672: 
+  673:   return restoredProject;
+  674: }
+  675: 
+  676: /*
+  677:  * =========================================
+  678:  * Delete Project Permanently
+  679:  * =========================================
+  680:  */
+  681: 
+  682: export async function deleteProject(projectId) {
+  683:   const normalizedProjectId = requireProjectId(projectId);
+
+MATCH: projects
+  677:  * =========================================
+  678:  * Delete Project Permanently
+  679:  * =========================================
+  680:  */
+  681: 
+  682: export async function deleteProject(projectId) {
+  683:   const normalizedProjectId = requireProjectId(projectId);
+  684: 
+  685:   const records = readStoredProjects();
+  686: 
+  687:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  688: 
+  689:   if (projectIndex < 0) {
+  690:     throw createProjectServiceError(
+  691:       "PROJECT_NOT_FOUND",
+  692:       `Project not found: ${normalizedProjectId}`,
+  693:       "The selected Project could not be found.",
+  694:       {
+  695:         projectId: normalizedProjectId,
+  696:       },
+  697:     );
+
+MATCH: projects
+  682: export async function deleteProject(projectId) {
+  683:   const normalizedProjectId = requireProjectId(projectId);
+  684: 
+  685:   const records = readStoredProjects();
+  686: 
+  687:   const projectIndex = findProjectIndex(records, normalizedProjectId);
+  688: 
+  689:   if (projectIndex < 0) {
+  690:     throw createProjectServiceError(
+  691:       "PROJECT_NOT_FOUND",
+  692:       `Project not found: ${normalizedProjectId}`,
+  693:       "The selected Project could not be found.",
+  694:       {
+  695:         projectId: normalizedProjectId,
+  696:       },
+  697:     );
+  698:   }
+  699: 
+  700:   const deletedProject = records[projectIndex];
+  701: 
+  702:   const nextRecords = records.filter(
+
+MATCH: projects
+  703:     (project) => project.id !== normalizedProjectId,
+  704:   );
+  705: 
+  706:   /*
+  707:    * Delete metadata first. If localStorage
+  708:    * fails, the Project and all assets remain.
+  709:    */
+  710: 
+  711:   replaceStoredProjects(nextRecords);
+  712: 
+  713:   /*
+  714:    * Once metadata is removed, delete every
+  715:    * IndexedDB asset owned by this Project.
+  716:    *
+  717:    * Cleanup is best effort because the Project
+  718:    * metadata has already been deleted.
+  719:    */
+  720: 
+  721:   let assetCleanupError = null;
+  722: 
+  723:   try {
+
+=====================================
+FILE: models\projectModel.js
+TOTAL LINES: 1332
+
+MATCH: projects
+    3:   isValidProjectAwardPlacement,
+    4:   isValidProjectCategory,
+    5:   isValidProjectDocumentType,
+    6:   isValidProjectLifecycleStatus,
+    7:   isValidProjectMediaType,
+    8:   isValidProjectOwnership,
+    9:   isValidProjectRecognitionType,
+   10:   isValidProjectRecordStatus,
+   11:   isValidProjectSkillProficiency,
+   12:   isValidProjectSource,
+   13: } from "../config/projectConfig.js";
+   14: 
+   15: /*
+   16:  * =========================================
+   17:  * Model Version
+   18:  * =========================================
+   19:  */
+   20: 
+   21: export const PROJECT_MODEL_VERSION = 2;
+   22: 
+   23: /*
+
+MATCH: projects
+    4:   isValidProjectCategory,
+    5:   isValidProjectDocumentType,
+    6:   isValidProjectLifecycleStatus,
+    7:   isValidProjectMediaType,
+    8:   isValidProjectOwnership,
+    9:   isValidProjectRecognitionType,
+   10:   isValidProjectRecordStatus,
+   11:   isValidProjectSkillProficiency,
+   12:   isValidProjectSource,
+   13: } from "../config/projectConfig.js";
+   14: 
+   15: /*
+   16:  * =========================================
+   17:  * Model Version
+   18:  * =========================================
+   19:  */
+   20: 
+   21: export const PROJECT_MODEL_VERSION = 2;
+   22: 
+   23: /*
+   24:  * =========================================
+
+MATCH: projects
+  241: }
+  242: 
+  243: /*
+  244:  * =========================================
+  245:  * Skill Relationship
+  246:  * =========================================
+  247:  */
+  248: 
+  249: export function createProjectSkillRelationship(value = {}, order = 0) {
+  250:   const source =
+  251:     typeof value === "string"
+  252:       ? {
+  253:           nameSnapshot: value,
+  254:         }
+  255:       : value && typeof value === "object"
+  256:         ? value
+  257:         : {};
+  258: 
+  259:   const proficiency =
+  260:     source.demonstratedProficiency || source.proficiency || source.level || "";
+  261: 
+
+MATCH: projects
+  278:       PROJECT_FIELD_LIMITS.relationshipName,
+  279:     ),
+  280: 
+  281:     categorySnapshot: normalizeText(
+  282:       source.categorySnapshot || source.category,
+  283:       100,
+  284:     ),
+  285: 
+  286:     demonstratedProficiency: isValidProjectSkillProficiency(proficiency)
+  287:       ? proficiency
+  288:       : "",
+  289: 
+  290:     usageDescription: normalizeText(
+  291:       source.usageDescription || source.description,
+  292:       PROJECT_FIELD_LIMITS.relationshipDescription,
+  293:     ),
+  294: 
+  295:     order:
+  296:       Number.isInteger(Number(order)) && Number(order) >= 0 ? Number(order) : 0,
+  297:   };
+  298: }
+
+MATCH: skillRelationships
+  613:       problemsSolved: "",
+  614:       impact: "",
+  615:       beneficiariesAffected: "",
+  616:       metrics: [],
+  617:       lessonsLearned: "",
+  618:       futureImprovements: "",
+  619:     },
+  620: 
+  621:     skillRelationships: [],
+  622: 
+  623:     technologies: [],
+  624: 
+  625:     relatedRecords: {
+  626:       experienceRelationships: [],
+  627:       educationRelationships: [],
+  628:       trainingRelationships: [],
+  629:       certificationRelationships: [],
+  630:     },
+  631: 
+  632:     awards: [],
+  633: 
+
+MATCH: projects
+  716:   const solution = getObject("solution");
+  717:   const results = getObject("results");
+  718:   const relatedRecords = getObject("relatedRecords");
+  719:   const presentation = getObject("presentation");
+  720:   const visibility = getObject("visibility");
+  721:   const privateInformation = getObject("privateInformation");
+  722: 
+  723:   const lifecycleStatus = isValidProjectLifecycleStatus(
+  724:     source.lifecycleStatus || source.projectStatus,
+  725:   )
+  726:     ? source.lifecycleStatus || source.projectStatus
+  727:     : defaults.lifecycleStatus;
+  728: 
+  729:   const isCurrent = normalizeBoolean(
+  730:     dates.isCurrent,
+  731:     ["in-progress", "maintained"].includes(lifecycleStatus),
+  732:   );
+  733: 
+  734:   /*
+  735:    * =========================================
+  736:    * Media Normalization
+
+MATCH: projects
+  718:   const relatedRecords = getObject("relatedRecords");
+  719:   const presentation = getObject("presentation");
+  720:   const visibility = getObject("visibility");
+  721:   const privateInformation = getObject("privateInformation");
+  722: 
+  723:   const lifecycleStatus = isValidProjectLifecycleStatus(
+  724:     source.lifecycleStatus || source.projectStatus,
+  725:   )
+  726:     ? source.lifecycleStatus || source.projectStatus
+  727:     : defaults.lifecycleStatus;
+  728: 
+  729:   const isCurrent = normalizeBoolean(
+  730:     dates.isCurrent,
+  731:     ["in-progress", "maintained"].includes(lifecycleStatus),
+  732:   );
+  733: 
+  734:   /*
+  735:    * =========================================
+  736:    * Media Normalization
+  737:    * =========================================
+  738:    */
+
+MATCH: skillRelationships
+  763:   /*
+  764:    * =========================================
+  765:    * Skill Relationship Normalization
+  766:    * =========================================
+  767:    */
+  768: 
+  769:   const seenSkills = new Set();
+  770: 
+  771:   const skillRelationships = normalizeArray(source.skillRelationships)
+  772:     .map((relationship, order) =>
+  773:       createProjectSkillRelationship(relationship, order),
+  774:     )
+  775:     .filter((relationship) => {
+  776:       const identity = (relationship.skillId || relationship.nameSnapshot)
+  777:         .normalize("NFKC")
+  778:         .toLocaleLowerCase();
+  779: 
+  780:       if (!identity || seenSkills.has(identity)) {
+  781:         return false;
+  782:       }
+  783: 
+
+MATCH: projects
+  765:    * Skill Relationship Normalization
+  766:    * =========================================
+  767:    */
+  768: 
+  769:   const seenSkills = new Set();
+  770: 
+  771:   const skillRelationships = normalizeArray(source.skillRelationships)
+  772:     .map((relationship, order) =>
+  773:       createProjectSkillRelationship(relationship, order),
+  774:     )
+  775:     .filter((relationship) => {
+  776:       const identity = (relationship.skillId || relationship.nameSnapshot)
+  777:         .normalize("NFKC")
+  778:         .toLocaleLowerCase();
+  779: 
+  780:       if (!identity || seenSkills.has(identity)) {
+  781:         return false;
+  782:       }
+  783: 
+  784:       seenSkills.add(identity);
+  785: 
+
+MATCH: skillRelationships
+  993:       ),
+  994: 
+  995:       futureImprovements: normalizeText(
+  996:         results.futureImprovements,
+  997:         PROJECT_FIELD_LIMITS.futureImprovements,
+  998:       ),
+  999:     },
+ 1000: 
+ 1001:     skillRelationships,
+ 1002: 
+ 1003:     technologies: normalizeArray(source.technologies)
+ 1004:       .map((technology, order) => createProjectTechnology(technology, order))
+ 1005:       .filter((technology) => technology.name)
+ 1006:       .slice(0, PROJECT_FIELD_LIMITS.maximumTechnologies)
+ 1007:       .map((technology, order) => ({
+ 1008:         ...technology,
+ 1009:         order,
+ 1010:       })),
+ 1011: 
+ 1012:     relatedRecords: {
+ 1013:       experienceRelationships: normalizeRecordRelationships(
+
+MATCH: projects
+ 1080: 
+ 1081:     privateInformation: {
+ 1082:       notes: normalizeText(
+ 1083:         privateInformation.notes || source.privateNotes,
+ 1084:         PROJECT_FIELD_LIMITS.privateNotes,
+ 1085:       ),
+ 1086:     },
+ 1087: 
+ 1088:     source: isValidProjectSource(source.source)
+ 1089:       ? source.source
+ 1090:       : defaults.source,
+ 1091: 
+ 1092:     sourceContext: normalizeText(
+ 1093:       source.sourceContext,
+ 1094:       PROJECT_FIELD_LIMITS.sourceContext,
+ 1095:     ),
+ 1096: 
+ 1097:     recordStatus: isValidProjectRecordStatus(source.recordStatus)
+ 1098:       ? source.recordStatus
+ 1099:       : defaults.recordStatus,
+ 1100: 
+
+MATCH: skillRelationships
+ 1288:     links: project.visibility.showLinks ? project.links : null,
+ 1289: 
+ 1290:     problem: project.visibility.showProblem ? project.problem : null,
+ 1291: 
+ 1292:     solution: project.visibility.showSolution ? project.solution : null,
+ 1293: 
+ 1294:     results: project.visibility.showResults ? project.results : null,
+ 1295: 
+ 1296:     skillRelationships: project.visibility.showSkills
+ 1297:       ? project.skillRelationships
+ 1298:       : [],
+ 1299: 
+ 1300:     technologies: project.visibility.showTechnologies
+ 1301:       ? project.technologies
+ 1302:       : [],
+ 1303: 
+ 1304:     relatedRecords: project.visibility.showRelatedRecords
+ 1305:       ? project.relatedRecords
+ 1306:       : {
+ 1307:           experienceRelationships: [],
+ 1308:           educationRelationships: [],
+
+MATCH: skillRelationships
+ 1289: 
+ 1290:     problem: project.visibility.showProblem ? project.problem : null,
+ 1291: 
+ 1292:     solution: project.visibility.showSolution ? project.solution : null,
+ 1293: 
+ 1294:     results: project.visibility.showResults ? project.results : null,
+ 1295: 
+ 1296:     skillRelationships: project.visibility.showSkills
+ 1297:       ? project.skillRelationships
+ 1298:       : [],
+ 1299: 
+ 1300:     technologies: project.visibility.showTechnologies
+ 1301:       ? project.technologies
+ 1302:       : [],
+ 1303: 
+ 1304:     relatedRecords: project.visibility.showRelatedRecords
+ 1305:       ? project.relatedRecords
+ 1306:       : {
+ 1307:           experienceRelationships: [],
+ 1308:           educationRelationships: [],
+ 1309:           trainingRelationships: [],
+
+=== SKILL USAGE FILE DISCOVERY ===
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\SkillDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\skills\components\SkillItem\SkillItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillUtils.js

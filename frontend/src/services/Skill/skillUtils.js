@@ -527,6 +527,7 @@ export function createEmptySkillUsage(skillId = "") {
     trainingCount: 0,
     resumeCount: 0,
     portfolioCount: 0,
+    projectCount: 0,
 
     /*
      * Relationship totals.
@@ -536,6 +537,7 @@ export function createEmptySkillUsage(skillId = "") {
     experienceTechnologyCount: 0,
     educationSkillCount: 0,
     trainingSkillCount: 0,
+    projectSkillCount: 0,
 
     /*
      * Referencing records.
@@ -546,6 +548,7 @@ export function createEmptySkillUsage(skillId = "") {
     trainingRecords: [],
     resumes: [],
     portfolios: [],
+    projects: [],
 
     isUsed: false,
   };
@@ -707,12 +710,64 @@ export function getSkillTrainingUsage(skillId, trainingRecords = []) {
  * =========================================
  */
 
+/*
+ * =========================================
+ * Project Usage
+ * =========================================
+ */
+
+export function getSkillProjectUsage(skillId, projects = []) {
+  const result = {
+    projectCount: 0,
+    projectSkillCount: 0,
+    projects: [],
+  };
+
+  if (!skillId) {
+    return result;
+  }
+
+  const seenProjectIds = new Set();
+
+  getArray(projects).forEach((project) => {
+    const projectId = getText(project?.id);
+
+    if (!projectId || seenProjectIds.has(projectId)) {
+      return;
+    }
+
+    const relationshipCount = countSkillRelationships(
+      project?.skillRelationships,
+      skillId,
+    );
+
+    if (relationshipCount === 0) {
+      return;
+    }
+
+    seenProjectIds.add(projectId);
+
+    result.projectSkillCount += relationshipCount;
+
+    result.projects.push({
+      id: projectId,
+      title: getText(project?.title) || "Untitled Project",
+      relationshipCount,
+      recordStatus: getText(project?.recordStatus),
+    });
+  });
+
+  result.projectCount = result.projects.length;
+
+  return result;
+}
 export function getSkillUsage(
   skillId,
   {
     experiences = [],
     educationRecords = [],
     trainingRecords = [],
+    projects = [],
     portfolios = [],
     resumes = [],
   } = {},
@@ -724,6 +779,8 @@ export function getSkillUsage(
   const educationUsage = getSkillEducationUsage(skillId, educationRecords);
 
   const trainingUsage = getSkillTrainingUsage(skillId, trainingRecords);
+
+  const projectUsage = getSkillProjectUsage(skillId, projects);
 
   usage.experienceCount = experienceUsage.experienceCount;
 
@@ -744,6 +801,10 @@ export function getSkillUsage(
   usage.trainingSkillCount = trainingUsage.trainingSkillCount;
 
   usage.trainingRecords = trainingUsage.trainingRecords;
+
+  usage.projectCount = projectUsage.projectCount;
+  usage.projectSkillCount = projectUsage.projectSkillCount;
+  usage.projects = projectUsage.projects;
 
   /*
    * Résumé and Portfolio relationship models
@@ -766,7 +827,8 @@ export function getSkillUsage(
     usage.educationCount +
     usage.trainingCount +
     usage.resumeCount +
-    usage.portfolioCount;
+    usage.portfolioCount +
+    usage.projectCount;
 
   usage.totalUsage = usage.total;
 
@@ -789,6 +851,7 @@ export function createSkillUsageMap({
   experiences = [],
   educationRecords = [],
   trainingRecords = [],
+  projects = [],
   portfolios = [],
   resumes = [],
 } = {}) {
@@ -801,6 +864,7 @@ export function createSkillUsageMap({
       experiences,
       educationRecords,
       trainingRecords,
+      projects,
       portfolios,
       resumes,
     });
@@ -835,6 +899,7 @@ export function getSkillUsageSummary(usage) {
   const resumeCount = Number(usage?.resumeCount) || 0;
 
   const portfolioCount = Number(usage?.portfolioCount) || 0;
+  const projectCount = Number(usage?.projectCount) || 0;
 
   if (experienceCount > 0) {
     parts.push(
@@ -865,6 +930,12 @@ export function getSkillUsageSummary(usage) {
   if (portfolioCount > 0) {
     parts.push(
       `${portfolioCount} ${portfolioCount === 1 ? "portfolio" : "portfolios"}`,
+    );
+  }
+
+  if (projectCount > 0) {
+    parts.push(
+      `${projectCount} ${projectCount === 1 ? "project" : "projects"}`,
     );
   }
 
