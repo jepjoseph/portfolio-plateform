@@ -1,0 +1,48 @@
+CERTIFICATION MIGRATION MAPPING INSPECTION
+Generated: 2026-11-03T13:42:15.4891257-05:00
+Source origin: http://localhost:5173
+Backup type: certification-migration-source
+Certification ID: certification-81578373-9cad-4ddb-83dd-2fe825ae7811
+Certification name: WEB101-Certification
+User ID: 
+Model version: 1
+Created at: 2026-11-03T01:32:01.107Z
+Updated at: 2026-11-03T01:32:01.161Z
+
+=== TOP-LEVEL CERTIFICATION FIELDS ===
+modelVersion
+id
+name
+certificationType
+issuingOrganization
+dates
+credential
+description
+skillRelationships
+relatedRecords
+supportingDocuments
+visibility
+privateInformation
+source
+sourceContext
+status
+createdAt
+updatedAt
+
+=== SKILL RELATIONSHIPS ===
+Relationship ID: certification-skill-917d7100-c97a-4a93-9195-2283329ff4b3
+Skill ID: skill-54e7185b-3cb7-42bb-88ca-ab87ae3b756b
+Skill name: HTML
+Skill category: other
+Skill type: professional
+
+=== DOCUMENT METADATA ===
+Document ID: certification-document-3eb58bca-bde6-4107-8d0a-18cc3e951276
+Original filename: 9b0c369a-69f0-4c4d-9079-2faad2a809b9.pdf
+Storage key present: True
+Expected size: 951223
+MIME type: application/pdf
+
+=== BACKUP FILE HASHES ===
+9b0c369a-69f0-4c4d-9079-2faad2a809b9 (1).pdf | 951223 bytes | 5435366AB3792A77AA4E84A3DAEFD72C127F20B0ABE1E024EC5E46BB5BDED67F
+WEB101-certification-migration-backup.json | 3618 bytes | 00581D380C8EEAA564A59D64FB4C07D5AEB1CDB69F174EB5EDE754429B7A4562

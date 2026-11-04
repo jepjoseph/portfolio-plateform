@@ -1,0 +1,2039 @@
+﻿CERTIFICATION CONTROLLER INSPECTION
+Generated: 2026-11-03T18:16:51.1349067-05:00
+Backend: D:\Documents\Project\Portfolio\portfolio-plateform\backend
+
+
+================================================================================
+FILE: src\controllers\projectDocumentController.js
+================================================================================
+import fs from "node:fs";
+import { promises as fsPromises } from "node:fs";
+
+import {
+  registerProjectDocument,
+  listAuthenticatedProjectDocuments,
+  getAuthenticatedProjectDocument,
+  deleteAuthenticatedProjectDocument,
+} from "../services/Service/projectDocumentService.js";
+
+import {
+  resolveOwnedProjectDocumentPath,
+  assertSafeProjectDocumentDirectory,
+} from "../services/Storage/projectDocumentStorageService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+    "X-Content-Type-Options": "nosniff",
+  });
+}
+
+function createNotFoundError() {
+  const error = new Error("Project document not found.");
+  error.status = 404;
+  error.code = "PROJECT_DOCUMENT_NOT_FOUND";
+  error.publicMessage = error.message;
+  return error;
+}
+
+export async function uploadMyProjectDocument(request, response, next) {
+  try {
+    const document = await registerProjectDocument({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      uploadedFile: request.projectDocumentFile,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project document uploaded successfully.",
+      data: { document },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listMyProjectDocuments(request, response, next) {
+  try {
+    const documents = await listAuthenticatedProjectDocuments({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project documents retrieved successfully.",
+      data: { documents },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyProjectDocument(request, response, next) {
+  let fileHandle;
+
+  try {
+    const userId = request.auth.userId;
+    const projectId = request.params.projectId;
+    const documentId = request.params.documentId;
+
+    const document = await getAuthenticatedProjectDocument({
+      userId,
+      projectId,
+      documentId,
+    });
+
+    const filePath = resolveOwnedProjectDocumentPath(
+      userId,
+      projectId,
+      document.storageKey,
+    );
+
+    await assertSafeProjectDocumentDirectory(userId, projectId);
+
+    const pathStats = await fsPromises.lstat(filePath);
+
+    if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+      throw createNotFoundError();
+    }
+
+    const flags =
+      fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+
+    fileHandle = await fsPromises.open(filePath, flags);
+
+    const stats = await fileHandle.stat();
+
+    if (!stats.isFile() || stats.size !== document.fileSize) {
+      throw createNotFoundError();
+    }
+
+    // Prevent CR/LF and header parameter injection.
+    const safeName = String(document.originalFileName || "document")
+      .replace(/[\r\n"\\]/g, "_")
+      .replace(/[\x00-\x1f\x7f]/g, "_")
+      .slice(0, 200);
+
+    const encodedName = encodeURIComponent(
+      document.originalFileName || "document",
+    );
+
+    setPrivateHeaders(response);
+
+    response.set({
+      "Content-Type": document.mimeType,
+      "Content-Length": String(stats.size),
+      "Content-Disposition":
+        `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
+      "Accept-Ranges": "none",
+    });
+
+    const stream = fileHandle.createReadStream({
+      autoClose: true,
+    });
+
+    fileHandle = null;
+
+    stream.on("error", (error) => {
+      if (!response.headersSent) {
+        next(error);
+      } else {
+        response.destroy(error);
+      }
+    });
+
+    stream.pipe(response);
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close().catch(() => {});
+    }
+
+    if (error.code === "ENOENT") {
+      return next(createNotFoundError());
+    }
+
+    return next(error);
+  }
+}
+
+export async function deleteMyProjectDocument(request, response, next) {
+  try {
+    await deleteAuthenticatedProjectDocument({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      documentId: request.params.documentId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(204).end();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+================================================================================
+FILE: src\routes\projectRoutes.js
+================================================================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+import { uploadProjectDocument } from "../middleware/project/projectDocumentUploadMiddleware.js";
+import { validateProjectDocument } from "../middleware/project/projectDocumentValidationMiddleware.js";
+
+import {
+  uploadMyProjectDocument,
+  listMyProjectDocuments,
+  getMyProjectDocument,
+  deleteMyProjectDocument,
+} from "../controllers/projectDocumentController.js";
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Document API
+ * =========================================
+ *
+ * Authentication is applied globally.
+ * Ownership is checked before file access
+ * or Multer writes uploaded documents.
+ */
+
+router.get(
+  "/:projectId/documents",
+  requireProjectOwnership,
+  listMyProjectDocuments,
+);
+
+router.get(
+  "/:projectId/documents/:documentId",
+  requireProjectOwnership,
+  getMyProjectDocument,
+);
+
+router.post(
+  "/:projectId/documents",
+  requireProjectOwnership,
+  uploadProjectDocument,
+  validateProjectDocument,
+  uploadMyProjectDocument,
+);
+
+router.delete(
+  "/:projectId/documents/:documentId",
+  requireProjectOwnership,
+  deleteMyProjectDocument,
+);
+export default router;
+
+================================================================================
+FILE: src\services\Service\projectDocumentService.js
+================================================================================
+import path from "node:path";
+
+import {
+  createProjectDocument,
+  findProjectDocumentByStorageKey,
+  findProjectDocumentById,
+  listProjectDocuments,
+  deleteProjectDocument,
+} from "../../repositories/projectDocumentRepository.js";
+
+import {
+  assertSafeProjectDocumentDirectory,
+  createProjectDocumentStorageKey,
+  resolveOwnedProjectDocumentPath,
+  deleteOwnedProjectDocument,
+} from "../Storage/projectDocumentStorageService.js";
+
+/*
+ * =========================================
+ * Project Document Service Errors
+ * =========================================
+ */
+
+function createDocumentServiceError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "ProjectDocumentServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+/*
+ * =========================================
+ * Register Uploaded Project Document
+ * =========================================
+ */
+
+export async function registerProjectDocument({
+  userId,
+  projectId,
+  uploadedFile,
+}) {
+  if (!userId || !projectId) {
+    throw createDocumentServiceError(
+      "Project document registration is not authorized.",
+      "PROJECT_DOCUMENT_REGISTRATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  if (!uploadedFile) {
+    throw createDocumentServiceError(
+      "Validated Project document is required.",
+      "PROJECT_DOCUMENT_FILE_REQUIRED",
+    );
+  }
+
+  const {
+    filename,
+    path: uploadedPath,
+    originalname,
+    verifiedMimeType,
+    verifiedSize,
+  } = uploadedFile;
+
+  if (
+    !filename ||
+    !uploadedPath ||
+    !originalname ||
+    !verifiedMimeType ||
+    !Number.isSafeInteger(verifiedSize) ||
+    verifiedSize <= 0
+  ) {
+    throw createDocumentServiceError(
+      "Project document validation information is incomplete.",
+      "PROJECT_DOCUMENT_VALIDATION_INCOMPLETE",
+    );
+  }
+
+  const storageKey = createProjectDocumentStorageKey(userId, projectId, filename);
+
+  const expectedPath = resolveOwnedProjectDocumentPath(
+    userId,
+    projectId,
+    storageKey,
+  );
+
+  if (path.resolve(uploadedPath) !== expectedPath) {
+    throw createDocumentServiceError(
+      "Project document file location is invalid.",
+      "PROJECT_DOCUMENT_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  await assertSafeProjectDocumentDirectory(userId, projectId);
+
+  /*
+   * The file has already been stored and verified
+   * by the upload and validation middleware.
+   *
+   * Now register its metadata in Azure SQL.
+   */
+
+  try {
+    return await createProjectDocument(userId, projectId, {
+      storageKey,
+      originalFileName: originalname,
+      mimeType: verifiedMimeType,
+      fileSize: verifiedSize,
+    });
+  } catch (databaseError) {
+    /*
+     * The insert failed or its result is uncertain.
+     *
+     * Do not delete the uploaded file:
+     * SQL Server might have committed the insert
+     * before the connection failed.
+     */
+
+    try {
+      const existingDocument = await findProjectDocumentByStorageKey(
+        userId,
+        projectId,
+        storageKey,
+      );
+
+      if (existingDocument) {
+        // The metadata exists, so preserve its file.
+        return existingDocument;
+      }
+    } catch (lookupError) {
+      console.error(
+        "Unable to reconcile Project document registration:",
+        lookupError,
+      );
+    }
+
+    /*
+     * A missing record at lookup time does not prove
+     * that the original insert cannot commit later.
+     *
+     * Preserve the file for later reconciliation.
+     */
+
+    const error = createDocumentServiceError(
+      "Project document registration could not be confirmed.",
+      "PROJECT_DOCUMENT_REGISTRATION_UNCONFIRMED",
+      503,
+    );
+
+    error.cause = databaseError;
+
+    throw error;
+  }
+}
+
+/*
+ * =========================================
+ * List Project Document
+ * =========================================
+ */
+
+export async function listAuthenticatedProjectDocuments({ userId, projectId }) {
+  if (!userId || !projectId) {
+    throw createDocumentServiceError(
+      "Project document access is not authorized.",
+      "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  return listProjectDocuments(userId, projectId);
+}
+
+/*
+ * =========================================
+ * Get Authenticated Project Document
+ * =========================================
+ *
+ * Retrieve document metadata belonging to
+ * the authenticated user and Project.
+ */
+
+export async function getAuthenticatedProjectDocument({
+  userId,
+  projectId,
+  documentId,
+}) {
+  if (!userId || !projectId || !documentId) {
+    throw createDocumentServiceError(
+      "Project document access is not authorized.",
+      "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const document = await findProjectDocumentById(userId, projectId, documentId);
+
+  if (!document) {
+    throw createDocumentServiceError(
+      "Project document not found.",
+      "PROJECT_DOCUMENT_NOT_FOUND",
+      404,
+    );
+  }
+
+  return document;
+}
+
+/*
+ * =========================================
+ * Delete Authenticated Project Document
+ * =========================================
+ */
+
+export async function deleteAuthenticatedProjectDocument({
+  userId,
+  projectId,
+  documentId,
+}) {
+  if (!userId || !projectId || !documentId) {
+    throw createDocumentServiceError(
+      "Project document deletion is not authorized.",
+      "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  const document = await findProjectDocumentById(userId, projectId, documentId);
+
+  if (!document) {
+    throw createDocumentServiceError(
+      "Project document not found.",
+      "PROJECT_DOCUMENT_NOT_FOUND",
+      404,
+    );
+  }
+
+  /*
+   * Delete the owned physical file first.
+   *
+   * The storage service handles an already-missing
+   * file without throwing an error.
+   */
+  await deleteOwnedProjectDocument(userId, projectId, document.storageKey);
+
+  /*
+   * Remove the database record only after
+   * filesystem deletion succeeds.
+   */
+  const deletedDocument = await deleteProjectDocument(userId, projectId, documentId);
+
+  if (!deletedDocument) {
+    throw createDocumentServiceError(
+      "Project document deletion could not be confirmed.",
+      "PROJECT_DOCUMENT_DELETION_UNCONFIRMED",
+      503,
+    );
+  }
+
+  return deletedDocument;
+}
+
+
+
+================================================================================
+FILE: src\services\Service\certificationDocumentService.js
+================================================================================
+import crypto from "node:crypto";
+import path from "node:path";
+
+import {
+  getAuthenticatedCertification,
+} from "./certificationService.js";
+
+import {
+  createCertificationDocument,
+  listCertificationDocuments,
+  findCertificationDocumentById,
+  findCertificationDocumentByStorageKey,
+  deleteCertificationDocument,
+} from "../../repositories/certificationDocumentRepository.js";
+
+import {
+  assertSafeCertificationDocumentDirectory,
+  createCertificationDocumentStorageKey,
+  resolveOwnedCertificationDocumentPath,
+  deleteOwnedCertificationDocument,
+} from "../Storage/certificationDocumentStorageService.js";
+
+const MAX_CERTIFICATION_DOCUMENT_SIZE = 10 * 1024 * 1024;
+
+const ALLOWED_CERTIFICATION_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+function createDocumentError(message, code, status = 400) {
+  const error = new Error(message);
+  error.name = "CertificationDocumentServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+async function verifyCertificationOwnership(userId, certificationId) {
+  if (
+    typeof userId !== "string" ||
+    !userId.trim() ||
+    typeof certificationId !== "string" ||
+    !certificationId.trim()
+  ) {
+    throw createDocumentError(
+      "Certification document access is not authorized.",
+      "CERTIFICATION_DOCUMENT_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  return getAuthenticatedCertification({ userId, certificationId });
+}
+
+export async function registerCertificationDocument({
+  userId,
+  certificationId,
+  uploadedFile,
+}) {
+  await verifyCertificationOwnership(userId, certificationId);
+
+  if (!uploadedFile) {
+    throw createDocumentError(
+      "Validated Certification document is required.",
+      "CERTIFICATION_DOCUMENT_FILE_REQUIRED",
+    );
+  }
+
+  const {
+    filename,
+    path: uploadedPath,
+    originalname,
+    verifiedMimeType,
+    verifiedSize,
+  } = uploadedFile;
+
+  if (
+    typeof filename !== "string" ||
+    !filename ||
+    typeof uploadedPath !== "string" ||
+    !uploadedPath ||
+    typeof originalname !== "string" ||
+    !originalname ||
+    originalname.length > 255 ||
+    typeof verifiedMimeType !== "string" ||
+    !Number.isSafeInteger(verifiedSize) ||
+    verifiedSize <= 0
+  ) {
+    throw createDocumentError(
+      "Certification document validation information is incomplete.",
+      "CERTIFICATION_DOCUMENT_VALIDATION_INCOMPLETE",
+    );
+  }
+
+  if (verifiedSize > MAX_CERTIFICATION_DOCUMENT_SIZE) {
+    throw createDocumentError(
+      "Certification document exceeds the 10 MiB limit.",
+      "CERTIFICATION_DOCUMENT_TOO_LARGE",
+      413,
+    );
+  }
+
+  if (!ALLOWED_CERTIFICATION_DOCUMENT_TYPES.has(verifiedMimeType)) {
+    throw createDocumentError(
+      "Unsupported Certification document type.",
+      "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+    );
+  }
+
+  const storageKey = createCertificationDocumentStorageKey(
+    userId,
+    certificationId,
+    filename,
+  );
+
+  const expectedPath = resolveOwnedCertificationDocumentPath(
+    userId,
+    certificationId,
+    storageKey,
+  );
+
+  if (path.resolve(uploadedPath) !== expectedPath) {
+    throw createDocumentError(
+      "Certification document file location is invalid.",
+      "CERTIFICATION_DOCUMENT_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  await assertSafeCertificationDocumentDirectory(
+    userId,
+    certificationId,
+  );
+
+  const documentId = crypto.randomUUID();
+
+  try {
+    return await createCertificationDocument(userId, certificationId, {
+      id: documentId,
+      storageKey,
+      originalFileName: originalname,
+      mimeType: verifiedMimeType,
+      fileSize: verifiedSize,
+    });
+  } catch (databaseError) {
+    // A failed response does not prove the SQL insert was rolled back.
+    // Preserve the physical file while reconciling its metadata.
+    try {
+      const existing = await findCertificationDocumentByStorageKey(
+        userId,
+        certificationId,
+        storageKey,
+      );
+
+      if (existing) {
+        return existing;
+      }
+    } catch (lookupError) {
+      console.error(
+        "Unable to reconcile Certification document registration:",
+        lookupError,
+      );
+    }
+
+    const error = createDocumentError(
+      "Certification document registration could not be confirmed.",
+      "CERTIFICATION_DOCUMENT_REGISTRATION_UNCONFIRMED",
+      503,
+    );
+
+    error.cause = databaseError;
+    throw error;
+  }
+}
+
+export async function listAuthenticatedCertificationDocuments({
+  userId,
+  certificationId,
+}) {
+  await verifyCertificationOwnership(userId, certificationId);
+
+  return listCertificationDocuments(userId, certificationId);
+}
+
+export async function getAuthenticatedCertificationDocument({
+  userId,
+  certificationId,
+  documentId,
+}) {
+  await verifyCertificationOwnership(userId, certificationId);
+
+  if (typeof documentId !== "string" || !documentId.trim()) {
+    throw createDocumentError(
+      "Certification document ID is required.",
+      "CERTIFICATION_DOCUMENT_ID_REQUIRED",
+    );
+  }
+
+  const document = await findCertificationDocumentById(
+    userId,
+    certificationId,
+    documentId,
+  );
+
+  if (!document) {
+    throw createDocumentError(
+      "Certification document not found.",
+      "CERTIFICATION_DOCUMENT_NOT_FOUND",
+      404,
+    );
+  }
+
+  return document;
+}
+
+export async function deleteAuthenticatedCertificationDocument({
+  userId,
+  certificationId,
+  documentId,
+}) {
+  const document = await getAuthenticatedCertificationDocument({
+    userId,
+    certificationId,
+    documentId,
+  });
+
+  // Follow the existing Project document deletion sequence:
+  // remove the physical file before deleting SQL metadata.
+  await deleteOwnedCertificationDocument(
+    userId,
+    certificationId,
+    document.storageKey,
+  );
+
+  const deleted = await deleteCertificationDocument(
+    userId,
+    certificationId,
+    documentId,
+  );
+
+  if (!deleted) {
+    throw createDocumentError(
+      "Certification document deletion could not be confirmed.",
+      "CERTIFICATION_DOCUMENT_DELETION_UNCONFIRMED",
+      503,
+    );
+  }
+
+  return deleted;
+}
+
+================================================================================
+FILE: src\middleware\certification\certificationOwnershipMiddleware.js
+================================================================================
+import { getAuthenticatedCertification } from "../../services/Service/certificationService.js";
+
+/*
+ * Certification Ownership Middleware
+ *
+ * Must execute after authentication and before
+ * any Certification document upload middleware.
+ */
+
+export async function requireCertificationOwnership(
+  request,
+  response,
+  next,
+) {
+  try {
+    const certification = await getAuthenticatedCertification({
+      userId: request.auth?.userId,
+      certificationId: request.params?.certificationId,
+    });
+
+    if (!certification) {
+      const error = new Error("Certification not found.");
+      error.status = 404;
+      error.code = "CERTIFICATION_NOT_FOUND";
+      error.publicMessage = "Certification not found.";
+      return next(error);
+    }
+
+    request.authorizedCertification = certification;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+================================================================================
+FILE: src\middleware\certification\certificationDocumentUploadMiddleware.js
+================================================================================
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import multer from "multer";
+
+import {
+  getCertificationDocumentDirectory,
+  getCertificationDocumentStorageRoot,
+  assertSafeCertificationDocumentDirectory,
+} from "../../services/Storage/certificationDocumentStorageService.js";
+
+export const MAX_CERTIFICATION_DOCUMENT_SIZE = 10 * 1024 * 1024;
+
+export const ALLOWED_CERTIFICATION_DOCUMENT_TYPES = new Map([
+  ["application/pdf", { extension: ".pdf" }],
+  [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    { extension: ".docx" },
+  ],
+  ["image/jpeg", { extension: ".jpg" }],
+  ["image/png", { extension: ".png" }],
+  ["image/webp", { extension: ".webp" }],
+]);
+
+function createUploadError(message, code, status = 400) {
+  const error = new Error(message);
+
+  error.name = "CertificationDocumentUploadError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  return error;
+}
+
+function getAuthorizedUploadContext(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const certificationId = String(
+    request.params?.certificationId ?? "",
+  ).trim();
+
+  const authorizedCertification = request.authorizedCertification;
+
+  if (!userId || !certificationId || !authorizedCertification) {
+    throw createUploadError(
+      "Certification document upload is not authorized.",
+      "CERTIFICATION_DOCUMENT_UPLOAD_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  if (
+    String(authorizedCertification.id ?? "").trim() !== certificationId
+  ) {
+    throw createUploadError(
+      "Authorized Certification does not match the upload destination.",
+      "CERTIFICATION_DOCUMENT_UPLOAD_CERTIFICATION_MISMATCH",
+      403,
+    );
+  }
+
+  return { userId, certificationId };
+}
+
+async function ensureSafeUploadDirectory(userId, certificationId) {
+  const root = path.resolve(getCertificationDocumentStorageRoot());
+
+  const destination = path.resolve(
+    getCertificationDocumentDirectory(userId, certificationId),
+  );
+
+  const relative = path.relative(root, destination);
+
+  if (
+    !relative ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("Certification upload destination is invalid.");
+  }
+
+  // The configured storage root is expected to be a trusted
+  // administrator-controlled location outside the public web root.
+  await fs.mkdir(root, { recursive: true });
+
+  const directories = [
+    root,
+    path.dirname(destination),
+    destination,
+  ];
+
+  for (const directory of directories) {
+    try {
+      await fs.mkdir(directory);
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+    }
+
+    const stats = await fs.lstat(directory);
+
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(
+        "Certification upload directory is not a regular directory.",
+      );
+    }
+  }
+
+  await assertSafeCertificationDocumentDirectory(
+    userId,
+    certificationId,
+  );
+
+  return destination;
+}
+
+const storage = multer.diskStorage({
+  destination(request, file, callback) {
+    let context;
+
+    try {
+      context = getAuthorizedUploadContext(request);
+    } catch (error) {
+      return callback(error);
+    }
+
+    ensureSafeUploadDirectory(
+      context.userId,
+      context.certificationId,
+    )
+      .then((directory) => callback(null, directory))
+      .catch((error) => callback(error));
+  },
+
+  filename(request, file, callback) {
+    try {
+      getAuthorizedUploadContext(request);
+
+      const configuration = ALLOWED_CERTIFICATION_DOCUMENT_TYPES.get(
+        file.mimetype,
+      );
+
+      if (!configuration) {
+        throw createUploadError(
+          "Unsupported Certification document type.",
+          "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+        );
+      }
+
+      return callback(
+        null,
+        `${crypto.randomUUID()}${configuration.extension}`,
+      );
+    } catch (error) {
+      return callback(error);
+    }
+  },
+});
+
+function certificationDocumentFileFilter(request, file, callback) {
+  try {
+    getAuthorizedUploadContext(request);
+
+    if (!ALLOWED_CERTIFICATION_DOCUMENT_TYPES.has(file.mimetype)) {
+      throw createUploadError(
+        "Unsupported Certification document type.",
+        "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+      );
+    }
+
+    return callback(null, true);
+  } catch (error) {
+    return callback(error);
+  }
+}
+
+const certificationDocumentUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_CERTIFICATION_DOCUMENT_SIZE,
+    files: 1,
+  },
+  fileFilter: certificationDocumentFileFilter,
+}).single("document");
+
+export function uploadCertificationDocument(request, response, next) {
+  // Reject requests lacking verified ownership before invoking Multer.
+  try {
+    getAuthorizedUploadContext(request);
+  } catch (error) {
+    return next(error);
+  }
+
+  return certificationDocumentUpload(
+    request,
+    response,
+    (error) => {
+      if (!error) {
+        return next();
+      }
+
+      if (error instanceof multer.MulterError) {
+        if (error.code === "LIMIT_FILE_SIZE") {
+          return next(
+            createUploadError(
+              "Certification document exceeds the 10 MiB upload limit.",
+              "CERTIFICATION_DOCUMENT_TOO_LARGE",
+              413,
+            ),
+          );
+        }
+
+        if (
+          error.code === "LIMIT_FILE_COUNT" ||
+          error.code === "LIMIT_UNEXPECTED_FILE"
+        ) {
+          return next(
+            createUploadError(
+              "Upload exactly one file using the document field.",
+              "CERTIFICATION_DOCUMENT_INVALID_FILE_COUNT",
+            ),
+          );
+        }
+
+        return next(
+          createUploadError(
+            "Certification document upload could not be processed.",
+            "CERTIFICATION_DOCUMENT_UPLOAD_INVALID",
+          ),
+        );
+      }
+
+      return next(error);
+    },
+  );
+}
+
+================================================================================
+FILE: src\middleware\certification\certificationDocumentValidationMiddleware.js
+================================================================================
+import fs from "node:fs/promises";
+import path from "node:path";
+import yauzl from "yauzl";
+import { fileTypeFromFile } from "file-type";
+
+import {
+  MAX_CERTIFICATION_DOCUMENT_SIZE,
+  ALLOWED_CERTIFICATION_DOCUMENT_TYPES,
+} from "./certificationDocumentUploadMiddleware.js";
+
+import {
+  assertSafeCertificationDocumentDirectory,
+  getCertificationDocumentDirectory,
+} from "../../services/Storage/certificationDocumentStorageService.js";
+
+function validationError(message, code, status = 400) {
+  const error = new Error(message);
+  error.name = "CertificationDocumentValidationError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+function getContext(request) {
+  const userId = String(request.auth?.userId ?? "").trim();
+  const certificationId = String(request.params?.certificationId ?? "").trim();
+  const authorizedId = String(
+    request.authorizedCertification?.id ?? "",
+  ).trim();
+
+  if (!userId || !certificationId || authorizedId !== certificationId) {
+    throw validationError(
+      "Certification document validation is not authorized.",
+      "CERTIFICATION_DOCUMENT_VALIDATION_UNAUTHORIZED",
+      403,
+    );
+  }
+
+  return { userId, certificationId };
+}
+
+function getUploadedPath(request, context) {
+  if (!request.file?.path || !request.file?.filename) {
+    throw validationError(
+      "Please select a Certification document.",
+      "CERTIFICATION_DOCUMENT_FILE_REQUIRED",
+    );
+  }
+
+  const directory = path.resolve(
+    getCertificationDocumentDirectory(
+      context.userId,
+      context.certificationId,
+    ),
+  );
+
+  const filePath = path.resolve(request.file.path);
+
+  if (
+    path.dirname(filePath) !== directory ||
+    path.basename(filePath) !== request.file.filename
+  ) {
+    throw validationError(
+      "Certification document location is invalid.",
+      "CERTIFICATION_DOCUMENT_INVALID_FILE_LOCATION",
+      403,
+    );
+  }
+
+  return filePath;
+}
+
+function validateDocxPackage(filePath) {
+  return new Promise((resolve) => {
+    yauzl.open(
+      filePath,
+      {
+        lazyEntries: true,
+        autoClose: true,
+        validateEntrySizes: true,
+        strictFileNames: true,
+      },
+      (error, zip) => {
+        if (error || !zip) {
+          resolve(false);
+          return;
+        }
+
+        const required = new Set([
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+        ]);
+
+        let finished = false;
+        let count = 0;
+
+        const finish = (valid) => {
+          if (finished) return;
+          finished = true;
+          zip.close();
+          resolve(valid);
+        };
+
+        zip.on("error", () => finish(false));
+
+        zip.on("entry", (entry) => {
+          count++;
+
+          if (count > 10000) {
+            finish(false);
+            return;
+          }
+
+          required.delete(entry.fileName);
+          zip.readEntry();
+        });
+
+        zip.on("end", () => finish(required.size === 0));
+        zip.readEntry();
+      },
+    );
+  });
+}
+
+async function matchesContent(filePath, mimeType) {
+  const detected = await fileTypeFromFile(filePath);
+
+  if (!detected) return false;
+
+  if (
+    mimeType ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    if (
+      detected.mime !== "application/zip" &&
+      detected.mime !==
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      return false;
+    }
+    return validateDocxPackage(filePath);
+  }
+
+  return detected.mime === mimeType;
+}
+
+async function removeRejectedFile(context, filePath) {
+  if (!context || !filePath) return;
+
+  const directory = path.resolve(
+    getCertificationDocumentDirectory(
+      context.userId,
+      context.certificationId,
+    ),
+  );
+
+  if (path.dirname(filePath) !== directory) return;
+
+  await assertSafeCertificationDocumentDirectory(
+    context.userId,
+    context.certificationId,
+  );
+
+  try {
+    const stats = await fs.lstat(filePath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error("Rejected document is not a regular file.");
+    }
+
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+export async function validateCertificationDocument(
+  request,
+  response,
+  next,
+) {
+  let context;
+  let filePath;
+
+  try {
+    context = getContext(request);
+    filePath = getUploadedPath(request, context);
+
+    await assertSafeCertificationDocumentDirectory(
+      context.userId,
+      context.certificationId,
+    );
+
+    const stats = await fs.lstat(filePath);
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw validationError(
+        "Uploaded Certification document is not a regular file.",
+        "CERTIFICATION_DOCUMENT_INVALID_FILE",
+      );
+    }
+
+    if (stats.size === 0) {
+      throw validationError(
+        "Uploaded Certification document is empty.",
+        "CERTIFICATION_DOCUMENT_EMPTY_FILE",
+      );
+    }
+
+    if (stats.size > MAX_CERTIFICATION_DOCUMENT_SIZE) {
+      throw validationError(
+        "Certification document exceeds the 10 MiB limit.",
+        "CERTIFICATION_DOCUMENT_TOO_LARGE",
+        413,
+      );
+    }
+
+    const mimeType = request.file.mimetype;
+    const configuration = ALLOWED_CERTIFICATION_DOCUMENT_TYPES.get(mimeType);
+
+    if (!configuration) {
+      throw validationError(
+        "Unsupported Certification document type.",
+        "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+      );
+    }
+
+    if (
+      path.extname(request.file.filename).toLowerCase() !==
+      configuration.extension
+    ) {
+      throw validationError(
+        "Certification document extension does not match its type.",
+        "CERTIFICATION_DOCUMENT_EXTENSION_MISMATCH",
+      );
+    }
+
+    if (!(await matchesContent(filePath, mimeType))) {
+      throw validationError(
+        "Certification document contents do not match its declared type.",
+        "CERTIFICATION_DOCUMENT_CONTENT_TYPE_MISMATCH",
+      );
+    }
+
+    request.certificationDocumentFile = {
+      ...request.file,
+      verifiedMimeType: mimeType,
+      verifiedExtension: configuration.extension,
+      verifiedSize: stats.size,
+    };
+
+    return next();
+  } catch (error) {
+    if (context && filePath) {
+      try {
+        await removeRejectedFile(context, filePath);
+      } catch (cleanupError) {
+        console.error(
+          "Failed to clean up rejected Certification document:",
+          cleanupError,
+        );
+
+        return next(
+          validationError(
+            "Certification document cleanup failed.",
+            "CERTIFICATION_DOCUMENT_CLEANUP_FAILED",
+            500,
+          ),
+        );
+      }
+    }
+
+    return next(error);
+  }
+}
+
+================================================================================
+FILE: src\middleware\errorMiddleware.js
+================================================================================
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+export function notFoundHandler(request, response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  return response.status(404).json({
+    status: "error",
+
+    code: "ROUTE_NOT_FOUND",
+
+    message: `Route not found: ${request.method} ${request.originalUrl}`,
+  });
+}
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+export function globalErrorHandler(error, request, response, next) {
+  /*
+   * Express delegates to its default handler
+   * if a response has already started.
+   */
+
+  if (response.headersSent) {
+    return next(error);
+  }
+
+  const isMalformedJson =
+    error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+
+  const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+
+  const code = isMalformedJson
+    ? "INVALID_JSON"
+    : normalizePublicCode(error, status);
+
+  const message = isMalformedJson
+    ? "The request body contains invalid JSON."
+    : getPublicMessage(error, status);
+
+  /*
+   * Log complete technical information only
+   * on the server.
+   */
+
+  console.error("Unhandled API error:", {
+    method: request.method,
+
+    url: request.originalUrl,
+
+    name: error?.name,
+
+    code: error?.code,
+
+    message: error?.message,
+
+    status,
+
+    provider: error?.provider,
+
+    stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+  });
+
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+
+    Pragma: "no-cache",
+
+    Expires: "0",
+  });
+
+  const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+
+  const validationErrors = normalizeValidationErrors(
+    error?.errors || error?.validationErrors,
+  );
+
+  return response.status(status).json({
+    status: "error",
+
+    code,
+
+    message,
+
+    ...(Object.keys(fieldErrors).length > 0
+      ? {
+          fieldErrors,
+        }
+      : {}),
+
+    ...(validationErrors.length > 0
+      ? {
+          errors: validationErrors,
+        }
+      : {}),
+
+    /*
+     * Development details are useful while
+     * building the API but are excluded from
+     * production responses.
+     */
+
+    ...(process.env.NODE_ENV === "development"
+      ? {
+          debug: {
+            name: error?.name || "Error",
+
+            technicalMessage: error?.message || "Unknown error",
+
+            provider: error?.provider || null,
+          },
+        }
+      : {}),
+  });
+}
+
+/*
+ * =========================================
+ * Status Normalization
+ * =========================================
+ */
+
+function normalizeStatus(status) {
+  const numericStatus = Number(status);
+
+  if (
+    Number.isInteger(numericStatus) &&
+    numericStatus >= 400 &&
+    numericStatus <= 599
+  ) {
+    return numericStatus;
+  }
+
+  return 500;
+}
+
+/*
+ * =========================================
+ * Public Error Code
+ * =========================================
+ *
+ * Internal database and provider codes should
+ * not automatically be returned to clients.
+ * Application errors are public only when
+ * they also provide a publicMessage.
+ */
+
+function normalizePublicCode(error, status) {
+  const code = typeof error?.code === "string" ? error.code.trim() : "";
+
+  const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+
+  if (error?.publicMessage && isSafeCode) {
+    return code;
+  }
+
+  if (status === 400) {
+    return "BAD_REQUEST";
+  }
+
+  if (status === 401) {
+    return "AUTHENTICATION_REQUIRED";
+  }
+
+  if (status === 403) {
+    return "ACCESS_FORBIDDEN";
+  }
+
+  if (status === 404) {
+    return "RESOURCE_NOT_FOUND";
+  }
+
+  if (status === 409) {
+    return "RESOURCE_CONFLICT";
+  }
+
+  if (status === 429) {
+    return "RATE_LIMIT_EXCEEDED";
+  }
+
+  if (status === 503) {
+    return "SERVICE_UNAVAILABLE";
+  }
+
+  return "INTERNAL_SERVER_ERROR";
+}
+
+/*
+ * =========================================
+ * Public Error Message
+ * =========================================
+ */
+
+function getPublicMessage(error, status) {
+  if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+    return error.publicMessage.trim();
+  }
+
+  if (status === 400) {
+    return "The request could not be processed.";
+  }
+
+  if (status === 401) {
+    return "Authentication is required.";
+  }
+
+  if (status === 403) {
+    return "You do not have permission to perform this operation.";
+  }
+
+  if (status === 404) {
+    return "The requested resource was not found.";
+  }
+
+  if (status === 409) {
+    return "The request conflicts with the current resource state.";
+  }
+
+  if (status === 429) {
+    return "Too many requests were submitted. Please try again later.";
+  }
+
+  if (status === 503) {
+    return "The service is temporarily unavailable.";
+  }
+
+  return "An unexpected server error occurred.";
+}
+
+/*
+ * =========================================
+ * Field Error Normalization
+ * =========================================
+ */
+
+function normalizeFieldErrors(fieldErrors) {
+  if (
+    !fieldErrors ||
+    typeof fieldErrors !== "object" ||
+    Array.isArray(fieldErrors)
+  ) {
+    return {};
+  }
+
+  const normalized = {};
+
+  for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+    const safeFieldName = String(fieldName).slice(0, 100);
+
+    const messageValues = Array.isArray(messages) ? messages : [messages];
+
+    const safeMessages = messageValues
+      .filter((message) => typeof message === "string")
+      .map((message) => message.trim().slice(0, 500))
+      .filter(Boolean);
+
+    if (safeMessages.length > 0) {
+      normalized[safeFieldName] = safeMessages;
+    }
+  }
+
+  return normalized;
+}
+
+/*
+ * =========================================
+ * Validation Error Normalization
+ * =========================================
+ */
+
+function normalizeValidationErrors(errors) {
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+
+  return errors
+    .slice(0, 50)
+    .map((validationError) => {
+      if (typeof validationError === "string") {
+        return {
+          field: "",
+
+          code: "VALIDATION_ERROR",
+
+          message: validationError.trim().slice(0, 500),
+        };
+      }
+
+      if (!validationError || typeof validationError !== "object") {
+        return null;
+      }
+
+      const message =
+        typeof validationError.message === "string"
+          ? validationError.message.trim().slice(0, 500)
+          : "";
+
+      if (!message) {
+        return null;
+      }
+
+      return {
+        field:
+          typeof validationError.field === "string"
+            ? validationError.field.trim().slice(0, 100)
+            : "",
+
+        code:
+          typeof validationError.code === "string"
+            ? validationError.code.trim().slice(0, 100)
+            : "VALIDATION_ERROR",
+
+        message,
+      };
+    })
+    .filter(Boolean);
+}
+
+================================================================================
+FILE: src\app.js
+================================================================================
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+
+import userRoutes from "./routes/userRoutes.js";
+
+import { checkDatabaseHealth } from "./config/database.js";
+
+import { getEnvironment, isDatabaseConfigured } from "./config/environment.js";
+
+import aiRoutes from "./routes/aiRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
+import experienceRoutes from "./routes/experienceRoutes.js";
+import skillRoutes from "./routes/skillRoutes.js";
+
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middleware/errorMiddleware.js";
+
+import supportRoutes from "./routes/supportRoutes.js";
+
+/*
+ * =========================================
+ * Environment and Application
+ * =========================================
+ */
+
+const environment = getEnvironment();
+
+const app = express();
+
+/*
+ * =========================================
+ * Express Information Header
+ * =========================================
+ */
+
+app.disable("x-powered-by");
+
+/*
+ * =========================================
+ * Security Headers
+ * =========================================
+ */
+
+app.use(helmet());
+
+/*
+ * =========================================
+ * Allowed Frontend Origins
+ * =========================================
+ */
+
+const allowedOrigins = environment.FRONTEND_URL.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/*
+ * =========================================
+ * CORS
+ * =========================================
+ */
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      /*
+       * Postman, curl and server-to-server
+       * requests may not include Origin.
+       */
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      const error = new Error(`Origin not allowed by CORS: ${origin}`);
+
+      error.name = "CorsOriginError";
+
+      error.code = "CORS_ORIGIN_DENIED";
+
+      error.status = 403;
+
+      error.publicMessage = "This website is not allowed to access the API.";
+
+      return callback(error);
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+/*
+ * =========================================
+ * Public Profile Pictures
+ * =========================================
+ */
+
+if (environment.PROFILE_PICTURE_STORAGE_PATH) {
+  app.use(
+    "/uploads/profile-pictures",
+    (request, response, next) => {
+      /*
+       * Profile pictures are intentionally public assets.
+       * Allow the portfolio frontend to display them even
+       * though the frontend and API use different origins.
+       */
+
+      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      next();
+    },
+    express.static(environment.PROFILE_PICTURE_STORAGE_PATH, {
+      fallthrough: true,
+      index: false,
+      dotfiles: "deny",
+    }),
+  );
+}
+
+/*
+ * =========================================
+ * Request Body
+ * =========================================
+ */
+
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
+/*
+ * =========================================
+ * API Health Check
+ * =========================================
+ */
+
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+
+    service: "portfolio-platform-api",
+
+    environment: environment.NODE_ENV,
+
+    databaseConfigured: isDatabaseConfigured(environment),
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Database Health Check
+ * =========================================
+ */
+
+app.get("/api/health/database", async (req, res) => {
+  const health = await checkDatabaseHealth();
+
+  const isHealthy = health.status === "ok";
+
+  let message = "Database connection is unavailable.";
+
+  if (isHealthy) {
+    message = "Database connection is healthy.";
+  } else if (health.status === "not-configured") {
+    message = "Database service is not configured.";
+  }
+
+  return res.status(isHealthy ? 200 : 503).json({
+    status: health.status,
+
+    service: "portfolio-platform-database",
+
+    configured: health.configured,
+
+    responseTimeMs: health.responseTimeMs,
+
+    message,
+
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/*
+ * =========================================
+ * Application Routes
+ * =========================================
+ */
+app.use("/api/auth", authRoutes);
+
+app.use("/api/ai", aiRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/support", supportRoutes);
+
+app.use("/api/profile", profileRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/experiences", experienceRoutes);
+app.use("/api/skills", skillRoutes);
+/*
+ * The Profile and Skill routes remain disabled
+ * until their repositories and authentication
+ * middleware are implemented.
+ *
+ * Later:
+ *
+ * app.use("/api/profile", profileRoutes);
+ * app.use("/api/skills", skillRoutes);
+ */
+
+/*
+ * =========================================
+ * Route Not Found
+ * =========================================
+ */
+
+app.use(notFoundHandler);
+
+/*
+ * =========================================
+ * Global Error Handler
+ * =========================================
+ */
+
+app.use(globalErrorHandler);
+
+export default app;
+
+================================================================================
+EXISTING CERTIFICATION CONTROLLER / ROUTE FILES
+================================================================================
+NOT PRESENT: src\controllers\certificationController.js
+NOT PRESENT: src\controllers\certificationDocumentController.js
+NOT PRESENT: src\routes\certificationRoutes.js
+
+================================================================================
+GIT STATUS
+================================================================================
+ M .gitignore
+ M src/config/environment.js
+?? src/database/migrations/011_certifications.sql
+?? src/database/migrations/012_certification_documents.sql
+?? src/middleware/certification/
+?? src/repositories/certificationDocumentRepository.js
+?? src/repositories/certificationRepository.js
+?? src/repositories/certificationRepository.js.backup-20261103-130830
+?? src/schemas/certificationSchemas.js
+?? src/schemas/certificationSchemas.js.backup-20261103-130830
+?? src/services/Service/certificationDocumentService.js
+?? src/services/Service/certificationService.js
+?? src/services/Service/certificationService.js.20261103-131917.bak
+?? src/services/Service/certificationService.js.20261103-132242.bak
+?? src/services/Storage/certificationDocumentStorageService.js
+?? test/services/certificationService.test.js

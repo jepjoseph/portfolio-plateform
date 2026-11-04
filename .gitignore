@@ -1,0 +1,7 @@
+# =========================================
+# Private Application Storage
+# =========================================
+
+/data-storage/
+# Local backups - never commit
+/Persistence/backups/

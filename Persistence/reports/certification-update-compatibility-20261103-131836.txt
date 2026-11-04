@@ -1,0 +1,452 @@
+CERTIFICATION FRONTEND UPDATE INSPECTION
+Generated: 2026-11-03T13:18:36.1037401-05:00
+
+================================================================================
+FILE: src\models\certificationModel.js
+================================================================================
+ 580:       return certifications;
+ 581:     }
+ 582: 
+ 583:     usedIds.add(certification.id);
+ 584: 
+ 585:     certifications.push(certification);
+ 586: 
+ 587:     return certifications;
+ 588:   }, []);
+ 589: }
+ 590: 
+ 591: /*
+ 592:  * =========================================
+ 593:  * Create and Update
+ 594:  * =========================================
+ 595:  */
+ 596: 
+ 597: export function createCertification(value = {}) {
+ 598:   const timestamp = new Date().toISOString();
+ 599: 
+ 600:   return normalizeCertification({
+ 601:     ...value,
+ 602: 
+ 603:     id: getText(value.id) || createId(),
+ 604: 
+ 605:     createdAt: timestamp,
+ 606:     updatedAt: timestamp,
+ 607:   });
+ 608: }
+ 609: 
+ 610: export function updateCertification(currentCertification, changes = {}) {
+ 611:   return normalizeCertification({
+ 612:     ...currentCertification,
+ 613:     ...changes,
+ 614: 
+ 615:     id: currentCertification?.id,
+ 616: 
+ 617:     createdAt: currentCertification?.createdAt,
+ 618: 
+ 619:     updatedAt: new Date().toISOString(),
+ 620:   });
+ 621: }
+ 622: 
+ 623: /*
+ 624:  * =========================================
+ 625:  * Display Helpers
+ 626:  * =========================================
+ 627:  */
+ 628: 
+ 629: export function getCertificationDisplayName(certification) {
+ 630:   return getText(certification?.name) || "Untitled Certification";
+ 631: }
+ 632: 
+ 633: export function getCertificationIssuerName(certification) {
+ 634:   const issuer = certification?.issuingOrganization;
+ 635: 
+ 636:   return (
+ 637:     getText(typeof issuer === "string" ? issuer : issuer?.name) ||
+ 638:     "Issuing organization not provided"
+ 639:   );
+ 640: }
+ 641: 
+ 642: /*
+ 643:  * =========================================
+ 644:  * Related Training
+ 645:  * =========================================
+ 646:  */
+ 647: 
+ 648: export function getCertificationTrainingIds(certification) {
+ 649:   return getArray(certification?.relatedRecords?.trainingRelationships)
+ 650:     .map((relationship) => getText(relationship?.trainingId))
+ 651:     .filter(Boolean);
+ 652: }
+ 653: 
+ 654: /*
+ 655:  * =========================================
+ 656:  * Primary Certificate Document
+ 657:  * =========================================
+ 658:  */
+ 659: 
+ 660: export function getPrimaryCertificationDocument(certification) {
+ 661:   const documents = getArray(certification?.supportingDocuments).filter(
+ 662:     (document) => document?.status !== "archived",
+ 663:   );
+ 664: 
+ 665:   return (
+ 666:     documents.find((document) => document.isPrimary) || documents[0] || null
+ 667:   );
+ 668: }
+ 669: 
+ 670: /*
+ 671:  * =========================================
+ 672:  * Effective Credential State
+ 673:  * =========================================
+ 674:  */
+ 675: 
+ 676: export function getEffectiveCredentialState(certification, today = new Date()) {
+ 677:   const normalized = normalizeCertification(certification);
+ 678: 
+ 679:   const todayMonth = today.toISOString().slice(0, 7);
+ 680: 
+
+================================================================================
+FILE: src\services\Certification\certificationService.js
+================================================================================
+ 400:       trainingRecords,
+ 401:       educationRecords,
+ 402:     });
+ 403: 
+ 404:     const duplicate = findMatchingCertification(
+ 405:       certifications,
+ 406:       validation.certification,
+ 407:     );
+ 408: 
+ 409:     if (duplicate) {
+ 410:       throw createDuplicateError(duplicate);
+ 411:     }
+ 412: 
+ 413:     const transaction = saveCertificationWithTrainingSync({
+ 414:       certificationRecords: [...certifications, validation.certification],
+ 415: 
+ 416:       changedCertificationIds: [validation.certification.id],
+ 417:     });
+ 418: 
+ 419:     const savedCertification =
+ 420:       transaction.certificationRecords.find(
+ 421:         (record) => record.id === validation.certification.id,
+ 422:       ) || validation.certification;
+ 423: 
+ 424:     return {
+ 425:       certification: savedCertification,
+ 426:       warnings: validation.warnings,
+ 427:     };
+ 428:   } catch (error) {
+ 429:     await rollbackStoredDocuments(stored.storageKeys);
+ 430: 
+ 431:     throw error;
+ 432:   }
+ 433: }
+ 434: 
+ 435: /*
+ 436:  * =========================================
+ 437:  * Update Certification
+ 438:  * =========================================
+ 439:  */
+ 440: 
+ 441: export async function updateCertification(
+ 442:   certificationId,
+ 443:   certificationData,
+ 444:   {
+ 445:     documentUploads = [],
+ 446:     skills = null,
+ 447:     trainingRecords = null,
+ 448:     educationRecords = null,
+ 449:   } = {},
+ 450: ) {
+ 451:   const normalizedId = getText(certificationId);
+ 452: 
+ 453:   const certifications = readStoredCertifications();
+ 454: 
+ 455:   const certificationIndex = findCertificationIndex(
+ 456:     certifications,
+ 457:     normalizedId,
+ 458:   );
+ 459: 
+ 460:   if (certificationIndex < 0) {
+ 461:     throw createNotFoundError(normalizedId);
+ 462:   }
+ 463: 
+ 464:   const currentCertification = certifications[certificationIndex];
+ 465: 
+ 466:   let nextCertification = updateCertificationModel(
+ 467:     currentCertification,
+ 468:     certificationData,
+ 469:   );
+ 470: 
+ 471:   const stored = await storeDocumentUploads(normalizedId, documentUploads);
+ 472: 
+ 473:   if (stored.documents.length > 0) {
+ 474:     nextCertification = normalizeCertification({
+ 475:       ...nextCertification,
+ 476: 
+ 477:       supportingDocuments: [
+ 478:         ...nextCertification.supportingDocuments,
+ 479:         ...stored.documents,
+ 480:       ],
+ 481:     });
+ 482:   }
+ 483: 
+ 484:   try {
+ 485:     const validation = validateForSave(nextCertification, {
+ 486:       skills,
+ 487:       trainingRecords,
+ 488:       educationRecords,
+ 489:     });
+ 490: 
+ 491:     const duplicate = findMatchingCertification(
+ 492:       certifications,
+ 493:       validation.certification,
+ 494:       normalizedId,
+ 495:     );
+ 496: 
+ 497:     if (duplicate) {
+ 498:       throw createDuplicateError(duplicate);
+ 499:     }
+ 500: 
+ 501:     const removedStorageKeys = getRemovedDocumentStorageKeys(
+ 502:       currentCertification,
+ 503:       validation.certification,
+ 504:     );
+ 505: 
+ 506:     const nextCertifications = [...certifications];
+ 507: 
+ 508:     nextCertifications[certificationIndex] = validation.certification;
+ 509: 
+ 510:     const transaction = saveCertificationWithTrainingSync({
+ 511:       certificationRecords: nextCertifications,
+ 512: 
+ 513:       changedCertificationIds: [validation.certification.id],
+ 514:     });
+ 515: 
+ 516:     await removeUnusedDocuments(removedStorageKeys);
+ 517: 
+ 518:     const savedCertification =
+ 519:       transaction.certificationRecords.find(
+ 520:         (record) => record.id === validation.certification.id,
+ 521:       ) || validation.certification;
+ 522: 
+ 523:     return {
+ 524:       certification: savedCertification,
+ 525:       warnings: validation.warnings,
+ 526:     };
+ 527:   } catch (error) {
+ 528:     await rollbackStoredDocuments(stored.storageKeys);
+ 529: 
+ 530:     throw error;
+ 531:   }
+ 532: }
+ 533: 
+ 534: /*
+ 535:  * =========================================
+
+================================================================================
+FILE: src\context\CertificationDataContext.jsx
+================================================================================
+ 250:    */
+ 251: 
+ 252:   const createCertification = useCallback(
+ 253:     (certificationData, options = {}) =>
+ 254:       runMutation(
+ 255:         {
+ 256:           type: "create",
+ 257: 
+ 258:           certificationId: certificationData?.id || "",
+ 259:         },
+ 260:         () => createService(certificationData, options),
+ 261:       ),
+ 262:     [runMutation],
+ 263:   );
+ 264: 
+ 265:   /*
+ 266:    * =========================================
+ 267:    * Update Certification
+ 268:    * =========================================
+ 269:    */
+ 270: 
+ 271:   const updateCertification = useCallback(
+ 272:     (certificationId, certificationData, options = {}) =>
+ 273:       runMutation(
+ 274:         {
+ 275:           type: "update",
+ 276:           certificationId,
+ 277:         },
+ 278:         () => updateService(certificationId, certificationData, options),
+ 279:       ),
+ 280:     [runMutation],
+ 281:   );
+ 282: 
+ 283:   /*
+ 284:    * =========================================
+ 285:    * Archive Certification
+ 286:    * =========================================
+ 287:    */
+ 288: 
+ 289:   const archiveCertification = useCallback(
+ 290:     (certificationId) =>
+ 291:       runMutation(
+ 292:         {
+ 293:           type: "archive",
+ 294:           certificationId,
+ 295:         },
+ 296:         () => archiveService(certificationId),
+ 297:       ),
+ 298:     [runMutation],
+ 299:   );
+ 300: 
+ 301:   /*
+ 302:    * =========================================
+ 303:    * Restore Certification
+ 304:    * =========================================
+ 305:    */
+ 306: 
+ 307:   const restoreCertification = useCallback(
+ 308:     (certificationId) =>
+ 309:       runMutation(
+ 310:         {
+ 311:           type: "restore",
+ 312:           certificationId,
+ 313:         },
+ 314:         () => restoreService(certificationId),
+ 315:       ),
+ 316:     [runMutation],
+ 317:   );
+ 318: 
+ 319:   /*
+ 320:    * =========================================
+ 321:    * Delete Certification
+ 322:    * =========================================
+ 323:    */
+ 324: 
+ 325:   const deleteCertification = useCallback(
+ 326:     (certificationId) =>
+ 327:       runMutation(
+ 328:         {
+ 329:           type: "delete",
+ 330:           certificationId,
+ 331:         },
+ 332:         () => deleteService(certificationId),
+ 333:       ),
+ 334:     [runMutation],
+ 335:   );
+
+================================================================================
+FILE: src\services\Certification\certificationTrainingRelationshipService.js
+================================================================================
+ 510:           refreshedCertificationMap,
+ 511:         )
+ 512:       : training,
+ 513:   );
+ 514: 
+ 515:   return commitCollections({
+ 516:     originalTrainingRecords,
+ 517:     originalCertificationRecords,
+ 518:     nextTrainingRecords,
+ 519:     nextCertificationRecords,
+ 520:   });
+ 521: }
+ 522: 
+ 523: /*
+ 524:  * =========================================
+ 525:  * Certification-Authoritative Synchronization
+ 526:  * =========================================
+ 527:  */
+ 528: 
+ 529: export function saveCertificationWithTrainingSync({
+ 530:   certificationRecords,
+ 531:   changedCertificationIds = [],
+ 532:   deletedCertificationIds = [],
+ 533: } = {}) {
+ 534:   const originalTrainingRecords = readStoredTraining();
+ 535: 
+ 536:   const originalCertificationRecords = readStoredCertifications();
+ 537: 
+ 538:   let nextTrainingRecords = normalizeTrainingCollection(
+ 539:     originalTrainingRecords,
+ 540:   );
+ 541: 
+ 542:   let nextCertificationRecords =
+ 543:     normalizeCertificationCollection(certificationRecords);
+ 544: 
+ 545:   const changedIds = createIdSet(changedCertificationIds);
+ 546: 
+ 547:   const deletedIds = createIdSet(deletedCertificationIds);
+ 548: 
+ 549:   const trainingMap = createRecordMap(nextTrainingRecords);
+ 550: 
+ 551:   const certificationMap = createRecordMap(nextCertificationRecords);
+ 552: 
+ 553:   /*
+ 554:    * Remove deleted Certification records from
+ 555:    * all Training records.
+ 556:    */
+ 557: 
+ 558:   if (deletedIds.size > 0) {
+ 559:     nextTrainingRecords = nextTrainingRecords.map((training) => {
+ 560:       const remainingRelationships = getArray(
+ 561:         training?.certificationRelationships,
+ 562:       ).filter(
+ 563:         (relationship) =>
+ 564:           !deletedIds.has(getText(relationship?.certificationId)),
+ 565:       );
+ 566: 
+ 567:       return {
+ 568:         ...training,
+ 569: 
+ 570:         certificationRelationships: remainingRelationships,
+ 571: 
+ 572:         relatedCertificationIds: remainingRelationships.map(
+ 573:           (relationship) => relationship.certificationId,
+ 574:         ),
+ 575:       };
+ 576:     });
+ 577:   }
+ 578: 
+ 579:   /*
+ 580:    * For a Certification save, Certification is
+ 581:    * authoritative: its Training relationships
+ 582:    * determine which Training records point back.
+ 583:    */
+ 584: 
+ 585:   changedIds.forEach((certificationId) => {
+ 586:     const certification = requireCertification(
+ 587:       certificationMap,
+ 588:       certificationId,
+ 589:     );
+ 590: 
+ 591:     const selectedTrainingIds = new Set(
+ 592:       getCertificationTrainingIds(certification),
+ 593:     );
+ 594: 
+ 595:     selectedTrainingIds.forEach((trainingId) => {
+ 596:       requireTraining(trainingMap, trainingId);
+ 597:     });
+ 598: 
+ 599:     nextTrainingRecords = nextTrainingRecords.map((training) =>
+ 600:       synchronizeTrainingWithCertification(
+ 601:         training,
+ 602:         certification,
+ 603:         selectedTrainingIds.has(training.id),
+ 604:       ),
+ 605:     );
+ 606:   });
+ 607: 
+ 608:   const refreshedTrainingMap = createRecordMap(nextTrainingRecords);
+ 609: 
+ 610:   nextCertificationRecords = nextCertificationRecords.map((certification) =>
+ 611:     changedIds.has(certification.id)
+ 612:       ? refreshCertificationTrainingRelationships(
+ 613:           certification,
+ 614:           refreshedTrainingMap,
+ 615:         )
+ 616:       : certification,
+ 617:   );
+ 618: 
+ 619:   return commitCollections({
+ 620:     originalTrainingRecords,

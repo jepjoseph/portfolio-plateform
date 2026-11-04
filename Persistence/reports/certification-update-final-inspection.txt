@@ -1,0 +1,840 @@
+﻿
+=== D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\certificationService.js ===
+ 225: 
+ 226:   if (existing.rowVersion !== expectedVersion) {
+ 227:     throw certificationError(
+ 228:       "Certification was modified by another operation.",
+ 229:       "CERTIFICATION_VERSION_CONFLICT",
+ 230:       409,
+ 231:     );
+ 232:   }
+ 233: 
+ 234:   const {
+ 235:     rowVersion: _storedRowVersion,
+ 236:     ...storedModel
+ 237:   } = normalizeRecord(existing);
+ 238: 
+ 239:   const now = new Date().toISOString();
+ 240: 
+ 241:   const merged = {
+ 242:     ...storedModel,
+ 243:     ...validatedUpdates,
+ 244:     id: storedModel.id,
+ 245:     createdAt: storedModel.createdAt,
+ 246:     updatedAt: now,
+ 247:   };
+ 248: 
+ 249:   if (
+ 250:     Array.isArray(storedModel.supportingDocuments) &&
+ 251:     storedModel.supportingDocuments.length > 0
+ 252:   ) {
+ 253:     throw certificationError(
+ 254:       "Updating Certifications with documents is not available yet.",
+ 255:       "CERTIFICATION_DOCUMENTS_NOT_READY",
+ 256:       400,
+ 257:     );
+ 258:   }
+ 259: 
+ 260:   const complete = validate(
+ 261:     completeCertificationSchema,
+ 262:     merged,
+ 263:   );
+ 264: 
+ 265:   const updated = await updateCertificationRecord(
+ 266:     userId,
+ 267:     complete,
+ 268:     expectedVersion,
+ 269:   );
+ 270: 
+ 271:   if (!updated) {
+ 272:     const current = await findCertificationById(
+ 273:       userId,
+ 274:       params.certificationId,
+ 275:     );
+ 276: 
+ 277:     if (!current) {
+ 278:       throw certificationError(
+ 279:         "Certification not found.",
+ 280:         "CERTIFICATION_NOT_FOUND",
+ 281:         404,
+ 282:       );
+ 283:     }
+ 284: 
+ 285:     throw certificationError(
+ 286:       "Certification was modified by another operation.",
+ 287:       "CERTIFICATION_VERSION_CONFLICT",
+ 288:       409,
+ 289:     );
+ 290:   }
+ 291: 
+ 292:   return normalizeRecord(updated);
+ 293: }
+
+=== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\apiClient.js ===
+ 290: 
+ 291:     status: response.status,
+ 292: 
+ 293:     code: data?.code || "API_REQUEST_FAILED",
+ 294: 
+ 295:     fieldErrors: data?.fieldErrors,
+ 296: 
+ 297:     errors: data?.errors,
+ 298: 
+ 299:     details: data?.details,
+ 300: 
+ 301:     method,
+ 302: 
+ 303:     url,
+ 304:   });
+ 305: 
+ 306:   notifyInvalidAuthenticationSession(error);
+ 307: 
+ 308:   return error;
+ 309: }
+ 310: 
+ 311: /*
+ 312:  * =========================================
+ 313:  * Timeout and Abort Signal
+ 314:  * =========================================
+ 315:  */
+ 316: 
+ 317: function createRequestAbortController({ signal, timeoutMs }) {
+ 318:   const controller = new AbortController();
+ 319: 
+ 320:   let wasTimedOut = false;
+ 321: 
+ 322:   const handleExternalAbort = () => {
+ 323:     controller.abort(signal?.reason);
+ 324:   };
+ 325: 
+ 326:   if (signal) {
+ 327:     if (signal.aborted) {
+ 328:       handleExternalAbort();
+ 329:     } else {
+ 330:       signal.addEventListener("abort", handleExternalAbort, {
+ 331:         once: true,
+ 332:       });
+ 333:     }
+ 334:   }
+ 335: 
+ 336:   const timeoutId = globalThis.setTimeout(() => {
+ 337:     wasTimedOut = true;
+ 338: 
+ 339:     controller.abort();
+ 340:   }, timeoutMs);
+ 341: 
+ 342:   return {
+ 343:     signal: controller.signal,
+ 344: 
+ 345:     wasTimedOut() {
+ 346:       return wasTimedOut;
+ 347:     },
+ 348: 
+ 349:     cleanup() {
+ 350:       globalThis.clearTimeout(timeoutId);
+ 351: 
+ 352:       signal?.removeEventListener?.("abort", handleExternalAbort);
+ 353:     },
+ 354:   };
+ 355: }
+ 356: 
+ 357: /*
+ 358:  * =========================================
+ 359:  * API Request
+ 360:  * =========================================
+ 361:  */
+ 362: 
+ 363: export async function apiRequest(
+ 364:   endpoint,
+ 365:   {
+ 366:     method = "GET",
+ 367:     body,
+ 368:     query,
+ 369:     headers: customHeaders,
+ 370:     signal,
+ 371:     timeoutMs = DEFAULT_TIMEOUT_MS,
+ 372:     cache = "no-store",
+ 373:   } = {},
+ 374: ) {
+ 375:   const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+ 376: 
+ 377:   const normalizedEndpoint = normalizeEndpoint(endpoint);
+ 378: 
+ 379:   const requestUrl = appendQueryParameters(
+ 380:     `${API_BASE_URL}${normalizedEndpoint}`,
+ 381:     query,
+ 382:   );
+ 383: 
+ 384:   const headers = new Headers(customHeaders || {});
+ 385: 
+ 386:   if (!headers.has("Accept")) {
+ 387:     headers.set("Accept", "application/json");
+ 388:   }
+ 389: 
+ 390:   const requestBody = prepareRequestBody({
+ 391:     body,
+ 392: 
+ 393:     headers,
+ 394:   });
+ 395: 
+ 396:   const abortState = createRequestAbortController({
+ 397:     signal,
+ 398: 
+ 399:     timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+ 400:   });
+ 401: 
+ 402:   try {
+ 403:     const response = await fetch(requestUrl, {
+ 404:       method: normalizedMethod,
+ 405: 
+ 406:       /*
+ 407:        * Required for HttpOnly session
+ 408:        * cookies on cross-origin requests.
+ 409:        */
+ 410: 
+ 411:       credentials: "include",
+ 412: 
+ 413:       headers,
+ 414: 
+ 415:       body: ["GET", "HEAD"].includes(normalizedMethod)
+ 416:         ? undefined
+ 417:         : requestBody,
+ 418: 
+ 419:       signal: abortState.signal,
+ 420: 
+ 421:       cache,
+ 422:     });
+ 423: 
+ 424:     const data = await parseResponseBody(response);
+ 425: 
+ 426:     if (!response.ok) {
+ 427:       throw createResponseError({
+ 428:         response,
+ 429: 
+ 430:         data,
+ 431: 
+ 432:         method: normalizedMethod,
+ 433: 
+ 434:         url: requestUrl,
+ 435:       });
+ 436:     }
+ 437: 
+ 438:     return data;
+ 439:   } catch (error) {
+ 440:     if (error instanceof ApiError) {
+ 441:       throw error;
+ 442:     }
+ 443: 
+ 444:     if (error?.name === "AbortError") {
+ 445:       throw new ApiError({
+ 446:         message: abortState.wasTimedOut()
+ 447:           ? "The server took too long to respond."
+ 448:           : "The request was canceled.",
+ 449: 
+ 450:         status: 0,
+ 451: 
+ 452:         code: abortState.wasTimedOut()
+ 453:           ? "API_REQUEST_TIMEOUT"
+ 454:           : "API_REQUEST_ABORTED",
+ 455: 
+ 456:         method: normalizedMethod,
+ 457: 
+ 458:         url: requestUrl,
+ 459: 
+ 460:         cause: error,
+ 461:       });
+ 462:     }
+ 463: 
+ 464:     throw new ApiError({
+ 465:       message:
+ 466:         "Unable to connect to the server. Check your connection and try again.",
+ 467: 
+ 468:       status: 0,
+ 469: 
+ 470:       code: "API_NETWORK_ERROR",
+ 471: 
+ 472:       method: normalizedMethod,
+ 473: 
+ 474:       url: requestUrl,
+ 475: 
+ 476:       cause: error,
+ 477:     });
+ 478:   } finally {
+ 479:     abortState.cleanup();
+ 480:   }
+ 481: }
+ 482: 
+ 483: /*
+ 484:  * =========================================
+ 485:  * Convenience Methods
+ 486:  * =========================================
+ 487:  */
+ 488: 
+ 489: export function apiGet(endpoint, options = {}) {
+ 490:   return apiRequest(endpoint, {
+ 491:     ...options,
+ 492: 
+ 493:     method: "GET",
+ 494:   });
+ 495: }
+ 496: 
+ 497: export function apiPost(endpoint, body, options = {}) {
+ 498:   return apiRequest(endpoint, {
+ 499:     ...options,
+ 500: 
+ 501:     method: "POST",
+ 502: 
+ 503:     body,
+ 504:   });
+ 505: }
+ 506: 
+ 507: export function apiPut(endpoint, body, options = {}) {
+ 508:   return apiRequest(endpoint, {
+ 509:     ...options,
+ 510: 
+ 511:     method: "PUT",
+ 512: 
+ 513:     body,
+ 514:   });
+ 515: }
+
+=== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\CertificationDataContext.jsx ===
+   1: import {
+   2:   createContext,
+   3:   useCallback,
+   4:   useContext,
+   5:   useEffect,
+   6:   useMemo,
+   7:   useState,
+   8: } from "react";
+   9: 
+  10: import {
+  11:   addCertificationDocument as addDocumentService,
+  12:   archiveCertification as archiveService,
+  13:   createCertification as createService,
+  14:   deleteCertification as deleteService,
+  15:   getCertifications,
+  16:   removeCertificationDocument as removeDocumentService,
+  17:   replaceCertificationDocumentFile as replaceDocumentService,
+  18:   restoreCertification as restoreService,
+  19:   setPrimaryCertificationDocument as setPrimaryDocumentService,
+  20:   updateCertification as updateService,
+  21: } from "../services/Certification/certificationService.js";
+  22: 
+  23: import { fetchCertifications } from "../services/Certification/certificationApiService.js";
+  24: import { CERTIFICATION_STORAGE_KEY } from "../services/Certification/certificationStorage.js";
+  25: 
+  26: import { migrateLegacyTrainingCertifications } from "../services/Certification/certificationTrainingMigrationService.js";
+  27: 
+  28: const CERTIFICATIONS_BACKEND_READ_MODE = true;
+  29: 
+  30: const CertificationDataContext = createContext(null);
+  31: 
+  32: /*
+  33:  * =========================================
+  34:  * Error Normalization
+  35:  * =========================================
+  36:  */
+  37: 
+  38: function normalizeContextError(error) {
+  39:   return {
+  40:     name: error?.name || "CertificationError",
+  41: 
+  42:     code: error?.code || "CERTIFICATION_OPERATION_ERROR",
+  43: 
+  44:     message:
+  45:       error?.publicMessage ||
+  46:       error?.message ||
+  47:       "The Certification Library operation could not be completed.",
+  48: 
+  49:     fieldErrors: error?.fieldErrors || error?.validation?.fieldErrors || {},
+  50: 
+  51:     errors: error?.errors || error?.validation?.errors || [],
+  52: 
+  53:     warnings: error?.warnings || error?.validation?.warnings || [],
+  54: 
+  55:     certificationId: error?.certificationId || "",
+  56: 
+  57:     documentId: error?.documentId || "",
+  58:   };
+  59: }
+  60: 
+  61: /*
+  62:  * =========================================
+  63:  * Certification Provider
+  64:  * =========================================
+  65:  */
+  66: 
+  67: export function CertificationDataProvider({ children }) {
+  68:   const [certifications, setCertifications] = useState([]);
+  69: 
+  70:   const [isLoading, setIsLoading] = useState(true);
+  71: 
+  72:   const [loadStatus, setLoadStatus] = useState("idle");
+  73: 
+  74:   const [saveStatus, setSaveStatus] = useState("idle");
+  75: 
+  76:   const [operation, setOperation] = useState(null);
+  77: 
+  78:   const [error, setError] = useState(null);
+  79: 
+  80:   const [warnings, setWarnings] = useState([]);
+  81: 
+  82:   /*
+  83:    * =========================================
+  84:    * Load Certification Library
+  85:    * =========================================
+  86:    */
+  87: 
+  88:   const refreshCertifications = useCallback(
+  89:     async ({ includeArchived = true, runLegacyMigration = false } = {}) => {
+  90:       setIsLoading(true);
+  91:       setLoadStatus("loading");
+  92: 
+  93:       try {
+  94:         let migrationReport = null;
+  95: 
+  96:         if (runLegacyMigration && !CERTIFICATIONS_BACKEND_READ_MODE) {
+  97:           migrationReport = await migrateLegacyTrainingCertifications();
+  98:         }
+  99: 
+ 100:         const records = CERTIFICATIONS_BACKEND_READ_MODE
+ 101:           ? await fetchCertifications()
+ 102:           : getCertifications({ includeArchived });
+ 103: 
+ 104:         if (!Array.isArray(records)) {
+ 105:           throw new TypeError("Certification API returned an invalid records collection.");
+ 106:         }
+ 107: 
+ 108:         const visibleRecords = includeArchived
+ 109:           ? records
+ 110:           : records.filter((certification) => certification.status !== "archived");
+ 111: 
+ 112:         setCertifications(visibleRecords);
+ 113:         setLoadStatus("success");
+ 114:         setError(null);
+ 115: 
+ 116:         return {
+ 117:           certifications: visibleRecords,
+ 118:           migration: migrationReport,
+ 119:         };
+ 120:       } catch (caughtError) {
+ 121:         const normalizedError = normalizeContextError(caughtError);
+ 122: 
+ 123:         setCertifications([]);
+ 124:         setLoadStatus("error");
+ 125:         setError(normalizedError);
+ 126: 
+ 127:         throw caughtError;
+ 128:       } finally {
+ 129:         setIsLoading(false);
+ 130:       }
+ 131:     },
+ 132:     [],
+ 133:   );
+ 134: 
+ 135:   /*
+ 136:    * =========================================
+ 137:    * Synchronize After Changes
+ 138:    * =========================================
+ 139:    */
+ 140: 
+ 141:   const synchronizeCertifications = useCallback(() => {
+ 142:     if (CERTIFICATIONS_BACKEND_READ_MODE) {
+ 143:       return refreshCertifications({ includeArchived: true });
+ 144:     }
+ 145: 
+ 146:     const records = getCertifications({
+ 147:       includeArchived: true,
+ 148:     });
+ 149: 
+ 150:     setCertifications(records);
+ 151:     setLoadStatus("success");
+ 152: 
+ 153:     return records;
+ 154:   }, [refreshCertifications]);
+ 155: 
+ 156:   /*
+ 157:    * =========================================
+ 158:    * Initial Loading
+ 159:    * =========================================
+ 160:    */
+ 161: 
+ 162:   useEffect(() => {
+ 163:     refreshCertifications({
+ 164:       includeArchived: true,
+ 165: 
+ 166:       /*
+ 167:        * The migration service uses its version marker,
+ 168:        * so this is safe to request during every initial
+ 169:        * Certification context load.
+ 170:        */
+ 171: 
+ 172:       runLegacyMigration: !CERTIFICATIONS_BACKEND_READ_MODE,
+ 173:     }).catch(() => {
+ 174:       /*
+ 175:        * The loading or migration error is already
+ 176:        * saved in the context.
+ 177:        */
+ 178:     });
+ 179:   }, [refreshCertifications]);
+ 180: 
+ 181:   /*
+ 182:    * =========================================
+ 183:    * Browser Tab Synchronization
+ 184:    * =========================================
+ 185:    */
+ 186: 
+ 187:   useEffect(() => {
+ 188:     if (typeof window === "undefined") {
+ 189:       return undefined;
+ 190:     }
+ 191: 
+ 192:     const handleStorageChange = (event) => {
+ 193:       if (
+ 194:         event.storageArea !== window.localStorage ||
+ 195:         event.key !== CERTIFICATION_STORAGE_KEY
+
+=== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx ===
+   1: import { useEffect, useMemo, useState } from "react";
+   2: 
+   3: import {
+   4:   CERTIFICATION_CREDENTIAL_STATE_OPTIONS,
+   5:   CERTIFICATION_DOCUMENT_ACCEPT,
+   6:   CERTIFICATION_FIELD_LIMITS,
+   7:   CERTIFICATION_ISSUER_TYPE_OPTIONS,
+   8:   CERTIFICATION_SOURCE_OPTIONS,
+   9:   CERTIFICATION_STATUS_OPTIONS,
+  10:   CERTIFICATION_TYPE_OPTIONS,
+  11:   isCertificationDocumentWithinSizeLimit,
+  12:   isSupportedCertificationDocument,
+  13: } from "../../../../config/certificationConfig.js";
+  14: 
+  15: import {
+  16:   createCertificationSkillRelationship,
+  17:   createCertificationTrainingRelationship,
+  18:   createEmptyCertification,
+  19:   normalizeCertification,
+  20: } from "../../../../models/certificationModel.js";
+  21: 
+  22: import {
+  23:   getCertificationValidationSummary,
+  24:   validateCertification,
+  25: } from "../../../../services/Certification/certificationValidation.js";
+  26: 
+  27: import "./CertificationForm.css";
+  28: 
+  29: function CertificationForm({
+  30:   initialCertification = null,
+  31:   existingCertifications = [],
+  32:   skills = [],
+  33:   trainingRecords = [],
+  34:   educationRecords = [],
+  35:   isSaving = false,
+  36:   isRelationshipDataLoading = false,
+  37:   onSubmit,
+  38:   onCancel,
+  39: }) {
+  40:   const [formData, setFormData] = useState(() =>
+  41:     initialCertification
+  42:       ? normalizeCertification(initialCertification)
+  43:       : createEmptyCertification(),
+  44:   );
+  45: 
+  46:   const [documentUploads, setDocumentUploads] = useState([]);
+  47: 
+  48:   const [fieldErrors, setFieldErrors] = useState({});
+  49: 
+  50:   const [warnings, setWarnings] = useState([]);
+  51: 
+  52:   const [submitError, setSubmitError] = useState("");
+  53: 
+  54:   const [documentError, setDocumentError] = useState("");
+  55: 
+  56:   const isEditing = Boolean(initialCertification?.id);
+  57: 
+  58:   useEffect(() => {
+  59:     setFormData(
+  60:       initialCertification
+  61:         ? normalizeCertification(initialCertification)
+  62:         : createEmptyCertification(),
+  63:     );
+  64: 
+  65:     setDocumentUploads([]);
+  66:     setFieldErrors({});
+  67:     setWarnings([]);
+  68:     setSubmitError("");
+  69:     setDocumentError("");
+  70:   }, [initialCertification]);
+  71: 
+  72:   const validationSummary = useMemo(
+  73:     () => getCertificationValidationSummary(formData),
+  74:     [formData],
+  75:   );
+  76: 
+  77:   /*
+  78:    * =========================================
+  79:    * Error Management
+  80:    * =========================================
+  81:    */
+  82: 
+  83:   const clearFieldError = (field) => {
+  84:     setFieldErrors((currentErrors) => {
+  85:       if (!currentErrors[field]) {
+  86:         return currentErrors;
+  87:       }
+  88: 
+  89:       const nextErrors = {
+  90:         ...currentErrors,
+  91:       };
+  92: 
+  93:       delete nextErrors[field];
+  94: 
+  95:       return nextErrors;
+  96:     });
+  97: 
+  98:     setSubmitError("");
+  99:   };
+ 100: 
+ 101:   /*
+ 102:    * =========================================
+ 103:    * Field Updates
+ 104:    * =========================================
+ 105:    */
+ 106: 
+ 107:   const updateTopLevel = (field, value) => {
+ 108:     setFormData((currentData) => ({
+ 109:       ...currentData,
+ 110:       [field]: value,
+ 111:     }));
+ 112: 
+ 113:     clearFieldError(field);
+ 114:   };
+ 115: 
+ 116:   const updateNested = (section, field, value) => {
+ 117:     setFormData((currentData) => ({
+ 118:       ...currentData,
+ 119: 
+ 120:       [section]: {
+ 121:         ...currentData[section],
+ 122:         [field]: value,
+ 123:       },
+ 124:     }));
+ 125: 
+ 126:     clearFieldError(`${section}.${field}`);
+ 127:   };
+ 128: 
+ 129:   /*
+ 130:    * =========================================
+ 131:    * Expiration
+ 132:    * =========================================
+ 133:    */
+ 134: 
+ 135:   const handleDoesNotExpireChange = (checked) => {
+ 136:     setFormData((currentData) => ({
+ 137:       ...currentData,
+ 138: 
+ 139:       dates: {
+ 140:         ...currentData.dates,
+ 141:         doesNotExpire: checked,
+ 142:         expirationDate: checked ? "" : currentData.dates.expirationDate,
+ 143:         nextRenewalDate: checked ? "" : currentData.dates.nextRenewalDate,
+ 144:       },
+ 145:     }));
+ 146: 
+ 147:     clearFieldError("dates.doesNotExpire");
+ 148:     clearFieldError("dates.expirationDate");
+ 149:     clearFieldError("dates.nextRenewalDate");
+ 150:   };
+ 151: 
+ 152:   /*
+ 153:    * =========================================
+ 154:    * Skill Relationships
+ 155:    * =========================================
+ 156:    */
+ 157: 
+ 158:   const handleSkillToggle = (skill, checked) => {
+ 159:     setFormData((currentData) => ({
+ 160:       ...currentData,
+ 161: 
+ 162:       skillRelationships: checked
+ 163:         ? [
+ 164:             ...currentData.skillRelationships,
+ 165:             createCertificationSkillRelationship(
+ 166:               skill,
+ 167:               currentData.skillRelationships.length,
+ 168:             ),
+ 169:           ]
+ 170:         : currentData.skillRelationships.filter(
+ 171:             (relationship) => relationship.skillId !== skill.id,
+ 172:           ),
+ 173:     }));
+ 174: 
+ 175:     clearFieldError("skillRelationships");
+ 176:   };
+ 177: 
+ 178:   /*
+ 179:    * =========================================
+ 180:    * Training Relationships
+ 181:    * =========================================
+ 182:    */
+ 183: 
+ 184:   const handleTrainingToggle = (training, checked) => {
+ 185:     setFormData((currentData) => ({
+ 186:       ...currentData,
+ 187: 
+ 188:       relatedRecords: {
+ 189:         ...currentData.relatedRecords,
+ 190: 
+ 191:         trainingRelationships: checked
+ 192:           ? [
+ 193:               ...currentData.relatedRecords.trainingRelationships,
+ 194:               createCertificationTrainingRelationship(
+ 195:                 training,
+ 196:                 currentData.relatedRecords.trainingRelationships.length,
+ 197:               ),
+ 198:             ]
+ 199:           : currentData.relatedRecords.trainingRelationships.filter(
+ 200:               (relationship) => relationship.trainingId !== training.id,
+ 201:             ),
+ 202:       },
+ 203:     }));
+ 204: 
+ 205:     clearFieldError("relatedRecords.trainingRelationships");
+ 206:   };
+ 207: 
+ 208:   /*
+ 209:    * =========================================
+ 210:    * Education Relationships
+ 211:    * =========================================
+ 212:    */
+ 213: 
+ 214:   const handleEducationToggle = (education, checked) => {
+ 215:     setFormData((currentData) => ({
+ 216:       ...currentData,
+ 217: 
+ 218:       relatedRecords: {
+ 219:         ...currentData.relatedRecords,
+ 220: 
+ 221:         educationIds: checked
+ 222:           ? [...currentData.relatedRecords.educationIds, education.id]
+ 223:           : currentData.relatedRecords.educationIds.filter(
+ 224:               (educationId) => educationId !== education.id,
+ 225:             ),
+ 226:       },
+ 227:     }));
+ 228: 
+ 229:     clearFieldError("relatedRecords.educationIds");
+ 230:   };
+ 231: 
+ 232:   /*
+ 233:    * =========================================
+ 234:    * Document Uploads
+ 235:    * =========================================
+
+=== D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\Certifications.jsx ===
+   1: import { useMemo, useState } from "react";
+   2: 
+   3: import { useCertificationData } from "../../context/CertificationDataContext.jsx";
+   4: import { useEducationData } from "../../context/EducationDataContext.jsx";
+   5: import { useSkillData } from "../../context/SkillDataContext.jsx";
+   6: import { useTrainingData } from "../../context/TrainingDataContext.jsx";
+   7: 
+   8: import {
+   9:   getCertificationDisplayName,
+  10:   getCertificationIssuerName,
+  11: } from "../../models/certificationModel.js";
+  12: 
+  13: import { getCertificationStatistics } from "../../services/Certification/certificationUtils.js";
+  14: 
+  15: import CertificationDashboard from "./components/CertificationDashboard/CertificationDashboard.jsx";
+  16: import CertificationForm from "./components/CertificationForm/CertificationForm.jsx";
+  17: import CertificationLibrary from "./components/CertificationLibrary/CertificationLibrary.jsx";
+  18: import CertificationPageHeader from "./components/CertificationPageHeader/CertificationPageHeader.jsx";
+  19: 
+  20: import "./Certifications.css";
+  21: 
+  22: function Certifications() {
+  23:   const {
+  24:     certifications,
+  25:     activeCertifications,
+  26:     archivedCertifications,
+  27:     isLoading,
+  28:     loadStatus,
+  29:     saveStatus,
+  30:     operation,
+  31:     error,
+  32:     warnings,
+  33:     refreshCertifications,
+  34:     createCertification,
+  35:     updateCertification,
+  36:     archiveCertification,
+  37:     restoreCertification,
+  38:     deleteCertification,
+  39:     clearError,
+  40:     clearWarnings,
+  41:     resetSaveStatus,
+  42:   } = useCertificationData();
+  43: 
+  44:   const { skills, isLoading: areSkillsLoading } = useSkillData();
+  45: 
+  46:   const { trainingRecords, isLoading: isTrainingLoading } = useTrainingData();
+  47: 
+  48:   const { educationRecords, isLoading: isEducationLoading } =
+  49:     useEducationData();
+  50: 
+  51:   const [isFormOpen, setIsFormOpen] = useState(false);
+  52: 
+  53:   const [editingCertificationId, setEditingCertificationId] = useState(null);
+  54: 
+  55:   const [showArchived, setShowArchived] = useState(false);
+  56: 
+  57:   /*
+  58:    * =========================================
+  59:    * Derived Information
+  60:    * =========================================
+  61:    */
+  62: 
+  63:   const statistics = useMemo(
+  64:     () => getCertificationStatistics(certifications),
+  65:     [certifications],
+  66:   );
+  67: 
+  68:   const editingCertification = useMemo(
+  69:     () =>
+  70:       editingCertificationId
+  71:         ? certifications.find(
+  72:             (certification) => certification.id === editingCertificationId,
+  73:           ) || null
+  74:         : null,
+  75:     [certifications, editingCertificationId],
+  76:   );
+  77: 
+  78:   const displayedCertifications = showArchived
+  79:     ? archivedCertifications
+  80:     : activeCertifications;
+  81: 
+  82:   const areRelationshipsLoading =
+  83:     areSkillsLoading || isTrainingLoading || isEducationLoading;
+  84: 
+  85:   const validationCollections = useMemo(
+  86:     () => ({
+  87:       skills,
+  88:       trainingRecords,
+  89:       educationRecords,
+  90:     }),
+  91:     [skills, trainingRecords, educationRecords],
+  92:   );
+  93: 
+  94:   /*
+  95:    * =========================================
+  96:    * Form Navigation
+  97:    * =========================================
+  98:    */
+  99: 
+ 100:   const scrollToForm = () => {
+ 101:     window.requestAnimationFrame(() => {
+ 102:       document.querySelector(".certifications-page-form")?.scrollIntoView({
+ 103:         behavior: "smooth",
+ 104:         block: "start",
+ 105:       });

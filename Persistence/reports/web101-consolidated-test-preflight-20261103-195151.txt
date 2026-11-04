@@ -1,0 +1,210 @@
+async function insertWEB101Transaction(pool, plan) {
+  const certification = plan.certification;
+  const document = plan.document;
+
+  const transaction = new sql.Transaction(pool);
+  let begun = false;
+  let commitAttempted = false;
+
+  try {
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+    begun = true;
+
+    const identity = await new sql.Request(transaction).query(`
+      SELECT DB_NAME() AS database_name;
+    `);
+
+    assert.equal(
+      identity.recordset[0].database_name,
+      "portfolio-platform-db"
+    );
+
+    const conflictResult = await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("certificationId", sql.NVarChar(200), certification.id)
+      .input("documentId", sql.NVarChar(200), document.id)
+      .input("storageKey", sql.NVarChar(500), plan.storageKey)
+      .query(`
+        SELECT
+          (SELECT COUNT(*) FROM dbo.users WITH (HOLDLOCK)
+           WHERE id = @userId) AS owner_count,
+
+          (SELECT COUNT(*) FROM dbo.certifications WITH (UPDLOCK, HOLDLOCK)
+           WHERE id = @certificationId) AS certification_count,
+
+          (SELECT COUNT(*) FROM dbo.certification_documents WITH (UPDLOCK, HOLDLOCK)
+           WHERE id = @documentId) AS document_count,
+
+          (SELECT COUNT(*) FROM dbo.certification_documents WITH (UPDLOCK, HOLDLOCK)
+           WHERE storage_key = @storageKey) AS storage_key_count;
+      `);
+
+    const counts = conflictResult.recordset[0];
+
+    assert.equal(counts.owner_count, 1);
+    assert.equal(counts.certification_count, 0);
+    assert.equal(counts.document_count, 0);
+    assert.equal(counts.storage_key_count, 0);
+
+    // Validate ownership of every linked Skill before importing.
+    const skillRelationships = certification.skillRelationships;
+
+    assert.ok(
+      Array.isArray(skillRelationships) && skillRelationships.length === 1,
+      "Unexpected WEB101 Skill relationship count."
+    );
+
+    const expectedSkillId =
+      "skill-54e7185b-3cb7-42bb-88ca-ab87ae3b756b";
+
+    assert.equal(
+      skillRelationships[0].skillId,
+      expectedSkillId,
+      "WEB101 linked Skill differs from the verified backup."
+    );
+
+    const skillOwnership = await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("skillId", sql.NVarChar(200), expectedSkillId)
+      .query(`
+        SELECT COUNT(*) AS skill_count
+        FROM dbo.skills WITH (HOLDLOCK)
+        WHERE id = @skillId
+          AND user_id = @userId;
+      `);
+
+    assert.equal(
+      skillOwnership.recordset[0].skill_count,
+      1,
+      "WEB101 linked Skill is missing or not owned by the expected user."
+    );
+    const certificationInsert = await new sql.Request(transaction)
+      .input("id", sql.NVarChar(200), certification.id)
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("name", sql.NVarChar(500), certification.name)
+      .input(
+        "certificationType",
+        sql.NVarChar(100),
+        certification.certificationType
+      )
+      .input(
+        "issuerName",
+        sql.NVarChar(500),
+        certification.issuingOrganization.name
+      )
+      .input("status", sql.NVarChar(100), certification.status)
+      .input(
+        "certificationData",
+        sql.NVarChar(sql.MAX),
+        JSON.stringify(certification)
+      )
+      .input(
+        "createdAt",
+        sql.DateTime2(3),
+        new Date(certification.createdAt)
+      )
+      .input(
+        "updatedAt",
+        sql.DateTime2(3),
+        new Date(certification.updatedAt)
+      )
+      .query(`
+        INSERT INTO dbo.certifications (
+          id, user_id, name, certification_type,
+          issuing_organization_name, status, certification_data,
+          created_at, updated_at
+        )
+        VALUES (
+          @id, @userId, @name, @certificationType,
+          @issuerName, @status, @certificationData,
+          @createdAt, @updatedAt
+        );
+      `);
+
+    assert.equal(certificationInsert.rowsAffected[0], 1);
+
+    const documentInsert = await new sql.Request(transaction)
+      .input("id", sql.NVarChar(200), document.id)
+      .input(
+        "certificationId",
+        sql.NVarChar(200),
+        certification.id
+      )
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("storageKey", sql.NVarChar(500), plan.storageKey)
+      .input(
+        "originalFileName",
+        sql.NVarChar(255),
+        document.fileName
+      )
+      .input("mimeType", sql.NVarChar(150), document.mimeType)
+      .input("fileSize", sql.BigInt, document.size)
+      .input(
+        "createdAt",
+        sql.DateTime2(3),
+        new Date(document.uploadedAt)
+      )
+      .query(`
+        INSERT INTO dbo.certification_documents (
+          id, certification_id, user_id, storage_key,
+          original_file_name, mime_type, file_size, created_at
+        )
+        VALUES (
+          @id, @certificationId, @userId, @storageKey,
+          @originalFileName, @mimeType, @fileSize, @createdAt
+        );
+      `);
+
+    assert.equal(documentInsert.rowsAffected[0], 1);
+
+    const verification = await new sql.Request(transaction)
+      .input("certificationId", sql.NVarChar(200), certification.id)
+      .input("documentId", sql.NVarChar(200), document.id)
+      .query(`
+        SELECT
+          (SELECT COUNT(*) FROM dbo.certifications
+           WHERE id = @certificationId) AS certification_count,
+          (SELECT COUNT(*) FROM dbo.certification_documents
+           WHERE id = @documentId
+             AND certification_id = @certificationId) AS document_count;
+      `);
+
+    assert.equal(verification.recordset[0].certification_count, 1);
+    assert.equal(verification.recordset[0].document_count, 1);
+
+    commitAttempted = true;
+    await transaction.commit();
+
+    return {
+      committed: true,
+      certificationId: certification.id,
+      documentId: document.id
+    };
+  } catch (error) {
+    if (begun && !commitAttempted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Transaction rollback could not be confirmed:",
+          rollbackError.message
+        );
+      }
+    }
+
+    if (commitAttempted) {
+      console.error(
+        "Commit outcome may be uncertain. Reconcile SQL before retrying."
+      );
+    }
+
+    throw error;
+  }
+}
+/*
+ * Coordinates filesystem and SQL migration.
+ *
+ * Not invoked by the dry-run entry point.
+ * The PDF is deliberately retained on SQL failure
+ * until reconciliation establishes the database outcome.
+ */

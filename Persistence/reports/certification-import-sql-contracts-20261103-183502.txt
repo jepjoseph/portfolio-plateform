@@ -1,0 +1,489 @@
+STEP 4.8.94 - CERTIFICATION SQL CONTRACTS
+Generated: 2026-11-03T18:35:02.6297109-05:00
+Mode: READ ONLY
+
+================================================================================
+FILE: src\database\migrations\011_certifications.sql
+SHA256: DC6CC2B8F622538E227135FA6EA63A427F329574734C71B693D752FC1BBAC22A
+================================================================================
+   1: /*
+   2:  * Portfolio Platform - Certification Persistence Foundation
+   3:  * Migration 011. Do not add GO statements.
+   4:  * Stores metadata and versioned Certification JSON, not document bytes.
+   5:  */
+   6: CREATE TABLE dbo.certifications
+   7: (
+   8:     id NVARCHAR(200) NOT NULL,
+   9:     user_id UNIQUEIDENTIFIER NOT NULL,
+  10:     name NVARCHAR(500) NOT NULL,
+  11:     certification_type NVARCHAR(100) NOT NULL,
+  12:     issuing_organization_name NVARCHAR(500) NOT NULL,
+  13:     status NVARCHAR(100) NOT NULL,
+  14:     certification_data NVARCHAR(MAX) NOT NULL,
+  15:     created_at DATETIME2(3) NOT NULL
+  16:         CONSTRAINT DF_certifications_created_at DEFAULT SYSUTCDATETIME(),
+  17:     updated_at DATETIME2(3) NOT NULL
+  18:         CONSTRAINT DF_certifications_updated_at DEFAULT SYSUTCDATETIME(),
+  19:     row_version ROWVERSION NOT NULL,
+  20:     CONSTRAINT PK_certifications PRIMARY KEY CLUSTERED (id),
+  21:     CONSTRAINT FK_certifications_user FOREIGN KEY (user_id) REFERENCES dbo.users(id),
+  22:     CONSTRAINT UQ_certifications_id_user UNIQUE (id, user_id),
+  23:     CONSTRAINT CK_certifications_id_not_blank CHECK (LEN(LTRIM(RTRIM(id))) > 0),
+  24:     CONSTRAINT CK_certifications_name_not_blank CHECK (LEN(LTRIM(RTRIM(name))) > 0),
+  25:     CONSTRAINT CK_certifications_type_not_blank CHECK (LEN(LTRIM(RTRIM(certification_type))) > 0),
+  26:     CONSTRAINT CK_certifications_status_not_blank CHECK (LEN(LTRIM(RTRIM(status))) > 0),
+  27:     CONSTRAINT CK_certifications_data_json CHECK (ISJSON(certification_data) = 1),
+  28:     CONSTRAINT CK_certifications_dates CHECK (updated_at >= created_at)
+  29: );
+  30: CREATE INDEX IX_certifications_user_status_updated
+  31:     ON dbo.certifications (user_id, status, updated_at DESC)
+  32:     INCLUDE (name, certification_type, issuing_organization_name);
+  33: CREATE INDEX IX_certifications_user_issuer
+  34:     ON dbo.certifications (user_id, issuing_organization_name)
+  35:     INCLUDE (name, certification_type, status);
+
+================================================================================
+FILE: src\database\migrations\012_certification_documents.sql
+SHA256: 77A7321C48234CC59425C63A9A49C05D1C05ED9BE4BC9A60F233B40EBA1E749D
+================================================================================
+   1: /*
+   2:  * Portfolio Platform - Certification Document Metadata
+   3:  * Migration 012. Do not add GO statements.
+   4:  * Document bytes remain in private filesystem storage.
+   5:  */
+   6: CREATE TABLE dbo.certification_documents
+   7: (
+   8:     id NVARCHAR(200) NOT NULL,
+   9:     certification_id NVARCHAR(200) NOT NULL,
+  10:     user_id UNIQUEIDENTIFIER NOT NULL,
+  11:     storage_key NVARCHAR(500) NOT NULL,
+  12:     original_file_name NVARCHAR(255) NOT NULL,
+  13:     mime_type NVARCHAR(150) NOT NULL,
+  14:     file_size BIGINT NOT NULL,
+  15:     created_at DATETIME2(3) NOT NULL
+  16:         CONSTRAINT DF_certification_documents_created_at DEFAULT SYSUTCDATETIME(),
+  17:     CONSTRAINT PK_certification_documents PRIMARY KEY CLUSTERED (id),
+  18:     CONSTRAINT FK_certification_documents_certification_owner
+  19:         FOREIGN KEY (certification_id, user_id)
+  20:         REFERENCES dbo.certifications(id, user_id),
+  21:     CONSTRAINT UQ_certification_documents_storage_key UNIQUE (storage_key),
+  22:     CONSTRAINT CK_certification_documents_storage_key
+  23:         CHECK (LEN(LTRIM(RTRIM(storage_key))) > 0),
+  24:     CONSTRAINT CK_certification_documents_original_file_name
+  25:         CHECK (LEN(LTRIM(RTRIM(original_file_name))) > 0),
+  26:     CONSTRAINT CK_certification_documents_file_size
+  27:         CHECK (file_size BETWEEN 1 AND 20971520),
+  28:     CONSTRAINT CK_certification_documents_mime_type
+  29:         CHECK (mime_type IN (
+  30:             N'application/pdf',
+  31:             N'application/msword',
+  32:             N'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  33:             N'application/vnd.ms-powerpoint',
+  34:             N'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  35:             N'application/vnd.ms-excel',
+  36:             N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  37:             N'text/plain', N'text/markdown', N'text/csv',
+  38:             N'application/json', N'application/zip',
+  39:             N'image/jpeg',       -- .jpg, .jpeg
+  40:             N'image/png',        -- .png
+  41:             N'image/webp',       -- .webp
+  42:             N'image/gif',        -- .gif
+  43:             N'image/avif',       -- .avif
+  44:             N'image/bmp',        -- .bmp
+  45:             N'image/tiff',       -- .tif, .tiff
+  46:             N'image/heic',       -- .heic
+  47:             N'image/heif'        -- .heif
+  48:         ))
+  49: );
+  50: CREATE INDEX IX_certification_documents_certification_created
+  51:     ON dbo.certification_documents (certification_id, created_at DESC);
+  52: CREATE INDEX IX_certification_documents_user_certification
+  53:     ON dbo.certification_documents (user_id, certification_id);
+
+================================================================================
+FILE: src\repositories\certificationRepository.js
+SHA256: 63C492F8A12CE27AC8E3E26CC91881CC80939B2315EFC11896097F0D64856D8E
+================================================================================
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const CERTIFICATION_COLUMNS = `
+   4:   id,
+   5:   user_id,
+   6:   name,
+   7:   certification_type,
+   8:   issuing_organization_name,
+   9:   status,
+  10:   certification_data,
+  11:   created_at,
+  12:   updated_at,
+  13:   row_version
+  14: `;
+  15: 
+  16: function mapCertificationRow(row) {
+  17:   if (!row) return null;
+  18: 
+  19:   const data = typeof row.certification_data === "string"
+  20:     ? JSON.parse(row.certification_data)
+  21:     : row.certification_data;
+  22: 
+  23:   if (!data || typeof data !== "object" || Array.isArray(data)) {
+  24:     throw new Error("Stored Certification data is invalid.");
+  25:   }
+  26: 
+  27:   return {
+  28:     ...data,
+  29:     id: row.id,
+  30:     name: row.name,
+  31:     certificationType: row.certification_type,
+  32:     issuingOrganization: {
+  33:       ...(data.issuingOrganization || {}),
+  34:       name: row.issuing_organization_name,
+  35:     },
+  36:     status: row.status,
+  37:     createdAt: row.created_at,
+  38:     updatedAt: row.updated_at,
+  39:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+  40:   };
+  41: }
+  42: 
+  43: function bindCertification(request, userId, certification) {
+  44:   return request
+  45:     .input("id", sql.NVarChar(200), certification.id)
+  46:     .input("userId", sql.UniqueIdentifier, userId)
+  47:     .input("name", sql.NVarChar(500), certification.name)
+  48:     .input(
+  49:       "certificationType",
+  50:       sql.NVarChar(100),
+  51:       certification.certificationType,
+  52:     )
+  53:     .input(
+  54:       "issuerName",
+  55:       sql.NVarChar(500),
+  56:       certification.issuingOrganization.name,
+  57:     )
+  58:     .input("status", sql.NVarChar(100), certification.status)
+  59:     .input(
+  60:       "certificationData",
+  61:       sql.NVarChar(sql.MAX),
+  62:       JSON.stringify(certification),
+  63:     );
+  64: }
+  65: 
+  66: function decodeRowVersion(value) {
+  67:   if (typeof value !== "string" ||
+  68:       !/^[A-Za-z0-9+/]{11}=$/.test(value)) {
+  69:     throw new TypeError("A valid rowVersion is required.");
+  70:   }
+  71: 
+  72:   const buffer = Buffer.from(value, "base64");
+  73: 
+  74:   if (buffer.length !== 8 ||
+  75:       buffer.toString("base64") !== value) {
+  76:     throw new TypeError("Invalid rowVersion.");
+  77:   }
+  78: 
+  79:   return buffer;
+  80: }
+  81: 
+  82: export async function listCertificationsByUser(userId) {
+  83:   const pool = await getDatabasePool();
+  84: 
+  85:   const result = await pool.request()
+  86:     .input("userId", sql.UniqueIdentifier, userId)
+  87:     .query(`
+  88:       SELECT ${CERTIFICATION_COLUMNS}
+  89:       FROM dbo.certifications
+  90:       WHERE user_id = @userId
+  91:       ORDER BY updated_at DESC, id ASC;
+  92:     `);
+  93: 
+  94:   return result.recordset.map(mapCertificationRow);
+  95: }
+  96: 
+  97: export async function findCertificationById(userId, certificationId) {
+  98:   const pool = await getDatabasePool();
+  99: 
+ 100:   const result = await pool.request()
+ 101:     .input("userId", sql.UniqueIdentifier, userId)
+ 102:     .input("id", sql.NVarChar(200), certificationId)
+ 103:     .query(`
+ 104:       SELECT ${CERTIFICATION_COLUMNS}
+ 105:       FROM dbo.certifications
+ 106:       WHERE user_id = @userId AND id = @id;
+ 107:     `);
+ 108: 
+ 109:   return mapCertificationRow(result.recordset[0]);
+ 110: }
+ 111: 
+ 112: export async function createCertificationRecord(userId, certification) {
+ 113:   const pool = await getDatabasePool();
+ 114: 
+ 115:   const result = await bindCertification(
+ 116:     pool.request(), userId, certification
+ 117:   ).query(`
+ 118:     INSERT INTO dbo.certifications (
+ 119:       id, user_id, name, certification_type,
+ 120:       issuing_organization_name, status, certification_data
+ 121:     )
+ 122:     OUTPUT
+ 123:       INSERTED.id,
+ 124:       INSERTED.user_id,
+ 125:       INSERTED.name,
+ 126:       INSERTED.certification_type,
+ 127:       INSERTED.issuing_organization_name,
+ 128:       INSERTED.status,
+ 129:       INSERTED.certification_data,
+ 130:       INSERTED.created_at,
+ 131:       INSERTED.updated_at,
+ 132:       INSERTED.row_version
+ 133:     VALUES (
+ 134:       @id, @userId, @name, @certificationType,
+ 135:       @issuerName, @status, @certificationData
+ 136:     );
+ 137:   `);
+ 138: 
+ 139:   return mapCertificationRow(result.recordset[0]);
+ 140: }
+ 141: 
+ 142: export async function updateCertificationRecord(
+ 143:   userId,
+ 144:   certification,
+ 145:   expectedRowVersion,
+ 146: ) {
+ 147:   const pool = await getDatabasePool();
+ 148: 
+ 149:   const result = await bindCertification(
+ 150:     pool.request(), userId, certification
+ 151:   )
+ 152:     .input(
+ 153:       "expectedRowVersion",
+ 154:       sql.Binary(8),
+ 155:       decodeRowVersion(expectedRowVersion),
+ 156:     )
+ 157:     .query(`
+ 158:       UPDATE dbo.certifications
+ 159:       SET
+ 160:         name = @name,
+ 161:         certification_type = @certificationType,
+ 162:         issuing_organization_name = @issuerName,
+ 163:         status = @status,
+ 164:         certification_data = @certificationData,
+ 165:         updated_at = SYSUTCDATETIME()
+ 166:       OUTPUT
+ 167:         INSERTED.id,
+ 168:         INSERTED.user_id,
+ 169:         INSERTED.name,
+ 170:         INSERTED.certification_type,
+ 171:         INSERTED.issuing_organization_name,
+ 172:         INSERTED.status,
+ 173:         INSERTED.certification_data,
+ 174:         INSERTED.created_at,
+ 175:         INSERTED.updated_at,
+ 176:         INSERTED.row_version
+ 177:       WHERE id = @id
+ 178:         AND user_id = @userId
+ 179:         AND row_version = @expectedRowVersion;
+ 180:     `);
+ 181: 
+ 182:   return mapCertificationRow(result.recordset[0]);
+ 183: }
+ 184: 
+ 185: export async function deleteCertificationRecord(
+ 186:   userId,
+ 187:   certificationId,
+ 188:   expectedRowVersion,
+ 189: ) {
+ 190:   const pool = await getDatabasePool();
+ 191: 
+ 192:   const result = await pool.request()
+ 193:     .input("userId", sql.UniqueIdentifier, userId)
+ 194:     .input("id", sql.NVarChar(200), certificationId)
+ 195:     .input(
+ 196:       "expectedRowVersion",
+ 197:       sql.Binary(8),
+ 198:       decodeRowVersion(expectedRowVersion),
+ 199:     )
+ 200:     .query(`
+ 201:       DELETE FROM dbo.certifications
+ 202:       WHERE id = @id
+ 203:         AND user_id = @userId
+ 204:         AND row_version = @expectedRowVersion;
+ 205:     `);
+ 206: 
+ 207:   return result.rowsAffected[0] > 0;
+ 208: }
+
+================================================================================
+FILE: src\repositories\certificationDocumentRepository.js
+SHA256: 3EE9ECDAD0865FB1E2A29B1BCB4975025EBF77A9D390B4C3275D3DF1C2A5AD8C
+================================================================================
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const CERTIFICATION_DOCUMENT_COLUMNS = `
+   4:   id,
+   5:   certification_id,
+   6:   user_id,
+   7:   storage_key,
+   8:   original_file_name,
+   9:   mime_type,
+  10:   file_size,
+  11:   created_at
+  12: `;
+  13: 
+  14: function mapCertificationDocumentRow(row) {
+  15:   if (!row) return null;
+  16: 
+  17:   return {
+  18:     id: row.id,
+  19:     certificationId: row.certification_id,
+  20:     storageKey: row.storage_key,
+  21:     originalFileName: row.original_file_name,
+  22:     mimeType: row.mime_type,
+  23:     fileSize: Number(row.file_size),
+  24:     createdAt: row.created_at,
+  25:   };
+  26: }
+  27: 
+  28: export async function createCertificationDocument(
+  29:   userId,
+  30:   certificationId,
+  31:   document,
+  32: ) {
+  33:   const pool = await getDatabasePool();
+  34: 
+  35:   const result = await pool.request()
+  36:     .input("id", sql.NVarChar(200), document.id)
+  37:     .input("userId", sql.UniqueIdentifier, userId)
+  38:     .input("certificationId", sql.NVarChar(200), certificationId)
+  39:     .input("storageKey", sql.NVarChar(500), document.storageKey)
+  40:     .input(
+  41:       "originalFileName",
+  42:       sql.NVarChar(255),
+  43:       document.originalFileName,
+  44:     )
+  45:     .input("mimeType", sql.NVarChar(150), document.mimeType)
+  46:     .input("fileSize", sql.BigInt, document.fileSize)
+  47:     .query(`
+  48:       INSERT INTO dbo.certification_documents (
+  49:         id,
+  50:         certification_id,
+  51:         user_id,
+  52:         storage_key,
+  53:         original_file_name,
+  54:         mime_type,
+  55:         file_size
+  56:       )
+  57:       OUTPUT
+  58:         INSERTED.id,
+  59:         INSERTED.certification_id,
+  60:         INSERTED.user_id,
+  61:         INSERTED.storage_key,
+  62:         INSERTED.original_file_name,
+  63:         INSERTED.mime_type,
+  64:         INSERTED.file_size,
+  65:         INSERTED.created_at
+  66:       VALUES (
+  67:         @id,
+  68:         @certificationId,
+  69:         @userId,
+  70:         @storageKey,
+  71:         @originalFileName,
+  72:         @mimeType,
+  73:         @fileSize
+  74:       );
+  75:     `);
+  76: 
+  77:   return mapCertificationDocumentRow(result.recordset[0]);
+  78: }
+  79: 
+  80: export async function listCertificationDocuments(userId, certificationId) {
+  81:   const pool = await getDatabasePool();
+  82: 
+  83:   const result = await pool.request()
+  84:     .input("userId", sql.UniqueIdentifier, userId)
+  85:     .input("certificationId", sql.NVarChar(200), certificationId)
+  86:     .query(`
+  87:       SELECT ${CERTIFICATION_DOCUMENT_COLUMNS}
+  88:       FROM dbo.certification_documents
+  89:       WHERE user_id = @userId
+  90:         AND certification_id = @certificationId
+  91:       ORDER BY created_at DESC, id ASC;
+  92:     `);
+  93: 
+  94:   return result.recordset.map(mapCertificationDocumentRow);
+  95: }
+  96: 
+  97: export async function findCertificationDocumentById(
+  98:   userId,
+  99:   certificationId,
+ 100:   documentId,
+ 101: ) {
+ 102:   const pool = await getDatabasePool();
+ 103: 
+ 104:   const result = await pool.request()
+ 105:     .input("userId", sql.UniqueIdentifier, userId)
+ 106:     .input("certificationId", sql.NVarChar(200), certificationId)
+ 107:     .input("documentId", sql.NVarChar(200), documentId)
+ 108:     .query(`
+ 109:       SELECT ${CERTIFICATION_DOCUMENT_COLUMNS}
+ 110:       FROM dbo.certification_documents
+ 111:       WHERE id = @documentId
+ 112:         AND certification_id = @certificationId
+ 113:         AND user_id = @userId;
+ 114:     `);
+ 115: 
+ 116:   return mapCertificationDocumentRow(result.recordset[0]);
+ 117: }
+ 118: 
+ 119: export async function findCertificationDocumentByStorageKey(
+ 120:   userId,
+ 121:   certificationId,
+ 122:   storageKey,
+ 123: ) {
+ 124:   const pool = await getDatabasePool();
+ 125: 
+ 126:   const result = await pool.request()
+ 127:     .input("userId", sql.UniqueIdentifier, userId)
+ 128:     .input("certificationId", sql.NVarChar(200), certificationId)
+ 129:     .input("storageKey", sql.NVarChar(500), storageKey)
+ 130:     .query(`
+ 131:       SELECT ${CERTIFICATION_DOCUMENT_COLUMNS}
+ 132:       FROM dbo.certification_documents
+ 133:       WHERE user_id = @userId
+ 134:         AND certification_id = @certificationId
+ 135:         AND storage_key = @storageKey;
+ 136:     `);
+ 137: 
+ 138:   return mapCertificationDocumentRow(result.recordset[0]);
+ 139: }
+ 140: 
+ 141: export async function deleteCertificationDocument(
+ 142:   userId,
+ 143:   certificationId,
+ 144:   documentId,
+ 145: ) {
+ 146:   const pool = await getDatabasePool();
+ 147: 
+ 148:   const result = await pool.request()
+ 149:     .input("userId", sql.UniqueIdentifier, userId)
+ 150:     .input("certificationId", sql.NVarChar(200), certificationId)
+ 151:     .input("documentId", sql.NVarChar(200), documentId)
+ 152:     .query(`
+ 153:       DELETE FROM dbo.certification_documents
+ 154:       OUTPUT
+ 155:         DELETED.id,
+ 156:         DELETED.certification_id,
+ 157:         DELETED.user_id,
+ 158:         DELETED.storage_key,
+ 159:         DELETED.original_file_name,
+ 160:         DELETED.mime_type,
+ 161:         DELETED.file_size,
+ 162:         DELETED.created_at
+ 163:       WHERE id = @documentId
+ 164:         AND certification_id = @certificationId
+ 165:         AND user_id = @userId;
+ 166:     `);
+ 167: 
+ 168:   return mapCertificationDocumentRow(result.recordset[0]);
+ 169: }
+

@@ -1,0 +1,9060 @@
+PORTFOLIO PLATFORM - FULL DATABASE SCHEMA REPORT
+Generated: 2026-11-03T17:51:32.886Z
+Inspection mode: READ ONLY
+
+==========================================================================================
+DATABASE IDENTITY
+==========================================================================================
+
+[1]
+server_name: portfolio-platform-sv
+database_name: portfolio-platform-db
+database_status: ONLINE
+current_database: portfolio-platform-db
+
+==========================================================================================
+ALL USER TABLES
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+object_id: 930102354
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[2]
+schema_name: dbo
+table_name: auth_challenges
+object_id: 482100758
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[3]
+schema_name: dbo
+table_name: certification_documents
+object_id: 1035150733
+create_date: Tue Nov 03 2026 12:44:52 GMT-0500 (Eastern Standard Time)
+modify_date: Tue Nov 03 2026 12:44:52 GMT-0500 (Eastern Standard Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[4]
+schema_name: dbo
+table_name: certifications
+object_id: 843150049
+create_date: Tue Nov 03 2026 12:44:52 GMT-0500 (Eastern Standard Time)
+modify_date: Tue Nov 03 2026 12:44:52 GMT-0500 (Eastern Standard Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[5]
+schema_name: dbo
+table_name: experiences
+object_id: 203147769
+create_date: Mon Oct 26 2026 15:46:45 GMT-0400 (Eastern Daylight Time)
+modify_date: Mon Oct 26 2026 15:46:45 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[6]
+schema_name: dbo
+table_name: login_audit_events
+object_id: 834102012
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[7]
+schema_name: dbo
+table_name: People
+object_id: 1861581670
+create_date: Mon Sep 14 2026 21:56:42 GMT-0400 (Eastern Daylight Time)
+modify_date: Mon Sep 14 2026 21:56:42 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[8]
+schema_name: dbo
+table_name: project_documents
+object_id: 2030630277
+create_date: Wed Oct 21 2026 15:34:12 GMT-0400 (Eastern Daylight Time)
+modify_date: Wed Oct 21 2026 15:34:12 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[9]
+schema_name: dbo
+table_name: project_media
+object_id: 1726629194
+create_date: Tue Oct 13 2026 23:34:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Oct 13 2026 23:34:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[10]
+schema_name: dbo
+table_name: projects
+object_id: 1390627997
+create_date: Mon Oct 12 2026 23:06:05 GMT-0400 (Eastern Daylight Time)
+modify_date: Wed Oct 21 2026 15:34:12 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[11]
+schema_name: dbo
+table_name: roles
+object_id: 242099903
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[12]
+schema_name: dbo
+table_name: schema_migrations
+object_id: 18099105
+create_date: Tue Sep 15 2026 15:43:27 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:27 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[13]
+schema_name: dbo
+table_name: sessions
+object_id: 690101499
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[14]
+schema_name: dbo
+table_name: skills
+object_id: 523148909
+create_date: Mon Oct 26 2026 23:44:24 GMT-0400 (Eastern Daylight Time)
+modify_date: Mon Oct 26 2026 23:44:24 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[15]
+schema_name: dbo
+table_name: support_contact_requests
+object_id: 430624577
+create_date: Fri Sep 18 2026 22:58:05 GMT-0400 (Eastern Daylight Time)
+modify_date: Fri Sep 18 2026 22:58:05 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[16]
+schema_name: dbo
+table_name: user_profile_contacts
+object_id: 926626344
+create_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+modify_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[17]
+schema_name: dbo
+table_name: user_profile_pictures
+object_id: 1086626914
+create_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+modify_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[18]
+schema_name: dbo
+table_name: user_profile_professional_titles
+object_id: 782625831
+create_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+modify_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[19]
+schema_name: dbo
+table_name: user_profiles
+object_id: 1298103665
+create_date: Tue Sep 15 2026 16:52:30 GMT-0400 (Eastern Daylight Time)
+modify_date: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[20]
+schema_name: dbo
+table_name: user_roles
+object_id: 386100416
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[21]
+schema_name: dbo
+table_name: user_settings
+object_id: 1938105945
+create_date: Tue Sep 15 2026 17:39:16 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Sep 15 2026 17:39:16 GMT-0400 (Eastern Daylight Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+[22]
+schema_name: dbo
+table_name: users
+object_id: 66099276
+create_date: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+modify_date: Tue Nov 03 2026 12:44:52 GMT-0500 (Eastern Standard Time)
+temporal_type_desc: NON_TEMPORAL_TABLE
+is_memory_optimized: false
+
+==========================================================================================
+ALL TABLE COLUMNS
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+column_id: 1
+column_name: id
+data_type: bigint
+max_length: 8
+precision: 19
+scale: 0
+is_nullable: false
+is_identity: true
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: 1
+identity_increment: 1
+
+[2]
+schema_name: dbo
+table_name: audit_logs
+column_id: 2
+column_name: actor_user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[3]
+schema_name: dbo
+table_name: audit_logs
+column_id: 3
+column_name: target_user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[4]
+schema_name: dbo
+table_name: audit_logs
+column_id: 4
+column_name: action
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[5]
+schema_name: dbo
+table_name: audit_logs
+column_id: 5
+column_name: entity_type
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[6]
+schema_name: dbo
+table_name: audit_logs
+column_id: 6
+column_name: entity_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[7]
+schema_name: dbo
+table_name: audit_logs
+column_id: 7
+column_name: details_json
+data_type: nvarchar
+max_length: -1
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[8]
+schema_name: dbo
+table_name: audit_logs
+column_id: 8
+column_name: ip_address_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[9]
+schema_name: dbo
+table_name: audit_logs
+column_id: 9
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[10]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newsequentialid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[11]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[12]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 3
+column_name: pending_email
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[13]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 4
+column_name: normalized_pending_email
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[14]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 5
+column_name: purpose
+data_type: nvarchar
+max_length: 40
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[15]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 6
+column_name: code_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[16]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 7
+column_name: continuation_token_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[17]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 8
+column_name: attempt_count
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[18]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 9
+column_name: maximum_attempts
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((5))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[19]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 10
+column_name: expires_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[20]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 11
+column_name: last_sent_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[21]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 12
+column_name: verified_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[22]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 13
+column_name: consumed_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[23]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 14
+column_name: request_ip_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[24]
+schema_name: dbo
+table_name: auth_challenges
+column_id: 15
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[25]
+schema_name: dbo
+table_name: certification_documents
+column_id: 1
+column_name: id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[26]
+schema_name: dbo
+table_name: certification_documents
+column_id: 2
+column_name: certification_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[27]
+schema_name: dbo
+table_name: certification_documents
+column_id: 3
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[28]
+schema_name: dbo
+table_name: certification_documents
+column_id: 4
+column_name: storage_key
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[29]
+schema_name: dbo
+table_name: certification_documents
+column_id: 5
+column_name: original_file_name
+data_type: nvarchar
+max_length: 255
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[30]
+schema_name: dbo
+table_name: certification_documents
+column_id: 6
+column_name: mime_type
+data_type: nvarchar
+max_length: 150
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[31]
+schema_name: dbo
+table_name: certification_documents
+column_id: 7
+column_name: file_size
+data_type: bigint
+max_length: 8
+precision: 19
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[32]
+schema_name: dbo
+table_name: certification_documents
+column_id: 8
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[33]
+schema_name: dbo
+table_name: certifications
+column_id: 1
+column_name: id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[34]
+schema_name: dbo
+table_name: certifications
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[35]
+schema_name: dbo
+table_name: certifications
+column_id: 3
+column_name: name
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[36]
+schema_name: dbo
+table_name: certifications
+column_id: 4
+column_name: certification_type
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[37]
+schema_name: dbo
+table_name: certifications
+column_id: 5
+column_name: issuing_organization_name
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[38]
+schema_name: dbo
+table_name: certifications
+column_id: 6
+column_name: status
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[39]
+schema_name: dbo
+table_name: certifications
+column_id: 7
+column_name: certification_data
+data_type: nvarchar
+max_length: -1
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[40]
+schema_name: dbo
+table_name: certifications
+column_id: 8
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[41]
+schema_name: dbo
+table_name: certifications
+column_id: 9
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[42]
+schema_name: dbo
+table_name: certifications
+column_id: 10
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[43]
+schema_name: dbo
+table_name: experiences
+column_id: 1
+column_name: id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[44]
+schema_name: dbo
+table_name: experiences
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[45]
+schema_name: dbo
+table_name: experiences
+column_id: 3
+column_name: position_title
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[46]
+schema_name: dbo
+table_name: experiences
+column_id: 4
+column_name: organization_name
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[47]
+schema_name: dbo
+table_name: experiences
+column_id: 5
+column_name: category
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[48]
+schema_name: dbo
+table_name: experiences
+column_id: 6
+column_name: record_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[49]
+schema_name: dbo
+table_name: experiences
+column_id: 7
+column_name: experience_data
+data_type: nvarchar
+max_length: -1
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[50]
+schema_name: dbo
+table_name: experiences
+column_id: 8
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[51]
+schema_name: dbo
+table_name: experiences
+column_id: 9
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[52]
+schema_name: dbo
+table_name: experiences
+column_id: 10
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[53]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 1
+column_name: id
+data_type: bigint
+max_length: 8
+precision: 19
+scale: 0
+is_nullable: false
+is_identity: true
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: 1
+identity_increment: 1
+
+[54]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[55]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 3
+column_name: email_attempted
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[56]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 4
+column_name: event_type
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[57]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 5
+column_name: was_successful
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[58]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 6
+column_name: failure_reason
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[59]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 7
+column_name: ip_address_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[60]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 8
+column_name: user_agent
+data_type: nvarchar
+max_length: 1000
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[61]
+schema_name: dbo
+table_name: login_audit_events
+column_id: 9
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[62]
+schema_name: dbo
+table_name: People
+column_id: 1
+column_name: personId
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: true
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: 1
+identity_increment: 1
+
+[63]
+schema_name: dbo
+table_name: People
+column_id: 2
+column_name: name
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[64]
+schema_name: dbo
+table_name: People
+column_id: 3
+column_name: age
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[65]
+schema_name: dbo
+table_name: People
+column_id: 4
+column_name: createdAt
+data_type: datetime2
+max_length: 8
+precision: 27
+scale: 7
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[66]
+schema_name: dbo
+table_name: project_documents
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[67]
+schema_name: dbo
+table_name: project_documents
+column_id: 2
+column_name: project_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[68]
+schema_name: dbo
+table_name: project_documents
+column_id: 3
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[69]
+schema_name: dbo
+table_name: project_documents
+column_id: 4
+column_name: storage_key
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[70]
+schema_name: dbo
+table_name: project_documents
+column_id: 5
+column_name: original_file_name
+data_type: nvarchar
+max_length: 255
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[71]
+schema_name: dbo
+table_name: project_documents
+column_id: 6
+column_name: mime_type
+data_type: nvarchar
+max_length: 150
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[72]
+schema_name: dbo
+table_name: project_documents
+column_id: 7
+column_name: file_size
+data_type: bigint
+max_length: 8
+precision: 19
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[73]
+schema_name: dbo
+table_name: project_documents
+column_id: 8
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[74]
+schema_name: dbo
+table_name: project_media
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[75]
+schema_name: dbo
+table_name: project_media
+column_id: 2
+column_name: project_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[76]
+schema_name: dbo
+table_name: project_media
+column_id: 3
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[77]
+schema_name: dbo
+table_name: project_media
+column_id: 4
+column_name: storage_key
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[78]
+schema_name: dbo
+table_name: project_media
+column_id: 5
+column_name: original_file_name
+data_type: nvarchar
+max_length: 255
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[79]
+schema_name: dbo
+table_name: project_media
+column_id: 6
+column_name: mime_type
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[80]
+schema_name: dbo
+table_name: project_media
+column_id: 7
+column_name: file_size
+data_type: bigint
+max_length: 8
+precision: 19
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[81]
+schema_name: dbo
+table_name: project_media
+column_id: 8
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[82]
+schema_name: dbo
+table_name: projects
+column_id: 1
+column_name: id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[83]
+schema_name: dbo
+table_name: projects
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[84]
+schema_name: dbo
+table_name: projects
+column_id: 3
+column_name: title
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[85]
+schema_name: dbo
+table_name: projects
+column_id: 4
+column_name: category
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[86]
+schema_name: dbo
+table_name: projects
+column_id: 5
+column_name: lifecycle_status
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[87]
+schema_name: dbo
+table_name: projects
+column_id: 6
+column_name: record_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[88]
+schema_name: dbo
+table_name: projects
+column_id: 7
+column_name: is_featured
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[89]
+schema_name: dbo
+table_name: projects
+column_id: 8
+column_name: project_data
+data_type: nvarchar
+max_length: -1
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[90]
+schema_name: dbo
+table_name: projects
+column_id: 9
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[91]
+schema_name: dbo
+table_name: projects
+column_id: 10
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[92]
+schema_name: dbo
+table_name: projects
+column_id: 11
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[93]
+schema_name: dbo
+table_name: roles
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newsequentialid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[94]
+schema_name: dbo
+table_name: roles
+column_id: 2
+column_name: name
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[95]
+schema_name: dbo
+table_name: roles
+column_id: 3
+column_name: description
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[96]
+schema_name: dbo
+table_name: roles
+column_id: 4
+column_name: is_system_role
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((1))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[97]
+schema_name: dbo
+table_name: roles
+column_id: 5
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[98]
+schema_name: dbo
+table_name: roles
+column_id: 6
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[99]
+schema_name: dbo
+table_name: schema_migrations
+column_id: 1
+column_name: migration_id
+data_type: nvarchar
+max_length: 255
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[100]
+schema_name: dbo
+table_name: schema_migrations
+column_id: 2
+column_name: checksum
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[101]
+schema_name: dbo
+table_name: schema_migrations
+column_id: 3
+column_name: applied_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[102]
+schema_name: dbo
+table_name: sessions
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newsequentialid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[103]
+schema_name: dbo
+table_name: sessions
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[104]
+schema_name: dbo
+table_name: sessions
+column_id: 3
+column_name: refresh_token_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[105]
+schema_name: dbo
+table_name: sessions
+column_id: 4
+column_name: device_name
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[106]
+schema_name: dbo
+table_name: sessions
+column_id: 5
+column_name: user_agent
+data_type: nvarchar
+max_length: 1000
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[107]
+schema_name: dbo
+table_name: sessions
+column_id: 6
+column_name: ip_address_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[108]
+schema_name: dbo
+table_name: sessions
+column_id: 7
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[109]
+schema_name: dbo
+table_name: sessions
+column_id: 8
+column_name: last_used_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[110]
+schema_name: dbo
+table_name: sessions
+column_id: 9
+column_name: expires_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[111]
+schema_name: dbo
+table_name: sessions
+column_id: 10
+column_name: revoked_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[112]
+schema_name: dbo
+table_name: sessions
+column_id: 11
+column_name: revocation_reason
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[113]
+schema_name: dbo
+table_name: skills
+column_id: 1
+column_name: id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[114]
+schema_name: dbo
+table_name: skills
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[115]
+schema_name: dbo
+table_name: skills
+column_id: 3
+column_name: name
+data_type: nvarchar
+max_length: 150
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[116]
+schema_name: dbo
+table_name: skills
+column_id: 4
+column_name: normalized_name
+data_type: nvarchar
+max_length: 150
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[117]
+schema_name: dbo
+table_name: skills
+column_id: 5
+column_name: category
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[118]
+schema_name: dbo
+table_name: skills
+column_id: 6
+column_name: skill_type
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[119]
+schema_name: dbo
+table_name: skills
+column_id: 7
+column_name: record_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[120]
+schema_name: dbo
+table_name: skills
+column_id: 8
+column_name: skill_data
+data_type: nvarchar
+max_length: -1
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[121]
+schema_name: dbo
+table_name: skills
+column_id: 9
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[122]
+schema_name: dbo
+table_name: skills
+column_id: 10
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[123]
+schema_name: dbo
+table_name: skills
+column_id: 11
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[124]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newsequentialid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[125]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 2
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[126]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 3
+column_name: sender_name
+data_type: nvarchar
+max_length: 120
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[127]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 4
+column_name: sender_email
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[128]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 5
+column_name: normalized_email
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[129]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 6
+column_name: category
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[130]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 7
+column_name: subject
+data_type: nvarchar
+max_length: 160
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[131]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 8
+column_name: request_message
+data_type: nvarchar
+max_length: -1
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[132]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 9
+column_name: reply_consent
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[133]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 10
+column_name: request_status
+data_type: nvarchar
+max_length: 30
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'new')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[134]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 11
+column_name: ip_address_hash
+data_type: char
+max_length: 64
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[135]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 12
+column_name: user_agent
+data_type: nvarchar
+max_length: 1000
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[136]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 13
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[137]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 14
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[138]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 15
+column_name: resolved_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[139]
+schema_name: dbo
+table_name: support_contact_requests
+column_id: 16
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[140]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 1
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[141]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 2
+column_name: item_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[142]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 3
+column_name: category
+data_type: nvarchar
+max_length: 30
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[143]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 4
+column_name: contact_type
+data_type: nvarchar
+max_length: 30
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[144]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 5
+column_name: contact_value
+data_type: nvarchar
+max_length: 2048
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[145]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 6
+column_name: description
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[146]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 7
+column_name: display_order
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[147]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 8
+column_name: item_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[148]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 9
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[149]
+schema_name: dbo
+table_name: user_profile_contacts
+column_id: 10
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[150]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 1
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[151]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 2
+column_name: item_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[152]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 3
+column_name: picture_type
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[153]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 4
+column_name: image_url
+data_type: nvarchar
+max_length: 2048
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[154]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 5
+column_name: blob_name
+data_type: nvarchar
+max_length: 255
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[155]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 6
+column_name: file_name
+data_type: nvarchar
+max_length: 255
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[156]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 7
+column_name: file_type
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[157]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 8
+column_name: file_size
+data_type: bigint
+max_length: 8
+precision: 19
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[158]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 9
+column_name: use_default_avatar
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[159]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 10
+column_name: image_width
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[160]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 11
+column_name: image_height
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[161]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 12
+column_name: description
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[162]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 13
+column_name: display_order
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[163]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 14
+column_name: item_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[164]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 15
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[165]
+schema_name: dbo
+table_name: user_profile_pictures
+column_id: 16
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[166]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 1
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[167]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 2
+column_name: item_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[168]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 3
+column_name: title_name
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[169]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 4
+column_name: description
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[170]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 5
+column_name: display_order
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[171]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 6
+column_name: item_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[172]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 7
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[173]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_id: 8
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[174]
+schema_name: dbo
+table_name: user_profiles
+column_id: 1
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[175]
+schema_name: dbo
+table_name: user_profiles
+column_id: 2
+column_name: username
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[176]
+schema_name: dbo
+table_name: user_profiles
+column_id: 3
+column_name: normalized_username
+data_type: nvarchar
+max_length: 50
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[177]
+schema_name: dbo
+table_name: user_profiles
+column_id: 4
+column_name: first_name
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[178]
+schema_name: dbo
+table_name: user_profiles
+column_id: 5
+column_name: middle_name
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[179]
+schema_name: dbo
+table_name: user_profiles
+column_id: 6
+column_name: last_name
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[180]
+schema_name: dbo
+table_name: user_profiles
+column_id: 7
+column_name: preferred_name
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[181]
+schema_name: dbo
+table_name: user_profiles
+column_id: 8
+column_name: display_name
+data_type: nvarchar
+max_length: 250
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[182]
+schema_name: dbo
+table_name: user_profiles
+column_id: 9
+column_name: professional_headline
+data_type: nvarchar
+max_length: 300
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[183]
+schema_name: dbo
+table_name: user_profiles
+column_id: 10
+column_name: professional_summary
+data_type: nvarchar
+max_length: 4000
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[184]
+schema_name: dbo
+table_name: user_profiles
+column_id: 11
+column_name: locale
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'en-US')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[185]
+schema_name: dbo
+table_name: user_profiles
+column_id: 12
+column_name: time_zone
+data_type: nvarchar
+max_length: 100
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'America/New_York')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[186]
+schema_name: dbo
+table_name: user_profiles
+column_id: 13
+column_name: country_code
+data_type: char
+max_length: 2
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[187]
+schema_name: dbo
+table_name: user_profiles
+column_id: 14
+column_name: profile_visibility
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'private')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[188]
+schema_name: dbo
+table_name: user_profiles
+column_id: 15
+column_name: onboarding_status
+data_type: nvarchar
+max_length: 30
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'not_started')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[189]
+schema_name: dbo
+table_name: user_profiles
+column_id: 16
+column_name: onboarding_completed_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[190]
+schema_name: dbo
+table_name: user_profiles
+column_id: 17
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[191]
+schema_name: dbo
+table_name: user_profiles
+column_id: 18
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[192]
+schema_name: dbo
+table_name: user_profiles
+column_id: 19
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[193]
+schema_name: dbo
+table_name: user_profiles
+column_id: 20
+column_name: profile_status
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'active')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[194]
+schema_name: dbo
+table_name: user_profiles
+column_id: 21
+column_name: primary_professional_title_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[195]
+schema_name: dbo
+table_name: user_profiles
+column_id: 22
+column_name: primary_email_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[196]
+schema_name: dbo
+table_name: user_profiles
+column_id: 23
+column_name: primary_phone_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[197]
+schema_name: dbo
+table_name: user_profiles
+column_id: 24
+column_name: primary_website_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[198]
+schema_name: dbo
+table_name: user_profiles
+column_id: 25
+column_name: primary_location_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[199]
+schema_name: dbo
+table_name: user_profiles
+column_id: 26
+column_name: primary_social_link_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[200]
+schema_name: dbo
+table_name: user_profiles
+column_id: 27
+column_name: primary_profile_picture_id
+data_type: nvarchar
+max_length: 200
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[201]
+schema_name: dbo
+table_name: user_roles
+column_id: 1
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[202]
+schema_name: dbo
+table_name: user_roles
+column_id: 2
+column_name: role_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[203]
+schema_name: dbo
+table_name: user_roles
+column_id: 3
+column_name: assigned_by
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[204]
+schema_name: dbo
+table_name: user_roles
+column_id: 4
+column_name: assigned_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[205]
+schema_name: dbo
+table_name: user_settings
+column_id: 1
+column_name: user_id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[206]
+schema_name: dbo
+table_name: user_settings
+column_id: 2
+column_name: theme
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'system')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[207]
+schema_name: dbo
+table_name: user_settings
+column_id: 3
+column_name: dashboard_density
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'comfortable')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[208]
+schema_name: dbo
+table_name: user_settings
+column_id: 4
+column_name: reduce_motion
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[209]
+schema_name: dbo
+table_name: user_settings
+column_id: 5
+column_name: high_contrast
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[210]
+schema_name: dbo
+table_name: user_settings
+column_id: 6
+column_name: email_account_updates
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((1))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[211]
+schema_name: dbo
+table_name: user_settings
+column_id: 7
+column_name: email_platform_updates
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((1))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[212]
+schema_name: dbo
+table_name: user_settings
+column_id: 8
+column_name: email_opportunities
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[213]
+schema_name: dbo
+table_name: user_settings
+column_id: 9
+column_name: email_promotions
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[214]
+schema_name: dbo
+table_name: user_settings
+column_id: 10
+column_name: allow_usage_analytics
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[215]
+schema_name: dbo
+table_name: user_settings
+column_id: 11
+column_name: allow_personalization
+data_type: bit
+max_length: 1
+precision: 1
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((1))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[216]
+schema_name: dbo
+table_name: user_settings
+column_id: 12
+column_name: default_record_visibility
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'private')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[217]
+schema_name: dbo
+table_name: user_settings
+column_id: 13
+column_name: default_portfolio_visibility
+data_type: nvarchar
+max_length: 20
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'private')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[218]
+schema_name: dbo
+table_name: user_settings
+column_id: 14
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[219]
+schema_name: dbo
+table_name: user_settings
+column_id: 15
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[220]
+schema_name: dbo
+table_name: user_settings
+column_id: 16
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[221]
+schema_name: dbo
+table_name: users
+column_id: 1
+column_name: id
+data_type: uniqueidentifier
+max_length: 16
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (newsequentialid())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[222]
+schema_name: dbo
+table_name: users
+column_id: 2
+column_name: email
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[223]
+schema_name: dbo
+table_name: users
+column_id: 3
+column_name: normalized_email
+data_type: nvarchar
+max_length: 320
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[224]
+schema_name: dbo
+table_name: users
+column_id: 4
+column_name: password_hash
+data_type: nvarchar
+max_length: 500
+precision: 0
+scale: 0
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[225]
+schema_name: dbo
+table_name: users
+column_id: 5
+column_name: email_verified_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[226]
+schema_name: dbo
+table_name: users
+column_id: 6
+column_name: account_status
+data_type: nvarchar
+max_length: 30
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (N'pending')
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[227]
+schema_name: dbo
+table_name: users
+column_id: 7
+column_name: failed_login_count
+data_type: int
+max_length: 4
+precision: 10
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: ((0))
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[228]
+schema_name: dbo
+table_name: users
+column_id: 8
+column_name: locked_until
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[229]
+schema_name: dbo
+table_name: users
+column_id: 9
+column_name: last_login_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: true
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[230]
+schema_name: dbo
+table_name: users
+column_id: 10
+column_name: created_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[231]
+schema_name: dbo
+table_name: users
+column_id: 11
+column_name: updated_at
+data_type: datetime2
+max_length: 7
+precision: 23
+scale: 3
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: (sysutcdatetime())
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+[232]
+schema_name: dbo
+table_name: users
+column_id: 12
+column_name: row_version
+data_type: timestamp
+max_length: 8
+precision: 0
+scale: 0
+is_nullable: false
+is_identity: false
+is_computed: false
+is_rowguidcol: false
+default_definition: NULL
+computed_definition: NULL
+identity_seed: NULL
+identity_increment: NULL
+
+==========================================================================================
+PRIMARY KEYS AND UNIQUE CONSTRAINTS
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+constraint_name: PK_audit_logs
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_audit_logs
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[2]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: PK_auth_challenges
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_auth_challenges
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[3]
+schema_name: dbo
+table_name: certification_documents
+constraint_name: PK_certification_documents
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_certification_documents
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[4]
+schema_name: dbo
+table_name: certification_documents
+constraint_name: UQ_certification_documents_storage_key
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_certification_documents_storage_key
+key_ordinal: 1
+column_name: storage_key
+is_descending_key: false
+
+[5]
+schema_name: dbo
+table_name: certifications
+constraint_name: PK_certifications
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_certifications
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[6]
+schema_name: dbo
+table_name: certifications
+constraint_name: UQ_certifications_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_certifications_id_user
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[7]
+schema_name: dbo
+table_name: certifications
+constraint_name: UQ_certifications_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_certifications_id_user
+key_ordinal: 2
+column_name: user_id
+is_descending_key: false
+
+[8]
+schema_name: dbo
+table_name: experiences
+constraint_name: PK_experiences
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_experiences
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[9]
+schema_name: dbo
+table_name: experiences
+constraint_name: UQ_experiences_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_experiences_id_user
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[10]
+schema_name: dbo
+table_name: experiences
+constraint_name: UQ_experiences_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_experiences_id_user
+key_ordinal: 2
+column_name: user_id
+is_descending_key: false
+
+[11]
+schema_name: dbo
+table_name: login_audit_events
+constraint_name: PK_login_audit_events
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_login_audit_events
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[12]
+schema_name: dbo
+table_name: People
+constraint_name: PK__People__EC7D7D4D4DDB0404
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK__People__EC7D7D4D4DDB0404
+key_ordinal: 1
+column_name: personId
+is_descending_key: false
+
+[13]
+schema_name: dbo
+table_name: project_documents
+constraint_name: PK_project_documents
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_project_documents
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[14]
+schema_name: dbo
+table_name: project_documents
+constraint_name: UQ_project_documents_storage_key
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_project_documents_storage_key
+key_ordinal: 1
+column_name: storage_key
+is_descending_key: false
+
+[15]
+schema_name: dbo
+table_name: project_media
+constraint_name: PK_project_media
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_project_media
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[16]
+schema_name: dbo
+table_name: project_media
+constraint_name: UQ_project_media_storage_key
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_project_media_storage_key
+key_ordinal: 1
+column_name: storage_key
+is_descending_key: false
+
+[17]
+schema_name: dbo
+table_name: projects
+constraint_name: PK_projects
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_projects
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[18]
+schema_name: dbo
+table_name: projects
+constraint_name: UQ_projects_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_projects_id_user
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[19]
+schema_name: dbo
+table_name: projects
+constraint_name: UQ_projects_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_projects_id_user
+key_ordinal: 2
+column_name: user_id
+is_descending_key: false
+
+[20]
+schema_name: dbo
+table_name: roles
+constraint_name: PK_roles
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_roles
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[21]
+schema_name: dbo
+table_name: roles
+constraint_name: UQ_roles_name
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_roles_name
+key_ordinal: 1
+column_name: name
+is_descending_key: false
+
+[22]
+schema_name: dbo
+table_name: schema_migrations
+constraint_name: PK_schema_migrations
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_schema_migrations
+key_ordinal: 1
+column_name: migration_id
+is_descending_key: false
+
+[23]
+schema_name: dbo
+table_name: sessions
+constraint_name: PK_sessions
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_sessions
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[24]
+schema_name: dbo
+table_name: sessions
+constraint_name: UQ_sessions_refresh_token_hash
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_sessions_refresh_token_hash
+key_ordinal: 1
+column_name: refresh_token_hash
+is_descending_key: false
+
+[25]
+schema_name: dbo
+table_name: skills
+constraint_name: PK_skills
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_skills
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[26]
+schema_name: dbo
+table_name: skills
+constraint_name: UQ_skills_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_skills_id_user
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[27]
+schema_name: dbo
+table_name: skills
+constraint_name: UQ_skills_id_user
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_skills_id_user
+key_ordinal: 2
+column_name: user_id
+is_descending_key: false
+
+[28]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: PK_support_contact_requests
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_support_contact_requests
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[29]
+schema_name: dbo
+table_name: user_profile_contacts
+constraint_name: PK_user_profile_contacts
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profile_contacts
+key_ordinal: 1
+column_name: user_id
+is_descending_key: false
+
+[30]
+schema_name: dbo
+table_name: user_profile_contacts
+constraint_name: PK_user_profile_contacts
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profile_contacts
+key_ordinal: 2
+column_name: item_id
+is_descending_key: false
+
+[31]
+schema_name: dbo
+table_name: user_profile_pictures
+constraint_name: PK_user_profile_pictures
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profile_pictures
+key_ordinal: 1
+column_name: user_id
+is_descending_key: false
+
+[32]
+schema_name: dbo
+table_name: user_profile_pictures
+constraint_name: PK_user_profile_pictures
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profile_pictures
+key_ordinal: 2
+column_name: item_id
+is_descending_key: false
+
+[33]
+schema_name: dbo
+table_name: user_profile_professional_titles
+constraint_name: PK_user_profile_professional_titles
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profile_professional_titles
+key_ordinal: 1
+column_name: user_id
+is_descending_key: false
+
+[34]
+schema_name: dbo
+table_name: user_profile_professional_titles
+constraint_name: PK_user_profile_professional_titles
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profile_professional_titles
+key_ordinal: 2
+column_name: item_id
+is_descending_key: false
+
+[35]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: PK_user_profiles
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_profiles
+key_ordinal: 1
+column_name: user_id
+is_descending_key: false
+
+[36]
+schema_name: dbo
+table_name: user_roles
+constraint_name: PK_user_roles
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_roles
+key_ordinal: 1
+column_name: user_id
+is_descending_key: false
+
+[37]
+schema_name: dbo
+table_name: user_roles
+constraint_name: PK_user_roles
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_roles
+key_ordinal: 2
+column_name: role_id
+is_descending_key: false
+
+[38]
+schema_name: dbo
+table_name: user_settings
+constraint_name: PK_user_settings
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_user_settings
+key_ordinal: 1
+column_name: user_id
+is_descending_key: false
+
+[39]
+schema_name: dbo
+table_name: users
+constraint_name: PK_users
+type_desc: PRIMARY_KEY_CONSTRAINT
+index_name: PK_users
+key_ordinal: 1
+column_name: id
+is_descending_key: false
+
+[40]
+schema_name: dbo
+table_name: users
+constraint_name: UQ_users_normalized_email
+type_desc: UNIQUE_CONSTRAINT
+index_name: UQ_users_normalized_email
+key_ordinal: 1
+column_name: normalized_email
+is_descending_key: false
+
+==========================================================================================
+FOREIGN KEY RELATIONSHIPS
+==========================================================================================
+
+[1]
+foreign_key_name: FK_audit_logs_actor_user
+parent_schema: dbo
+parent_table: audit_logs
+parent_column: actor_user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[2]
+foreign_key_name: FK_audit_logs_target_user
+parent_schema: dbo
+parent_table: audit_logs
+parent_column: target_user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[3]
+foreign_key_name: FK_auth_challenges_user
+parent_schema: dbo
+parent_table: auth_challenges
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[4]
+foreign_key_name: FK_certification_documents_certification_owner
+parent_schema: dbo
+parent_table: certification_documents
+parent_column: certification_id
+referenced_schema: dbo
+referenced_table: certifications
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[5]
+foreign_key_name: FK_certification_documents_certification_owner
+parent_schema: dbo
+parent_table: certification_documents
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: certifications
+referenced_column: user_id
+column_position: 2
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[6]
+foreign_key_name: FK_certifications_user
+parent_schema: dbo
+parent_table: certifications
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[7]
+foreign_key_name: FK_experiences_user
+parent_schema: dbo
+parent_table: experiences
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[8]
+foreign_key_name: FK_login_audit_events_user
+parent_schema: dbo
+parent_table: login_audit_events
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[9]
+foreign_key_name: FK_project_documents_project_owner
+parent_schema: dbo
+parent_table: project_documents
+parent_column: project_id
+referenced_schema: dbo
+referenced_table: projects
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[10]
+foreign_key_name: FK_project_documents_project_owner
+parent_schema: dbo
+parent_table: project_documents
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: projects
+referenced_column: user_id
+column_position: 2
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[11]
+foreign_key_name: FK_project_media_project_owner
+parent_schema: dbo
+parent_table: project_media
+parent_column: project_id
+referenced_schema: dbo
+referenced_table: projects
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[12]
+foreign_key_name: FK_project_media_project_owner
+parent_schema: dbo
+parent_table: project_media
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: projects
+referenced_column: user_id
+column_position: 2
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[13]
+foreign_key_name: FK_projects_user
+parent_schema: dbo
+parent_table: projects
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[14]
+foreign_key_name: FK_sessions_user
+parent_schema: dbo
+parent_table: sessions
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[15]
+foreign_key_name: FK_skills_user
+parent_schema: dbo
+parent_table: skills
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[16]
+foreign_key_name: FK_support_contact_requests_user
+parent_schema: dbo
+parent_table: support_contact_requests
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: SET_NULL
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[17]
+foreign_key_name: FK_user_profile_contacts_profile
+parent_schema: dbo
+parent_table: user_profile_contacts
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: user_profiles
+referenced_column: user_id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[18]
+foreign_key_name: FK_user_profile_pictures_profile
+parent_schema: dbo
+parent_table: user_profile_pictures
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: user_profiles
+referenced_column: user_id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[19]
+foreign_key_name: FK_user_profile_professional_titles_profile
+parent_schema: dbo
+parent_table: user_profile_professional_titles
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: user_profiles
+referenced_column: user_id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[20]
+foreign_key_name: FK_user_profiles_user
+parent_schema: dbo
+parent_table: user_profiles
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[21]
+foreign_key_name: FK_user_roles_assigned_by
+parent_schema: dbo
+parent_table: user_roles
+parent_column: assigned_by
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[22]
+foreign_key_name: FK_user_roles_role
+parent_schema: dbo
+parent_table: user_roles
+parent_column: role_id
+referenced_schema: dbo
+referenced_table: roles
+referenced_column: id
+column_position: 1
+on_delete: NO_ACTION
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[23]
+foreign_key_name: FK_user_roles_user
+parent_schema: dbo
+parent_table: user_roles
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+[24]
+foreign_key_name: FK_user_settings_user
+parent_schema: dbo
+parent_table: user_settings
+parent_column: user_id
+referenced_schema: dbo
+referenced_table: users
+referenced_column: id
+column_position: 1
+on_delete: CASCADE
+on_update: NO_ACTION
+is_disabled: false
+is_not_trusted: false
+
+==========================================================================================
+CHECK CONSTRAINTS
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+constraint_name: CK_audit_logs_details_json
+definition: ([details_json] IS NULL OR isjson([details_json])=(1))
+is_disabled: false
+is_not_trusted: false
+
+[2]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: CK_auth_challenges_attempts
+definition: ([attempt_count]>=(0) AND ([maximum_attempts]>=(1) AND [maximum_attempts]<=(20)) AND [attempt_count]<=[maximum_attempts])
+is_disabled: false
+is_not_trusted: false
+
+[3]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: CK_auth_challenges_consumed
+definition: ([consumed_at] IS NULL OR [verified_at] IS NOT NULL)
+is_disabled: false
+is_not_trusted: false
+
+[4]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: CK_auth_challenges_expiration
+definition: ([expires_at]>[created_at])
+is_disabled: false
+is_not_trusted: false
+
+[5]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: CK_auth_challenges_identity
+definition: ([user_id] IS NOT NULL OR [normalized_pending_email] IS NOT NULL)
+is_disabled: false
+is_not_trusted: false
+
+[6]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: CK_auth_challenges_pending_email_pair
+definition: ([pending_email] IS NULL AND [normalized_pending_email] IS NULL OR [pending_email] IS NOT NULL AND [normalized_pending_email] IS NOT NULL)
+is_disabled: false
+is_not_trusted: false
+
+[7]
+schema_name: dbo
+table_name: auth_challenges
+constraint_name: CK_auth_challenges_purpose
+definition: ([purpose]=N'sensitive_action' OR [purpose]=N'email_change' OR [purpose]=N'password_reset' OR [purpose]=N'login' OR [purpose]=N'registration')
+is_disabled: false
+is_not_trusted: false
+
+[8]
+schema_name: dbo
+table_name: certification_documents
+constraint_name: CK_certification_documents_file_size
+definition: ([file_size]>=(1) AND [file_size]<=(20971520))
+is_disabled: false
+is_not_trusted: false
+
+[9]
+schema_name: dbo
+table_name: certification_documents
+constraint_name: CK_certification_documents_mime_type
+definition: ([mime_type]=N'image/heif' OR [mime_type]=N'image/heic' OR [mime_type]=N'image/tiff' OR [mime_type]=N'image/bmp' OR [mime_type]=N'image/avif' OR [mime_type]=N'image/gif' OR [mime_type]=N'image/webp' OR [mime_type]=N'image/png' OR [mime_type]=N'image/jpeg' OR [mime_type]=N'application/zip' OR [mime_type]=N'application/json' OR [mime_type]=N'text/csv' OR [mime_type]=N'text/markdown' OR [mime_type]=N'text/plain' OR [mime_type]=N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' OR [mime_type]=N'application/vnd.ms-excel' OR [mime_type]=N'application/vnd.openxmlformats-officedocument.presentationml.presentation' OR [mime_type]=N'application/vnd.ms-powerpoint' OR [mime_type]=N'application/vnd.openxmlformats-officedocument.wordprocessingml.document' OR [mime_type]=N'application/msword' OR [mime_type]=N'application/pdf')
+is_disabled: false
+is_not_trusted: false
+
+[10]
+schema_name: dbo
+table_name: certification_documents
+constraint_name: CK_certification_documents_original_file_name
+definition: (len(ltrim(rtrim([original_file_name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[11]
+schema_name: dbo
+table_name: certification_documents
+constraint_name: CK_certification_documents_storage_key
+definition: (len(ltrim(rtrim([storage_key])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[12]
+schema_name: dbo
+table_name: certifications
+constraint_name: CK_certifications_data_json
+definition: (isjson([certification_data])=(1))
+is_disabled: false
+is_not_trusted: false
+
+[13]
+schema_name: dbo
+table_name: certifications
+constraint_name: CK_certifications_dates
+definition: ([updated_at]>=[created_at])
+is_disabled: false
+is_not_trusted: false
+
+[14]
+schema_name: dbo
+table_name: certifications
+constraint_name: CK_certifications_id_not_blank
+definition: (len(ltrim(rtrim([id])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[15]
+schema_name: dbo
+table_name: certifications
+constraint_name: CK_certifications_name_not_blank
+definition: (len(ltrim(rtrim([name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[16]
+schema_name: dbo
+table_name: certifications
+constraint_name: CK_certifications_status_not_blank
+definition: (len(ltrim(rtrim([status])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[17]
+schema_name: dbo
+table_name: certifications
+constraint_name: CK_certifications_type_not_blank
+definition: (len(ltrim(rtrim([certification_type])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[18]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_category
+definition: ([category]=N'other' OR [category]=N'military' OR [category]=N'teaching' OR [category]=N'research' OR [category]=N'leadership' OR [category]=N'volunteer' OR [category]=N'self-employment' OR [category]=N'freelance' OR [category]=N'internship' OR [category]=N'employment')
+is_disabled: false
+is_not_trusted: false
+
+[19]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_data_json
+definition: (isjson([experience_data])=(1))
+is_disabled: false
+is_not_trusted: false
+
+[20]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_dates
+definition: ([updated_at]>=[created_at])
+is_disabled: false
+is_not_trusted: false
+
+[21]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_id_not_blank
+definition: (len(ltrim(rtrim([id])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[22]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_organization_not_blank
+definition: (len(ltrim(rtrim([organization_name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[23]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_position_not_blank
+definition: (len(ltrim(rtrim([position_title])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[24]
+schema_name: dbo
+table_name: experiences
+constraint_name: CK_experiences_record_status
+definition: ([record_status]=N'archived' OR [record_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[25]
+schema_name: dbo
+table_name: login_audit_events
+constraint_name: CK_login_audit_events_failure_reason
+definition: ([was_successful]=(0) OR [failure_reason] IS NULL)
+is_disabled: false
+is_not_trusted: false
+
+[26]
+schema_name: dbo
+table_name: login_audit_events
+constraint_name: CK_login_audit_events_type
+definition: ([event_type]=N'account_locked' OR [event_type]=N'password_reset_completed' OR [event_type]=N'password_reset_requested' OR [event_type]=N'logout' OR [event_type]=N'login_completed' OR [event_type]=N'login_otp_failed' OR [event_type]=N'login_otp_verified' OR [event_type]=N'login_otp_sent' OR [event_type]=N'password_login_failed' OR [event_type]=N'password_login_succeeded' OR [event_type]=N'registration_completed' OR [event_type]=N'registration_otp_verified' OR [event_type]=N'registration_requested')
+is_disabled: false
+is_not_trusted: false
+
+[27]
+schema_name: dbo
+table_name: project_documents
+constraint_name: CK_project_documents_file_size
+definition: ([file_size]>=(1) AND [file_size]<=(20971520))
+is_disabled: false
+is_not_trusted: false
+
+[28]
+schema_name: dbo
+table_name: project_documents
+constraint_name: CK_project_documents_mime_type
+definition: ([mime_type]=N'image/webp' OR [mime_type]=N'image/png' OR [mime_type]=N'image/jpeg' OR [mime_type]=N'application/zip' OR [mime_type]=N'application/json' OR [mime_type]=N'text/csv' OR [mime_type]=N'text/markdown' OR [mime_type]=N'text/plain' OR [mime_type]=N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' OR [mime_type]=N'application/vnd.ms-excel' OR [mime_type]=N'application/vnd.openxmlformats-officedocument.presentationml.presentation' OR [mime_type]=N'application/vnd.ms-powerpoint' OR [mime_type]=N'application/vnd.openxmlformats-officedocument.wordprocessingml.document' OR [mime_type]=N'application/msword' OR [mime_type]=N'application/pdf')
+is_disabled: false
+is_not_trusted: false
+
+[29]
+schema_name: dbo
+table_name: project_documents
+constraint_name: CK_project_documents_original_file_name
+definition: (len(ltrim(rtrim([original_file_name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[30]
+schema_name: dbo
+table_name: project_documents
+constraint_name: CK_project_documents_storage_key
+definition: (len(ltrim(rtrim([storage_key])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[31]
+schema_name: dbo
+table_name: project_media
+constraint_name: CK_project_media_file_size
+definition: (([mime_type]=N'image/gif' OR [mime_type]=N'image/avif' OR [mime_type]=N'image/webp' OR [mime_type]=N'image/png' OR [mime_type]=N'image/jpeg') AND ([file_size]>=(1) AND [file_size]<=(20971520)) OR ([mime_type]=N'video/webm' OR [mime_type]=N'video/mp4') AND ([file_size]>=(1) AND [file_size]<=(104857600)))
+is_disabled: false
+is_not_trusted: false
+
+[32]
+schema_name: dbo
+table_name: project_media
+constraint_name: CK_project_media_mime_type
+definition: ([mime_type]=N'video/webm' OR [mime_type]=N'video/mp4' OR [mime_type]=N'image/gif' OR [mime_type]=N'image/avif' OR [mime_type]=N'image/webp' OR [mime_type]=N'image/png' OR [mime_type]=N'image/jpeg')
+is_disabled: false
+is_not_trusted: false
+
+[33]
+schema_name: dbo
+table_name: project_media
+constraint_name: CK_project_media_original_file_name
+definition: (len(ltrim(rtrim([original_file_name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[34]
+schema_name: dbo
+table_name: project_media
+constraint_name: CK_project_media_storage_key
+definition: (len(ltrim(rtrim([storage_key])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[35]
+schema_name: dbo
+table_name: projects
+constraint_name: CK_projects_dates
+definition: ([updated_at]>=[created_at])
+is_disabled: false
+is_not_trusted: false
+
+[36]
+schema_name: dbo
+table_name: projects
+constraint_name: CK_projects_id_not_blank
+definition: (len(ltrim(rtrim([id])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[37]
+schema_name: dbo
+table_name: projects
+constraint_name: CK_projects_project_data_json
+definition: (isjson([project_data])=(1))
+is_disabled: false
+is_not_trusted: false
+
+[38]
+schema_name: dbo
+table_name: projects
+constraint_name: CK_projects_record_status
+definition: ([record_status]=N'archived' OR [record_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[39]
+schema_name: dbo
+table_name: projects
+constraint_name: CK_projects_title_not_blank
+definition: (len(ltrim(rtrim([title])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[40]
+schema_name: dbo
+table_name: roles
+constraint_name: CK_roles_name
+definition: ([name]=lower([name]) AND NOT [name] like N'%[^a-z0-9_-]%')
+is_disabled: false
+is_not_trusted: false
+
+[41]
+schema_name: dbo
+table_name: sessions
+constraint_name: CK_sessions_expiration
+definition: ([expires_at]>[created_at])
+is_disabled: false
+is_not_trusted: false
+
+[42]
+schema_name: dbo
+table_name: sessions
+constraint_name: CK_sessions_revocation
+definition: ([revoked_at] IS NOT NULL OR [revocation_reason] IS NULL)
+is_disabled: false
+is_not_trusted: false
+
+[43]
+schema_name: dbo
+table_name: skills
+constraint_name: CK_skills_data_json
+definition: (isjson([skill_data])=(1))
+is_disabled: false
+is_not_trusted: false
+
+[44]
+schema_name: dbo
+table_name: skills
+constraint_name: CK_skills_dates
+definition: ([updated_at]>=[created_at])
+is_disabled: false
+is_not_trusted: false
+
+[45]
+schema_name: dbo
+table_name: skills
+constraint_name: CK_skills_id_not_blank
+definition: (len(ltrim(rtrim([id])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[46]
+schema_name: dbo
+table_name: skills
+constraint_name: CK_skills_name_not_blank
+definition: (len(ltrim(rtrim([name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[47]
+schema_name: dbo
+table_name: skills
+constraint_name: CK_skills_normalized_name_not_blank
+definition: (len(ltrim(rtrim([normalized_name])))>(0))
+is_disabled: false
+is_not_trusted: false
+
+[48]
+schema_name: dbo
+table_name: skills
+constraint_name: CK_skills_record_status
+definition: ([record_status]=N'archived' OR [record_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[49]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: CK_support_contact_requests_category
+definition: ([category]=N'other' OR [category]=N'feedback' OR [category]=N'partnership' OR [category]=N'privacy_security' OR [category]=N'portfolio' OR [category]=N'resume' OR [category]=N'ai_assistance' OR [category]=N'profile_records' OR [category]=N'account_access')
+is_disabled: false
+is_not_trusted: false
+
+[50]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: CK_support_contact_requests_message
+definition: (len(ltrim(rtrim([request_message])))>=(20) AND len(ltrim(rtrim([request_message])))<=(5000))
+is_disabled: false
+is_not_trusted: false
+
+[51]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: CK_support_contact_requests_reply_consent
+definition: ([reply_consent]=(1))
+is_disabled: false
+is_not_trusted: false
+
+[52]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: CK_support_contact_requests_sender_name
+definition: (len(ltrim(rtrim([sender_name])))>=(1) AND len(ltrim(rtrim([sender_name])))<=(120))
+is_disabled: false
+is_not_trusted: false
+
+[53]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: CK_support_contact_requests_status
+definition: ([request_status]=N'spam' OR [request_status]=N'closed' OR [request_status]=N'resolved' OR [request_status]=N'waiting_for_requester' OR [request_status]=N'in_review' OR [request_status]=N'new')
+is_disabled: false
+is_not_trusted: false
+
+[54]
+schema_name: dbo
+table_name: support_contact_requests
+constraint_name: CK_support_contact_requests_subject
+definition: (len(ltrim(rtrim([subject])))>=(1) AND len(ltrim(rtrim([subject])))<=(160))
+is_disabled: false
+is_not_trusted: false
+
+[55]
+schema_name: dbo
+table_name: user_profile_contacts
+constraint_name: CK_user_profile_contacts_category
+definition: ([category]=N'socialLinks' OR [category]=N'locations' OR [category]=N'websites' OR [category]=N'phones' OR [category]=N'emails')
+is_disabled: false
+is_not_trusted: false
+
+[56]
+schema_name: dbo
+table_name: user_profile_contacts
+constraint_name: CK_user_profile_contacts_order
+definition: ([display_order]>=(0))
+is_disabled: false
+is_not_trusted: false
+
+[57]
+schema_name: dbo
+table_name: user_profile_contacts
+constraint_name: CK_user_profile_contacts_status
+definition: ([item_status]=N'archived' OR [item_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[58]
+schema_name: dbo
+table_name: user_profile_pictures
+constraint_name: CK_user_profile_pictures_dimensions
+definition: (([image_width] IS NULL OR [image_width]>(0)) AND ([image_height] IS NULL OR [image_height]>(0)))
+is_disabled: false
+is_not_trusted: false
+
+[59]
+schema_name: dbo
+table_name: user_profile_pictures
+constraint_name: CK_user_profile_pictures_file_size
+definition: ([file_size]>=(0) AND [file_size]<=(20971520))
+is_disabled: false
+is_not_trusted: false
+
+[60]
+schema_name: dbo
+table_name: user_profile_pictures
+constraint_name: CK_user_profile_pictures_order
+definition: ([display_order]>=(0))
+is_disabled: false
+is_not_trusted: false
+
+[61]
+schema_name: dbo
+table_name: user_profile_pictures
+constraint_name: CK_user_profile_pictures_status
+definition: ([item_status]=N'archived' OR [item_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[62]
+schema_name: dbo
+table_name: user_profile_professional_titles
+constraint_name: CK_user_profile_professional_titles_order
+definition: ([display_order]>=(0))
+is_disabled: false
+is_not_trusted: false
+
+[63]
+schema_name: dbo
+table_name: user_profile_professional_titles
+constraint_name: CK_user_profile_professional_titles_status
+definition: ([item_status]=N'archived' OR [item_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[64]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_country_code
+definition: ([country_code] IS NULL OR len([country_code])=(2) AND [country_code]=upper([country_code]))
+is_disabled: false
+is_not_trusted: false
+
+[65]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_normalized_username
+definition: ([normalized_username] IS NULL OR [normalized_username]=lower([normalized_username]) AND NOT ([normalized_username]) collate Latin1_General_100_BIN2 like N'%[^a-z0-9_-]%')
+is_disabled: false
+is_not_trusted: false
+
+[66]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_onboarding_completion
+definition: ([onboarding_status]<>N'completed' OR [onboarding_completed_at] IS NOT NULL)
+is_disabled: false
+is_not_trusted: false
+
+[67]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_onboarding_status
+definition: ([onboarding_status]=N'skipped' OR [onboarding_status]=N'completed' OR [onboarding_status]=N'in_progress' OR [onboarding_status]=N'not_started')
+is_disabled: false
+is_not_trusted: false
+
+[68]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_profile_status
+definition: ([profile_status]=N'archived' OR [profile_status]=N'active')
+is_disabled: false
+is_not_trusted: false
+
+[69]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_username_length
+definition: ([normalized_username] IS NULL OR len([normalized_username])>=(3) AND len([normalized_username])<=(50))
+is_disabled: false
+is_not_trusted: false
+
+[70]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_username_pair
+definition: ([username] IS NULL AND [normalized_username] IS NULL OR [username] IS NOT NULL AND [normalized_username] IS NOT NULL)
+is_disabled: false
+is_not_trusted: false
+
+[71]
+schema_name: dbo
+table_name: user_profiles
+constraint_name: CK_user_profiles_visibility
+definition: ([profile_visibility]=N'public' OR [profile_visibility]=N'unlisted' OR [profile_visibility]=N'private')
+is_disabled: false
+is_not_trusted: false
+
+[72]
+schema_name: dbo
+table_name: user_settings
+constraint_name: CK_user_settings_dashboard_density
+definition: ([dashboard_density]=N'compact' OR [dashboard_density]=N'comfortable')
+is_disabled: false
+is_not_trusted: false
+
+[73]
+schema_name: dbo
+table_name: user_settings
+constraint_name: CK_user_settings_portfolio_visibility
+definition: ([default_portfolio_visibility]=N'public' OR [default_portfolio_visibility]=N'unlisted' OR [default_portfolio_visibility]=N'private')
+is_disabled: false
+is_not_trusted: false
+
+[74]
+schema_name: dbo
+table_name: user_settings
+constraint_name: CK_user_settings_record_visibility
+definition: ([default_record_visibility]=N'public' OR [default_record_visibility]=N'private')
+is_disabled: false
+is_not_trusted: false
+
+[75]
+schema_name: dbo
+table_name: user_settings
+constraint_name: CK_user_settings_theme
+definition: ([theme]=N'dark' OR [theme]=N'light' OR [theme]=N'system')
+is_disabled: false
+is_not_trusted: false
+
+[76]
+schema_name: dbo
+table_name: users
+constraint_name: CK_users_account_status
+definition: ([account_status]=N'deleted' OR [account_status]=N'locked' OR [account_status]=N'suspended' OR [account_status]=N'active' OR [account_status]=N'pending')
+is_disabled: false
+is_not_trusted: false
+
+[77]
+schema_name: dbo
+table_name: users
+constraint_name: CK_users_active_requirements
+definition: ([account_status]<>N'active' OR [password_hash] IS NOT NULL AND [email_verified_at] IS NOT NULL)
+is_disabled: false
+is_not_trusted: false
+
+[78]
+schema_name: dbo
+table_name: users
+constraint_name: CK_users_failed_login_count
+definition: ([failed_login_count]>=(0))
+is_disabled: false
+is_not_trusted: false
+
+==========================================================================================
+DEFAULT CONSTRAINTS
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+column_name: created_at
+constraint_name: DF_audit_logs_created_at
+definition: (sysutcdatetime())
+
+[2]
+schema_name: dbo
+table_name: auth_challenges
+column_name: id
+constraint_name: DF_auth_challenges_id
+definition: (newsequentialid())
+
+[3]
+schema_name: dbo
+table_name: auth_challenges
+column_name: attempt_count
+constraint_name: DF_auth_challenges_attempt_count
+definition: ((0))
+
+[4]
+schema_name: dbo
+table_name: auth_challenges
+column_name: maximum_attempts
+constraint_name: DF_auth_challenges_maximum_attempts
+definition: ((5))
+
+[5]
+schema_name: dbo
+table_name: auth_challenges
+column_name: created_at
+constraint_name: DF_auth_challenges_created_at
+definition: (sysutcdatetime())
+
+[6]
+schema_name: dbo
+table_name: certification_documents
+column_name: created_at
+constraint_name: DF_certification_documents_created_at
+definition: (sysutcdatetime())
+
+[7]
+schema_name: dbo
+table_name: certifications
+column_name: created_at
+constraint_name: DF_certifications_created_at
+definition: (sysutcdatetime())
+
+[8]
+schema_name: dbo
+table_name: certifications
+column_name: updated_at
+constraint_name: DF_certifications_updated_at
+definition: (sysutcdatetime())
+
+[9]
+schema_name: dbo
+table_name: experiences
+column_name: record_status
+constraint_name: DF_experiences_record_status
+definition: (N'active')
+
+[10]
+schema_name: dbo
+table_name: experiences
+column_name: created_at
+constraint_name: DF_experiences_created_at
+definition: (sysutcdatetime())
+
+[11]
+schema_name: dbo
+table_name: experiences
+column_name: updated_at
+constraint_name: DF_experiences_updated_at
+definition: (sysutcdatetime())
+
+[12]
+schema_name: dbo
+table_name: login_audit_events
+column_name: created_at
+constraint_name: DF_login_audit_events_created_at
+definition: (sysutcdatetime())
+
+[13]
+schema_name: dbo
+table_name: People
+column_name: createdAt
+constraint_name: DF_People_CreatedAt
+definition: (sysutcdatetime())
+
+[14]
+schema_name: dbo
+table_name: project_documents
+column_name: id
+constraint_name: DF_project_documents_id
+definition: (newid())
+
+[15]
+schema_name: dbo
+table_name: project_documents
+column_name: created_at
+constraint_name: DF_project_documents_created_at
+definition: (sysutcdatetime())
+
+[16]
+schema_name: dbo
+table_name: project_media
+column_name: id
+constraint_name: DF_project_media_id
+definition: (newid())
+
+[17]
+schema_name: dbo
+table_name: project_media
+column_name: created_at
+constraint_name: DF_project_media_created_at
+definition: (sysutcdatetime())
+
+[18]
+schema_name: dbo
+table_name: projects
+column_name: record_status
+constraint_name: DF_projects_record_status
+definition: (N'active')
+
+[19]
+schema_name: dbo
+table_name: projects
+column_name: is_featured
+constraint_name: DF_projects_is_featured
+definition: ((0))
+
+[20]
+schema_name: dbo
+table_name: projects
+column_name: created_at
+constraint_name: DF_projects_created_at
+definition: (sysutcdatetime())
+
+[21]
+schema_name: dbo
+table_name: projects
+column_name: updated_at
+constraint_name: DF_projects_updated_at
+definition: (sysutcdatetime())
+
+[22]
+schema_name: dbo
+table_name: roles
+column_name: id
+constraint_name: DF_roles_id
+definition: (newsequentialid())
+
+[23]
+schema_name: dbo
+table_name: roles
+column_name: description
+constraint_name: DF_roles_description
+definition: (N'')
+
+[24]
+schema_name: dbo
+table_name: roles
+column_name: is_system_role
+constraint_name: DF_roles_is_system_role
+definition: ((1))
+
+[25]
+schema_name: dbo
+table_name: roles
+column_name: created_at
+constraint_name: DF_roles_created_at
+definition: (sysutcdatetime())
+
+[26]
+schema_name: dbo
+table_name: roles
+column_name: updated_at
+constraint_name: DF_roles_updated_at
+definition: (sysutcdatetime())
+
+[27]
+schema_name: dbo
+table_name: schema_migrations
+column_name: applied_at
+constraint_name: DF_schema_migrations_applied_at
+definition: (sysutcdatetime())
+
+[28]
+schema_name: dbo
+table_name: sessions
+column_name: id
+constraint_name: DF_sessions_id
+definition: (newsequentialid())
+
+[29]
+schema_name: dbo
+table_name: sessions
+column_name: created_at
+constraint_name: DF_sessions_created_at
+definition: (sysutcdatetime())
+
+[30]
+schema_name: dbo
+table_name: sessions
+column_name: last_used_at
+constraint_name: DF_sessions_last_used_at
+definition: (sysutcdatetime())
+
+[31]
+schema_name: dbo
+table_name: skills
+column_name: record_status
+constraint_name: DF_skills_record_status
+definition: (N'active')
+
+[32]
+schema_name: dbo
+table_name: skills
+column_name: created_at
+constraint_name: DF_skills_created_at
+definition: (sysutcdatetime())
+
+[33]
+schema_name: dbo
+table_name: skills
+column_name: updated_at
+constraint_name: DF_skills_updated_at
+definition: (sysutcdatetime())
+
+[34]
+schema_name: dbo
+table_name: support_contact_requests
+column_name: id
+constraint_name: DF_support_contact_requests_id
+definition: (newsequentialid())
+
+[35]
+schema_name: dbo
+table_name: support_contact_requests
+column_name: request_status
+constraint_name: DF_support_contact_requests_status
+definition: (N'new')
+
+[36]
+schema_name: dbo
+table_name: support_contact_requests
+column_name: created_at
+constraint_name: DF_support_contact_requests_created_at
+definition: (sysutcdatetime())
+
+[37]
+schema_name: dbo
+table_name: support_contact_requests
+column_name: updated_at
+constraint_name: DF_support_contact_requests_updated_at
+definition: (sysutcdatetime())
+
+[38]
+schema_name: dbo
+table_name: user_profile_contacts
+column_name: description
+constraint_name: DF_profile_contacts_description
+definition: (N'')
+
+[39]
+schema_name: dbo
+table_name: user_profile_contacts
+column_name: item_status
+constraint_name: DF_profile_contacts_status
+definition: (N'active')
+
+[40]
+schema_name: dbo
+table_name: user_profile_contacts
+column_name: created_at
+constraint_name: DF_profile_contacts_created_at
+definition: (sysutcdatetime())
+
+[41]
+schema_name: dbo
+table_name: user_profile_contacts
+column_name: updated_at
+constraint_name: DF_profile_contacts_updated_at
+definition: (sysutcdatetime())
+
+[42]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: picture_type
+constraint_name: DF_profile_pictures_type
+definition: (N'')
+
+[43]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: image_url
+constraint_name: DF_profile_pictures_image_url
+definition: (N'')
+
+[44]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: blob_name
+constraint_name: DF_profile_pictures_blob_name
+definition: (N'')
+
+[45]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: file_name
+constraint_name: DF_profile_pictures_file_name
+definition: (N'')
+
+[46]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: file_type
+constraint_name: DF_profile_pictures_file_type
+definition: (N'')
+
+[47]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: file_size
+constraint_name: DF_profile_pictures_file_size
+definition: ((0))
+
+[48]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: use_default_avatar
+constraint_name: DF_profile_pictures_default_avatar
+definition: ((0))
+
+[49]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: description
+constraint_name: DF_profile_pictures_description
+definition: (N'')
+
+[50]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: item_status
+constraint_name: DF_profile_pictures_status
+definition: (N'active')
+
+[51]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: created_at
+constraint_name: DF_profile_pictures_created_at
+definition: (sysutcdatetime())
+
+[52]
+schema_name: dbo
+table_name: user_profile_pictures
+column_name: updated_at
+constraint_name: DF_profile_pictures_updated_at
+definition: (sysutcdatetime())
+
+[53]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_name: description
+constraint_name: DF_profile_titles_description
+definition: (N'')
+
+[54]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_name: item_status
+constraint_name: DF_profile_titles_status
+definition: (N'active')
+
+[55]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_name: created_at
+constraint_name: DF_profile_titles_created_at
+definition: (sysutcdatetime())
+
+[56]
+schema_name: dbo
+table_name: user_profile_professional_titles
+column_name: updated_at
+constraint_name: DF_profile_titles_updated_at
+definition: (sysutcdatetime())
+
+[57]
+schema_name: dbo
+table_name: user_profiles
+column_name: first_name
+constraint_name: DF_user_profiles_first_name
+definition: (N'')
+
+[58]
+schema_name: dbo
+table_name: user_profiles
+column_name: middle_name
+constraint_name: DF_user_profiles_middle_name
+definition: (N'')
+
+[59]
+schema_name: dbo
+table_name: user_profiles
+column_name: last_name
+constraint_name: DF_user_profiles_last_name
+definition: (N'')
+
+[60]
+schema_name: dbo
+table_name: user_profiles
+column_name: preferred_name
+constraint_name: DF_user_profiles_preferred_name
+definition: (N'')
+
+[61]
+schema_name: dbo
+table_name: user_profiles
+column_name: display_name
+constraint_name: DF_user_profiles_display_name
+definition: (N'')
+
+[62]
+schema_name: dbo
+table_name: user_profiles
+column_name: professional_headline
+constraint_name: DF_user_profiles_professional_headline
+definition: (N'')
+
+[63]
+schema_name: dbo
+table_name: user_profiles
+column_name: professional_summary
+constraint_name: DF_user_profiles_professional_summary
+definition: (N'')
+
+[64]
+schema_name: dbo
+table_name: user_profiles
+column_name: locale
+constraint_name: DF_user_profiles_locale
+definition: (N'en-US')
+
+[65]
+schema_name: dbo
+table_name: user_profiles
+column_name: time_zone
+constraint_name: DF_user_profiles_time_zone
+definition: (N'America/New_York')
+
+[66]
+schema_name: dbo
+table_name: user_profiles
+column_name: profile_visibility
+constraint_name: DF_user_profiles_profile_visibility
+definition: (N'private')
+
+[67]
+schema_name: dbo
+table_name: user_profiles
+column_name: onboarding_status
+constraint_name: DF_user_profiles_onboarding_status
+definition: (N'not_started')
+
+[68]
+schema_name: dbo
+table_name: user_profiles
+column_name: created_at
+constraint_name: DF_user_profiles_created_at
+definition: (sysutcdatetime())
+
+[69]
+schema_name: dbo
+table_name: user_profiles
+column_name: updated_at
+constraint_name: DF_user_profiles_updated_at
+definition: (sysutcdatetime())
+
+[70]
+schema_name: dbo
+table_name: user_profiles
+column_name: profile_status
+constraint_name: DF_user_profiles_profile_status
+definition: (N'active')
+
+[71]
+schema_name: dbo
+table_name: user_roles
+column_name: assigned_at
+constraint_name: DF_user_roles_assigned_at
+definition: (sysutcdatetime())
+
+[72]
+schema_name: dbo
+table_name: user_settings
+column_name: theme
+constraint_name: DF_user_settings_theme
+definition: (N'system')
+
+[73]
+schema_name: dbo
+table_name: user_settings
+column_name: dashboard_density
+constraint_name: DF_user_settings_dashboard_density
+definition: (N'comfortable')
+
+[74]
+schema_name: dbo
+table_name: user_settings
+column_name: reduce_motion
+constraint_name: DF_user_settings_reduce_motion
+definition: ((0))
+
+[75]
+schema_name: dbo
+table_name: user_settings
+column_name: high_contrast
+constraint_name: DF_user_settings_high_contrast
+definition: ((0))
+
+[76]
+schema_name: dbo
+table_name: user_settings
+column_name: email_account_updates
+constraint_name: DF_user_settings_email_account_updates
+definition: ((1))
+
+[77]
+schema_name: dbo
+table_name: user_settings
+column_name: email_platform_updates
+constraint_name: DF_user_settings_email_platform_updates
+definition: ((1))
+
+[78]
+schema_name: dbo
+table_name: user_settings
+column_name: email_opportunities
+constraint_name: DF_user_settings_email_opportunities
+definition: ((0))
+
+[79]
+schema_name: dbo
+table_name: user_settings
+column_name: email_promotions
+constraint_name: DF_user_settings_email_promotions
+definition: ((0))
+
+[80]
+schema_name: dbo
+table_name: user_settings
+column_name: allow_usage_analytics
+constraint_name: DF_user_settings_allow_usage_analytics
+definition: ((0))
+
+[81]
+schema_name: dbo
+table_name: user_settings
+column_name: allow_personalization
+constraint_name: DF_user_settings_allow_personalization
+definition: ((1))
+
+[82]
+schema_name: dbo
+table_name: user_settings
+column_name: default_record_visibility
+constraint_name: DF_user_settings_default_record_visibility
+definition: (N'private')
+
+[83]
+schema_name: dbo
+table_name: user_settings
+column_name: default_portfolio_visibility
+constraint_name: DF_user_settings_default_portfolio_visibility
+definition: (N'private')
+
+[84]
+schema_name: dbo
+table_name: user_settings
+column_name: created_at
+constraint_name: DF_user_settings_created_at
+definition: (sysutcdatetime())
+
+[85]
+schema_name: dbo
+table_name: user_settings
+column_name: updated_at
+constraint_name: DF_user_settings_updated_at
+definition: (sysutcdatetime())
+
+[86]
+schema_name: dbo
+table_name: users
+column_name: id
+constraint_name: DF_users_id
+definition: (newsequentialid())
+
+[87]
+schema_name: dbo
+table_name: users
+column_name: account_status
+constraint_name: DF_users_account_status
+definition: (N'pending')
+
+[88]
+schema_name: dbo
+table_name: users
+column_name: failed_login_count
+constraint_name: DF_users_failed_login_count
+definition: ((0))
+
+[89]
+schema_name: dbo
+table_name: users
+column_name: created_at
+constraint_name: DF_users_created_at
+definition: (sysutcdatetime())
+
+[90]
+schema_name: dbo
+table_name: users
+column_name: updated_at
+constraint_name: DF_users_updated_at
+definition: (sysutcdatetime())
+
+==========================================================================================
+INDEXES AND INDEX COLUMNS
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_actor_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: actor_user_id
+is_included_column: false
+is_descending_key: false
+
+[2]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_actor_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[3]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_entity
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: entity_type
+is_included_column: false
+is_descending_key: false
+
+[4]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_entity
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: entity_id
+is_included_column: false
+is_descending_key: false
+
+[5]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_entity
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[6]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_target_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: target_user_id
+is_included_column: false
+is_descending_key: false
+
+[7]
+schema_name: dbo
+table_name: audit_logs
+index_name: IX_audit_logs_target_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[8]
+schema_name: dbo
+table_name: audit_logs
+index_name: PK_audit_logs
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[9]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: expires_at
+is_included_column: true
+is_descending_key: false
+
+[10]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: verified_at
+is_included_column: true
+is_descending_key: false
+
+[11]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 6
+column_name: consumed_at
+is_included_column: true
+is_descending_key: false
+
+[12]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 7
+column_name: attempt_count
+is_included_column: true
+is_descending_key: false
+
+[13]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: normalized_pending_email
+is_included_column: false
+is_descending_key: false
+
+[14]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: purpose
+is_included_column: false
+is_descending_key: false
+
+[15]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_email_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[16]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: expires_at
+is_included_column: true
+is_descending_key: false
+
+[17]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: verified_at
+is_included_column: true
+is_descending_key: false
+
+[18]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 6
+column_name: consumed_at
+is_included_column: true
+is_descending_key: false
+
+[19]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 7
+column_name: attempt_count
+is_included_column: true
+is_descending_key: false
+
+[20]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[21]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: purpose
+is_included_column: false
+is_descending_key: false
+
+[22]
+schema_name: dbo
+table_name: auth_challenges
+index_name: IX_auth_challenges_user_purpose
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[23]
+schema_name: dbo
+table_name: auth_challenges
+index_name: PK_auth_challenges
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[24]
+schema_name: dbo
+table_name: auth_challenges
+index_name: UX_auth_challenges_continuation_token_hash
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: false
+has_filter: true
+filter_definition: ([continuation_token_hash] IS NOT NULL)
+key_ordinal: 1
+index_column_id: 1
+column_name: continuation_token_hash
+is_included_column: false
+is_descending_key: false
+
+[25]
+schema_name: dbo
+table_name: certification_documents
+index_name: IX_certification_documents_certification_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: certification_id
+is_included_column: false
+is_descending_key: false
+
+[26]
+schema_name: dbo
+table_name: certification_documents
+index_name: IX_certification_documents_certification_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[27]
+schema_name: dbo
+table_name: certification_documents
+index_name: IX_certification_documents_user_certification
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[28]
+schema_name: dbo
+table_name: certification_documents
+index_name: IX_certification_documents_user_certification
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: certification_id
+is_included_column: false
+is_descending_key: false
+
+[29]
+schema_name: dbo
+table_name: certification_documents
+index_name: PK_certification_documents
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[30]
+schema_name: dbo
+table_name: certification_documents
+index_name: UQ_certification_documents_storage_key
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: storage_key
+is_included_column: false
+is_descending_key: false
+
+[31]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_issuer
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 3
+column_name: name
+is_included_column: true
+is_descending_key: false
+
+[32]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_issuer
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: certification_type
+is_included_column: true
+is_descending_key: false
+
+[33]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_issuer
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: status
+is_included_column: true
+is_descending_key: false
+
+[34]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_issuer
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[35]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_issuer
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: issuing_organization_name
+is_included_column: false
+is_descending_key: false
+
+[36]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: name
+is_included_column: true
+is_descending_key: false
+
+[37]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: certification_type
+is_included_column: true
+is_descending_key: false
+
+[38]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 6
+column_name: issuing_organization_name
+is_included_column: true
+is_descending_key: false
+
+[39]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[40]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: status
+is_included_column: false
+is_descending_key: false
+
+[41]
+schema_name: dbo
+table_name: certifications
+index_name: IX_certifications_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: updated_at
+is_included_column: false
+is_descending_key: true
+
+[42]
+schema_name: dbo
+table_name: certifications
+index_name: PK_certifications
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[43]
+schema_name: dbo
+table_name: certifications
+index_name: UQ_certifications_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[44]
+schema_name: dbo
+table_name: certifications
+index_name: UQ_certifications_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[45]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_organization
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 3
+column_name: position_title
+is_included_column: true
+is_descending_key: false
+
+[46]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_organization
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: category
+is_included_column: true
+is_descending_key: false
+
+[47]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_organization
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: record_status
+is_included_column: true
+is_descending_key: false
+
+[48]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_organization
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[49]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_organization
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: organization_name
+is_included_column: false
+is_descending_key: false
+
+[50]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: position_title
+is_included_column: true
+is_descending_key: false
+
+[51]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: organization_name
+is_included_column: true
+is_descending_key: false
+
+[52]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 6
+column_name: category
+is_included_column: true
+is_descending_key: false
+
+[53]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[54]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: record_status
+is_included_column: false
+is_descending_key: false
+
+[55]
+schema_name: dbo
+table_name: experiences
+index_name: IX_experiences_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: updated_at
+is_included_column: false
+is_descending_key: true
+
+[56]
+schema_name: dbo
+table_name: experiences
+index_name: PK_experiences
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[57]
+schema_name: dbo
+table_name: experiences
+index_name: UQ_experiences_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[58]
+schema_name: dbo
+table_name: experiences
+index_name: UQ_experiences_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[59]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 2
+column_name: event_type
+is_included_column: true
+is_descending_key: false
+
+[60]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 3
+column_name: was_successful
+is_included_column: true
+is_descending_key: false
+
+[61]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[62]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_email_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: email_attempted
+is_included_column: false
+is_descending_key: false
+
+[63]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_email_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[64]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_user_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[65]
+schema_name: dbo
+table_name: login_audit_events
+index_name: IX_login_audit_events_user_created_at
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[66]
+schema_name: dbo
+table_name: login_audit_events
+index_name: PK_login_audit_events
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[67]
+schema_name: dbo
+table_name: People
+index_name: PK__People__EC7D7D4D4DDB0404
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: personId
+is_included_column: false
+is_descending_key: false
+
+[68]
+schema_name: dbo
+table_name: project_documents
+index_name: IX_project_documents_project_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: project_id
+is_included_column: false
+is_descending_key: false
+
+[69]
+schema_name: dbo
+table_name: project_documents
+index_name: IX_project_documents_project_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[70]
+schema_name: dbo
+table_name: project_documents
+index_name: IX_project_documents_user_project
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[71]
+schema_name: dbo
+table_name: project_documents
+index_name: IX_project_documents_user_project
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: project_id
+is_included_column: false
+is_descending_key: false
+
+[72]
+schema_name: dbo
+table_name: project_documents
+index_name: PK_project_documents
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[73]
+schema_name: dbo
+table_name: project_documents
+index_name: UQ_project_documents_storage_key
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: storage_key
+is_included_column: false
+is_descending_key: false
+
+[74]
+schema_name: dbo
+table_name: project_media
+index_name: IX_project_media_project_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: project_id
+is_included_column: false
+is_descending_key: false
+
+[75]
+schema_name: dbo
+table_name: project_media
+index_name: IX_project_media_project_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[76]
+schema_name: dbo
+table_name: project_media
+index_name: IX_project_media_user_project
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[77]
+schema_name: dbo
+table_name: project_media
+index_name: IX_project_media_user_project
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: project_id
+is_included_column: false
+is_descending_key: false
+
+[78]
+schema_name: dbo
+table_name: project_media
+index_name: PK_project_media
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[79]
+schema_name: dbo
+table_name: project_media
+index_name: UQ_project_media_storage_key
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: storage_key
+is_included_column: false
+is_descending_key: false
+
+[80]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_featured
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: title
+is_included_column: true
+is_descending_key: false
+
+[81]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_featured
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: record_status
+is_included_column: true
+is_descending_key: false
+
+[82]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_featured
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[83]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_featured
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: is_featured
+is_included_column: false
+is_descending_key: false
+
+[84]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_featured
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[85]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: title
+is_included_column: true
+is_descending_key: false
+
+[86]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: category
+is_included_column: true
+is_descending_key: false
+
+[87]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 6
+column_name: lifecycle_status
+is_included_column: true
+is_descending_key: false
+
+[88]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 7
+column_name: is_featured
+is_included_column: true
+is_descending_key: false
+
+[89]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[90]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: record_status
+is_included_column: false
+is_descending_key: false
+
+[91]
+schema_name: dbo
+table_name: projects
+index_name: IX_projects_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: updated_at
+is_included_column: false
+is_descending_key: true
+
+[92]
+schema_name: dbo
+table_name: projects
+index_name: PK_projects
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[93]
+schema_name: dbo
+table_name: projects
+index_name: UQ_projects_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[94]
+schema_name: dbo
+table_name: projects
+index_name: UQ_projects_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[95]
+schema_name: dbo
+table_name: roles
+index_name: PK_roles
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[96]
+schema_name: dbo
+table_name: roles
+index_name: UQ_roles_name
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: name
+is_included_column: false
+is_descending_key: false
+
+[97]
+schema_name: dbo
+table_name: schema_migrations
+index_name: PK_schema_migrations
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: migration_id
+is_included_column: false
+is_descending_key: false
+
+[98]
+schema_name: dbo
+table_name: sessions
+index_name: IX_sessions_user_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: last_used_at
+is_included_column: true
+is_descending_key: false
+
+[99]
+schema_name: dbo
+table_name: sessions
+index_name: IX_sessions_user_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: device_name
+is_included_column: true
+is_descending_key: false
+
+[100]
+schema_name: dbo
+table_name: sessions
+index_name: IX_sessions_user_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[101]
+schema_name: dbo
+table_name: sessions
+index_name: IX_sessions_user_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: revoked_at
+is_included_column: false
+is_descending_key: false
+
+[102]
+schema_name: dbo
+table_name: sessions
+index_name: IX_sessions_user_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: expires_at
+is_included_column: false
+is_descending_key: true
+
+[103]
+schema_name: dbo
+table_name: sessions
+index_name: PK_sessions
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[104]
+schema_name: dbo
+table_name: sessions
+index_name: UQ_sessions_refresh_token_hash
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: refresh_token_hash
+is_included_column: false
+is_descending_key: false
+
+[105]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_category
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 3
+column_name: name
+is_included_column: true
+is_descending_key: false
+
+[106]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_category
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: skill_type
+is_included_column: true
+is_descending_key: false
+
+[107]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_category
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: record_status
+is_included_column: true
+is_descending_key: false
+
+[108]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_category
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[109]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_category
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: category
+is_included_column: false
+is_descending_key: false
+
+[110]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: name
+is_included_column: true
+is_descending_key: false
+
+[111]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: category
+is_included_column: true
+is_descending_key: false
+
+[112]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 6
+column_name: skill_type
+is_included_column: true
+is_descending_key: false
+
+[113]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[114]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: record_status
+is_included_column: false
+is_descending_key: false
+
+[115]
+schema_name: dbo
+table_name: skills
+index_name: IX_skills_user_status_updated
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: updated_at
+is_included_column: false
+is_descending_key: true
+
+[116]
+schema_name: dbo
+table_name: skills
+index_name: PK_skills
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[117]
+schema_name: dbo
+table_name: skills
+index_name: UQ_skills_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[118]
+schema_name: dbo
+table_name: skills
+index_name: UQ_skills_id_user
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[119]
+schema_name: dbo
+table_name: skills
+index_name: UX_skills_user_normalized_name
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[120]
+schema_name: dbo
+table_name: skills
+index_name: UX_skills_user_normalized_name
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: normalized_name
+is_included_column: false
+is_descending_key: false
+
+[121]
+schema_name: dbo
+table_name: support_contact_requests
+index_name: IX_support_contact_requests_email_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: normalized_email
+is_included_column: false
+is_descending_key: false
+
+[122]
+schema_name: dbo
+table_name: support_contact_requests
+index_name: IX_support_contact_requests_email_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[123]
+schema_name: dbo
+table_name: support_contact_requests
+index_name: IX_support_contact_requests_status_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: request_status
+is_included_column: false
+is_descending_key: false
+
+[124]
+schema_name: dbo
+table_name: support_contact_requests
+index_name: IX_support_contact_requests_status_created
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: true
+
+[125]
+schema_name: dbo
+table_name: support_contact_requests
+index_name: PK_support_contact_requests
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[126]
+schema_name: dbo
+table_name: user_profile_contacts
+index_name: IX_user_profile_contacts_category_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[127]
+schema_name: dbo
+table_name: user_profile_contacts
+index_name: IX_user_profile_contacts_category_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: category
+is_included_column: false
+is_descending_key: false
+
+[128]
+schema_name: dbo
+table_name: user_profile_contacts
+index_name: IX_user_profile_contacts_category_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 3
+index_column_id: 3
+column_name: display_order
+is_included_column: false
+is_descending_key: false
+
+[129]
+schema_name: dbo
+table_name: user_profile_contacts
+index_name: PK_user_profile_contacts
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[130]
+schema_name: dbo
+table_name: user_profile_contacts
+index_name: PK_user_profile_contacts
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: item_id
+is_included_column: false
+is_descending_key: false
+
+[131]
+schema_name: dbo
+table_name: user_profile_pictures
+index_name: IX_user_profile_pictures_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[132]
+schema_name: dbo
+table_name: user_profile_pictures
+index_name: IX_user_profile_pictures_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: display_order
+is_included_column: false
+is_descending_key: false
+
+[133]
+schema_name: dbo
+table_name: user_profile_pictures
+index_name: PK_user_profile_pictures
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[134]
+schema_name: dbo
+table_name: user_profile_pictures
+index_name: PK_user_profile_pictures
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: item_id
+is_included_column: false
+is_descending_key: false
+
+[135]
+schema_name: dbo
+table_name: user_profile_professional_titles
+index_name: IX_user_profile_professional_titles_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[136]
+schema_name: dbo
+table_name: user_profile_professional_titles
+index_name: IX_user_profile_professional_titles_order
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: display_order
+is_included_column: false
+is_descending_key: false
+
+[137]
+schema_name: dbo
+table_name: user_profile_professional_titles
+index_name: PK_user_profile_professional_titles
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[138]
+schema_name: dbo
+table_name: user_profile_professional_titles
+index_name: PK_user_profile_professional_titles
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: item_id
+is_included_column: false
+is_descending_key: false
+
+[139]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_onboarding_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: onboarding_status
+is_included_column: false
+is_descending_key: false
+
+[140]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_onboarding_status
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: created_at
+is_included_column: false
+is_descending_key: false
+
+[141]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_visibility
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 3
+column_name: normalized_username
+is_included_column: true
+is_descending_key: false
+
+[142]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_visibility
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 4
+column_name: display_name
+is_included_column: true
+is_descending_key: false
+
+[143]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_visibility
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 0
+index_column_id: 5
+column_name: professional_headline
+is_included_column: true
+is_descending_key: false
+
+[144]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_visibility
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: profile_visibility
+is_included_column: false
+is_descending_key: false
+
+[145]
+schema_name: dbo
+table_name: user_profiles
+index_name: IX_user_profiles_visibility
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: updated_at
+is_included_column: false
+is_descending_key: true
+
+[146]
+schema_name: dbo
+table_name: user_profiles
+index_name: PK_user_profiles
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[147]
+schema_name: dbo
+table_name: user_profiles
+index_name: UX_user_profiles_normalized_username
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: false
+has_filter: true
+filter_definition: ([normalized_username] IS NOT NULL)
+key_ordinal: 1
+index_column_id: 1
+column_name: normalized_username
+is_included_column: false
+is_descending_key: false
+
+[148]
+schema_name: dbo
+table_name: user_roles
+index_name: IX_user_roles_role_id
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: role_id
+is_included_column: false
+is_descending_key: false
+
+[149]
+schema_name: dbo
+table_name: user_roles
+index_name: IX_user_roles_role_id
+index_type: NONCLUSTERED
+is_unique: false
+is_primary_key: false
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[150]
+schema_name: dbo
+table_name: user_roles
+index_name: PK_user_roles
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[151]
+schema_name: dbo
+table_name: user_roles
+index_name: PK_user_roles
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 2
+index_column_id: 2
+column_name: role_id
+is_included_column: false
+is_descending_key: false
+
+[152]
+schema_name: dbo
+table_name: user_settings
+index_name: PK_user_settings
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: user_id
+is_included_column: false
+is_descending_key: false
+
+[153]
+schema_name: dbo
+table_name: users
+index_name: PK_users
+index_type: CLUSTERED
+is_unique: true
+is_primary_key: true
+is_unique_constraint: false
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: id
+is_included_column: false
+is_descending_key: false
+
+[154]
+schema_name: dbo
+table_name: users
+index_name: UQ_users_normalized_email
+index_type: NONCLUSTERED
+is_unique: true
+is_primary_key: false
+is_unique_constraint: true
+has_filter: false
+filter_definition: NULL
+key_ordinal: 1
+index_column_id: 1
+column_name: normalized_email
+is_included_column: false
+is_descending_key: false
+
+==========================================================================================
+ESTIMATED TABLE ROW COUNTS
+==========================================================================================
+
+[1]
+schema_name: dbo
+table_name: audit_logs
+estimated_rows: 0
+
+[2]
+schema_name: dbo
+table_name: auth_challenges
+estimated_rows: 50
+
+[3]
+schema_name: dbo
+table_name: certification_documents
+estimated_rows: 0
+
+[4]
+schema_name: dbo
+table_name: certifications
+estimated_rows: 0
+
+[5]
+schema_name: dbo
+table_name: experiences
+estimated_rows: 2
+
+[6]
+schema_name: dbo
+table_name: login_audit_events
+estimated_rows: 228
+
+[7]
+schema_name: dbo
+table_name: People
+estimated_rows: 2
+
+[8]
+schema_name: dbo
+table_name: project_documents
+estimated_rows: 2
+
+[9]
+schema_name: dbo
+table_name: project_media
+estimated_rows: 1
+
+[10]
+schema_name: dbo
+table_name: projects
+estimated_rows: 1
+
+[11]
+schema_name: dbo
+table_name: roles
+estimated_rows: 2
+
+[12]
+schema_name: dbo
+table_name: schema_migrations
+estimated_rows: 12
+
+[13]
+schema_name: dbo
+table_name: sessions
+estimated_rows: 46
+
+[14]
+schema_name: dbo
+table_name: skills
+estimated_rows: 3
+
+[15]
+schema_name: dbo
+table_name: support_contact_requests
+estimated_rows: 3
+
+[16]
+schema_name: dbo
+table_name: user_profile_contacts
+estimated_rows: 3
+
+[17]
+schema_name: dbo
+table_name: user_profile_pictures
+estimated_rows: 2
+
+[18]
+schema_name: dbo
+table_name: user_profile_professional_titles
+estimated_rows: 2
+
+[19]
+schema_name: dbo
+table_name: user_profiles
+estimated_rows: 2
+
+[20]
+schema_name: dbo
+table_name: user_roles
+estimated_rows: 2
+
+[21]
+schema_name: dbo
+table_name: user_settings
+estimated_rows: 2
+
+[22]
+schema_name: dbo
+table_name: users
+estimated_rows: 2
+
+==========================================================================================
+VIEWS
+==========================================================================================
+
+[1]
+schema_name: dbo
+view_name: Get-DB-Name
+create_date: Mon Sep 14 2026 21:55:19 GMT-0400 (Eastern Daylight Time)
+modify_date: Mon Sep 14 2026 21:55:19 GMT-0400 (Eastern Daylight Time)
+
+==========================================================================================
+STORED PROCEDURES
+==========================================================================================
+No records found.
+
+==========================================================================================
+USER-DEFINED FUNCTIONS
+==========================================================================================
+No records found.
+
+==========================================================================================
+TRIGGERS
+==========================================================================================
+No records found.
+
+==========================================================================================
+SCHEMA MIGRATION HISTORY
+==========================================================================================
+
+[1]
+migration_id: 001_authentication_foundation.sql
+applied_at: Tue Sep 15 2026 15:43:28 GMT-0400 (Eastern Daylight Time)
+
+[2]
+migration_id: 002_user_profiles.sql
+applied_at: Tue Sep 15 2026 16:52:31 GMT-0400 (Eastern Daylight Time)
+
+[3]
+migration_id: 003_user_settings.sql
+applied_at: Tue Sep 15 2026 17:39:17 GMT-0400 (Eastern Daylight Time)
+
+[4]
+migration_id: 004_support_contact_requests.sql
+applied_at: Fri Sep 18 2026 22:58:05 GMT-0400 (Eastern Daylight Time)
+
+[5]
+migration_id: 005_profile_details.sql
+applied_at: Fri Sep 25 2026 00:52:37 GMT-0400 (Eastern Daylight Time)
+
+[6]
+migration_id: 006_projects.sql
+applied_at: Mon Oct 12 2026 23:06:05 GMT-0400 (Eastern Daylight Time)
+
+[7]
+migration_id: 007_project_media.sql
+applied_at: Tue Oct 13 2026 23:34:28 GMT-0400 (Eastern Daylight Time)
+
+[8]
+migration_id: 008_project_documents.sql
+applied_at: Wed Oct 21 2026 15:34:12 GMT-0400 (Eastern Daylight Time)
+
+[9]
+migration_id: 009_experiences.sql
+applied_at: Mon Oct 26 2026 15:46:45 GMT-0400 (Eastern Daylight Time)
+
+[10]
+migration_id: 010_skills.sql
+applied_at: Mon Oct 26 2026 23:44:24 GMT-0400 (Eastern Daylight Time)
+
+[11]
+migration_id: 011_certifications.sql
+applied_at: Tue Nov 03 2026 12:44:52 GMT-0500 (Eastern Standard Time)
+
+[12]
+migration_id: 012_certification_documents.sql
+applied_at: Tue Nov 03 2026 12:44:53 GMT-0500 (Eastern Standard Time)

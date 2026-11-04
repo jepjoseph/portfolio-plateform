@@ -1,0 +1,370 @@
+
+========================================
+FILE: frontend\src\context\CertificationDataContext.jsx
+========================================
+
+--- Lines 1-100 ---
+   1: import {
+   2:   createContext,
+   3:   useCallback,
+   4:   useContext,
+   5:   useEffect,
+   6:   useMemo,
+   7:   useState,
+   8: } from "react";
+   9: 
+  10: import {
+  11:   addCertificationDocument as addDocumentService,
+  12:   archiveCertification as archiveService,
+  13:   createCertification as createService,
+  14:   deleteCertification as deleteService,
+  15:   getCertifications,
+  16:   removeCertificationDocument as removeDocumentService,
+  17:   replaceCertificationDocumentFile as replaceDocumentService,
+  18:   restoreCertification as restoreService,
+  19:   setPrimaryCertificationDocument as setPrimaryDocumentService,
+  20:   updateCertification as updateService,
+  21: } from "../services/Certification/certificationService.js";
+  22: 
+  23: import { fetchCertifications } from "../services/Certification/certificationApiService.js";
+  24: import { CERTIFICATION_STORAGE_KEY } from "../services/Certification/certificationStorage.js";
+  25: 
+  26: import { migrateLegacyTrainingCertifications } from "../services/Certification/certificationTrainingMigrationService.js";
+  27: 
+  28: const CERTIFICATIONS_BACKEND_READ_MODE = true;
+  29: 
+  30: const CertificationDataContext = createContext(null);
+  31: 
+  32: /*
+  33:  * =========================================
+  34:  * Error Normalization
+  35:  * =========================================
+  36:  */
+  37: 
+  38: function normalizeContextError(error) {
+  39:   return {
+  40:     name: error?.name || "CertificationError",
+  41: 
+  42:     code: error?.code || "CERTIFICATION_OPERATION_ERROR",
+  43: 
+  44:     message:
+  45:       error?.publicMessage ||
+  46:       error?.message ||
+  47:       "The Certification Library operation could not be completed.",
+  48: 
+  49:     fieldErrors: error?.fieldErrors || error?.validation?.fieldErrors || {},
+  50: 
+  51:     errors: error?.errors || error?.validation?.errors || [],
+  52: 
+  53:     warnings: error?.warnings || error?.validation?.warnings || [],
+  54: 
+  55:     certificationId: error?.certificationId || "",
+  56: 
+  57:     documentId: error?.documentId || "",
+  58:   };
+  59: }
+  60: 
+  61: /*
+  62:  * =========================================
+  63:  * Certification Provider
+  64:  * =========================================
+  65:  */
+  66: 
+  67: export function CertificationDataProvider({ children }) {
+  68:   const [certifications, setCertifications] = useState([]);
+  69: 
+  70:   const [isLoading, setIsLoading] = useState(true);
+  71: 
+  72:   const [loadStatus, setLoadStatus] = useState("idle");
+  73: 
+  74:   const [saveStatus, setSaveStatus] = useState("idle");
+  75: 
+  76:   const [operation, setOperation] = useState(null);
+  77: 
+  78:   const [error, setError] = useState(null);
+  79: 
+  80:   const [warnings, setWarnings] = useState([]);
+  81: 
+  82:   /*
+  83:    * =========================================
+  84:    * Load Certification Library
+  85:    * =========================================
+  86:    */
+  87: 
+  88:   const refreshCertifications = useCallback(
+  89:     async ({ includeArchived = true, runLegacyMigration = false } = {}) => {
+  90:       setIsLoading(true);
+  91:       setLoadStatus("loading");
+  92: 
+  93:       try {
+  94:         let migrationReport = null;
+  95: 
+  96:         if (runLegacyMigration && !CERTIFICATIONS_BACKEND_READ_MODE) {
+  97:           migrationReport = await migrateLegacyTrainingCertifications();
+  98:         }
+  99: 
+ 100:         const records = CERTIFICATIONS_BACKEND_READ_MODE
+
+--- Lines 130-280 ---
+ 130:       }
+ 131:     },
+ 132:     [],
+ 133:   );
+ 134: 
+ 135:   /*
+ 136:    * =========================================
+ 137:    * Synchronize After Changes
+ 138:    * =========================================
+ 139:    */
+ 140: 
+ 141:   const synchronizeCertifications = useCallback(() => {
+ 142:     if (CERTIFICATIONS_BACKEND_READ_MODE) {
+ 143:       return refreshCertifications({ includeArchived: true });
+ 144:     }
+ 145: 
+ 146:     const records = getCertifications({
+ 147:       includeArchived: true,
+ 148:     });
+ 149: 
+ 150:     setCertifications(records);
+ 151:     setLoadStatus("success");
+ 152: 
+ 153:     return records;
+ 154:   }, [refreshCertifications]);
+ 155: 
+ 156:   /*
+ 157:    * =========================================
+ 158:    * Initial Loading
+ 159:    * =========================================
+ 160:    */
+ 161: 
+ 162:   useEffect(() => {
+ 163:     refreshCertifications({
+ 164:       includeArchived: true,
+ 165: 
+ 166:       /*
+ 167:        * The migration service uses its version marker,
+ 168:        * so this is safe to request during every initial
+ 169:        * Certification context load.
+ 170:        */
+ 171: 
+ 172:       runLegacyMigration: !CERTIFICATIONS_BACKEND_READ_MODE,
+ 173:     }).catch(() => {
+ 174:       /*
+ 175:        * The loading or migration error is already
+ 176:        * saved in the context.
+ 177:        */
+ 178:     });
+ 179:   }, [refreshCertifications]);
+ 180: 
+ 181:   /*
+ 182:    * =========================================
+ 183:    * Browser Tab Synchronization
+ 184:    * =========================================
+ 185:    */
+ 186: 
+ 187:   useEffect(() => {
+ 188:     if (typeof window === "undefined") {
+ 189:       return undefined;
+ 190:     }
+ 191: 
+ 192:     const handleStorageChange = (event) => {
+ 193:       if (
+ 194:         event.storageArea !== window.localStorage ||
+ 195:         event.key !== CERTIFICATION_STORAGE_KEY
+ 196:       ) {
+ 197:         return;
+ 198:       }
+ 199: 
+ 200:       refreshCertifications({
+ 201:         includeArchived: true,
+ 202:         runLegacyMigration: false,
+ 203:       }).catch(() => {
+ 204:         /*
+ 205:          * The loading error is already saved
+ 206:          * in the context.
+ 207:          */
+ 208:       });
+ 209:     };
+ 210: 
+ 211:     if (CERTIFICATIONS_BACKEND_READ_MODE) {
+ 212:       return undefined;
+ 213:     }
+ 214: 
+ 215:     window.addEventListener("storage", handleStorageChange);
+ 216: 
+ 217:     return () => {
+ 218:       window.removeEventListener("storage", handleStorageChange);
+ 219:     };
+ 220:   }, [refreshCertifications]);
+ 221: 
+ 222:   /*
+ 223:    * =========================================
+ 224:    * Mutation Runner
+ 225:    * =========================================
+ 226:    */
+ 227: 
+ 228:   const runMutation = useCallback(
+ 229:     async (operationInformation, mutation) => {
+ 230:       if (CERTIFICATIONS_BACKEND_READ_MODE) {
+ 231:         const unsupportedError = new Error(
+ 232:           "Certification editing is temporarily disabled until backend write endpoints are connected.",
+ 233:         );
+ 234: 
+ 235:         unsupportedError.code = "CERTIFICATION_BACKEND_WRITE_NOT_READY";
+ 236: 
+ 237:         setError(normalizeContextError(unsupportedError));
+ 238:         setSaveStatus("error");
+ 239: 
+ 240:         throw unsupportedError;
+ 241:       }
+ 242: 
+ 243:       setOperation(operationInformation);
+ 244:       setSaveStatus("saving");
+ 245:       setError(null);
+ 246:       setWarnings([]);
+ 247: 
+ 248:       try {
+ 249:         const result = await mutation();
+ 250: 
+ 251:         synchronizeCertifications();
+ 252: 
+ 253:         const resultWarnings = Array.isArray(result?.warnings)
+ 254:           ? result.warnings
+ 255:           : [];
+ 256: 
+ 257:         setWarnings(resultWarnings);
+ 258:         setSaveStatus("success");
+ 259: 
+ 260:         return result?.certification || result;
+ 261:       } catch (caughtError) {
+ 262:         const normalizedError = normalizeContextError(caughtError);
+ 263: 
+ 264:         setError(normalizedError);
+ 265: 
+ 266:         setWarnings(normalizedError.warnings);
+ 267: 
+ 268:         setSaveStatus("error");
+ 269: 
+ 270:         throw caughtError;
+ 271:       } finally {
+ 272:         setOperation(null);
+ 273:       }
+ 274:     },
+ 275:     [synchronizeCertifications],
+ 276:   );
+ 277: 
+ 278:   /*
+ 279:    * =========================================
+ 280:    * Create Certification
+
+--- Lines 490-590 ---
+ 490:   /*
+ 491:    * =========================================
+ 492:    * Derived Collections
+ 493:    * =========================================
+ 494:    */
+ 495: 
+ 496:   const activeCertifications = useMemo(
+ 497:     () =>
+ 498:       certifications.filter(
+ 499:         (certification) => certification.status !== "archived",
+ 500:       ),
+ 501:     [certifications],
+ 502:   );
+ 503: 
+ 504:   const archivedCertifications = useMemo(
+ 505:     () =>
+ 506:       certifications.filter(
+ 507:         (certification) => certification.status === "archived",
+ 508:       ),
+ 509:     [certifications],
+ 510:   );
+ 511: 
+ 512:   /*
+ 513:    * =========================================
+ 514:    * Context Value
+ 515:    * =========================================
+ 516:    */
+ 517: 
+ 518:   const contextValue = useMemo(
+ 519:     () => ({
+ 520:       certifications,
+ 521: 
+ 522:       activeCertifications,
+ 523: 
+ 524:       archivedCertifications,
+ 525: 
+ 526:       isLoading,
+ 527: 
+ 528:       loadStatus,
+ 529: 
+ 530:       saveStatus,
+ 531: 
+ 532:       operation,
+ 533: 
+ 534:       error,
+ 535: 
+ 536:       warnings,
+ 537: 
+ 538:       refreshCertifications,
+ 539: 
+ 540:       synchronizeCertifications,
+ 541: 
+ 542:       createCertification,
+ 543: 
+ 544:       updateCertification,
+ 545: 
+ 546:       archiveCertification,
+ 547: 
+ 548:       restoreCertification,
+ 549: 
+ 550:       deleteCertification,
+ 551: 
+ 552:       addCertificationDocument,
+ 553: 
+ 554:       removeCertificationDocument,
+ 555: 
+ 556:       replaceCertificationDocumentFile,
+ 557: 
+ 558:       setPrimaryCertificationDocument,
+ 559: 
+ 560:       clearError,
+ 561: 
+ 562:       clearWarnings,
+ 563: 
+ 564:       resetSaveStatus,
+ 565:     }),
+ 566:     [
+ 567:       certifications,
+ 568:       activeCertifications,
+ 569:       archivedCertifications,
+ 570:       isLoading,
+ 571:       loadStatus,
+ 572:       saveStatus,
+ 573:       operation,
+ 574:       error,
+ 575:       warnings,
+ 576:       refreshCertifications,
+ 577:       synchronizeCertifications,
+ 578:       createCertification,
+ 579:       updateCertification,
+ 580:       archiveCertification,
+ 581:       restoreCertification,
+ 582:       deleteCertification,
+ 583:       addCertificationDocument,
+ 584:       removeCertificationDocument,
+ 585:       replaceCertificationDocumentFile,
+ 586:       setPrimaryCertificationDocument,
+ 587:       clearError,
+ 588:       clearWarnings,
+ 589:       resetSaveStatus,
+ 590:     ],
+
+========================================
+FILE: frontend\src\services\Certification\certificationApiService.js
+========================================
+
+--- Lines 1-0 ---
+
+--- Lines 220-0 ---

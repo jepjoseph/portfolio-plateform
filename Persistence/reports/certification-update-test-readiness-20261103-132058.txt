@@ -1,0 +1,422 @@
+CERTIFICATION UPDATE TEST READINESS
+Generated: 2026-11-03T13:20:58.5006575-05:00
+
+===========================================================================
+FILE: package.json
+===========================================================================
+Total lines: 54
+{
+  "name": "portfolio-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend API for the portfolio and resume platform",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+    "db:migrate": "node src/database/runMigrations.js",
+    "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+    "test:local-sql": "node test-local-sql.mjs",
+    "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+    "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+    "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+    "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+    "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+    "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+    "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+    "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+    "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+    "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+    "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+    "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+    "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+    "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+    "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+    "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+    "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+    "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  },
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "file-type": "^22.1.1",
+    "groq-sdk": "^1.6.0",
+    "helmet": "^8.3.0",
+    "mssql": "^12.7.2",
+    "multer": "^2.4.0",
+    "openai": "^7.9.0",
+    "resend": "^6.28.1",
+    "yauzl": "^3.4.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
+  }
+}
+===========================================================================
+FILE: test\api\skillApi.test.js
+===========================================================================
+Total lines: 394
+   1: import "dotenv/config";
+   2: 
+   3: import assert from "node:assert/strict";
+   4: import { beforeEach, describe, it, mock } from "node:test";
+   5: import express from "express";
+   6: import supertest from "supertest";
+   7: 
+   8: process.env.NODE_ENV = "test";
+   9: process.env.SESSION_COOKIE_NAME = "portfolio_refresh_token";
+  10: process.env.SESSION_COOKIE_PATH = "/api";
+  11: process.env.SESSION_COOKIE_SAME_SITE = "lax";
+  12: delete process.env.SESSION_COOKIE_DOMAIN;
+  13: 
+  14: const USER_ID = "11111111-1111-4111-8111-111111111111";
+  15: const SESSION_ID = "22222222-2222-4222-8222-222222222222";
+  16: const SKILL_ID = "skill-550e8400-e29b-41d4-a716-446655440000";
+  17: const ROW_VERSION = "AAAAAAAAAAE=";
+  18: const TOKEN = "skills-test-refresh-token-12345678901234567890";
+  19: 
+  20: let state;
+  21: 
+  22: function skill(overrides = {}) {
+  23:   return {
+  24:     id: SKILL_ID,
+  25:     modelVersion: 1,
+  26:     name: "JavaScript",
+  27:     normalizedName: "javascript",
+  28:     category: "programming-languages",
+  29:     type: "technical",
+  30:     description: "Programming language",
+  31:     aliases: ["JS"],
+  32:     proficiency: {
+  33:       level: "advanced",
+  34:       yearsOfExperience: 5,
+  35:       lastUsedDate: "2026-10",
+  36:     },
+  37:     language: { proficiency: "" },
+  38:     source: "manual",
+  39:     sourceContext: "",
+  40:     notes: "",
+  41:     status: "active",
+  42:     createdAt: "2026-10-20T12:00:00.000Z",
+  43:     updatedAt: "2026-10-20T12:00:00.000Z",
+  44:     rowVersion: ROW_VERSION,
+  45:     ...overrides,
+  46:   };
+  47: }
+  48: 
+  49: function resetState() {
+  50:   state = {
+  51:     calls: [],
+  52:     error: null,
+  53:     skills: [skill()],
+  54:   };
+  55: }
+  56: 
+  57: resetState();
+  58: 
+  59: function record(operation, input) {
+  60:   state.calls.push({ operation, input });
+  61: 
+  62:   if (state.error) {
+  63:     throw state.error;
+  64:   }
+  65: }
+  66: 
+  67: mock.module("../../src/services/Service/sessionService.js", {
+  68:   exports: {
+  69:     async getAuthenticatedSession() {
+  70:       return {
+  71:         user: {
+  72:           id: USER_ID,
+  73:           email: "skills-test@example.com",
+  74:           emailVerifiedAt: "2026-09-23T00:00:00.000Z",
+  75:           accountStatus: "active",
+  76:         },
+  77:         roles: ["user"],
+  78:         session: {
+  79:           id: SESSION_ID,
+  80:           deviceName: "Test Browser",
+  81:           createdAt: "2026-09-23T00:00:00.000Z",
+  82:           lastUsedAt: "2026-09-23T00:00:00.000Z",
+  83:           expiresAt: "2026-12-23T00:00:00.000Z",
+  84:           isCurrent: true,
+  85:         },
+  86:       };
+  87:     },
+  88:   },
+  89: });
+  90: 
+  91: mock.module("../../src/services/Service/skillService.js", {
+  92:   exports: {
+  93:     async getAuthenticatedSkills(input) {
+  94:       record("list", input);
+  95:       return state.skills;
+  96:     },
+  97: 
+  98:     async getAuthenticatedSkill(input) {
+  99:       record("get", input);
+ 100:       return state.skills.find((item) => item.id === input.skillId) ?? null;
+===========================================================================
+FILE: test\services\skillService.test.js
+===========================================================================
+Total lines: 310
+   1: import assert from "node:assert/strict";
+   2: import { beforeEach, mock, test } from "node:test";
+   3: 
+   4: const USER_ID = "11111111-1111-4111-8111-111111111111";
+   5: const SKILL_ID = "skill-550e8400-e29b-41d4-a716-446655440000";
+   6: const VERSION = Buffer.alloc(8, 1).toString("base64");
+   7: const NEW_VERSION = Buffer.alloc(8, 2).toString("base64");
+   8: 
+   9: let records = [];
+  10: let calls = [];
+  11: let updateResult;
+  12: let createResult;
+  13: 
+  14: function validSkill(overrides = {}) {
+  15:   return {
+  16:     name: "JavaScript",
+  17:     category: "programming-languages",
+  18:     type: "technical",
+  19:     aliases: ["JS"],
+  20:     proficiency: {
+  21:       level: "advanced",
+  22:       yearsOfExperience: 5,
+  23:       lastUsedDate: "2026-10",
+  24:     },
+  25:     ...overrides,
+  26:   };
+  27: }
+  28: 
+  29: function storedSkill(overrides = {}) {
+  30:   return {
+  31:     modelVersion: 1,
+  32:     id: SKILL_ID,
+  33:     normalizedName: "javascript",
+  34:     description: "",
+  35:     language: { proficiency: "" },
+  36:     source: "manual",
+  37:     sourceContext: "",
+  38:     notes: "",
+  39:     status: "active",
+  40:     createdAt: "2026-10-20T12:00:00.000Z",
+  41:     updatedAt: "2026-10-20T12:00:00.000Z",
+  42:     rowVersion: VERSION,
+  43:     ...validSkill(),
+  44:     ...overrides,
+  45:   };
+  46: }
+  47: 
+  48: mock.module("../../src/repositories/skillRepository.js", {
+  49:   namedExports: {
+  50:     listSkillsByUser: async (userId) => {
+  51:       calls.push(["list", userId]);
+  52:       return records;
+  53:     },
+  54: 
+  55:     findSkillById: async (userId, skillId) => {
+  56:       calls.push(["find", userId, skillId]);
+  57:       return records.find((record) => record.id === skillId) ?? null;
+  58:     },
+  59: 
+  60:     findSkillByNormalizedName: async () => null,
+  61: 
+  62:     createSkill: async (userId, skill) => {
+  63:       calls.push(["create", userId, skill]);
+  64:       return createResult === undefined ? skill : createResult;
+  65:     },
+  66: 
+  67:     updateSkill: async (userId, skill, rowVersion) => {
+  68:       calls.push(["update", userId, skill, rowVersion]);
+  69: 
+  70:       if (updateResult !== undefined) {
+  71:         return updateResult;
+  72:       }
+  73: 
+  74:       return { ...skill, rowVersion: NEW_VERSION };
+  75:     },
+  76: 
+  77:     deleteSkill: async () => {
+  78:       throw new Error("Permanent deletion must not reach repository.");
+  79:     },
+  80:   },
+  81: });
+  82: 
+  83: const service = await import(
+  84:   "../../src/services/Service/skillService.js"
+  85: );
+  86: 
+  87: beforeEach(() => {
+  88:   records = [];
+  89:   calls = [];
+  90:   updateResult = undefined;
+  91:   createResult = undefined;
+  92: });
+  93: 
+  94: test("rejects unauthenticated Skill listing", async () => {
+  95:   await assert.rejects(
+  96:     service.getAuthenticatedSkills({ userId: "" }),
+  97:     { code: "SKILL_AUTHENTICATION_REQUIRED", status: 401 },
+  98:   );
+  99: 
+ 100:   assert.equal(calls.length, 0);
+===========================================================================
+FILE: test\repositories\certificationRepository.test.js
+===========================================================================
+NOT FOUND
+===========================================================================
+FILE: src\services\Service\certificationService.js
+===========================================================================
+Total lines: 290
+ 146:   try {
+ 147:     const created = await createCertificationRecord(
+ 148:       userId,
+ 149:       validated,
+ 150:     );
+ 151: 
+ 152:     return normalizeRecord(created);
+ 153:   } catch (error) {
+ 154:     const number =
+ 155:       error.number ??
+ 156:       error.originalError?.number ??
+ 157:       error.cause?.number;
+ 158: 
+ 159:     if (number === 2601 || number === 2627) {
+ 160:       throw certificationError(
+ 161:         "A Certification identifier already exists.",
+ 162:         "CERTIFICATION_ID_CONFLICT",
+ 163:         409,
+ 164:       );
+ 165:     }
+ 166: 
+ 167:     throw error;
+ 168:   }
+ 169: }
+ 170: 
+ 171: function requireMetadataOnlyUpdates(updates) {
+ 172:   const restricted = [
+ 173:     "supportingDocuments",
+ 174:     "skillRelationships",
+ 175:     "relatedRecords",
+ 176:   ];
+ 177: 
+ 178:   for (const field of restricted) {
+ 179:     if (Object.hasOwn(updates, field)) {
+ 180:       throw certificationError(
+ 181:         `Updating ${field} is not available yet.`,
+ 182:         "CERTIFICATION_RELATIONSHIP_UPDATE_NOT_READY",
+ 183:         400,
+ 184:       );
+ 185:     }
+ 186:   }
+ 187: }
+ 188: 
+ 189: export async function updateAuthenticatedCertification({
+ 190:   userId,
+ 191:   certificationId,
+ 192:   updates,
+ 193:   rowVersion,
+ 194: }) {
+ 195:   requireUserId(userId);
+ 196: 
+ 197:   const params = validate(certificationIdParamsSchema, {
+ 198:     certificationId,
+ 199:   });
+ 200: 
+ 201:   const expectedVersion = validate(
+ 202:     certificationRowVersionSchema,
+ 203:     rowVersion,
+ 204:   );
+ 205: 
+ 206:   const validatedUpdates = validate(
+ 207:     updateCertificationSchema,
+ 208:     updates,
+ 209:   );
+ 210: 
+ 211:   requireMetadataOnlyUpdates(validatedUpdates);
+ 212: 
+ 213:   const existing = await findCertificationById(
+ 214:     userId,
+ 215:     params.certificationId,
+ 216:   );
+ 217: 
+ 218:   if (!existing) {
+ 219:     throw certificationError(
+ 220:       "Certification not found.",
+ 221:       "CERTIFICATION_NOT_FOUND",
+ 222:       404,
+ 223:     );
+ 224:   }
+ 225: 
+ 226:   if (existing.rowVersion !== expectedVersion) {
+ 227:     throw certificationError(
+ 228:       "Certification was modified by another operation.",
+ 229:       "CERTIFICATION_VERSION_CONFLICT",
+ 230:       409,
+ 231:     );
+ 232:   }
+ 233: 
+ 234:   const {
+ 235:     rowVersion: _storedRowVersion,
+ 236:     ...storedModel
+ 237:   } = normalizeRecord(existing);
+ 238: 
+ 239:   const now = new Date().toISOString();
+ 240: 
+ 241:   const merged = {
+ 242:     ...storedModel,
+ 243:     ...validatedUpdates,
+ 244:     id: storedModel.id,
+ 245:     createdAt: storedModel.createdAt,
+ 246:     updatedAt: now,
+ 247:   };
+ 248: 
+ 249:   const complete = validate(
+ 250:     completeCertificationSchema,
+ 251:     merged,
+ 252:   );
+ 253: 
+ 254:   if (complete.supportingDocuments.length > 0) {
+ 255:     throw certificationError(
+ 256:       "Updating Certifications with documents is not available yet.",
+ 257:       "CERTIFICATION_DOCUMENTS_NOT_READY",
+ 258:       400,
+ 259:     );
+ 260:   }
+ 261: 
+ 262:   const updated = await updateCertificationRecord(
+ 263:     userId,
+ 264:     complete,
+ 265:     expectedVersion,
+ 266:   );
+ 267: 
+ 268:   if (!updated) {
+ 269:     const current = await findCertificationById(
+ 270:       userId,
+ 271:       params.certificationId,
+ 272:     );
+ 273: 
+ 274:     if (!current) {
+ 275:       throw certificationError(
+ 276:         "Certification not found.",
+ 277:         "CERTIFICATION_NOT_FOUND",
+ 278:         404,
+ 279:       );
+ 280:     }
+ 281: 
+ 282:     throw certificationError(
+ 283:       "Certification was modified by another operation.",
+ 284:       "CERTIFICATION_VERSION_CONFLICT",
+ 285:       409,
+ 286:     );
+ 287:   }
+ 288: 
+ 289:   return normalizeRecord(updated);
+ 290: }

@@ -28,7 +28,14 @@ function CertificationItem({
 
   const isOperating = operation?.certificationId === certification?.id;
 
-  const primaryDocument = getPrimaryCertificationDocumentInfo(certification);
+  const primaryDocumentInfo = getPrimaryCertificationDocumentInfo(certification);
+
+  const primaryDocument = primaryDocumentInfo
+    ? {
+        ...primaryDocumentInfo,
+        certificationId: certification.id,
+      }
+    : null;
 
   const credentialState = getCertificationCredentialState(certification);
 

@@ -1,0 +1,2609 @@
+CERTIFICATION MIGRATION STORAGE AND AUTH INSPECTION
+Generated: 2026-11-03T13:34:02.3874827-05:00
+
+===========================================================================
+FILE: src\services\Certification\certificationStorage.js
+===========================================================================
+Total lines: 283
+   1: import {
+   2:   CERTIFICATION_MODEL_VERSION,
+   3:   normalizeCertificationCollection,
+   4: } from "../../models/certificationModel.js";
+   5: 
+   6: export const CERTIFICATION_STORAGE_KEY = "portfolio-platform:certifications";
+   7: 
+   8: const CERTIFICATION_STORAGE_VERSION = 1;
+   9: 
+  10: /*
+  11:  * =========================================
+  12:  * Storage Error
+  13:  * =========================================
+  14:  */
+  15: 
+  16: function createCertificationStorageError(message, publicMessage, cause = null) {
+  17:   const error = new Error(message);
+  18: 
+  19:   error.name = "CertificationStorageError";
+  20:   error.code = "CERTIFICATION_STORAGE_ERROR";
+  21:   error.publicMessage = publicMessage;
+  22: 
+  23:   if (cause) {
+  24:     error.cause = cause;
+  25:   }
+  26: 
+  27:   return error;
+  28: }
+  29: 
+  30: /*
+  31:  * =========================================
+  32:  * Browser Storage
+  33:  * =========================================
+  34:  */
+  35: 
+  36: function getBrowserStorage() {
+  37:   if (typeof window === "undefined" || !window.localStorage) {
+  38:     throw createCertificationStorageError(
+  39:       "Certification storage is unavailable.",
+  40:       "Certification storage is not supported in this environment.",
+  41:     );
+  42:   }
+  43: 
+  44:   return window.localStorage;
+  45: }
+  46: 
+  47: /*
+  48:  * =========================================
+  49:  * Empty Storage Document
+  50:  * =========================================
+  51:  */
+  52: 
+  53: function createEmptyCertificationStorageDocument() {
+  54:   return {
+  55:     storageVersion: CERTIFICATION_STORAGE_VERSION,
+  56: 
+  57:     certificationModelVersion: CERTIFICATION_MODEL_VERSION,
+  58: 
+  59:     certificationRecords: [],
+  60: 
+  61:     updatedAt: new Date().toISOString(),
+  62:   };
+  63: }
+  64: 
+  65: /*
+  66:  * =========================================
+  67:  * Parse Storage Document
+  68:  * =========================================
+  69:  */
+  70: 
+  71: function parseCertificationStorageDocument(value) {
+  72:   if (!value) {
+  73:     return createEmptyCertificationStorageDocument();
+  74:   }
+  75: 
+  76:   let parsedValue;
+  77: 
+  78:   try {
+  79:     parsedValue = JSON.parse(value);
+  80:   } catch (cause) {
+  81:     throw createCertificationStorageError(
+  82:       "Unable to parse stored certification data.",
+  83:       "The saved Certification Library could not be read.",
+  84:       cause,
+  85:     );
+  86:   }
+  87: 
+  88:   /*
+  89:    * Support the original format where the stored
+  90:    * value was only an array of certifications.
+  91:    */
+  92: 
+  93:   if (Array.isArray(parsedValue)) {
+  94:     return {
+  95:       ...createEmptyCertificationStorageDocument(),
+  96: 
+  97:       certificationRecords: normalizeCertificationCollection(parsedValue),
+  98:     };
+  99:   }
+ 100: 
+ 101:   if (!parsedValue || typeof parsedValue !== "object") {
+ 102:     throw createCertificationStorageError(
+ 103:       "Stored certification data has an invalid structure.",
+ 104:       "The saved Certification Library has an invalid format.",
+ 105:     );
+ 106:   }
+ 107: 
+ 108:   return {
+ 109:     storageVersion:
+ 110:       Number(parsedValue.storageVersion) || CERTIFICATION_STORAGE_VERSION,
+ 111: 
+ 112:     certificationModelVersion:
+ 113:       Number(parsedValue.certificationModelVersion) ||
+ 114:       CERTIFICATION_MODEL_VERSION,
+ 115: 
+ 116:     certificationRecords: normalizeCertificationCollection(
+ 117:       parsedValue.certificationRecords ||
+ 118:         parsedValue.certifications ||
+ 119:         parsedValue.records,
+ 120:     ),
+ 121: 
+ 122:     updatedAt:
+ 123:       typeof parsedValue.updatedAt === "string"
+ 124:         ? parsedValue.updatedAt
+ 125:         : new Date().toISOString(),
+ 126:   };
+ 127: }
+ 128: 
+ 129: /*
+ 130:  * =========================================
+ 131:  * Read Storage
+ 132:  * =========================================
+ 133:  */
+ 134: 
+ 135: export function readCertificationStorage() {
+ 136:   const storage = getBrowserStorage();
+ 137: 
+ 138:   try {
+ 139:     return parseCertificationStorageDocument(
+ 140:       storage.getItem(CERTIFICATION_STORAGE_KEY),
+ 141:     );
+ 142:   } catch (error) {
+ 143:     if (error?.name === "CertificationStorageError") {
+ 144:       throw error;
+ 145:     }
+ 146: 
+ 147:     throw createCertificationStorageError(
+ 148:       "Unable to read Certification Library storage.",
+ 149:       "Your saved certification records could not be loaded.",
+ 150:       error,
+ 151:     );
+ 152:   }
+ 153: }
+ 154: 
+ 155: /*
+ 156:  * =========================================
+ 157:  * Write Storage
+ 158:  * =========================================
+ 159:  */
+ 160: 
+ 161: export function writeCertificationStorage(certificationRecords) {
+ 162:   const storage = getBrowserStorage();
+ 163: 
+ 164:   const document = {
+ 165:     storageVersion: CERTIFICATION_STORAGE_VERSION,
+ 166: 
+ 167:     certificationModelVersion: CERTIFICATION_MODEL_VERSION,
+ 168: 
+ 169:     /*
+ 170:      * normalizeCertificationCollection removes
+ 171:      * transient File, Blob, and object-URL values
+ 172:      * because they are not part of the model.
+ 173:      *
+ 174:      * Only document metadata and IndexedDB storage
+ 175:      * keys are written to localStorage.
+ 176:      */
+ 177: 
+ 178:     certificationRecords:
+ 179:       normalizeCertificationCollection(certificationRecords),
+ 180: 
+ 181:     updatedAt: new Date().toISOString(),
+ 182:   };
+ 183: 
+ 184:   try {
+ 185:     storage.setItem(CERTIFICATION_STORAGE_KEY, JSON.stringify(document));
+ 186: 
+ 187:     return document;
+ 188:   } catch (error) {
+ 189:     throw createCertificationStorageError(
+ 190:       "Unable to write Certification Library storage.",
+ 191:       "Your certification records could not be saved.",
+ 192:       error,
+ 193:     );
+ 194:   }
+ 195: }
+ 196: 
+ 197: /*
+ 198:  * =========================================
+ 199:  * Read Collection
+ 200:  * =========================================
+ 201:  */
+ 202: 
+ 203: export function readStoredCertifications() {
+ 204:   return readCertificationStorage().certificationRecords;
+ 205: }
+ 206: 
+ 207: /*
+ 208:  * =========================================
+ 209:  * Replace Collection
+ 210:  * =========================================
+ 211:  */
+ 212: 
+ 213: export function replaceStoredCertifications(certificationRecords) {
+ 214:   return writeCertificationStorage(certificationRecords).certificationRecords;
+ 215: }
+ 216: 
+ 217: /*
+ 218:  * =========================================
+ 219:  * Update Collection
+ 220:  * =========================================
+ 221:  */
+ 222: 
+ 223: export function updateStoredCertifications(updater) {
+ 224:   if (typeof updater !== "function") {
+ 225:     throw createCertificationStorageError(
+ 226:       "The certification updater must be a function.",
+ 227:       "The Certification Library could not be updated.",
+ 228:     );
+ 229:   }
+ 230: 
+ 231:   const currentRecords = [...readStoredCertifications()];
+ 232: 
+ 233:   const nextRecords = updater(currentRecords);
+ 234: 
+ 235:   if (!Array.isArray(nextRecords)) {
+ 236:     throw createCertificationStorageError(
+ 237:       "The certification updater did not return an array.",
+ 238:       "The Certification Library could not be updated.",
+ 239:     );
+ 240:   }
+ 241: 
+ 242:   return replaceStoredCertifications(nextRecords);
+ 243: }
+ 244: 
+ 245: /*
+ 246:  * =========================================
+ 247:  * Clear Storage
+ 248:  * =========================================
+ 249:  */
+ 250: 
+ 251: export function clearCertificationStorage() {
+ 252:   try {
+ 253:     getBrowserStorage().removeItem(CERTIFICATION_STORAGE_KEY);
+ 254:   } catch (error) {
+ 255:     throw createCertificationStorageError(
+ 256:       "Unable to clear Certification Library storage.",
+ 257:       "The saved Certification Library could not be cleared.",
+ 258:       error,
+ 259:     );
+ 260:   }
+ 261: }
+ 262: 
+ 263: /*
+ 264:  * =========================================
+ 265:  * Storage Information
+ 266:  * =========================================
+ 267:  */
+ 268: 
+ 269: export function getCertificationStorageInformation() {
+ 270:   const document = readCertificationStorage();
+ 271: 
+ 272:   return {
+ 273:     storageKey: CERTIFICATION_STORAGE_KEY,
+ 274: 
+ 275:     storageVersion: document.storageVersion,
+ 276: 
+ 277:     certificationModelVersion: document.certificationModelVersion,
+ 278: 
+ 279:     certificationCount: document.certificationRecords.length,
+ 280: 
+ 281:     updatedAt: document.updatedAt,
+ 282:   };
+ 283: }
+
+===========================================================================
+FILE: src\services\Certification\certificationDocumentStorage.js
+===========================================================================
+Total lines: 701
+   1: import {
+   2:   CERTIFICATION_FIELD_LIMITS,
+   3:   getCertificationDocumentExtension,
+   4:   getCertificationDocumentPreviewMode,
+   5:   isCertificationDocumentWithinSizeLimit,
+   6:   isSupportedCertificationDocument,
+   7: } from "../../config/certificationConfig.js";
+   8: 
+   9: const CERTIFICATION_DOCUMENT_DATABASE_NAME =
+  10:   "portfolio-platform:certification-documents";
+  11: 
+  12: const CERTIFICATION_DOCUMENT_DATABASE_VERSION = 1;
+  13: 
+  14: const CERTIFICATION_DOCUMENT_STORE_NAME = "documents";
+  15: 
+  16: const CERTIFICATION_ID_INDEX_NAME = "certificationId";
+  17: 
+  18: /*
+  19:  * =========================================
+  20:  * Basic Helpers
+  21:  * =========================================
+  22:  */
+  23: 
+  24: function getText(value) {
+  25:   return typeof value === "string" ? value.trim() : "";
+  26: }
+  27: 
+  28: function getArray(value) {
+  29:   return Array.isArray(value) ? value : [];
+  30: }
+  31: 
+  32: function createId(prefix = "certification-document") {
+  33:   if (
+  34:     typeof crypto !== "undefined" &&
+  35:     typeof crypto.randomUUID === "function"
+  36:   ) {
+  37:     return `${prefix}-${crypto.randomUUID()}`;
+  38:   }
+  39: 
+  40:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  41: }
+  42: 
+  43: function isBlobValue(value) {
+  44:   return typeof Blob !== "undefined" && value instanceof Blob;
+  45: }
+  46: 
+  47: /*
+  48:  * =========================================
+  49:  * Storage Errors
+  50:  * =========================================
+  51:  */
+  52: 
+  53: function createCertificationDocumentStorageError(
+  54:   message,
+  55:   publicMessage,
+  56:   cause = null,
+  57: ) {
+  58:   const error = new Error(message);
+  59: 
+  60:   error.name = "CertificationDocumentStorageError";
+  61:   error.code = "CERTIFICATION_DOCUMENT_STORAGE_ERROR";
+  62:   error.publicMessage = publicMessage;
+  63: 
+  64:   if (cause) {
+  65:     error.cause = cause;
+  66:   }
+  67: 
+  68:   return error;
+  69: }
+  70: 
+  71: function createDocumentValidationError(message, publicMessage) {
+  72:   const error = createCertificationDocumentStorageError(message, publicMessage);
+  73: 
+  74:   error.code = "CERTIFICATION_DOCUMENT_VALIDATION_ERROR";
+  75: 
+  76:   return error;
+  77: }
+  78: 
+  79: /*
+  80:  * =========================================
+  81:  * IndexedDB Availability
+  82:  * =========================================
+  83:  */
+  84: 
+  85: function getIndexedDb() {
+  86:   if (typeof window === "undefined" || !window.indexedDB) {
+  87:     throw createCertificationDocumentStorageError(
+  88:       "IndexedDB is unavailable.",
+  89:       "Document storage is not supported in this browser.",
+  90:     );
+  91:   }
+  92: 
+  93:   return window.indexedDB;
+  94: }
+  95: 
+  96: /*
+  97:  * =========================================
+  98:  * File Validation
+  99:  * =========================================
+ 100:  */
+ 101: 
+ 102: function validateDocumentFile(file) {
+ 103:   if (!file || typeof file !== "object" || !isBlobValue(file)) {
+ 104:     throw createDocumentValidationError(
+ 105:       "The certification document is not a valid File or Blob.",
+ 106:       "Select a valid certificate document.",
+ 107:     );
+ 108:   }
+ 109: 
+ 110:   if (!getText(file.name)) {
+ 111:     throw createDocumentValidationError(
+ 112:       "The certification document does not have a file name.",
+ 113:       "The selected document must have a file name.",
+ 114:     );
+ 115:   }
+ 116: 
+ 117:   if (!isSupportedCertificationDocument(file)) {
+ 118:     throw createDocumentValidationError(
+ 119:       `Unsupported certification document: ${file.name}`,
+ 120:       "Upload a PDF, Word document, JPG, PNG, or WebP image.",
+ 121:     );
+ 122:   }
+ 123: 
+ 124:   if (!isCertificationDocumentWithinSizeLimit(file)) {
+ 125:     const maximumSize =
+ 126:       CERTIFICATION_FIELD_LIMITS.maximumDocumentBytes / (1024 * 1024);
+ 127: 
+ 128:     throw createDocumentValidationError(
+ 129:       `Invalid certification document size: ${file.size}`,
+ 130:       `The document must be larger than 0 bytes and no larger than ${maximumSize} MB.`,
+ 131:     );
+ 132:   }
+ 133: }
+ 134: 
+ 135: /*
+ 136:  * =========================================
+ 137:  * IndexedDB Request Helpers
+ 138:  * =========================================
+ 139:  */
+ 140: 
+ 141: function requestToPromise(request) {
+ 142:   return new Promise((resolve, reject) => {
+ 143:     request.onsuccess = () => {
+ 144:       resolve(request.result);
+ 145:     };
+ 146: 
+ 147:     request.onerror = () => {
+ 148:       reject(
+ 149:         request.error ||
+ 150:           createCertificationDocumentStorageError(
+ 151:             "An IndexedDB request failed.",
+ 152:             "The certificate document operation could not be completed.",
+ 153:           ),
+ 154:       );
+ 155:     };
+ 156:   });
+ 157: }
+ 158: 
+ 159: function transactionToPromise(transaction) {
+ 160:   return new Promise((resolve, reject) => {
+ 161:     transaction.oncomplete = () => {
+ 162:       resolve();
+ 163:     };
+ 164: 
+ 165:     transaction.onerror = () => {
+ 166:       reject(
+ 167:         transaction.error ||
+ 168:           createCertificationDocumentStorageError(
+ 169:             "The IndexedDB transaction failed.",
+ 170:             "The certificate document operation could not be completed.",
+ 171:           ),
+ 172:       );
+ 173:     };
+ 174: 
+ 175:     transaction.onabort = () => {
+ 176:       reject(
+ 177:         transaction.error ||
+ 178:           createCertificationDocumentStorageError(
+ 179:             "The IndexedDB transaction was aborted.",
+ 180:             "The certificate document operation was cancelled.",
+ 181:           ),
+ 182:       );
+ 183:     };
+ 184:   });
+ 185: }
+ 186: 
+ 187: /*
+ 188:  * =========================================
+ 189:  * Open Database
+ 190:  * =========================================
+ 191:  */
+ 192: 
+ 193: function openCertificationDocumentDatabase() {
+ 194:   const indexedDb = getIndexedDb();
+ 195: 
+ 196:   return new Promise((resolve, reject) => {
+ 197:     const request = indexedDb.open(
+ 198:       CERTIFICATION_DOCUMENT_DATABASE_NAME,
+ 199:       CERTIFICATION_DOCUMENT_DATABASE_VERSION,
+ 200:     );
+ 201: 
+ 202:     request.onupgradeneeded = () => {
+ 203:       const database = request.result;
+ 204: 
+ 205:       let store;
+ 206: 
+ 207:       if (
+ 208:         !database.objectStoreNames.contains(CERTIFICATION_DOCUMENT_STORE_NAME)
+ 209:       ) {
+ 210:         store = database.createObjectStore(CERTIFICATION_DOCUMENT_STORE_NAME, {
+ 211:           keyPath: "storageKey",
+ 212:         });
+ 213:       } else {
+ 214:         store = request.transaction.objectStore(
+ 215:           CERTIFICATION_DOCUMENT_STORE_NAME,
+ 216:         );
+ 217:       }
+ 218: 
+ 219:       if (!store.indexNames.contains(CERTIFICATION_ID_INDEX_NAME)) {
+ 220:         store.createIndex(CERTIFICATION_ID_INDEX_NAME, "certificationId", {
+ 221:           unique: false,
+ 222:         });
+ 223:       }
+ 224:     };
+ 225: 
+ 226:     request.onsuccess = () => {
+ 227:       resolve(request.result);
+ 228:     };
+ 229: 
+ 230:     request.onerror = () => {
+ 231:       reject(
+ 232:         createCertificationDocumentStorageError(
+ 233:           "Unable to open the Certification document database.",
+ 234:           "Certificate document storage could not be opened.",
+ 235:           request.error,
+ 236:         ),
+ 237:       );
+ 238:     };
+ 239: 
+ 240:     request.onblocked = () => {
+ 241:       reject(
+ 242:         createCertificationDocumentStorageError(
+ 243:           "The Certification document database upgrade was blocked.",
+ 244:           "Close other tabs using this portfolio and try again.",
+ 245:         ),
+ 246:       );
+ 247:     };
+ 248:   });
+ 249: }
+ 250: 
+ 251: /*
+ 252:  * =========================================
+ 253:  * Storage Key
+ 254:  * =========================================
+ 255:  */
+ 256: 
+ 257: export function createCertificationDocumentStorageKey(
+ 258:   certificationId = "",
+ 259:   documentId = "",
+ 260: ) {
+ 261:   const normalizedCertificationId = getText(certificationId);
+ 262: 
+ 263:   const normalizedDocumentId = getText(documentId);
+ 264: 
+ 265:   if (normalizedCertificationId && normalizedDocumentId) {
+ 266:     return (
+ 267:       `certification:${normalizedCertificationId}:` +
+ 268:       `document:${normalizedDocumentId}`
+ 269:     );
+ 270:   }
+ 271: 
+ 272:   return createId("certification-document-storage");
+ 273: }
+ 274: 
+ 275: /*
+ 276:  * =========================================
+ 277:  * Write Document
+ 278:  * =========================================
+ 279:  */
+ 280: 
+ 281: export async function writeCertificationDocument({
+ 282:   file,
+ 283:   certificationId = "",
+ 284:   documentId = "",
+ 285:   storageKey = "",
+ 286: } = {}) {
+ 287:   validateDocumentFile(file);
+ 288: 
+ 289:   const normalizedCertificationId = getText(certificationId);
+ 290: 
+ 291:   const normalizedDocumentId =
+ 292:     getText(documentId) || createId("certification-document");
+ 293: 
+ 294:   const normalizedStorageKey =
+ 295:     getText(storageKey) ||
+ 296:     createCertificationDocumentStorageKey(
+ 297:       normalizedCertificationId,
+ 298:       normalizedDocumentId,
+ 299:     );
+ 300: 
+ 301:   const database = await openCertificationDocumentDatabase();
+ 302: 
+ 303:   const timestamp = new Date().toISOString();
+ 304: 
+ 305:   /*
+ 306:    * Store a Blob instead of the original File object.
+ 307:    * The file name and type remain available in metadata.
+ 308:    */
+ 309: 
+ 310:   const blob = file.slice(0, file.size, file.type);
+ 311: 
+ 312:   const record = {
+ 313:     storageKey: normalizedStorageKey,
+ 314: 
+ 315:     certificationId: normalizedCertificationId,
+ 316: 
+ 317:     documentId: normalizedDocumentId,
+ 318: 
+ 319:     fileName: getText(file.name),
+ 320: 
+ 321:     extension: getCertificationDocumentExtension(file.name),
+ 322: 
+ 323:     mimeType: getText(file.type) || "application/octet-stream",
+ 324: 
+ 325:     size: Number(file.size) || 0,
+ 326: 
+ 327:     previewMode: getCertificationDocumentPreviewMode({
+ 328:       fileName: file.name,
+ 329:       mimeType: file.type,
+ 330:     }),
+ 331: 
+ 332:     blob,
+ 333: 
+ 334:     createdAt: timestamp,
+ 335:     updatedAt: timestamp,
+ 336:   };
+ 337: 
+ 338:   try {
+ 339:     const transaction = database.transaction(
+ 340:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 341:       "readwrite",
+ 342:     );
+ 343: 
+ 344:     const store = transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME);
+ 345: 
+ 346:     const existingRecord = await requestToPromise(
+ 347:       store.get(normalizedStorageKey),
+ 348:     );
+ 349: 
+ 350:     if (existingRecord?.createdAt) {
+ 351:       record.createdAt = existingRecord.createdAt;
+ 352:     }
+ 353: 
+ 354:     store.put(record);
+ 355: 
+ 356:     await transactionToPromise(transaction);
+ 357: 
+ 358:     /*
+ 359:      * Return metadata only.
+ 360:      * Do not return the stored Blob as part of the
+ 361:      * Certification model.
+ 362:      */
+ 363: 
+ 364:     return {
+ 365:       storageKey: record.storageKey,
+ 366: 
+ 367:       certificationId: record.certificationId,
+ 368: 
+ 369:       documentId: record.documentId,
+ 370: 
+ 371:       fileName: record.fileName,
+ 372: 
+ 373:       extension: record.extension,
+ 374: 
+ 375:       mimeType: record.mimeType,
+ 376: 
+ 377:       size: record.size,
+ 378: 
+ 379:       previewMode: record.previewMode,
+ 380: 
+ 381:       createdAt: record.createdAt,
+ 382: 
+ 383:       updatedAt: record.updatedAt,
+ 384:     };
+ 385:   } catch (error) {
+ 386:     if (error?.name === "CertificationDocumentStorageError") {
+ 387:       throw error;
+ 388:     }
+ 389: 
+ 390:     throw createCertificationDocumentStorageError(
+ 391:       "Unable to save the Certification document.",
+ 392:       "The certificate document could not be saved.",
+ 393:       error,
+ 394:     );
+ 395:   } finally {
+ 396:     database.close();
+ 397:   }
+ 398: }
+ 399: 
+ 400: /*
+ 401:  * =========================================
+ 402:  * Read Document
+ 403:  * =========================================
+ 404:  */
+ 405: 
+ 406: export async function readCertificationDocument(storageKey) {
+ 407:   const normalizedStorageKey = getText(storageKey);
+ 408: 
+ 409:   if (!normalizedStorageKey) {
+ 410:     return null;
+ 411:   }
+ 412: 
+ 413:   const database = await openCertificationDocumentDatabase();
+ 414: 
+ 415:   try {
+ 416:     const transaction = database.transaction(
+ 417:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 418:       "readonly",
+ 419:     );
+ 420: 
+ 421:     const store = transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME);
+ 422: 
+ 423:     const record = await requestToPromise(store.get(normalizedStorageKey));
+ 424: 
+ 425:     await transactionToPromise(transaction);
+ 426: 
+ 427:     return record || null;
+ 428:   } catch (error) {
+ 429:     throw createCertificationDocumentStorageError(
+ 430:       "Unable to read the Certification document.",
+ 431:       "The certificate document could not be loaded.",
+ 432:       error,
+ 433:     );
+ 434:   } finally {
+ 435:     database.close();
+ 436:   }
+ 437: }
+ 438: 
+ 439: /*
+ 440:  * =========================================
+ 441:  * Read Blob
+ 442:  * =========================================
+ 443:  */
+ 444: 
+ 445: export async function readCertificationDocumentBlob(storageKey) {
+ 446:   const record = await readCertificationDocument(storageKey);
+ 447: 
+ 448:   return record?.blob || null;
+ 449: }
+ 450: 
+ 451: /*
+ 452:  * =========================================
+ 453:  * Object URL
+ 454:  * =========================================
+ 455:  */
+ 456: 
+ 457: export async function createCertificationDocumentUrl(storageKey) {
+ 458:   const blob = await readCertificationDocumentBlob(storageKey);
+ 459: 
+ 460:   if (!blob) {
+ 461:     return "";
+ 462:   }
+ 463: 
+ 464:   if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+ 465:     throw createCertificationDocumentStorageError(
+ 466:       "Object URLs are unavailable.",
+ 467:       "The certificate document cannot be previewed in this environment.",
+ 468:     );
+ 469:   }
+ 470: 
+ 471:   return URL.createObjectURL(blob);
+ 472: }
+ 473: 
+ 474: export function revokeCertificationDocumentUrl(objectUrl) {
+ 475:   if (
+ 476:     objectUrl &&
+ 477:     typeof URL !== "undefined" &&
+ 478:     typeof URL.revokeObjectURL === "function"
+ 479:   ) {
+ 480:     URL.revokeObjectURL(objectUrl);
+ 481:   }
+ 482: }
+ 483: 
+ 484: /*
+ 485:  * =========================================
+ 486:  * Delete One Document
+ 487:  * =========================================
+ 488:  */
+ 489: 
+ 490: export async function deleteCertificationDocument(storageKey) {
+ 491:   const normalizedStorageKey = getText(storageKey);
+ 492: 
+ 493:   if (!normalizedStorageKey) {
+ 494:     return false;
+ 495:   }
+ 496: 
+ 497:   const database = await openCertificationDocumentDatabase();
+ 498: 
+ 499:   try {
+ 500:     const transaction = database.transaction(
+ 501:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 502:       "readwrite",
+ 503:     );
+ 504: 
+ 505:     const store = transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME);
+ 506: 
+ 507:     const existingRecord = await requestToPromise(
+ 508:       store.get(normalizedStorageKey),
+ 509:     );
+ 510: 
+ 511:     if (!existingRecord) {
+ 512:       await transactionToPromise(transaction);
+ 513: 
+ 514:       return false;
+ 515:     }
+ 516: 
+ 517:     store.delete(normalizedStorageKey);
+ 518: 
+ 519:     await transactionToPromise(transaction);
+ 520: 
+ 521:     return true;
+ 522:   } catch (error) {
+ 523:     throw createCertificationDocumentStorageError(
+ 524:       "Unable to delete the Certification document.",
+ 525:       "The certificate document could not be deleted.",
+ 526:       error,
+ 527:     );
+ 528:   } finally {
+ 529:     database.close();
+ 530:   }
+ 531: }
+ 532: 
+ 533: /*
+ 534:  * =========================================
+ 535:  * Delete Multiple Documents
+ 536:  * =========================================
+ 537:  */
+ 538: 
+ 539: export async function deleteCertificationDocuments(storageKeys = []) {
+ 540:   const keys = [...new Set(getArray(storageKeys).map(getText).filter(Boolean))];
+ 541: 
+ 542:   if (keys.length === 0) {
+ 543:     return 0;
+ 544:   }
+ 545: 
+ 546:   const database = await openCertificationDocumentDatabase();
+ 547: 
+ 548:   try {
+ 549:     const transaction = database.transaction(
+ 550:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 551:       "readwrite",
+ 552:     );
+ 553: 
+ 554:     const store = transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME);
+ 555: 
+ 556:     keys.forEach((key) => {
+ 557:       store.delete(key);
+ 558:     });
+ 559: 
+ 560:     await transactionToPromise(transaction);
+ 561: 
+ 562:     return keys.length;
+ 563:   } catch (error) {
+ 564:     throw createCertificationDocumentStorageError(
+ 565:       "Unable to delete Certification documents.",
+ 566:       "One or more certificate documents could not be deleted.",
+ 567:       error,
+ 568:     );
+ 569:   } finally {
+ 570:     database.close();
+ 571:   }
+ 572: }
+ 573: 
+ 574: /*
+ 575:  * =========================================
+ 576:  * Read Certification Documents
+ 577:  * =========================================
+ 578:  */
+ 579: 
+ 580: export async function readCertificationDocuments(certificationId) {
+ 581:   const normalizedCertificationId = getText(certificationId);
+ 582: 
+ 583:   if (!normalizedCertificationId) {
+ 584:     return [];
+ 585:   }
+ 586: 
+ 587:   const database = await openCertificationDocumentDatabase();
+ 588: 
+ 589:   try {
+ 590:     const transaction = database.transaction(
+ 591:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 592:       "readonly",
+ 593:     );
+ 594: 
+ 595:     const store = transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME);
+ 596: 
+ 597:     const index = store.index(CERTIFICATION_ID_INDEX_NAME);
+ 598: 
+ 599:     const records = await requestToPromise(
+ 600:       index.getAll(normalizedCertificationId),
+ 601:     );
+ 602: 
+ 603:     await transactionToPromise(transaction);
+ 604: 
+ 605:     return Array.isArray(records) ? records : [];
+ 606:   } catch (error) {
+ 607:     throw createCertificationDocumentStorageError(
+ 608:       "Unable to read Certification documents.",
+ 609:       "The certificate documents could not be loaded.",
+ 610:       error,
+ 611:     );
+ 612:   } finally {
+ 613:     database.close();
+ 614:   }
+ 615: }
+ 616: 
+ 617: /*
+ 618:  * =========================================
+ 619:  * Delete Certification Documents
+ 620:  * =========================================
+ 621:  */
+ 622: 
+ 623: export async function deleteCertificationDocumentsForCertification(
+ 624:   certificationId,
+ 625: ) {
+ 626:   const records = await readCertificationDocuments(certificationId);
+ 627: 
+ 628:   return deleteCertificationDocuments(
+ 629:     records.map((record) => record.storageKey),
+ 630:   );
+ 631: }
+ 632: 
+ 633: /*
+ 634:  * =========================================
+ 635:  * Clear Document Storage
+ 636:  * =========================================
+ 637:  */
+ 638: 
+ 639: export async function clearCertificationDocumentStorage() {
+ 640:   const database = await openCertificationDocumentDatabase();
+ 641: 
+ 642:   try {
+ 643:     const transaction = database.transaction(
+ 644:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 645:       "readwrite",
+ 646:     );
+ 647: 
+ 648:     transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME).clear();
+ 649: 
+ 650:     await transactionToPromise(transaction);
+ 651:   } catch (error) {
+ 652:     throw createCertificationDocumentStorageError(
+ 653:       "Unable to clear Certification document storage.",
+ 654:       "The saved certificate documents could not be cleared.",
+ 655:       error,
+ 656:     );
+ 657:   } finally {
+ 658:     database.close();
+ 659:   }
+ 660: }
+ 661: 
+ 662: /*
+ 663:  * =========================================
+ 664:  * Storage Information
+ 665:  * =========================================
+ 666:  */
+ 667: 
+ 668: export async function getCertificationDocumentStorageInformation() {
+ 669:   const database = await openCertificationDocumentDatabase();
+ 670: 
+ 671:   try {
+ 672:     const transaction = database.transaction(
+ 673:       CERTIFICATION_DOCUMENT_STORE_NAME,
+ 674:       "readonly",
+ 675:     );
+ 676: 
+ 677:     const store = transaction.objectStore(CERTIFICATION_DOCUMENT_STORE_NAME);
+ 678: 
+ 679:     const documentCount = await requestToPromise(store.count());
+ 680: 
+ 681:     await transactionToPromise(transaction);
+ 682: 
+ 683:     return {
+ 684:       databaseName: CERTIFICATION_DOCUMENT_DATABASE_NAME,
+ 685: 
+ 686:       databaseVersion: CERTIFICATION_DOCUMENT_DATABASE_VERSION,
+ 687: 
+ 688:       storeName: CERTIFICATION_DOCUMENT_STORE_NAME,
+ 689: 
+ 690:       documentCount,
+ 691:     };
+ 692:   } catch (error) {
+ 693:     throw createCertificationDocumentStorageError(
+ 694:       "Unable to inspect Certification document storage.",
+ 695:       "Certificate document storage information could not be loaded.",
+ 696:       error,
+ 697:     );
+ 698:   } finally {
+ 699:     database.close();
+ 700:   }
+ 701: }
+
+===========================================================================
+FILE: src\services\Certification\certificationTrainingRelationshipService.js
+===========================================================================
+Total lines: 626
+   1: import {
+   2:   createTrainingCertificationRelationship,
+   3:   normalizeTrainingCollection,
+   4: } from "../../models/trainingModel.js";
+   5: 
+   6: import {
+   7:   createCertificationTrainingRelationship,
+   8:   normalizeCertification,
+   9:   normalizeCertificationCollection,
+  10: } from "../../models/certificationModel.js";
+  11: 
+  12: import {
+  13:   readStoredTraining,
+  14:   replaceStoredTraining,
+  15: } from "../Training/trainingStorage.js";
+  16: 
+  17: import {
+  18:   readStoredCertifications,
+  19:   replaceStoredCertifications,
+  20: } from "./certificationStorage.js";
+  21: 
+  22: /*
+  23:  * =========================================
+  24:  * Primitive Helpers
+  25:  * =========================================
+  26:  */
+  27: 
+  28: function getText(value) {
+  29:   return typeof value === "string" ? value.trim() : "";
+  30: }
+  31: 
+  32: function getArray(value) {
+  33:   return Array.isArray(value) ? value : [];
+  34: }
+  35: 
+  36: function createIdSet(values) {
+  37:   return new Set(
+  38:     getArray(values)
+  39:       .map((value) => getText(value))
+  40:       .filter(Boolean),
+  41:   );
+  42: }
+  43: 
+  44: /*
+  45:  * =========================================
+  46:  * Relationship Error
+  47:  * =========================================
+  48:  */
+  49: 
+  50: function createRelationshipError(
+  51:   code,
+  52:   message,
+  53:   publicMessage,
+  54:   details = {},
+  55:   cause = null,
+  56: ) {
+  57:   const error = new Error(message);
+  58: 
+  59:   error.name = "TrainingCertificationRelationshipError";
+  60:   error.code = code;
+  61:   error.status = 409;
+  62:   error.publicMessage = publicMessage;
+  63: 
+  64:   Object.assign(error, details);
+  65: 
+  66:   if (cause) {
+  67:     error.cause = cause;
+  68:   }
+  69: 
+  70:   return error;
+  71: }
+  72: 
+  73: /*
+  74:  * =========================================
+  75:  * Relationship IDs
+  76:  * =========================================
+  77:  */
+  78: 
+  79: function getTrainingCertificationIds(training) {
+  80:   const relationships = Array.isArray(training?.certificationRelationships)
+  81:     ? training.certificationRelationships
+  82:     : getArray(training?.relatedCertificationIds).map((certificationId) => ({
+  83:         certificationId,
+  84:       }));
+  85: 
+  86:   return [
+  87:     ...new Set(
+  88:       relationships
+  89:         .map((relationship) =>
+  90:           getText(
+  91:             relationship?.certificationId ||
+  92:               relationship?.certificationRecordId,
+  93:           ),
+  94:         )
+  95:         .filter(Boolean),
+  96:     ),
+  97:   ];
+  98: }
+  99: 
+ 100: function getCertificationTrainingIds(certification) {
+ 101:   return [
+ 102:     ...new Set(
+ 103:       getArray(certification?.relatedRecords?.trainingRelationships)
+ 104:         .map((relationship) =>
+ 105:           getText(relationship?.trainingId || relationship?.trainingRecordId),
+ 106:         )
+ 107:         .filter(Boolean),
+ 108:     ),
+ 109:   ];
+ 110: }
+ 111: 
+ 112: /*
+ 113:  * =========================================
+ 114:  * Collection Lookup
+ 115:  * =========================================
+ 116:  */
+ 117: 
+ 118: function createRecordMap(records) {
+ 119:   return new Map(
+ 120:     getArray(records)
+ 121:       .filter((record) => getText(record?.id))
+ 122:       .map((record) => [record.id, record]),
+ 123:   );
+ 124: }
+ 125: 
+ 126: function requireTraining(trainingMap, trainingId) {
+ 127:   const training = trainingMap.get(trainingId);
+ 128: 
+ 129:   if (!training) {
+ 130:     throw createRelationshipError(
+ 131:       "TRAINING_RELATIONSHIP_NOT_FOUND",
+ 132:       `Training record "${trainingId}" could not be found during relationship synchronization.`,
+ 133:       "A linked Training record could not be found.",
+ 134:       {
+ 135:         trainingId,
+ 136:       },
+ 137:     );
+ 138:   }
+ 139: 
+ 140:   return training;
+ 141: }
+ 142: 
+ 143: function requireCertification(certificationMap, certificationId) {
+ 144:   const certification = certificationMap.get(certificationId);
+ 145: 
+ 146:   if (!certification) {
+ 147:     throw createRelationshipError(
+ 148:       "CERTIFICATION_RELATIONSHIP_NOT_FOUND",
+ 149:       `Certification record "${certificationId}" could not be found during relationship synchronization.`,
+ 150:       "A linked Certification record could not be found.",
+ 151:       {
+ 152:         certificationId,
+ 153:       },
+ 154:     );
+ 155:   }
+ 156: 
+ 157:   return certification;
+ 158: }
+ 159: 
+ 160: /*
+ 161:  * =========================================
+ 162:  * Snapshot Refresh
+ 163:  * =========================================
+ 164:  */
+ 165: 
+ 166: function refreshTrainingCertificationRelationships(training, certificationMap) {
+ 167:   const certificationIds = getTrainingCertificationIds(training);
+ 168: 
+ 169:   const certificationRelationships = certificationIds.map(
+ 170:     (certificationId, index) => {
+ 171:       const certification = requireCertification(
+ 172:         certificationMap,
+ 173:         certificationId,
+ 174:       );
+ 175: 
+ 176:       return createTrainingCertificationRelationship(certification, index);
+ 177:     },
+ 178:   );
+ 179: 
+ 180:   return {
+ 181:     ...training,
+ 182: 
+ 183:     certificationRelationships,
+ 184: 
+ 185:     relatedCertificationIds: certificationRelationships.map(
+ 186:       (relationship) => relationship.certificationId,
+ 187:     ),
+ 188: 
+ 189:     updatedAt: new Date().toISOString(),
+ 190:   };
+ 191: }
+ 192: 
+ 193: function refreshCertificationTrainingRelationships(certification, trainingMap) {
+ 194:   const trainingIds = getCertificationTrainingIds(certification);
+ 195: 
+ 196:   const trainingRelationships = trainingIds.map((trainingId, index) => {
+ 197:     const training = requireTraining(trainingMap, trainingId);
+ 198: 
+ 199:     return createCertificationTrainingRelationship(training, index);
+ 200:   });
+ 201: 
+ 202:   return normalizeCertification({
+ 203:     ...certification,
+ 204: 
+ 205:     relatedRecords: {
+ 206:       ...certification.relatedRecords,
+ 207:       trainingRelationships,
+ 208:     },
+ 209: 
+ 210:     updatedAt: new Date().toISOString(),
+ 211:   });
+ 212: }
+ 213: 
+ 214: /*
+ 215:  * =========================================
+ 216:  * Add or Remove One Relationship
+ 217:  * =========================================
+ 218:  */
+ 219: 
+ 220: function synchronizeCertificationWithTraining(
+ 221:   certification,
+ 222:   training,
+ 223:   shouldBeLinked,
+ 224: ) {
+ 225:   const currentRelationships = getArray(
+ 226:     certification?.relatedRecords?.trainingRelationships,
+ 227:   );
+ 228: 
+ 229:   const existingRelationship = currentRelationships.find(
+ 230:     (relationship) => getText(relationship?.trainingId) === training.id,
+ 231:   );
+ 232: 
+ 233:   /*
+ 234:    * The Certification is not linked and does not
+ 235:    * need to be linked. Preserve it unchanged.
+ 236:    */
+ 237: 
+ 238:   if (!shouldBeLinked && !existingRelationship) {
+ 239:     return certification;
+ 240:   }
+ 241: 
+ 242:   const nextRelationships = currentRelationships.filter(
+ 243:     (relationship) => getText(relationship?.trainingId) !== training.id,
+ 244:   );
+ 245: 
+ 246:   if (shouldBeLinked) {
+ 247:     nextRelationships.push(
+ 248:       createCertificationTrainingRelationship(
+ 249:         training,
+ 250:         nextRelationships.length,
+ 251:       ),
+ 252:     );
+ 253:   }
+ 254: 
+ 255:   return normalizeCertification({
+ 256:     ...certification,
+ 257: 
+ 258:     relatedRecords: {
+ 259:       ...certification.relatedRecords,
+ 260: 
+ 261:       trainingRelationships: nextRelationships,
+ 262:     },
+ 263: 
+ 264:     updatedAt: new Date().toISOString(),
+ 265:   });
+ 266: }
+ 267: 
+ 268: function synchronizeTrainingWithCertification(
+ 269:   training,
+ 270:   certification,
+ 271:   shouldBeLinked,
+ 272: ) {
+ 273:   const currentRelationships = getArray(training?.certificationRelationships);
+ 274: 
+ 275:   const existingRelationship = currentRelationships.find(
+ 276:     (relationship) =>
+ 277:       getText(relationship?.certificationId) === certification.id,
+ 278:   );
+ 279: 
+ 280:   /*
+ 281:    * This Training is not linked and does not need
+ 282:    * to be linked. Preserve the record unchanged.
+ 283:    */
+ 284: 
+ 285:   if (!shouldBeLinked && !existingRelationship) {
+ 286:     return training;
+ 287:   }
+ 288: 
+ 289:   const nextRelationships = currentRelationships.filter(
+ 290:     (relationship) =>
+ 291:       getText(relationship?.certificationId) !== certification.id,
+ 292:   );
+ 293: 
+ 294:   if (shouldBeLinked) {
+ 295:     nextRelationships.push(
+ 296:       createTrainingCertificationRelationship(
+ 297:         certification,
+ 298:         nextRelationships.length,
+ 299:       ),
+ 300:     );
+ 301:   }
+ 302: 
+ 303:   const certificationRelationships = nextRelationships.map(
+ 304:     (relationship, index) => ({
+ 305:       ...relationship,
+ 306:       order: index,
+ 307:     }),
+ 308:   );
+ 309: 
+ 310:   const certificationState = getText(certification?.credential?.state);
+ 311: 
+ 312:   const representsEarnedCertificate =
+ 313:     shouldBeLinked && ["active", "expired"].includes(certificationState);
+ 314: 
+ 315:   return {
+ 316:     ...training,
+ 317: 
+ 318:     certificationRelationships,
+ 319: 
+ 320:     relatedCertificationIds: certificationRelationships.map(
+ 321:       (relationship) => relationship.certificationId,
+ 322:     ),
+ 323: 
+ 324:     completion: {
+ 325:       ...training.completion,
+ 326: 
+ 327:       certificateEarned: representsEarnedCertificate
+ 328:         ? true
+ 329:         : training.completion?.certificateEarned === true,
+ 330:     },
+ 331: 
+ 332:     updatedAt: new Date().toISOString(),
+ 333:   };
+ 334: }
+ 335: 
+ 336: /*
+ 337:  * =========================================
+ 338:  * Application-Level Transaction
+ 339:  * =========================================
+ 340:  */
+ 341: 
+ 342: function commitCollections({
+ 343:   originalTrainingRecords,
+ 344:   originalCertificationRecords,
+ 345:   nextTrainingRecords,
+ 346:   nextCertificationRecords,
+ 347: }) {
+ 348:   let trainingWriteCompleted = false;
+ 349:   let certificationWriteCompleted = false;
+ 350: 
+ 351:   try {
+ 352:     const storedTrainingRecords = replaceStoredTraining(nextTrainingRecords);
+ 353: 
+ 354:     trainingWriteCompleted = true;
+ 355: 
+ 356:     const storedCertificationRecords = replaceStoredCertifications(
+ 357:       nextCertificationRecords,
+ 358:     );
+ 359: 
+ 360:     certificationWriteCompleted = true;
+ 361: 
+ 362:     return {
+ 363:       trainingRecords: storedTrainingRecords,
+ 364:       certificationRecords: storedCertificationRecords,
+ 365:     };
+ 366:   } catch (cause) {
+ 367:     const rollbackErrors = [];
+ 368: 
+ 369:     if (trainingWriteCompleted || certificationWriteCompleted) {
+ 370:       try {
+ 371:         replaceStoredTraining(originalTrainingRecords);
+ 372:       } catch (rollbackError) {
+ 373:         rollbackErrors.push({
+ 374:           collection: "training",
+ 375:           error: rollbackError,
+ 376:         });
+ 377:       }
+ 378: 
+ 379:       try {
+ 380:         replaceStoredCertifications(originalCertificationRecords);
+ 381:       } catch (rollbackError) {
+ 382:         rollbackErrors.push({
+ 383:           collection: "certifications",
+ 384:           error: rollbackError,
+ 385:         });
+ 386:       }
+ 387:     }
+ 388: 
+ 389:     throw createRelationshipError(
+ 390:       rollbackErrors.length > 0
+ 391:         ? "TRAINING_CERTIFICATION_ROLLBACK_FAILED"
+ 392:         : "TRAINING_CERTIFICATION_TRANSACTION_FAILED",
+ 393: 
+ 394:       "Training and Certification relationship synchronization failed.",
+ 395: 
+ 396:       rollbackErrors.length > 0
+ 397:         ? "The relationship update failed and could not be completely restored. Reload both libraries before making more changes."
+ 398:         : "The Training and Certification relationship could not be saved.",
+ 399: 
+ 400:       {
+ 401:         rollbackErrors,
+ 402:         trainingWriteCompleted,
+ 403:         certificationWriteCompleted,
+ 404:       },
+ 405: 
+ 406:       cause,
+ 407:     );
+ 408:   }
+ 409: }
+ 410: 
+ 411: /*
+ 412:  * =========================================
+ 413:  * Training-Authoritative Synchronization
+ 414:  * =========================================
+ 415:  */
+ 416: 
+ 417: export function saveTrainingWithCertificationSync({
+ 418:   trainingRecords,
+ 419:   changedTrainingIds = [],
+ 420:   deletedTrainingIds = [],
+ 421: } = {}) {
+ 422:   const originalTrainingRecords = readStoredTraining();
+ 423: 
+ 424:   const originalCertificationRecords = readStoredCertifications();
+ 425: 
+ 426:   let nextTrainingRecords = normalizeTrainingCollection(trainingRecords);
+ 427: 
+ 428:   let nextCertificationRecords = normalizeCertificationCollection(
+ 429:     originalCertificationRecords,
+ 430:   );
+ 431: 
+ 432:   const changedIds = createIdSet(changedTrainingIds);
+ 433: 
+ 434:   const deletedIds = createIdSet(deletedTrainingIds);
+ 435: 
+ 436:   const trainingMap = createRecordMap(nextTrainingRecords);
+ 437: 
+ 438:   const certificationMap = createRecordMap(nextCertificationRecords);
+ 439: 
+ 440:   /*
+ 441:    * Remove deleted Training records from every
+ 442:    * Certification relationship collection.
+ 443:    */
+ 444: 
+ 445:   if (deletedIds.size > 0) {
+ 446:     nextCertificationRecords = nextCertificationRecords.map((certification) => {
+ 447:       const currentRelationships = getArray(
+ 448:         certification?.relatedRecords?.trainingRelationships,
+ 449:       );
+ 450: 
+ 451:       const remainingRelationships = currentRelationships.filter(
+ 452:         (relationship) => !deletedIds.has(getText(relationship?.trainingId)),
+ 453:       );
+ 454: 
+ 455:       if (remainingRelationships.length === currentRelationships.length) {
+ 456:         return certification;
+ 457:       }
+ 458: 
+ 459:       return normalizeCertification({
+ 460:         ...certification,
+ 461: 
+ 462:         relatedRecords: {
+ 463:           ...certification.relatedRecords,
+ 464: 
+ 465:           trainingRelationships: remainingRelationships,
+ 466:         },
+ 467: 
+ 468:         updatedAt: new Date().toISOString(),
+ 469:       });
+ 470:     });
+ 471:   }
+ 472: 
+ 473:   /*
+ 474:    * For a Training save, Training is authoritative:
+ 475:    * its selected Certification IDs determine which
+ 476:    * Certification records should point back to it.
+ 477:    */
+ 478: 
+ 479:   changedIds.forEach((trainingId) => {
+ 480:     const training = requireTraining(trainingMap, trainingId);
+ 481: 
+ 482:     const selectedCertificationIds = new Set(
+ 483:       getTrainingCertificationIds(training),
+ 484:     );
+ 485: 
+ 486:     selectedCertificationIds.forEach((certificationId) => {
+ 487:       requireCertification(certificationMap, certificationId);
+ 488:     });
+ 489: 
+ 490:     nextCertificationRecords = nextCertificationRecords.map((certification) =>
+ 491:       synchronizeCertificationWithTraining(
+ 492:         certification,
+ 493:         training,
+ 494:         selectedCertificationIds.has(certification.id),
+ 495:       ),
+ 496:     );
+ 497:   });
+ 498: 
+ 499:   /*
+ 500:    * Refresh both snapshot directions after the
+ 501:    * relationship membership is synchronized.
+ 502:    */
+ 503: 
+ 504:   const refreshedCertificationMap = createRecordMap(nextCertificationRecords);
+ 505: 
+ 506:   nextTrainingRecords = nextTrainingRecords.map((training) =>
+ 507:     changedIds.has(training.id)
+ 508:       ? refreshTrainingCertificationRelationships(
+ 509:           training,
+ 510:           refreshedCertificationMap,
+ 511:         )
+ 512:       : training,
+ 513:   );
+ 514: 
+ 515:   return commitCollections({
+ 516:     originalTrainingRecords,
+ 517:     originalCertificationRecords,
+ 518:     nextTrainingRecords,
+ 519:     nextCertificationRecords,
+ 520:   });
+ 521: }
+ 522: 
+ 523: /*
+ 524:  * =========================================
+ 525:  * Certification-Authoritative Synchronization
+ 526:  * =========================================
+ 527:  */
+ 528: 
+ 529: export function saveCertificationWithTrainingSync({
+ 530:   certificationRecords,
+ 531:   changedCertificationIds = [],
+ 532:   deletedCertificationIds = [],
+ 533: } = {}) {
+ 534:   const originalTrainingRecords = readStoredTraining();
+ 535: 
+ 536:   const originalCertificationRecords = readStoredCertifications();
+ 537: 
+ 538:   let nextTrainingRecords = normalizeTrainingCollection(
+ 539:     originalTrainingRecords,
+ 540:   );
+ 541: 
+ 542:   let nextCertificationRecords =
+ 543:     normalizeCertificationCollection(certificationRecords);
+ 544: 
+ 545:   const changedIds = createIdSet(changedCertificationIds);
+ 546: 
+ 547:   const deletedIds = createIdSet(deletedCertificationIds);
+ 548: 
+ 549:   const trainingMap = createRecordMap(nextTrainingRecords);
+ 550: 
+ 551:   const certificationMap = createRecordMap(nextCertificationRecords);
+ 552: 
+ 553:   /*
+ 554:    * Remove deleted Certification records from
+ 555:    * all Training records.
+ 556:    */
+ 557: 
+ 558:   if (deletedIds.size > 0) {
+ 559:     nextTrainingRecords = nextTrainingRecords.map((training) => {
+ 560:       const remainingRelationships = getArray(
+ 561:         training?.certificationRelationships,
+ 562:       ).filter(
+ 563:         (relationship) =>
+ 564:           !deletedIds.has(getText(relationship?.certificationId)),
+ 565:       );
+ 566: 
+ 567:       return {
+ 568:         ...training,
+ 569: 
+ 570:         certificationRelationships: remainingRelationships,
+ 571: 
+ 572:         relatedCertificationIds: remainingRelationships.map(
+ 573:           (relationship) => relationship.certificationId,
+ 574:         ),
+ 575:       };
+ 576:     });
+ 577:   }
+ 578: 
+ 579:   /*
+ 580:    * For a Certification save, Certification is
+ 581:    * authoritative: its Training relationships
+ 582:    * determine which Training records point back.
+ 583:    */
+ 584: 
+ 585:   changedIds.forEach((certificationId) => {
+ 586:     const certification = requireCertification(
+ 587:       certificationMap,
+ 588:       certificationId,
+ 589:     );
+ 590: 
+ 591:     const selectedTrainingIds = new Set(
+ 592:       getCertificationTrainingIds(certification),
+ 593:     );
+ 594: 
+ 595:     selectedTrainingIds.forEach((trainingId) => {
+ 596:       requireTraining(trainingMap, trainingId);
+ 597:     });
+ 598: 
+ 599:     nextTrainingRecords = nextTrainingRecords.map((training) =>
+ 600:       synchronizeTrainingWithCertification(
+ 601:         training,
+ 602:         certification,
+ 603:         selectedTrainingIds.has(training.id),
+ 604:       ),
+ 605:     );
+ 606:   });
+ 607: 
+ 608:   const refreshedTrainingMap = createRecordMap(nextTrainingRecords);
+ 609: 
+ 610:   nextCertificationRecords = nextCertificationRecords.map((certification) =>
+ 611:     changedIds.has(certification.id)
+ 612:       ? refreshCertificationTrainingRelationships(
+ 613:           certification,
+ 614:           refreshedTrainingMap,
+ 615:         )
+ 616:       : certification,
+ 617:   );
+ 618: 
+ 619:   return commitCollections({
+ 620:     originalTrainingRecords,
+ 621:     originalCertificationRecords,
+ 622:     nextTrainingRecords,
+ 623:     nextCertificationRecords,
+ 624:   });
+ 625: }
+ 626: 
+
+===========================================================================
+FILE: src\context\AuthContext.jsx
+===========================================================================
+Total lines: 827
+   1: import {
+   2:   createContext,
+   3:   useCallback,
+   4:   useContext,
+   5:   useEffect,
+   6:   useMemo,
+   7:   useRef,
+   8:   useState,
+   9: } from "react";
+  10: 
+  11: import {
+  12:   completeRegistration as completeRegistrationService,
+  13:   getCurrentSession,
+  14:   logout as logoutService,
+  15:   refreshSession,
+  16:   requestPasswordLogin,
+  17:   requestRegistrationOtp,
+  18:   verifyLoginOtp,
+  19:   verifyRegistrationOtp,
+  20: } from "../services/Auth/authService.js";
+  21: 
+  22: import { AUTH_SESSION_INVALID_EVENT } from "../services/apiClient.js";
+  23: 
+  24: /*
+  25:  * =========================================
+  26:  * Authentication Status
+  27:  * =========================================
+  28:  */
+  29: 
+  30: export const AUTH_STATUS = Object.freeze({
+  31:   INITIALIZING: "initializing",
+  32: 
+  33:   AUTHENTICATED: "authenticated",
+  34: 
+  35:   UNAUTHENTICATED: "unauthenticated",
+  36: 
+  37:   ERROR: "error",
+  38: });
+  39: 
+  40: /*
+  41:  * =========================================
+  42:  * Authentication Operations
+  43:  * =========================================
+  44:  */
+  45: 
+  46: export const AUTH_OPERATION = Object.freeze({
+  47:   IDLE: "idle",
+  48: 
+  49:   RESTORING: "restoring",
+  50: 
+  51:   REQUESTING_REGISTRATION: "requesting-registration",
+  52: 
+  53:   VERIFYING_REGISTRATION: "verifying-registration",
+  54: 
+  55:   COMPLETING_REGISTRATION: "completing-registration",
+  56: 
+  57:   REQUESTING_LOGIN: "requesting-login",
+  58: 
+  59:   VERIFYING_LOGIN: "verifying-login",
+  60: 
+  61:   REFRESHING: "refreshing",
+  62: 
+  63:   LOGGING_OUT: "logging-out",
+  64: });
+  65: 
+  66: /*
+  67:  * =========================================
+  68:  * Context
+  69:  * =========================================
+  70:  */
+  71: 
+  72: const AuthContext = createContext(null);
+  73: 
+  74: /*
+  75:  * =========================================
+  76:  * Role Normalization
+  77:  * =========================================
+  78:  */
+  79: 
+  80: function normalizeRoles(roles) {
+  81:   if (!Array.isArray(roles)) {
+  82:     return [];
+  83:   }
+  84: 
+  85:   return [
+  86:     ...new Set(
+  87:       roles
+  88:         .map((role) =>
+  89:           typeof role === "string" ? role.trim().toLowerCase() : "",
+  90:         )
+  91:         .filter(Boolean),
+  92:     ),
+  93:   ];
+  94: }
+  95: 
+  96: /*
+  97:  * =========================================
+  98:  * Authentication Data
+  99:  * =========================================
+ 100:  */
+ 101: 
+ 102: function normalizeAuthentication(result) {
+ 103:   if (!result?.user?.id || !result?.session?.id) {
+ 104:     return null;
+ 105:   }
+ 106: 
+ 107:   return {
+ 108:     user: result.user,
+ 109: 
+ 110:     roles: normalizeRoles(result.roles),
+ 111: 
+ 112:     session: result.session,
+ 113:   };
+ 114: }
+ 115: 
+ 116: /*
+ 117:  * =========================================
+ 118:  * Expected Unauthenticated Errors
+ 119:  * =========================================
+ 120:  */
+ 121: 
+ 122: function isUnauthenticatedError(error) {
+ 123:   return (
+ 124:     Number(error?.status) === 401 ||
+ 125:     [
+ 126:       "AUTHENTICATION_REQUIRED",
+ 127:       "SESSION_REFRESH_TOKEN_INVALID",
+ 128:       "SESSION_NOT_FOUND",
+ 129:     ].includes(error?.code)
+ 130:   );
+ 131: }
+ 132: 
+ 133: /*
+ 134:  * =========================================
+ 135:  * Provider
+ 136:  * =========================================
+ 137:  */
+ 138: 
+ 139: export function AuthProvider({ children }) {
+ 140:   const [user, setUser] = useState(null);
+ 141: 
+ 142:   const [roles, setRoles] = useState([]);
+ 143: 
+ 144:   const [session, setSession] = useState(null);
+ 145: 
+ 146:   const [status, setStatus] = useState(AUTH_STATUS.INITIALIZING);
+ 147: 
+ 148:   const [operation, setOperation] = useState(AUTH_OPERATION.IDLE);
+ 149: 
+ 150:   const [error, setError] = useState(null);
+ 151: 
+ 152:   /*
+ 153:    * Prevent state updates after an actual
+ 154:    * provider unmount.
+ 155:    */
+ 156: 
+ 157:   const isMountedRef = useRef(false);
+ 158: 
+ 159:   /*
+ 160:    * Prevent duplicate restoration and token
+ 161:    * rotation requests.
+ 162:    */
+ 163: 
+ 164:   const restorationPromiseRef = useRef(null);
+ 165: 
+ 166:   const refreshPromiseRef = useRef(null);
+ 167: 
+ 168:   /*
+ 169:    * =========================================
+ 170:    * Safe State Helpers
+ 171:    * =========================================
+ 172:    */
+ 173: 
+ 174:   const clearAuthentication = useCallback(() => {
+ 175:     if (!isMountedRef.current) {
+ 176:       return;
+ 177:     }
+ 178: 
+ 179:     setUser(null);
+ 180: 
+ 181:     setRoles([]);
+ 182: 
+ 183:     setSession(null);
+ 184: 
+ 185:     setStatus(AUTH_STATUS.UNAUTHENTICATED);
+ 186:   }, []);
+ 187: 
+ 188:   const applyAuthentication = useCallback((result) => {
+ 189:     const authentication = normalizeAuthentication(result);
+ 190: 
+ 191:     if (!authentication) {
+ 192:       const authenticationError = new Error(
+ 193:         "The server returned an incomplete authentication response.",
+ 194:       );
+ 195: 
+ 196:       authenticationError.name = "AuthenticationResponseError";
+ 197: 
+ 198:       authenticationError.code = "AUTHENTICATION_RESPONSE_INVALID";
+ 199: 
+ 200:       throw authenticationError;
+ 201:     }
+ 202: 
+ 203:     if (!isMountedRef.current) {
+ 204:       return authentication;
+ 205:     }
+ 206: 
+ 207:     setUser(authentication.user);
+ 208: 
+ 209:     setRoles(authentication.roles);
+ 210: 
+ 211:     setSession(authentication.session);
+ 212: 
+ 213:     setStatus(AUTH_STATUS.AUTHENTICATED);
+ 214: 
+ 215:     setError(null);
+ 216: 
+ 217:     return authentication;
+ 218:   }, []);
+ 219: 
+ 220:   const clearError = useCallback(() => {
+ 221:     if (isMountedRef.current) {
+ 222:       setError(null);
+ 223:     }
+ 224:   }, []);
+ 225: 
+ 226:   /*
+ 227:    * =========================================
+ 228:    * Invalid Session Events
+ 229:    * =========================================
+ 230:    *
+ 231:    * Protected API requests dispatch this event
+ 232:    * when the server reports that the current
+ 233:    * session was revoked, expired, or invalid.
+ 234:    */
+ 235: 
+ 236:   useEffect(() => {
+ 237:     function handleInvalidSession() {
+ 238:       clearAuthentication();
+ 239: 
+ 240:       if (isMountedRef.current) {
+ 241:         setError(null);
+ 242: 
+ 243:         setOperation(AUTH_OPERATION.IDLE);
+ 244:       }
+ 245:     }
+ 246: 
+ 247:     window.addEventListener(
+ 248:       AUTH_SESSION_INVALID_EVENT,
+ 249: 
+ 250:       handleInvalidSession,
+ 251:     );
+ 252: 
+ 253:     return () => {
+ 254:       window.removeEventListener(
+ 255:         AUTH_SESSION_INVALID_EVENT,
+ 256: 
+ 257:         handleInvalidSession,
+ 258:       );
+ 259:     };
+ 260:   }, [clearAuthentication]);
+ 261: 
+ 262:   /*
+ 263:    * =========================================
+ 264:    * Restore Existing Session
+ 265:    * =========================================
+ 266:    *
+ 267:    * A missing or expired cookie is an ordinary
+ 268:    * unauthenticated state, not an application
+ 269:    * failure.
+ 270:    */
+ 271: 
+ 272:   const restoreAuthentication = useCallback(async () => {
+ 273:     if (restorationPromiseRef.current) {
+ 274:       return restorationPromiseRef.current;
+ 275:     }
+ 276: 
+ 277:     const restorationPromise = (async () => {
+ 278:       if (isMountedRef.current) {
+ 279:         setOperation(AUTH_OPERATION.RESTORING);
+ 280: 
+ 281:         setError(null);
+ 282:       }
+ 283: 
+ 284:       try {
+ 285:         const result = await getCurrentSession();
+ 286: 
+ 287:         return applyAuthentication(result);
+ 288:       } catch (restorationError) {
+ 289:         if (isUnauthenticatedError(restorationError)) {
+ 290:           clearAuthentication();
+ 291: 
+ 292:           return null;
+ 293:         }
+ 294: 
+ 295:         if (isMountedRef.current) {
+ 296:           setUser(null);
+ 297: 
+ 298:           setRoles([]);
+ 299: 
+ 300:           setSession(null);
+ 301: 
+ 302:           setStatus(AUTH_STATUS.ERROR);
+ 303: 
+ 304:           setError(restorationError);
+ 305:         }
+ 306: 
+ 307:         return null;
+ 308:       } finally {
+ 309:         if (isMountedRef.current) {
+ 310:           setOperation(AUTH_OPERATION.IDLE);
+ 311:         }
+ 312:       }
+ 313:     })();
+ 314: 
+ 315:     restorationPromiseRef.current = restorationPromise;
+ 316: 
+ 317:     try {
+ 318:       return await restorationPromise;
+ 319:     } finally {
+ 320:       if (restorationPromiseRef.current === restorationPromise) {
+ 321:         restorationPromiseRef.current = null;
+ 322:       }
+ 323:     }
+ 324:   }, [applyAuthentication, clearAuthentication]);
+ 325: 
+ 326:   /*
+ 327:    * =========================================
+ 328:    * Revalidate Returning Browsers
+ 329:    * =========================================
+ 330:    *
+ 331:    * If another device revoked this browser's
+ 332:    * session, returning to this tab triggers a
+ 333:    * server validation before continued use.
+ 334:    */
+ 335: 
+ 336:   useEffect(() => {
+ 337:     function revalidateAuthentication() {
+ 338:       if (!isMountedRef.current || status !== AUTH_STATUS.AUTHENTICATED) {
+ 339:         return;
+ 340:       }
+ 341: 
+ 342:       void restoreAuthentication();
+ 343:     }
+ 344: 
+ 345:     function handleVisibilityChange() {
+ 346:       if (document.visibilityState === "visible") {
+ 347:         revalidateAuthentication();
+ 348:       }
+ 349:     }
+ 350: 
+ 351:     window.addEventListener("focus", revalidateAuthentication);
+ 352: 
+ 353:     document.addEventListener(
+ 354:       "visibilitychange",
+ 355: 
+ 356:       handleVisibilityChange,
+ 357:     );
+ 358: 
+ 359:     return () => {
+ 360:       window.removeEventListener(
+ 361:         "focus",
+ 362: 
+ 363:         revalidateAuthentication,
+ 364:       );
+ 365: 
+ 366:       document.removeEventListener(
+ 367:         "visibilitychange",
+ 368: 
+ 369:         handleVisibilityChange,
+ 370:       );
+ 371:     };
+ 372:   }, [status, restoreAuthentication]);
+ 373: 
+ 374:   /*
+ 375:    * =========================================
+ 376:    * Begin Registration
+ 377:    * =========================================
+ 378:    *
+ 379:    * This creates a registration challenge and
+ 380:    * requests delivery of the registration OTP.
+ 381:    * It does not authenticate the browser.
+ 382:    */
+ 383: 
+ 384:   const beginRegistration = useCallback(async ({ email }) => {
+ 385:     if (isMountedRef.current) {
+ 386:       setOperation(AUTH_OPERATION.REQUESTING_REGISTRATION);
+ 387: 
+ 388:       setError(null);
+ 389:     }
+ 390: 
+ 391:     try {
+ 392:       return await requestRegistrationOtp({
+ 393:         email,
+ 394:       });
+ 395:     } catch (registrationError) {
+ 396:       if (isMountedRef.current) {
+ 397:         setError(registrationError);
+ 398:       }
+ 399: 
+ 400:       throw registrationError;
+ 401:     } finally {
+ 402:       if (isMountedRef.current) {
+ 403:         setOperation(AUTH_OPERATION.IDLE);
+ 404:       }
+ 405:     }
+ 406:   }, []);
+ 407: 
+ 408:   /*
+ 409:    * =========================================
+ 410:    * Verify Registration OTP
+ 411:    * =========================================
+ 412:    *
+ 413:    * Successful verification returns a
+ 414:    * short-lived continuation token. It does
+ 415:    * not create the account or session yet.
+ 416:    */
+ 417: 
+ 418:   const verifyRegistration = useCallback(async ({ challengeId, otp }) => {
+ 419:     if (isMountedRef.current) {
+ 420:       setOperation(AUTH_OPERATION.VERIFYING_REGISTRATION);
+ 421: 
+ 422:       setError(null);
+ 423:     }
+ 424: 
+ 425:     try {
+ 426:       return await verifyRegistrationOtp({
+ 427:         challengeId,
+ 428: 
+ 429:         otp,
+ 430:       });
+ 431:     } catch (verificationError) {
+ 432:       if (isMountedRef.current) {
+ 433:         setError(verificationError);
+ 434:       }
+ 435: 
+ 436:       throw verificationError;
+ 437:     } finally {
+ 438:       if (isMountedRef.current) {
+ 439:         setOperation(AUTH_OPERATION.IDLE);
+ 440:       }
+ 441:     }
+ 442:   }, []);
+ 443: 
+ 444:   /*
+ 445:    * =========================================
+ 446:    * Complete Registration
+ 447:    * =========================================
+ 448:    *
+ 449:    * This creates the user, initial profile,
+ 450:    * settings and standard user role. It does
+ 451:    * not create an authenticated session.
+ 452:    */
+ 453: 
+ 454:   const finishRegistration = useCallback(
+ 455:     async ({ challengeId, continuationToken, password }) => {
+ 456:       if (isMountedRef.current) {
+ 457:         setOperation(AUTH_OPERATION.COMPLETING_REGISTRATION);
+ 458: 
+ 459:         setError(null);
+ 460:       }
+ 461: 
+ 462:       try {
+ 463:         return await completeRegistrationService({
+ 464:           challengeId,
+ 465: 
+ 466:           continuationToken,
+ 467: 
+ 468:           password,
+ 469:         });
+ 470:       } catch (registrationError) {
+ 471:         if (isMountedRef.current) {
+ 472:           setError(registrationError);
+ 473:         }
+ 474: 
+ 475:         throw registrationError;
+ 476:       } finally {
+ 477:         if (isMountedRef.current) {
+ 478:           setOperation(AUTH_OPERATION.IDLE);
+ 479:         }
+ 480:       }
+ 481:     },
+ 482:     [],
+ 483:   );
+ 484: 
+ 485:   /*
+ 486:    * =========================================
+ 487:    * Begin Password Login
+ 488:    * =========================================
+ 489:    *
+ 490:    * This validates the password and requests
+ 491:    * an OTP. It does not authenticate the
+ 492:    * browser yet.
+ 493:    */
+ 494: 
+ 495:   const beginPasswordLogin = useCallback(async ({ email, password }) => {
+ 496:     if (isMountedRef.current) {
+ 497:       setOperation(AUTH_OPERATION.REQUESTING_LOGIN);
+ 498: 
+ 499:       setError(null);
+ 500:     }
+ 501: 
+ 502:     try {
+ 503:       return await requestPasswordLogin({
+ 504:         email,
+ 505: 
+ 506:         password,
+ 507:       });
+ 508:     } catch (loginError) {
+ 509:       if (isMountedRef.current) {
+ 510:         setError(loginError);
+ 511:       }
+ 512: 
+ 513:       throw loginError;
+ 514:     } finally {
+ 515:       if (isMountedRef.current) {
+ 516:         setOperation(AUTH_OPERATION.IDLE);
+ 517:       }
+ 518:     }
+ 519:   }, []);
+ 520: 
+ 521:   /*
+ 522:    * =========================================
+ 523:    * Complete Login OTP
+ 524:    * =========================================
+ 525:    *
+ 526:    * Successful verification creates the
+ 527:    * server session and HttpOnly cookie.
+ 528:    */
+ 529: 
+ 530:   const completeLogin = useCallback(
+ 531:     async ({ challengeId, otp }) => {
+ 532:       if (isMountedRef.current) {
+ 533:         setOperation(AUTH_OPERATION.VERIFYING_LOGIN);
+ 534: 
+ 535:         setError(null);
+ 536:       }
+ 537: 
+ 538:       try {
+ 539:         const result = await verifyLoginOtp({
+ 540:           challengeId,
+ 541: 
+ 542:           otp,
+ 543:         });
+ 544: 
+ 545:         applyAuthentication(result);
+ 546: 
+ 547:         return result;
+ 548:       } catch (verificationError) {
+ 549:         if (isMountedRef.current) {
+ 550:           setError(verificationError);
+ 551:         }
+ 552: 
+ 553:         throw verificationError;
+ 554:       } finally {
+ 555:         if (isMountedRef.current) {
+ 556:           setOperation(AUTH_OPERATION.IDLE);
+ 557:         }
+ 558:       }
+ 559:     },
+ 560:     [applyAuthentication],
+ 561:   );
+ 562: 
+ 563:   /*
+ 564:    * =========================================
+ 565:    * Refresh Session
+ 566:    * =========================================
+ 567:    *
+ 568:    * Only one refresh may run at a time because
+ 569:    * every successful refresh invalidates the
+ 570:    * previous refresh token.
+ 571:    */
+ 572: 
+ 573:   const refreshAuthentication = useCallback(async () => {
+ 574:     if (refreshPromiseRef.current) {
+ 575:       return refreshPromiseRef.current;
+ 576:     }
+ 577: 
+ 578:     const refreshPromise = (async () => {
+ 579:       if (isMountedRef.current) {
+ 580:         setOperation(AUTH_OPERATION.REFRESHING);
+ 581: 
+ 582:         setError(null);
+ 583:       }
+ 584: 
+ 585:       try {
+ 586:         const result = await refreshSession();
+ 587: 
+ 588:         applyAuthentication(result);
+ 589: 
+ 590:         return result;
+ 591:       } catch (refreshError) {
+ 592:         if (
+ 593:           isUnauthenticatedError(refreshError) ||
+ 594:           refreshError?.code === "SESSION_REFRESH_CONFLICT"
+ 595:         ) {
+ 596:           clearAuthentication();
+ 597:         }
+ 598: 
+ 599:         if (isMountedRef.current) {
+ 600:           setError(refreshError);
+ 601:         }
+ 602: 
+ 603:         throw refreshError;
+ 604:       } finally {
+ 605:         if (isMountedRef.current) {
+ 606:           setOperation(AUTH_OPERATION.IDLE);
+ 607:         }
+ 608:       }
+ 609:     })();
+ 610: 
+ 611:     refreshPromiseRef.current = refreshPromise;
+ 612: 
+ 613:     try {
+ 614:       return await refreshPromise;
+ 615:     } finally {
+ 616:       if (refreshPromiseRef.current === refreshPromise) {
+ 617:         refreshPromiseRef.current = null;
+ 618:       }
+ 619:     }
+ 620:   }, [applyAuthentication, clearAuthentication]);
+ 621: 
+ 622:   /*
+ 623:    * =========================================
+ 624:    * Logout
+ 625:    * =========================================
+ 626:    */
+ 627: 
+ 628:   const logout = useCallback(async () => {
+ 629:     if (isMountedRef.current) {
+ 630:       setOperation(AUTH_OPERATION.LOGGING_OUT);
+ 631: 
+ 632:       setError(null);
+ 633:     }
+ 634: 
+ 635:     try {
+ 636:       const result = await logoutService();
+ 637: 
+ 638:       clearAuthentication();
+ 639: 
+ 640:       return result;
+ 641:     } catch (logoutError) {
+ 642:       /*
+ 643:        * The backend intentionally preserves
+ 644:        * the cookie when database revocation
+ 645:        * fails, so keep the local identity
+ 646:        * until logout actually succeeds.
+ 647:        */
+ 648: 
+ 649:       if (isMountedRef.current) {
+ 650:         setError(logoutError);
+ 651:       }
+ 652: 
+ 653:       throw logoutError;
+ 654:     } finally {
+ 655:       if (isMountedRef.current) {
+ 656:         setOperation(AUTH_OPERATION.IDLE);
+ 657:       }
+ 658:     }
+ 659:   }, [clearAuthentication]);
+ 660: 
+ 661:   /*
+ 662:    * =========================================
+ 663:    * Role Lookup
+ 664:    * =========================================
+ 665:    */
+ 666: 
+ 667:   const hasRole = useCallback(
+ 668:     (roleName) => {
+ 669:       const normalizedRole =
+ 670:         typeof roleName === "string" ? roleName.trim().toLowerCase() : "";
+ 671: 
+ 672:       return Boolean(normalizedRole && roles.includes(normalizedRole));
+ 673:     },
+ 674:     [roles],
+ 675:   );
+ 676: 
+ 677:   /*
+ 678:    * =========================================
+ 679:    * Initial Session Restoration
+ 680:    * =========================================
+ 681:    */
+ 682: 
+ 683:   useEffect(() => {
+ 684:     isMountedRef.current = true;
+ 685: 
+ 686:     void restoreAuthentication();
+ 687: 
+ 688:     return () => {
+ 689:       isMountedRef.current = false;
+ 690:     };
+ 691:   }, [restoreAuthentication]);
+ 692: 
+ 693:   /*
+ 694:    * =========================================
+ 695:    * Derived State
+ 696:    * =========================================
+ 697:    */
+ 698: 
+ 699:   const isAuthenticated = status === AUTH_STATUS.AUTHENTICATED;
+ 700: 
+ 701:   const isInitializing = status === AUTH_STATUS.INITIALIZING;
+ 702: 
+ 703:   const isBusy = operation !== AUTH_OPERATION.IDLE;
+ 704: 
+ 705:   /*
+ 706:    * =========================================
+ 707:    * Context Value
+ 708:    * =========================================
+ 709:    */
+ 710: 
+ 711:   const contextValue = useMemo(
+ 712:     () => ({
+ 713:       /*
+ 714:        * Identity
+ 715:        */
+ 716: 
+ 717:       user,
+ 718: 
+ 719:       roles,
+ 720: 
+ 721:       session,
+ 722: 
+ 723:       /*
+ 724:        * Status
+ 725:        */
+ 726: 
+ 727:       status,
+ 728: 
+ 729:       operation,
+ 730: 
+ 731:       error,
+ 732: 
+ 733:       isAuthenticated,
+ 734: 
+ 735:       isInitializing,
+ 736: 
+ 737:       isBusy,
+ 738: 
+ 739:       /*
+ 740:        * Authentication Actions
+ 741:        */
+ 742: 
+ 743:       restoreAuthentication,
+ 744: 
+ 745:       beginRegistration,
+ 746: 
+ 747:       verifyRegistration,
+ 748: 
+ 749:       finishRegistration,
+ 750: 
+ 751:       beginPasswordLogin,
+ 752: 
+ 753:       completeLogin,
+ 754: 
+ 755:       refreshAuthentication,
+ 756: 
+ 757:       logout,
+ 758: 
+ 759:       /*
+ 760:        * Utilities
+ 761:        */
+ 762: 
+ 763:       hasRole,
+ 764: 
+ 765:       clearError,
+ 766:     }),
+ 767:     [
+ 768:       user,
+ 769: 
+ 770:       roles,
+ 771: 
+ 772:       session,
+ 773: 
+ 774:       status,
+ 775: 
+ 776:       operation,
+ 777: 
+ 778:       error,
+ 779: 
+ 780:       isAuthenticated,
+ 781: 
+ 782:       isInitializing,
+ 783: 
+ 784:       isBusy,
+ 785: 
+ 786:       restoreAuthentication,
+ 787: 
+ 788:       beginRegistration,
+ 789: 
+ 790:       verifyRegistration,
+ 791: 
+ 792:       finishRegistration,
+ 793: 
+ 794:       beginPasswordLogin,
+ 795: 
+ 796:       completeLogin,
+ 797: 
+ 798:       refreshAuthentication,
+ 799: 
+ 800:       logout,
+ 801: 
+ 802:       hasRole,
+ 803: 
+ 804:       clearError,
+ 805:     ],
+ 806:   );
+ 807: 
+ 808:   return (
+ 809:     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+ 810:   );
+ 811: }
+ 812: 
+ 813: /*
+ 814:  * =========================================
+ 815:  * Authentication Hook
+ 816:  * =========================================
+ 817:  */
+ 818: 
+ 819: export function useAuth() {
+ 820:   const context = useContext(AuthContext);
+ 821: 
+ 822:   if (!context) {
+ 823:     throw new Error("useAuth must be used inside AuthProvider.");
+ 824:   }
+ 825: 
+ 826:   return context;
+ 827: }
+
+===========================================================================
+FILE: src\services\Account\sessionService.js
+===========================================================================
+Total lines: 144
+   1: import { apiDelete, apiGet, apiPost } from "../apiClient.js";
+   2: 
+   3: /*
+   4:  * =========================================
+   5:  * Session Normalization
+   6:  * =========================================
+   7:  */
+   8: 
+   9: function normalizeSession(session) {
+  10:   if (!session || typeof session !== "object" || !session.id) {
+  11:     return null;
+  12:   }
+  13: 
+  14:   return {
+  15:     id: session.id,
+  16: 
+  17:     deviceName:
+  18:       typeof session.deviceName === "string" && session.deviceName.trim()
+  19:         ? session.deviceName.trim()
+  20:         : "Unknown device",
+  21: 
+  22:     createdAt: session.createdAt || null,
+  23: 
+  24:     lastUsedAt: session.lastUsedAt || null,
+  25: 
+  26:     expiresAt: session.expiresAt || null,
+  27: 
+  28:     isCurrent: Boolean(session.isCurrent),
+  29:   };
+  30: }
+  31: 
+  32: /*
+  33:  * =========================================
+  34:  * Session ID Normalization
+  35:  * =========================================
+  36:  */
+  37: 
+  38: function normalizeSessionId(sessionId) {
+  39:   return typeof sessionId === "string" ? sessionId.trim() : "";
+  40: }
+  41: 
+  42: /*
+  43:  * =========================================
+  44:  * Get Active Sessions
+  45:  * =========================================
+  46:  *
+  47:  * GET /api/users/me/sessions
+  48:  */
+  49: 
+  50: export async function getActiveSessions(options = {}) {
+  51:   const response = await apiGet(
+  52:     "/users/me/sessions",
+  53: 
+  54:     options,
+  55:   );
+  56: 
+  57:   const sessions = Array.isArray(response?.data?.sessions)
+  58:     ? response.data.sessions.map(normalizeSession).filter(Boolean)
+  59:     : [];
+  60: 
+  61:   return {
+  62:     status: response?.status || "success",
+  63: 
+  64:     message: response?.message || "",
+  65: 
+  66:     sessions,
+  67:   };
+  68: }
+  69: 
+  70: /*
+  71:  * =========================================
+  72:  * Revoke One Session
+  73:  * =========================================
+  74:  *
+  75:  * DELETE /api/users/me/sessions/:sessionId
+  76:  */
+  77: 
+  78: export async function revokeSession(sessionId, options = {}) {
+  79:   const normalizedSessionId = normalizeSessionId(sessionId);
+  80: 
+  81:   if (!normalizedSessionId) {
+  82:     throw new TypeError("A session ID is required.");
+  83:   }
+  84: 
+  85:   const response = await apiDelete(
+  86:     `/users/me/sessions/${encodeURIComponent(normalizedSessionId)}`,
+  87: 
+  88:     options,
+  89:   );
+  90: 
+  91:   return {
+  92:     status: response?.status || "success",
+  93: 
+  94:     message: response?.message || "",
+  95: 
+  96:     sessionId: response?.data?.sessionId || normalizedSessionId,
+  97: 
+  98:     revokedAt: response?.data?.revokedAt || null,
+  99:   };
+ 100: }
+ 101: 
+ 102: /*
+ 103:  * =========================================
+ 104:  * Revoke All Other Sessions
+ 105:  * =========================================
+ 106:  *
+ 107:  * POST /api/users/me/sessions/revoke-others
+ 108:  */
+ 109: 
+ 110: export async function revokeOtherSessions(options = {}) {
+ 111:   const response = await apiPost(
+ 112:     "/users/me/sessions/revoke-others",
+ 113: 
+ 114:     {},
+ 115: 
+ 116:     options,
+ 117:   );
+ 118: 
+ 119:   return {
+ 120:     status: response?.status || "success",
+ 121: 
+ 122:     message: response?.message || "",
+ 123: 
+ 124:     revokedCount: Number(response?.data?.revokedCount || 0),
+ 125: 
+ 126:     currentSessionId: response?.data?.currentSessionId || null,
+ 127:   };
+ 128: }
+ 129: 
+ 130: /*
+ 131:  * =========================================
+ 132:  * Session Service Object
+ 133:  * =========================================
+ 134:  */
+ 135: 
+ 136: const sessionService = Object.freeze({
+ 137:   getActiveSessions,
+ 138: 
+ 139:   revokeSession,
+ 140: 
+ 141:   revokeOtherSessions,
+ 142: });
+ 143: 
+ 144: export default sessionService;
+

@@ -437,7 +437,9 @@ function CertificationForm({
       setSubmitError(
         `${errors.length} ${
           errors.length === 1 ? "problem must" : "problems must"
-        } be corrected before saving.`,
+        } be corrected before saving. ${errors
+          .map((error) => `${error.field || "General"}: ${error.message}`)
+          .join("; ")}`,
       );
 
       const firstError = errors[0];

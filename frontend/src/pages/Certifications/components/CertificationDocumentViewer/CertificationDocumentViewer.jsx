@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   createCertificationDocumentUrl,
   revokeCertificationDocumentUrl,
-} from "../../../../services/Certification/certificationDocumentStorage.js";
+} from "../../../../services/Certification/certificationDocumentLoader.js";
 
 import "./CertificationDocumentViewer.css";
 
@@ -23,7 +23,7 @@ function CertificationDocumentViewer({
 
     setDocumentUrl("");
 
-    if (!certificationDocument?.storageKey) {
+    if (!certificationDocument?.storageKey && !(certificationDocument?.certificationId && certificationDocument?.id)) {
       setStatus("missing");
 
       return undefined;
@@ -31,7 +31,7 @@ function CertificationDocumentViewer({
 
     setStatus("loading");
 
-    createCertificationDocumentUrl(certificationDocument.storageKey)
+    createCertificationDocumentUrl(certificationDocument)
       .then((url) => {
         createdUrl = url;
 
@@ -56,7 +56,7 @@ function CertificationDocumentViewer({
 
       revokeCertificationDocumentUrl(createdUrl);
     };
-  }, [certificationDocument?.storageKey]);
+  }, [certificationDocument?.storageKey, certificationDocument?.certificationId, certificationDocument?.id]);
 
   useEffect(() => {
     const previouslyFocusedElement = window.document.activeElement;

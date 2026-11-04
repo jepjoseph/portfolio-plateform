@@ -1,0 +1,2414 @@
+CERTIFICATION MIGRATION SOURCE INSPECTION
+Generated: 2026-11-03T13:33:00.9544066-05:00
+
+======================================================================
+FILE: src\models\certificationModel.js
+======================================================================
+   1: import {
+   2:   CERTIFICATION_CREDENTIAL_STATE_OPTIONS,
+   3:   CERTIFICATION_DOCUMENT_TYPE_OPTIONS,
+   4:   CERTIFICATION_ISSUER_TYPE_OPTIONS,
+   5:   CERTIFICATION_SOURCE_OPTIONS,
+   6:   CERTIFICATION_STATUS_OPTIONS,
+   7:   CERTIFICATION_TYPE_OPTIONS,
+   8:   getCertificationDocumentPreviewMode,
+   9: } from "../config/certificationConfig.js";
+  10: 
+  11: export const CERTIFICATION_MODEL_VERSION = 1;
+  12: 
+  13: const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+  14: 
+  15: /*
+  16:  * =========================================
+  17:  * Primitive Helpers
+  18:  * =========================================
+  19:  */
+  20: 
+  21: function createId(prefix = "certification") {
+  22:   if (
+  23:     typeof crypto !== "undefined" &&
+  24:     typeof crypto.randomUUID === "function"
+  25:   ) {
+  26:     return `${prefix}-${crypto.randomUUID()}`;
+  27:   }
+  28: 
+  29:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  30: }
+  31: 
+  32: function getText(value) {
+  33:   return typeof value === "string" ? value.trim() : "";
+  34: }
+  35: 
+  36: function getBoolean(value, fallback = false) {
+  37:   return typeof value === "boolean" ? value : fallback;
+  38: }
+  39: 
+  40: function getArray(value) {
+  41:   return Array.isArray(value) ? value : [];
+  42: }
+  43: 
+  44: function getMonth(value) {
+  45:   const month = getText(value);
+  46: 
+  47:   return MONTH_PATTERN.test(month) ? month : "";
+  48: }
+  49: 
+  50: function getTimestamp(value, fallback) {
+  51:   const timestamp = getText(value);
+  52: 
+  53:   return timestamp && Number.isFinite(Date.parse(timestamp))
+  54:     ? timestamp
+  55:     : fallback;
+  56: }
+  57: 
+  58: function getFileExtension(fileName) {
+  59:   const normalizedName = getText(fileName).toLocaleLowerCase();
+  60: 
+  61:   const extensionIndex = normalizedName.lastIndexOf(".");
+  62: 
+  63:   return extensionIndex >= 0 ? normalizedName.slice(extensionIndex) : "";
+  64: }
+  65: 
+  66: function getOptionValue(options, value, fallback) {
+  67:   const normalizedValue = getText(value);
+  68: 
+  69:   return options.some((option) => option.value === normalizedValue)
+  70:     ? normalizedValue
+  71:     : fallback;
+  72: }
+  73: 
+  74: function uniqueTextValues(values) {
+  75:   const usedValues = new Set();
+  76: 
+  77:   return getArray(values).reduce((result, value) => {
+  78:     const text = getText(value);
+  79: 
+  80:     if (!text || usedValues.has(text)) {
+  81:       return result;
+  82:     }
+  83: 
+  84:     usedValues.add(text);
+  85:     result.push(text);
+  86: 
+  87:     return result;
+  88:   }, []);
+  89: }
+  90: 
+  91: /*
+  92:  * =========================================
+  93:  * Skill Relationships
+  94:  * =========================================
+  95:  */
+  96: 
+  97: export function createCertificationSkillRelationship(skill = {}, order = 0) {
+  98:   const skillId = getText(skill.skillId || skill.profileSkillId || skill.id);
+  99: 
+ 100:   return {
+ 101:     id: getText(skill.relationshipId) || createId("certification-skill"),
+ 102: 
+ 103:     skillId,
+ 104: 
+ 105:     order: Number.isInteger(skill.order) ? skill.order : order,
+ 106: 
+ 107:     snapshot: {
+ 108:       name: getText(skill.snapshot?.name || skill.skillName || skill.name),
+ 109: 
+ 110:       category: getText(skill.snapshot?.category || skill.category),
+ 111: 
+ 112:       type: getText(skill.snapshot?.type || skill.type),
+ 113: 
+ 114:       proficiency: getText(
+ 115:         skill.snapshot?.proficiency ||
+ 116:           skill.proficiency?.level ||
+ 117:           skill.proficiency,
+ 118:       ),
+ 119:     },
+ 120:   };
+ 121: }
+ 122: 
+ 123: function normalizeSkillRelationships(value) {
+ 124:   const usedSkillIds = new Set();
+ 125: 
+ 126:   return getArray(value).reduce((relationships, relationship, index) => {
+ 127:     const normalized = createCertificationSkillRelationship(
+ 128:       relationship,
+ 129:       index,
+ 130:     );
+ 131: 
+ 132:     if (!normalized.skillId || usedSkillIds.has(normalized.skillId)) {
+ 133:       return relationships;
+ 134:     }
+ 135: 
+ 136:     usedSkillIds.add(normalized.skillId);
+ 137: 
+ 138:     relationships.push({
+ 139:       ...normalized,
+ 140:       order: relationships.length,
+ 141:     });
+ 142: 
+ 143:     return relationships;
+ 144:   }, []);
+ 145: }
+ 146: 
+ 147: /*
+ 148:  * =========================================
+ 149:  * Training Relationships
+ 150:  * =========================================
+ 151:  */
+ 152: 
+ 153: export function createCertificationTrainingRelationship(
+ 154:   training = {},
+ 155:   order = 0,
+ 156: ) {
+ 157:   const trainingId = getText(
+ 158:     training.trainingId || training.trainingRecordId || training.id,
+ 159:   );
+ 160: 
+ 161:   return {
+ 162:     id: getText(training.relationshipId) || createId("certification-training"),
+ 163: 
+ 164:     trainingId,
+ 165: 
+ 166:     order: Number.isInteger(training.order) ? training.order : order,
+ 167: 
+ 168:     snapshot: {
+ 169:       title: getText(
+ 170:         training.snapshot?.title || training.trainingTitle || training.title,
+ 171:       ),
+ 172: 
+ 173:       providerName: getText(
+ 174:         training.snapshot?.providerName ||
+ 175:           training.providerName ||
+ 176:           training.provider?.name,
+ 177:       ),
+ 178: 
+ 179:       completionStatus: getText(
+ 180:         training.snapshot?.completionStatus ||
+ 181:           training.completionStatus ||
+ 182:           training.completion?.status,
+ 183:       ),
+ 184:     },
+ 185:   };
+ 186: }
+ 187: 
+ 188: function normalizeTrainingRelationships(value) {
+ 189:   const usedTrainingIds = new Set();
+ 190: 
+ 191:   return getArray(value).reduce((relationships, relationship, index) => {
+ 192:     const source =
+ 193:       typeof relationship === "string"
+ 194:         ? {
+ 195:             trainingId: relationship,
+ 196:           }
+ 197:         : relationship;
+ 198: 
+ 199:     const normalized = createCertificationTrainingRelationship(source, index);
+ 200: 
+ 201:     if (!normalized.trainingId || usedTrainingIds.has(normalized.trainingId)) {
+ 202:       return relationships;
+ 203:     }
+ 204: 
+ 205:     usedTrainingIds.add(normalized.trainingId);
+ 206: 
+ 207:     relationships.push({
+ 208:       ...normalized,
+ 209:       order: relationships.length,
+ 210:     });
+ 211: 
+ 212:     return relationships;
+ 213:   }, []);
+ 214: }
+ 215: 
+ 216: /*
+ 217:  * =========================================
+ 218:  * Supporting Documents
+ 219:  * =========================================
+ 220:  */
+ 221: 
+ 222: export function createCertificationDocument(document = {}, order = 0) {
+ 223:   const timestamp = new Date().toISOString();
+ 224: 
+ 225:   const fileName = getText(document.fileName || document.originalName);
+ 226: 
+ 227:   return {
+ 228:     id: getText(document.id) || createId("certification-document"),
+ 229: 
+ 230:     documentType: getOptionValue(
+ 231:       CERTIFICATION_DOCUMENT_TYPE_OPTIONS,
+ 232:       document.documentType || document.type,
+ 233:       "certificate",
+ 234:     ),
+ 235: 
+ 236:     name: getText(document.name || document.displayName || document.fileName),
+ 237: 
+ 238:     description: getText(document.description),
+ 239: 
+ 240:     fileName,
+ 241: 
+ 242:     extension:
+ 243:       getText(document.extension).toLocaleLowerCase() ||
+ 244:       getFileExtension(fileName),
+ 245: 
+ 246:     mimeType: getText(document.mimeType || document.fileType),
+ 247: 
+ 248:     size: Math.max(0, Number(document.size ?? document.fileSize) || 0),
+ 249: 
+ 250:     /*
+ 251:      * The actual Blob is stored in IndexedDB.
+ 252:      * Only the IndexedDB reference is stored here.
+ 253:      */
+ 254: 
+ 255:     storageKey: getText(document.storageKey || document.documentKey),
+ 256: 
+ 257:     checksum: getText(document.checksum),
+ 258: 
+ 259:     /*
+ 260:      * The primary document is used for the preview
+ 261:      * shown on the Certification item.
+ 262:      */
+ 263: 
+ 264:     isPrimary: getBoolean(document.isPrimary, false),
+ 265: 
+ 266:     previewMode: getCertificationDocumentPreviewMode({
+ 267:       mimeType: document.mimeType || document.fileType,
+ 268: 
+ 269:       fileName,
+ 270:     }),
+ 271: 
+ 272:     order: Number.isInteger(document.order) ? document.order : order,
+ 273: 
+ 274:     status: document.status === "archived" ? "archived" : "active",
+ 275: 
+ 276:     uploadedAt: getTimestamp(document.uploadedAt, timestamp),
+ 277: 
+ 278:     createdAt: getTimestamp(document.createdAt, timestamp),
+ 279: 
+ 280:     updatedAt: getTimestamp(document.updatedAt, timestamp),
+ 281:   };
+ 282: }
+ 283: 
+ 284: function normalizeDocuments(value) {
+ 285:   const usedIds = new Set();
+ 286: 
+ 287:   const documents = getArray(value).reduce((result, document, index) => {
+ 288:     if (!document || typeof document !== "object") {
+ 289:       return result;
+ 290:     }
+ 291: 
+ 292:     const normalized = createCertificationDocument(document, index);
+ 293: 
+ 294:     if (usedIds.has(normalized.id)) {
+ 295:       return result;
+ 296:     }
+ 297: 
+ 298:     usedIds.add(normalized.id);
+ 299: 
+ 300:     result.push({
+ 301:       ...normalized,
+ 302:       order: result.length,
+ 303:     });
+ 304: 
+ 305:     return result;
+ 306:   }, []);
+ 307: 
+ 308:   /*
+ 309:    * Only one active document can be the primary
+ 310:    * document used for the Certification item preview.
+ 311:    */
+ 312: 
+ 313:   const requestedPrimaryIndex = documents.findIndex(
+ 314:     (document) => document.isPrimary && document.status !== "archived",
+ 315:   );
+ 316: 
+ 317:   const primaryIndex =
+ 318:     requestedPrimaryIndex >= 0
+ 319:       ? requestedPrimaryIndex
+ 320:       : documents.findIndex((document) => document.status !== "archived");
+ 321: 
+ 322:   return documents.map((document, index) => ({
+ 323:     ...document,
+ 324:     isPrimary: index === primaryIndex,
+ 325:   }));
+ 326: }
+ 327: 
+ 328: /*
+ 329:  * =========================================
+ 330:  * Empty Certification
+ 331:  * =========================================
+ 332:  */
+ 333: 
+ 334: export function createEmptyCertification() {
+ 335:   const timestamp = new Date().toISOString();
+ 336: 
+ 337:   return {
+ 338:     modelVersion: CERTIFICATION_MODEL_VERSION,
+ 339: 
+ 340:     id: createId(),
+ 341: 
+ 342:     name: "",
+ 343: 
+ 344:     certificationType: "professional",
+ 345: 
+ 346:     issuingOrganization: {
+ 347:       name: "",
+ 348:       type: "other",
+ 349:       website: "",
+ 350:     },
+ 351: 
+ 352:     dates: {
+ 353:       issueDate: "",
+ 354:       expirationDate: "",
+ 355:       lastRenewedDate: "",
+ 356:       nextRenewalDate: "",
+ 357:       doesNotExpire: false,
+ 358:     },
+ 359: 
+ 360:     credential: {
+ 361:       state: "active",
+ 362:       credentialId: "",
+ 363:       verificationUrl: "",
+ 364:     },
+ 365: 
+ 366:     description: "",
+ 367: 
+ 368:     skillRelationships: [],
+ 369: 
+ 370:     relatedRecords: {
+ 371:       trainingRelationships: [],
+ 372:       educationIds: [],
+ 373:     },
+ 374: 
+ 375:     supportingDocuments: [],
+ 376: 
+ 377:     visibility: {
+ 378:       showIssuingOrganization: true,
+ 379:       showIssuerWebsite: false,
+ 380:       showDates: true,
+ 381:       showExpirationDate: true,
+ 382:       showCredentialId: false,
+ 383:       showVerificationUrl: true,
+ 384:       showDescription: true,
+ 385:       showSkills: true,
+ 386:       showSupportingDocuments: false,
+ 387:     },
+ 388: 
+ 389:     privateInformation: {
+ 390:       notes: "",
+ 391:     },
+ 392: 
+ 393:     source: "manual",
+ 394:     sourceContext: "certification-page",
+ 395: 
+ 396:     status: "active",
+ 397: 
+ 398:     createdAt: timestamp,
+ 399:     updatedAt: timestamp,
+ 400:   };
+ 401: }
+ 402: 
+ 403: /*
+ 404:  * =========================================
+ 405:  * Certification Normalization
+ 406:  * =========================================
+ 407:  */
+ 408: 
+ 409: export function normalizeCertification(value = {}) {
+ 410:   const source = value && typeof value === "object" ? value : {};
+ 411: 
+ 412:   const empty = createEmptyCertification();
+ 413: 
+ 414:   const timestamp = new Date().toISOString();
+ 415: 
+ 416:   /*
+ 417:    * Support both the new object structure and
+ 418:    * older string-based issuing organizations.
+ 419:    */
+ 420: 
+ 421:   const issuer =
+ 422:     source.issuingOrganization && typeof source.issuingOrganization === "object"
+ 423:       ? source.issuingOrganization
+ 424:       : {
+ 425:           name: source.issuingOrganization || source.issuer,
+ 426:         };
+ 427: 
+ 428:   const dates =
+ 429:     source.dates && typeof source.dates === "object" ? source.dates : {};
+ 430: 
+ 431:   const credential =
+ 432:     source.credential && typeof source.credential === "object"
+ 433:       ? source.credential
+ 434:       : {};
+ 435: 
+ 436:   const related =
+ 437:     source.relatedRecords && typeof source.relatedRecords === "object"
+ 438:       ? source.relatedRecords
+ 439:       : {};
+ 440: 
+ 441:   const visibility =
+ 442:     source.visibility && typeof source.visibility === "object"
+ 443:       ? source.visibility
+ 444:       : {};
+ 445: 
+ 446:   const doesNotExpire = getBoolean(
+ 447:     dates.doesNotExpire ?? source.doesNotExpire,
+ 448:     false,
+ 449:   );
+ 450: 
+ 451:   return {
+ 452:     ...empty,
+ 453: 
+ 454:     modelVersion: CERTIFICATION_MODEL_VERSION,
+ 455: 
+ 456:     id: getText(source.id) || empty.id,
+ 457: 
+ 458:     name: getText(source.name || source.title),
+ 459: 
+ 460:     certificationType: getOptionValue(
+ 461:       CERTIFICATION_TYPE_OPTIONS,
+ 462:       source.certificationType || source.type,
+ 463:       empty.certificationType,
+ 464:     ),
+ 465: 
+ 466:     issuingOrganization: {
+ 467:       name: getText(issuer.name),
+ 468: 
+ 469:       type: getOptionValue(
+ 470:         CERTIFICATION_ISSUER_TYPE_OPTIONS,
+ 471:         issuer.type,
+ 472:         empty.issuingOrganization.type,
+ 473:       ),
+ 474: 
+ 475:       website: getText(issuer.website),
+ 476:     },
+ 477: 
+ 478:     dates: {
+ 479:       issueDate: getMonth(dates.issueDate || source.issueDate),
+ 480: 
+ 481:       expirationDate: doesNotExpire
+ 482:         ? ""
+ 483:         : getMonth(dates.expirationDate || source.expirationDate),
+ 484: 
+ 485:       lastRenewedDate: getMonth(
+ 486:         dates.lastRenewedDate || dates.renewalDate || source.renewalDate,
+ 487:       ),
+ 488: 
+ 489:       nextRenewalDate: getMonth(dates.nextRenewalDate),
+ 490: 
+ 491:       doesNotExpire,
+ 492:     },
+ 493: 
+ 494:     credential: {
+ 495:       state: getOptionValue(
+ 496:         CERTIFICATION_CREDENTIAL_STATE_OPTIONS,
+ 497:         credential.state || source.credentialState,
+ 498:         empty.credential.state,
+ 499:       ),
+ 500: 
+ 501:       credentialId: getText(credential.credentialId || source.credentialId),
+ 502: 
+ 503:       verificationUrl: getText(
+ 504:         credential.verificationUrl ||
+ 505:           source.verificationUrl ||
+ 506:           source.credentialUrl,
+ 507:       ),
+ 508:     },
+ 509: 
+ 510:     description: getText(source.description),
+ 511: 
+ 512:     skillRelationships: normalizeSkillRelationships(
+ 513:       source.skillRelationships || source.skills,
+ 514:     ),
+ 515: 
+ 516:     relatedRecords: {
+ 517:       trainingRelationships: normalizeTrainingRelationships(
+ 518:         related.trainingRelationships ||
+ 519:           related.training ||
+ 520:           related.trainingIds ||
+ 521:           source.relatedTrainingRelationships ||
+ 522:           source.relatedTrainingIds ||
+ 523:           source.trainingIds,
+ 524:       ),
+ 525: 
+ 526:       educationIds: uniqueTextValues(
+ 527:         related.educationIds ||
+ 528:           source.relatedEducationIds ||
+ 529:           source.educationIds,
+ 530:       ),
+ 531:     },
+ 532: 
+ 533:     supportingDocuments: normalizeDocuments(
+ 534:       source.supportingDocuments || source.documents,
+ 535:     ),
+ 536: 
+ 537:     visibility: Object.keys(empty.visibility).reduce((result, key) => {
+ 538:       result[key] = getBoolean(visibility[key], empty.visibility[key]);
+ 539: 
+ 540:       return result;
+ 541:     }, {}),
+ 542: 
+ 543:     privateInformation: {
+ 544:       notes: getText(source.privateInformation?.notes || source.privateNotes),
+ 545:     },
+ 546: 
+ 547:     source: getOptionValue(
+ 548:       CERTIFICATION_SOURCE_OPTIONS,
+ 549:       source.source,
+ 550:       empty.source,
+ 551:     ),
+ 552: 
+ 553:     sourceContext: getText(source.sourceContext),
+ 554: 
+ 555:     status: getOptionValue(
+ 556:       CERTIFICATION_STATUS_OPTIONS,
+ 557:       source.status,
+ 558:       empty.status,
+ 559:     ),
+ 560: 
+ 561:     createdAt: getTimestamp(source.createdAt, timestamp),
+ 562: 
+ 563:     updatedAt: getTimestamp(source.updatedAt, timestamp),
+ 564:   };
+ 565: }
+ 566: 
+ 567: /*
+ 568:  * =========================================
+ 569:  * Collection Normalization
+ 570:  * =========================================
+ 571:  */
+ 572: 
+ 573: export function normalizeCertificationCollection(values = []) {
+ 574:   const usedIds = new Set();
+ 575: 
+ 576:   return getArray(values).reduce((certifications, value) => {
+ 577:     const certification = normalizeCertification(value);
+ 578: 
+ 579:     if (usedIds.has(certification.id)) {
+ 580:       return certifications;
+ 581:     }
+ 582: 
+ 583:     usedIds.add(certification.id);
+ 584: 
+ 585:     certifications.push(certification);
+ 586: 
+ 587:     return certifications;
+ 588:   }, []);
+ 589: }
+ 590: 
+ 591: /*
+ 592:  * =========================================
+ 593:  * Create and Update
+ 594:  * =========================================
+ 595:  */
+ 596: 
+ 597: export function createCertification(value = {}) {
+ 598:   const timestamp = new Date().toISOString();
+ 599: 
+ 600:   return normalizeCertification({
+ 601:     ...value,
+ 602: 
+ 603:     id: getText(value.id) || createId(),
+ 604: 
+ 605:     createdAt: timestamp,
+ 606:     updatedAt: timestamp,
+ 607:   });
+ 608: }
+ 609: 
+ 610: export function updateCertification(currentCertification, changes = {}) {
+ 611:   return normalizeCertification({
+ 612:     ...currentCertification,
+ 613:     ...changes,
+ 614: 
+ 615:     id: currentCertification?.id,
+ 616: 
+ 617:     createdAt: currentCertification?.createdAt,
+ 618: 
+ 619:     updatedAt: new Date().toISOString(),
+ 620:   });
+ 621: }
+ 622: 
+ 623: /*
+ 624:  * =========================================
+ 625:  * Display Helpers
+ 626:  * =========================================
+ 627:  */
+ 628: 
+ 629: export function getCertificationDisplayName(certification) {
+ 630:   return getText(certification?.name) || "Untitled Certification";
+ 631: }
+ 632: 
+ 633: export function getCertificationIssuerName(certification) {
+ 634:   const issuer = certification?.issuingOrganization;
+ 635: 
+ 636:   return (
+ 637:     getText(typeof issuer === "string" ? issuer : issuer?.name) ||
+ 638:     "Issuing organization not provided"
+ 639:   );
+ 640: }
+ 641: 
+ 642: /*
+ 643:  * =========================================
+ 644:  * Related Training
+ 645:  * =========================================
+ 646:  */
+ 647: 
+ 648: export function getCertificationTrainingIds(certification) {
+ 649:   return getArray(certification?.relatedRecords?.trainingRelationships)
+ 650:     .map((relationship) => getText(relationship?.trainingId))
+ 651:     .filter(Boolean);
+ 652: }
+ 653: 
+ 654: /*
+ 655:  * =========================================
+ 656:  * Primary Certificate Document
+ 657:  * =========================================
+ 658:  */
+ 659: 
+ 660: export function getPrimaryCertificationDocument(certification) {
+ 661:   const documents = getArray(certification?.supportingDocuments).filter(
+ 662:     (document) => document?.status !== "archived",
+ 663:   );
+ 664: 
+ 665:   return (
+ 666:     documents.find((document) => document.isPrimary) || documents[0] || null
+ 667:   );
+ 668: }
+ 669: 
+ 670: /*
+ 671:  * =========================================
+ 672:  * Effective Credential State
+ 673:  * =========================================
+ 674:  */
+ 675: 
+ 676: export function getEffectiveCredentialState(certification, today = new Date()) {
+ 677:   const normalized = normalizeCertification(certification);
+ 678: 
+ 679:   const todayMonth = today.toISOString().slice(0, 7);
+ 680: 
+ 681:   if (
+ 682:     normalized.credential.state === "planned" ||
+ 683:     (normalized.dates.issueDate && normalized.dates.issueDate > todayMonth)
+ 684:   ) {
+ 685:     return "planned";
+ 686:   }
+ 687: 
+ 688:   if (
+ 689:     !normalized.dates.doesNotExpire &&
+ 690:     normalized.dates.expirationDate &&
+ 691:     normalized.dates.expirationDate < todayMonth
+ 692:   ) {
+ 693:     return "expired";
+ 694:   }
+ 695: 
+ 696:   return normalized.credential.state;
+ 697: }
+ 698: 
+ 699: /*
+ 700:  * =========================================
+ 701:  * Public Output Boundary
+ 702:  * =========================================
+ 703:  *
+ 704:  * Résumés, portfolios, and public exports should
+ 705:  * receive only this sanitized structure.
+ 706:  *
+ 707:  * Private notes, source context, Training IDs,
+ 708:  * Education IDs, and IndexedDB storage keys are
+ 709:  * intentionally excluded.
+ 710:  */
+ 711: 
+ 712: export function createPublicCertification(value = {}) {
+ 713:   const certification = normalizeCertification(value);
+ 714: 
+ 715:   const { visibility } = certification;
+ 716: 
+ 717:   return {
+ 718:     id: certification.id,
+ 719: 
+ 720:     name: certification.name,
+ 721: 
+ 722:     certificationType: certification.certificationType,
+ 723: 
+ 724:     credentialState: getEffectiveCredentialState(certification),
+ 725: 
+ 726:     issuingOrganization: visibility.showIssuingOrganization
+ 727:       ? {
+ 728:           name: certification.issuingOrganization.name,
+ 729: 
+ 730:           type: certification.issuingOrganization.type,
+ 731: 
+ 732:           website: visibility.showIssuerWebsite
+ 733:             ? certification.issuingOrganization.website
+ 734:             : "",
+ 735:         }
+ 736:       : null,
+ 737: 
+ 738:     dates: visibility.showDates
+ 739:       ? {
+ 740:           issueDate: certification.dates.issueDate,
+ 741: 
+ 742:           expirationDate: visibility.showExpirationDate
+ 743:             ? certification.dates.expirationDate
+ 744:             : "",
+ 745: 
+ 746:           lastRenewedDate: certification.dates.lastRenewedDate,
+ 747: 
+ 748:           nextRenewalDate: certification.dates.nextRenewalDate,
+ 749: 
+ 750:           doesNotExpire: certification.dates.doesNotExpire,
+ 751:         }
+ 752:       : null,
+ 753: 
+ 754:     credential: {
+ 755:       credentialId: visibility.showCredentialId
+ 756:         ? certification.credential.credentialId
+ 757:         : "",
+ 758: 
+ 759:       verificationUrl: visibility.showVerificationUrl
+ 760:         ? certification.credential.verificationUrl
+ 761:         : "",
+ 762:     },
+ 763: 
+ 764:     description: visibility.showDescription ? certification.description : "",
+ 765: 
+ 766:     skills: visibility.showSkills
+ 767:       ? certification.skillRelationships.map((relationship) => ({
+ 768:           skillId: relationship.skillId,
+ 769: 
+ 770:           name: relationship.snapshot.name,
+ 771: 
+ 772:           category: relationship.snapshot.category,
+ 773: 
+ 774:           type: relationship.snapshot.type,
+ 775:         }))
+ 776:       : [],
+ 777: 
+ 778:     supportingDocuments: visibility.showSupportingDocuments
+ 779:       ? certification.supportingDocuments
+ 780:           .filter((document) => document.status !== "archived")
+ 781:           .map((document) => ({
+ 782:             id: document.id,
+ 783: 
+ 784:             documentType: document.documentType,
+ 785: 
+ 786:             name: document.name,
+ 787: 
+ 788:             description: document.description,
+ 789: 
+ 790:             fileName: document.fileName,
+ 791: 
+ 792:             extension: document.extension,
+ 793: 
+ 794:             mimeType: document.mimeType,
+ 795: 
+ 796:             size: document.size,
+ 797: 
+ 798:             isPrimary: document.isPrimary,
+ 799: 
+ 800:             previewMode: document.previewMode,
+ 801: 
+ 802:             order: document.order,
+ 803:           }))
+ 804:       : [],
+ 805:   };
+ 806: }
+
+======================================================================
+FILE: src\services\Certification\certificationService.js
+======================================================================
+   1: import {
+   2:   createCertification as createCertificationModel,
+   3:   createCertificationDocument,
+   4:   createPublicCertification,
+   5:   normalizeCertification,
+   6:   updateCertification as updateCertificationModel,
+   7: } from "../../models/certificationModel.js";
+   8: 
+   9: import {
+  10:   deleteCertificationDocument,
+  11:   deleteCertificationDocuments,
+  12:   deleteCertificationDocumentsForCertification,
+  13:   readCertificationDocument,
+  14:   writeCertificationDocument,
+  15: } from "./certificationDocumentStorage.js";
+  16: 
+  17: import {
+  18:   readStoredCertifications,
+  19: } from "./certificationStorage.js";
+  20: 
+  21: import { validateCertification } from "./certificationValidation.js";
+  22: 
+  23: import { saveCertificationWithTrainingSync } from "./certificationTrainingRelationshipService.js";
+  24: 
+  25: /*
+  26:  * =========================================
+  27:  * Basic Helpers
+  28:  * =========================================
+  29:  */
+  30: 
+  31: function getText(value) {
+  32:   return typeof value === "string" ? value.trim() : "";
+  33: }
+  34: 
+  35: function getArray(value) {
+  36:   return Array.isArray(value) ? value : [];
+  37: }
+  38: 
+  39: function normalizeComparisonText(value) {
+  40:   return getText(value).normalize("NFKC").toLocaleLowerCase();
+  41: }
+  42: 
+  43: /*
+  44:  * =========================================
+  45:  * Service Errors
+  46:  * =========================================
+  47:  */
+  48: 
+  49: function createCertificationServiceError(
+  50:   code,
+  51:   message,
+  52:   publicMessage,
+  53:   details = {},
+  54:   cause = null,
+  55: ) {
+  56:   const error = new Error(message);
+  57: 
+  58:   error.name = "CertificationServiceError";
+  59:   error.code = code;
+  60:   error.publicMessage = publicMessage;
+  61: 
+  62:   Object.assign(error, details);
+  63: 
+  64:   if (cause) {
+  65:     error.cause = cause;
+  66:   }
+  67: 
+  68:   return error;
+  69: }
+  70: 
+  71: function createNotFoundError(certificationId) {
+  72:   return createCertificationServiceError(
+  73:     "CERTIFICATION_NOT_FOUND",
+  74:     `Certification not found: ${certificationId}`,
+  75:     "The selected certification could not be found.",
+  76:     {
+  77:       certificationId,
+  78:     },
+  79:   );
+  80: }
+  81: 
+  82: function createValidationError(validation) {
+  83:   return createCertificationServiceError(
+  84:     "CERTIFICATION_VALIDATION_ERROR",
+  85:     "Certification validation failed.",
+  86:     "Correct the highlighted certification fields before saving.",
+  87:     {
+  88:       validation,
+  89:       errors: validation.errors,
+  90:       warnings: validation.warnings,
+  91:       fieldErrors: validation.fieldErrors,
+  92:     },
+  93:   );
+  94: }
+  95: 
+  96: function createDuplicateError(certification) {
+  97:   return createCertificationServiceError(
+  98:     "CERTIFICATION_DUPLICATE",
+  99:     `Matching certification already exists: ${certification.id}`,
+ 100:     "A certification with the same name and issuing organization already exists.",
+ 101:     {
+ 102:       certification,
+ 103: 
+ 104:       fieldErrors: {
+ 105:         name: "A matching certification already exists.",
+ 106:       },
+ 107:     },
+ 108:   );
+ 109: }
+ 110: 
+ 111: /*
+ 112:  * =========================================
+ 113:  * Collection Helpers
+ 114:  * =========================================
+ 115:  */
+ 116: 
+ 117: function findCertificationIndex(certifications, certificationId) {
+ 118:   return certifications.findIndex(
+ 119:     (certification) => certification.id === certificationId,
+ 120:   );
+ 121: }
+ 122: 
+ 123: function findMatchingCertification(
+ 124:   certifications,
+ 125:   candidate,
+ 126:   excludedCertificationId = "",
+ 127: ) {
+ 128:   const candidateName = normalizeComparisonText(candidate.name);
+ 129: 
+ 130:   const candidateIssuer = normalizeComparisonText(
+ 131:     candidate.issuingOrganization?.name,
+ 132:   );
+ 133: 
+ 134:   if (!candidateName || !candidateIssuer) {
+ 135:     return null;
+ 136:   }
+ 137: 
+ 138:   return (
+ 139:     certifications.find((certification) => {
+ 140:       if (certification.id === excludedCertificationId) {
+ 141:         return false;
+ 142:       }
+ 143: 
+ 144:       const certificationName = normalizeComparisonText(certification.name);
+ 145: 
+ 146:       const certificationIssuer = normalizeComparisonText(
+ 147:         certification.issuingOrganization?.name,
+ 148:       );
+ 149: 
+ 150:       return (
+ 151:         certificationName === candidateName &&
+ 152:         certificationIssuer === candidateIssuer
+ 153:       );
+ 154:     }) || null
+ 155:   );
+ 156: }
+ 157: 
+ 158: function getDocumentStorageKeys(certification) {
+ 159:   return getArray(certification?.supportingDocuments)
+ 160:     .map((document) => getText(document?.storageKey))
+ 161:     .filter(Boolean);
+ 162: }
+ 163: 
+ 164: function getRemovedDocumentStorageKeys(
+ 165:   currentCertification,
+ 166:   nextCertification,
+ 167: ) {
+ 168:   const nextStorageKeys = new Set(getDocumentStorageKeys(nextCertification));
+ 169: 
+ 170:   return getDocumentStorageKeys(currentCertification).filter(
+ 171:     (storageKey) => !nextStorageKeys.has(storageKey),
+ 172:   );
+ 173: }
+ 174: 
+ 175: /*
+ 176:  * =========================================
+ 177:  * Validation
+ 178:  * =========================================
+ 179:  */
+ 180: 
+ 181: function validateForSave(
+ 182:   certification,
+ 183:   { skills = null, trainingRecords = null, educationRecords = null } = {},
+ 184: ) {
+ 185:   const validation = validateCertification(certification, {
+ 186:     skills,
+ 187:     trainingRecords,
+ 188:     educationRecords,
+ 189:   });
+ 190: 
+ 191:   if (!validation.isValid) {
+ 192:     throw createValidationError(validation);
+ 193:   }
+ 194: 
+ 195:   return validation;
+ 196: }
+ 197: 
+ 198: /*
+ 199:  * =========================================
+ 200:  * Document Cleanup
+ 201:  * =========================================
+ 202:  */
+ 203: 
+ 204: async function rollbackStoredDocuments(storageKeys = []) {
+ 205:   await Promise.allSettled(
+ 206:     storageKeys.map((storageKey) => deleteCertificationDocument(storageKey)),
+ 207:   );
+ 208: }
+ 209: 
+ 210: async function removeUnusedDocuments(storageKeys = []) {
+ 211:   if (storageKeys.length === 0) {
+ 212:     return;
+ 213:   }
+ 214: 
+ 215:   try {
+ 216:     await deleteCertificationDocuments(storageKeys);
+ 217:   } catch {
+ 218:     /*
+ 219:      * Certification metadata has already been saved.
+ 220:      *
+ 221:      * A failed binary cleanup should not make the
+ 222:      * interface report that the Certification save
+ 223:      * itself failed.
+ 224:      *
+ 225:      * Orphaned IndexedDB files can be removed later
+ 226:      * through a maintenance operation.
+ 227:      */
+ 228:   }
+ 229: }
+ 230: 
+ 231: /*
+ 232:  * =========================================
+ 233:  * Store Uploaded Documents
+ 234:  * =========================================
+ 235:  */
+ 236: 
+ 237: async function storeDocumentUploads(certificationId, uploads = []) {
+ 238:   const documents = [];
+ 239:   const storageKeys = [];
+ 240: 
+ 241:   try {
+ 242:     for (const [index, upload] of getArray(uploads).entries()) {
+ 243:       if (!upload?.file) {
+ 244:         throw createCertificationServiceError(
+ 245:           "CERTIFICATION_DOCUMENT_FILE_REQUIRED",
+ 246:           `Document upload ${index} does not contain a file.`,
+ 247:           "Select a file for every certificate document.",
+ 248:         );
+ 249:       }
+ 250: 
+ 251:       const metadata = upload.metadata || {};
+ 252: 
+ 253:       const stored = await writeCertificationDocument({
+ 254:         file: upload.file,
+ 255: 
+ 256:         certificationId,
+ 257: 
+ 258:         documentId: upload.documentId || metadata.id,
+ 259: 
+ 260:         storageKey: upload.storageKey || metadata.storageKey,
+ 261:       });
+ 262: 
+ 263:       storageKeys.push(stored.storageKey);
+ 264: 
+ 265:       const document = createCertificationDocument(
+ 266:         {
+ 267:           ...metadata,
+ 268: 
+ 269:           id: stored.documentId,
+ 270: 
+ 271:           documentType:
+ 272:             upload.documentType || metadata.documentType || "certificate",
+ 273: 
+ 274:           name: upload.name || metadata.name || stored.fileName,
+ 275: 
+ 276:           description: upload.description || metadata.description || "",
+ 277: 
+ 278:           fileName: stored.fileName,
+ 279:           extension: stored.extension,
+ 280:           mimeType: stored.mimeType,
+ 281:           size: stored.size,
+ 282:           storageKey: stored.storageKey,
+ 283:           previewMode: stored.previewMode,
+ 284: 
+ 285:           isPrimary: upload.isPrimary ?? metadata.isPrimary ?? false,
+ 286: 
+ 287:           createdAt: stored.createdAt,
+ 288:           updatedAt: stored.updatedAt,
+ 289:           uploadedAt: stored.updatedAt,
+ 290:         },
+ 291:         index,
+ 292:       );
+ 293: 
+ 294:       documents.push(document);
+ 295:     }
+ 296: 
+ 297:     return {
+ 298:       documents,
+ 299:       storageKeys,
+ 300:     };
+ 301:   } catch (error) {
+ 302:     await rollbackStoredDocuments(storageKeys);
+ 303: 
+ 304:     throw error;
+ 305:   }
+ 306: }
+ 307: 
+ 308: /*
+ 309:  * =========================================
+ 310:  * Read Certifications
+ 311:  * =========================================
+ 312:  */
+ 313: 
+ 314: export function getCertifications({ includeArchived = false } = {}) {
+ 315:   const certifications = readStoredCertifications();
+ 316: 
+ 317:   if (includeArchived) {
+ 318:     return certifications;
+ 319:   }
+ 320: 
+ 321:   return certifications.filter(
+ 322:     (certification) => certification.status !== "archived",
+ 323:   );
+ 324: }
+ 325: 
+ 326: export function getCertificationById(
+ 327:   certificationId,
+ 328:   { includeArchived = true } = {},
+ 329: ) {
+ 330:   const normalizedId = getText(certificationId);
+ 331: 
+ 332:   if (!normalizedId) {
+ 333:     return null;
+ 334:   }
+ 335: 
+ 336:   const certification =
+ 337:     readStoredCertifications().find((record) => record.id === normalizedId) ||
+ 338:     null;
+ 339: 
+ 340:   if (certification?.status === "archived" && !includeArchived) {
+ 341:     return null;
+ 342:   }
+ 343: 
+ 344:   return certification;
+ 345: }
+ 346: 
+ 347: /*
+ 348:  * =========================================
+ 349:  * Public Certification Output
+ 350:  * =========================================
+ 351:  */
+ 352: 
+ 353: export function getPublicCertifications() {
+ 354:   return getCertifications().map(createPublicCertification);
+ 355: }
+ 356: 
+ 357: export function getPublicCertificationById(certificationId) {
+ 358:   const certification = getCertificationById(certificationId, {
+ 359:     includeArchived: false,
+ 360:   });
+ 361: 
+ 362:   return certification ? createPublicCertification(certification) : null;
+ 363: }
+ 364: 
+ 365: /*
+ 366:  * =========================================
+ 367:  * Create Certification
+ 368:  * =========================================
+ 369:  */
+ 370: 
+ 371: export async function createCertification(
+ 372:   certificationData,
+ 373:   {
+ 374:     documentUploads = [],
+ 375:     skills = null,
+ 376:     trainingRecords = null,
+ 377:     educationRecords = null,
+ 378:   } = {},
+ 379: ) {
+ 380:   const certifications = readStoredCertifications();
+ 381: 
+ 382:   let certification = createCertificationModel(certificationData);
+ 383: 
+ 384:   const stored = await storeDocumentUploads(certification.id, documentUploads);
+ 385: 
+ 386:   if (stored.documents.length > 0) {
+ 387:     certification = normalizeCertification({
+ 388:       ...certification,
+ 389: 
+ 390:       supportingDocuments: [
+ 391:         ...certification.supportingDocuments,
+ 392:         ...stored.documents,
+ 393:       ],
+ 394:     });
+ 395:   }
+ 396: 
+ 397:   try {
+ 398:     const validation = validateForSave(certification, {
+ 399:       skills,
+ 400:       trainingRecords,
+ 401:       educationRecords,
+ 402:     });
+ 403: 
+ 404:     const duplicate = findMatchingCertification(
+ 405:       certifications,
+ 406:       validation.certification,
+ 407:     );
+ 408: 
+ 409:     if (duplicate) {
+ 410:       throw createDuplicateError(duplicate);
+ 411:     }
+ 412: 
+ 413:     const transaction = saveCertificationWithTrainingSync({
+ 414:       certificationRecords: [...certifications, validation.certification],
+ 415: 
+ 416:       changedCertificationIds: [validation.certification.id],
+ 417:     });
+ 418: 
+ 419:     const savedCertification =
+ 420:       transaction.certificationRecords.find(
+ 421:         (record) => record.id === validation.certification.id,
+ 422:       ) || validation.certification;
+ 423: 
+ 424:     return {
+ 425:       certification: savedCertification,
+ 426:       warnings: validation.warnings,
+ 427:     };
+ 428:   } catch (error) {
+ 429:     await rollbackStoredDocuments(stored.storageKeys);
+ 430: 
+ 431:     throw error;
+ 432:   }
+ 433: }
+ 434: 
+ 435: /*
+ 436:  * =========================================
+ 437:  * Update Certification
+ 438:  * =========================================
+ 439:  */
+ 440: 
+ 441: export async function updateCertification(
+ 442:   certificationId,
+ 443:   certificationData,
+ 444:   {
+ 445:     documentUploads = [],
+ 446:     skills = null,
+ 447:     trainingRecords = null,
+ 448:     educationRecords = null,
+ 449:   } = {},
+ 450: ) {
+ 451:   const normalizedId = getText(certificationId);
+ 452: 
+ 453:   const certifications = readStoredCertifications();
+ 454: 
+ 455:   const certificationIndex = findCertificationIndex(
+ 456:     certifications,
+ 457:     normalizedId,
+ 458:   );
+ 459: 
+ 460:   if (certificationIndex < 0) {
+ 461:     throw createNotFoundError(normalizedId);
+ 462:   }
+ 463: 
+ 464:   const currentCertification = certifications[certificationIndex];
+ 465: 
+ 466:   let nextCertification = updateCertificationModel(
+ 467:     currentCertification,
+ 468:     certificationData,
+ 469:   );
+ 470: 
+ 471:   const stored = await storeDocumentUploads(normalizedId, documentUploads);
+ 472: 
+ 473:   if (stored.documents.length > 0) {
+ 474:     nextCertification = normalizeCertification({
+ 475:       ...nextCertification,
+ 476: 
+ 477:       supportingDocuments: [
+ 478:         ...nextCertification.supportingDocuments,
+ 479:         ...stored.documents,
+ 480:       ],
+ 481:     });
+ 482:   }
+ 483: 
+ 484:   try {
+ 485:     const validation = validateForSave(nextCertification, {
+ 486:       skills,
+ 487:       trainingRecords,
+ 488:       educationRecords,
+ 489:     });
+ 490: 
+ 491:     const duplicate = findMatchingCertification(
+ 492:       certifications,
+ 493:       validation.certification,
+ 494:       normalizedId,
+ 495:     );
+ 496: 
+ 497:     if (duplicate) {
+ 498:       throw createDuplicateError(duplicate);
+ 499:     }
+ 500: 
+ 501:     const removedStorageKeys = getRemovedDocumentStorageKeys(
+ 502:       currentCertification,
+ 503:       validation.certification,
+ 504:     );
+ 505: 
+ 506:     const nextCertifications = [...certifications];
+ 507: 
+ 508:     nextCertifications[certificationIndex] = validation.certification;
+ 509: 
+ 510:     const transaction = saveCertificationWithTrainingSync({
+ 511:       certificationRecords: nextCertifications,
+ 512: 
+ 513:       changedCertificationIds: [validation.certification.id],
+ 514:     });
+ 515: 
+ 516:     await removeUnusedDocuments(removedStorageKeys);
+ 517: 
+ 518:     const savedCertification =
+ 519:       transaction.certificationRecords.find(
+ 520:         (record) => record.id === validation.certification.id,
+ 521:       ) || validation.certification;
+ 522: 
+ 523:     return {
+ 524:       certification: savedCertification,
+ 525:       warnings: validation.warnings,
+ 526:     };
+ 527:   } catch (error) {
+ 528:     await rollbackStoredDocuments(stored.storageKeys);
+ 529: 
+ 530:     throw error;
+ 531:   }
+ 532: }
+ 533: 
+ 534: /*
+ 535:  * =========================================
+ 536:  * Archive Certification
+ 537:  * =========================================
+ 538:  */
+ 539: 
+ 540: export async function archiveCertification(certificationId) {
+ 541:   const certification = getCertificationById(certificationId);
+ 542: 
+ 543:   if (!certification) {
+ 544:     throw createNotFoundError(getText(certificationId));
+ 545:   }
+ 546: 
+ 547:   if (certification.status === "archived") {
+ 548:     return certification;
+ 549:   }
+ 550: 
+ 551:   const certifications = readStoredCertifications();
+ 552: 
+ 553:   const certificationIndex = findCertificationIndex(
+ 554:     certifications,
+ 555:     certification.id,
+ 556:   );
+ 557: 
+ 558:   const archivedCertification = normalizeCertification({
+ 559:     ...certification,
+ 560: 
+ 561:     status: "archived",
+ 562: 
+ 563:     updatedAt: new Date().toISOString(),
+ 564:   });
+ 565: 
+ 566:   certifications[certificationIndex] = archivedCertification;
+ 567: 
+ 568:   const transaction = saveCertificationWithTrainingSync({
+ 569:     certificationRecords: certifications,
+ 570: 
+ 571:     changedCertificationIds: [archivedCertification.id],
+ 572:   });
+ 573: 
+ 574:   return (
+ 575:     transaction.certificationRecords.find(
+ 576:       (record) => record.id === archivedCertification.id,
+ 577:     ) || archivedCertification
+ 578:   );
+ 579: }
+ 580: 
+ 581: /*
+ 582:  * =========================================
+ 583:  * Restore Certification
+ 584:  * =========================================
+ 585:  */
+ 586: 
+ 587: export async function restoreCertification(certificationId) {
+ 588:   const certification = getCertificationById(certificationId);
+ 589: 
+ 590:   if (!certification) {
+ 591:     throw createNotFoundError(getText(certificationId));
+ 592:   }
+ 593: 
+ 594:   if (certification.status !== "archived") {
+ 595:     return certification;
+ 596:   }
+ 597: 
+ 598:   const certifications = readStoredCertifications();
+ 599: 
+ 600:   const duplicate = findMatchingCertification(
+ 601:     certifications,
+ 602:     certification,
+ 603:     certification.id,
+ 604:   );
+ 605: 
+ 606:   if (duplicate && duplicate.status !== "archived") {
+ 607:     throw createDuplicateError(duplicate);
+ 608:   }
+ 609: 
+ 610:   const certificationIndex = findCertificationIndex(
+ 611:     certifications,
+ 612:     certification.id,
+ 613:   );
+ 614: 
+ 615:   const restoredCertification = normalizeCertification({
+ 616:     ...certification,
+ 617: 
+ 618:     status: "active",
+ 619: 
+ 620:     updatedAt: new Date().toISOString(),
+ 621:   });
+ 622: 
+ 623:   certifications[certificationIndex] = restoredCertification;
+ 624: 
+ 625:   const transaction = saveCertificationWithTrainingSync({
+ 626:     certificationRecords: certifications,
+ 627: 
+ 628:     changedCertificationIds: [restoredCertification.id],
+ 629:   });
+ 630: 
+ 631:   return (
+ 632:     transaction.certificationRecords.find(
+ 633:       (record) => record.id === restoredCertification.id,
+ 634:     ) || restoredCertification
+ 635:   );
+ 636: }
+ 637: 
+ 638: /*
+ 639:  * =========================================
+ 640:  * Delete Certification
+ 641:  * =========================================
+ 642:  */
+ 643: 
+ 644: export async function deleteCertification(certificationId) {
+ 645:   const normalizedId = getText(certificationId);
+ 646: 
+ 647:   const certifications = readStoredCertifications();
+ 648: 
+ 649:   const certificationIndex = findCertificationIndex(
+ 650:     certifications,
+ 651:     normalizedId,
+ 652:   );
+ 653: 
+ 654:   if (certificationIndex < 0) {
+ 655:     throw createNotFoundError(normalizedId);
+ 656:   }
+ 657: 
+ 658:   const certification = certifications[certificationIndex];
+ 659: 
+ 660:   const nextCertifications = certifications.filter(
+ 661:     (record) => record.id !== normalizedId,
+ 662:   );
+ 663: 
+ 664:   /*
+ 665:    * Remove the metadata first.
+ 666:    *
+ 667:    * If IndexedDB cleanup fails, the deleted
+ 668:    * Certification does not reappear.
+ 669:    */
+ 670: 
+ 671:   saveCertificationWithTrainingSync({
+ 672:     certificationRecords: nextCertifications,
+ 673: 
+ 674:     deletedCertificationIds: [normalizedId],
+ 675:   });
+ 676: 
+ 677:   try {
+ 678:     await deleteCertificationDocumentsForCertification(normalizedId);
+ 679:   } catch {
+ 680:     await removeUnusedDocuments(getDocumentStorageKeys(certification));
+ 681:   }
+ 682: 
+ 683:   return certification;
+ 684: }
+ 685: 
+ 686: /*
+ 687:  * =========================================
+ 688:  * Add Document
+ 689:  * =========================================
+ 690:  */
+ 691: 
+ 692: export async function addCertificationDocument(
+ 693:   certificationId,
+ 694:   file,
+ 695:   documentInformation = {},
+ 696:   validationCollections = {},
+ 697: ) {
+ 698:   const certification = getCertificationById(certificationId);
+ 699: 
+ 700:   if (!certification) {
+ 701:     throw createNotFoundError(getText(certificationId));
+ 702:   }
+ 703: 
+ 704:   const hasActiveDocument = certification.supportingDocuments.some(
+ 705:     (document) => document.status !== "archived",
+ 706:   );
+ 707: 
+ 708:   return updateCertification(certification.id, certification, {
+ 709:     ...validationCollections,
+ 710: 
+ 711:     documentUploads: [
+ 712:       {
+ 713:         file,
+ 714: 
+ 715:         metadata: documentInformation,
+ 716: 
+ 717:         isPrimary: documentInformation.isPrimary ?? !hasActiveDocument,
+ 718:       },
+ 719:     ],
+ 720:   });
+ 721: }
+ 722: 
+ 723: /*
+ 724:  * =========================================
+ 725:  * Remove Document
+ 726:  * =========================================
+ 727:  */
+ 728: 
+ 729: export async function removeCertificationDocument(
+ 730:   certificationId,
+ 731:   documentId,
+ 732:   validationCollections = {},
+ 733: ) {
+ 734:   const certification = getCertificationById(certificationId);
+ 735: 
+ 736:   if (!certification) {
+ 737:     throw createNotFoundError(getText(certificationId));
+ 738:   }
+ 739: 
+ 740:   const normalizedDocumentId = getText(documentId);
+ 741: 
+ 742:   const document = certification.supportingDocuments.find(
+ 743:     (item) => item.id === normalizedDocumentId,
+ 744:   );
+ 745: 
+ 746:   if (!document) {
+ 747:     throw createCertificationServiceError(
+ 748:       "CERTIFICATION_DOCUMENT_NOT_FOUND",
+ 749:       `Certification document not found: ${normalizedDocumentId}`,
+ 750:       "The selected certificate document could not be found.",
+ 751:       {
+ 752:         certificationId: certification.id,
+ 753: 
+ 754:         documentId: normalizedDocumentId,
+ 755:       },
+ 756:     );
+ 757:   }
+ 758: 
+ 759:   const supportingDocuments = certification.supportingDocuments.filter(
+ 760:     (item) => item.id !== normalizedDocumentId,
+ 761:   );
+ 762: 
+ 763:   return updateCertification(
+ 764:     certification.id,
+ 765:     {
+ 766:       ...certification,
+ 767:       supportingDocuments,
+ 768:     },
+ 769:     validationCollections,
+ 770:   );
+ 771: }
+ 772: 
+ 773: /*
+ 774:  * =========================================
+ 775:  * Set Primary Preview Document
+ 776:  * =========================================
+ 777:  */
+ 778: 
+ 779: export async function setPrimaryCertificationDocument(
+ 780:   certificationId,
+ 781:   documentId,
+ 782:   validationCollections = {},
+ 783: ) {
+ 784:   const certification = getCertificationById(certificationId);
+ 785: 
+ 786:   if (!certification) {
+ 787:     throw createNotFoundError(getText(certificationId));
+ 788:   }
+ 789: 
+ 790:   const normalizedDocumentId = getText(documentId);
+ 791: 
+ 792:   const selectedDocument = certification.supportingDocuments.find(
+ 793:     (document) =>
+ 794:       document.id === normalizedDocumentId && document.status !== "archived",
+ 795:   );
+ 796: 
+ 797:   if (!selectedDocument) {
+ 798:     throw createCertificationServiceError(
+ 799:       "CERTIFICATION_DOCUMENT_NOT_FOUND",
+ 800:       `Active Certification document not found: ${normalizedDocumentId}`,
+ 801:       "The selected document could not be used as the preview.",
+ 802:     );
+ 803:   }
+ 804: 
+ 805:   const supportingDocuments = certification.supportingDocuments.map(
+ 806:     (document) => ({
+ 807:       ...document,
+ 808: 
+ 809:       isPrimary:
+ 810:         document.id === normalizedDocumentId && document.status !== "archived",
+ 811:     }),
+ 812:   );
+ 813: 
+ 814:   return updateCertification(
+ 815:     certification.id,
+ 816:     {
+ 817:       ...certification,
+ 818:       supportingDocuments,
+ 819:     },
+ 820:     validationCollections,
+ 821:   );
+ 822: }
+ 823: 
+ 824: /*
+ 825:  * =========================================
+ 826:  * Replace Document File
+ 827:  * =========================================
+ 828:  */
+ 829: 
+ 830: export async function replaceCertificationDocumentFile(
+ 831:   certificationId,
+ 832:   documentId,
+ 833:   file,
+ 834:   validationCollections = {},
+ 835: ) {
+ 836:   const certification = getCertificationById(certificationId);
+ 837: 
+ 838:   if (!certification) {
+ 839:     throw createNotFoundError(getText(certificationId));
+ 840:   }
+ 841: 
+ 842:   const normalizedDocumentId = getText(documentId);
+ 843: 
+ 844:   const currentDocument = certification.supportingDocuments.find(
+ 845:     (document) => document.id === normalizedDocumentId,
+ 846:   );
+ 847: 
+ 848:   if (!currentDocument) {
+ 849:     throw createCertificationServiceError(
+ 850:       "CERTIFICATION_DOCUMENT_NOT_FOUND",
+ 851:       `Certification document not found: ${normalizedDocumentId}`,
+ 852:       "The selected certificate document could not be found.",
+ 853:     );
+ 854:   }
+ 855: 
+ 856:   /*
+ 857:    * Preserve the existing document so it can be
+ 858:    * restored if metadata validation fails.
+ 859:    */
+ 860: 
+ 861:   const previousStoredDocument = await readCertificationDocument(
+ 862:     currentDocument.storageKey,
+ 863:   );
+ 864: 
+ 865:   const stored = await writeCertificationDocument({
+ 866:     file,
+ 867: 
+ 868:     certificationId: certification.id,
+ 869: 
+ 870:     documentId: currentDocument.id,
+ 871: 
+ 872:     storageKey: currentDocument.storageKey,
+ 873:   });
+ 874: 
+ 875:   const replacement = createCertificationDocument({
+ 876:     ...currentDocument,
+ 877: 
+ 878:     fileName: stored.fileName,
+ 879:     extension: stored.extension,
+ 880:     mimeType: stored.mimeType,
+ 881:     size: stored.size,
+ 882:     storageKey: stored.storageKey,
+ 883:     previewMode: stored.previewMode,
+ 884: 
+ 885:     updatedAt: stored.updatedAt,
+ 886: 
+ 887:     uploadedAt: stored.updatedAt,
+ 888:   });
+ 889: 
+ 890:   const supportingDocuments = certification.supportingDocuments.map(
+ 891:     (document) =>
+ 892:       document.id === normalizedDocumentId ? replacement : document,
+ 893:   );
+ 894: 
+ 895:   try {
+ 896:     return await updateCertification(
+ 897:       certification.id,
+ 898:       {
+ 899:         ...certification,
+ 900:         supportingDocuments,
+ 901:       },
+ 902:       validationCollections,
+ 903:     );
+ 904:   } catch (error) {
+ 905:     /*
+ 906:      * Restore the previous Blob if updating the
+ 907:      * Certification metadata fails.
+ 908:      */
+ 909: 
+ 910:     if (previousStoredDocument?.blob && typeof File !== "undefined") {
+ 911:       const previousFile = new File(
+ 912:         [previousStoredDocument.blob],
+ 913:         previousStoredDocument.fileName,
+ 914:         {
+ 915:           type: previousStoredDocument.mimeType,
+ 916:         },
+ 917:       );
+ 918: 
+ 919:       await writeCertificationDocument({
+ 920:         file: previousFile,
+ 921: 
+ 922:         certificationId: certification.id,
+ 923: 
+ 924:         documentId: currentDocument.id,
+ 925: 
+ 926:         storageKey: currentDocument.storageKey,
+ 927:       }).catch(() => {});
+ 928:     }
+ 929: 
+ 930:     throw error;
+ 931:   }
+ 932: }
+
+======================================================================
+FILE: src\context\CertificationDataContext.jsx
+======================================================================
+   1: import {
+   2:   createContext,
+   3:   useCallback,
+   4:   useContext,
+   5:   useEffect,
+   6:   useMemo,
+   7:   useState,
+   8: } from "react";
+   9: 
+  10: import {
+  11:   addCertificationDocument as addDocumentService,
+  12:   archiveCertification as archiveService,
+  13:   createCertification as createService,
+  14:   deleteCertification as deleteService,
+  15:   getCertifications,
+  16:   removeCertificationDocument as removeDocumentService,
+  17:   replaceCertificationDocumentFile as replaceDocumentService,
+  18:   restoreCertification as restoreService,
+  19:   setPrimaryCertificationDocument as setPrimaryDocumentService,
+  20:   updateCertification as updateService,
+  21: } from "../services/Certification/certificationService.js";
+  22: 
+  23: import { CERTIFICATION_STORAGE_KEY } from "../services/Certification/certificationStorage.js";
+  24: 
+  25: import { migrateLegacyTrainingCertifications } from "../services/Certification/certificationTrainingMigrationService.js";
+  26: 
+  27: const CertificationDataContext = createContext(null);
+  28: 
+  29: /*
+  30:  * =========================================
+  31:  * Error Normalization
+  32:  * =========================================
+  33:  */
+  34: 
+  35: function normalizeContextError(error) {
+  36:   return {
+  37:     name: error?.name || "CertificationError",
+  38: 
+  39:     code: error?.code || "CERTIFICATION_OPERATION_ERROR",
+  40: 
+  41:     message:
+  42:       error?.publicMessage ||
+  43:       error?.message ||
+  44:       "The Certification Library operation could not be completed.",
+  45: 
+  46:     fieldErrors: error?.fieldErrors || error?.validation?.fieldErrors || {},
+  47: 
+  48:     errors: error?.errors || error?.validation?.errors || [],
+  49: 
+  50:     warnings: error?.warnings || error?.validation?.warnings || [],
+  51: 
+  52:     certificationId: error?.certificationId || "",
+  53: 
+  54:     documentId: error?.documentId || "",
+  55:   };
+  56: }
+  57: 
+  58: /*
+  59:  * =========================================
+  60:  * Certification Provider
+  61:  * =========================================
+  62:  */
+  63: 
+  64: export function CertificationDataProvider({ children }) {
+  65:   const [certifications, setCertifications] = useState([]);
+  66: 
+  67:   const [isLoading, setIsLoading] = useState(true);
+  68: 
+  69:   const [loadStatus, setLoadStatus] = useState("idle");
+  70: 
+  71:   const [saveStatus, setSaveStatus] = useState("idle");
+  72: 
+  73:   const [operation, setOperation] = useState(null);
+  74: 
+  75:   const [error, setError] = useState(null);
+  76: 
+  77:   const [warnings, setWarnings] = useState([]);
+  78: 
+  79:   /*
+  80:    * =========================================
+  81:    * Load Certification Library
+  82:    * =========================================
+  83:    */
+  84: 
+  85:   const refreshCertifications = useCallback(
+  86:     async ({ includeArchived = true, runLegacyMigration = false } = {}) => {
+  87:       setIsLoading(true);
+  88:       setLoadStatus("loading");
+  89: 
+  90:       try {
+  91:         let migrationReport = null;
+  92: 
+  93:         if (runLegacyMigration) {
+  94:           migrationReport = await migrateLegacyTrainingCertifications();
+  95:         }
+  96: 
+  97:         const records = getCertifications({
+  98:           includeArchived,
+  99:         });
+ 100: 
+ 101:         setCertifications(records);
+ 102:         setLoadStatus("success");
+ 103:         setError(null);
+ 104: 
+ 105:         return {
+ 106:           certifications: records,
+ 107:           migration: migrationReport,
+ 108:         };
+ 109:       } catch (caughtError) {
+ 110:         const normalizedError = normalizeContextError(caughtError);
+ 111: 
+ 112:         setCertifications([]);
+ 113:         setLoadStatus("error");
+ 114:         setError(normalizedError);
+ 115: 
+ 116:         throw caughtError;
+ 117:       } finally {
+ 118:         setIsLoading(false);
+ 119:       }
+ 120:     },
+ 121:     [],
+ 122:   );
+ 123: 
+ 124:   /*
+ 125:    * =========================================
+ 126:    * Synchronize After Changes
+ 127:    * =========================================
+ 128:    */
+ 129: 
+ 130:   const synchronizeCertifications = useCallback(() => {
+ 131:     const records = getCertifications({
+ 132:       includeArchived: true,
+ 133:     });
+ 134: 
+ 135:     setCertifications(records);
+ 136:     setLoadStatus("success");
+ 137: 
+ 138:     return records;
+ 139:   }, []);
+ 140: 
+ 141:   /*
+ 142:    * =========================================
+ 143:    * Initial Loading
+ 144:    * =========================================
+ 145:    */
+ 146: 
+ 147:   useEffect(() => {
+ 148:     refreshCertifications({
+ 149:       includeArchived: true,
+ 150: 
+ 151:       /*
+ 152:        * The migration service uses its version marker,
+ 153:        * so this is safe to request during every initial
+ 154:        * Certification context load.
+ 155:        */
+ 156: 
+ 157:       runLegacyMigration: true,
+ 158:     }).catch(() => {
+ 159:       /*
+ 160:        * The loading or migration error is already
+ 161:        * saved in the context.
+ 162:        */
+ 163:     });
+ 164:   }, [refreshCertifications]);
+ 165: 
+ 166:   /*
+ 167:    * =========================================
+ 168:    * Browser Tab Synchronization
+ 169:    * =========================================
+ 170:    */
+ 171: 
+ 172:   useEffect(() => {
+ 173:     if (typeof window === "undefined") {
+ 174:       return undefined;
+ 175:     }
+ 176: 
+ 177:     const handleStorageChange = (event) => {
+ 178:       if (
+ 179:         event.storageArea !== window.localStorage ||
+ 180:         event.key !== CERTIFICATION_STORAGE_KEY
+ 181:       ) {
+ 182:         return;
+ 183:       }
+ 184: 
+ 185:       refreshCertifications({
+ 186:         includeArchived: true,
+ 187:         runLegacyMigration: false,
+ 188:       }).catch(() => {
+ 189:         /*
+ 190:          * The loading error is already saved
+ 191:          * in the context.
+ 192:          */
+ 193:       });
+ 194:     };
+ 195: 
+ 196:     window.addEventListener("storage", handleStorageChange);
+ 197: 
+ 198:     return () => {
+ 199:       window.removeEventListener("storage", handleStorageChange);
+ 200:     };
+ 201:   }, [refreshCertifications]);
+ 202: 
+ 203:   /*
+ 204:    * =========================================
+ 205:    * Mutation Runner
+ 206:    * =========================================
+ 207:    */
+ 208: 
+ 209:   const runMutation = useCallback(
+ 210:     async (operationInformation, mutation) => {
+ 211:       setOperation(operationInformation);
+ 212:       setSaveStatus("saving");
+ 213:       setError(null);
+ 214:       setWarnings([]);
+ 215: 
+ 216:       try {
+ 217:         const result = await mutation();
+ 218: 
+ 219:         synchronizeCertifications();
+ 220: 
+ 221:         const resultWarnings = Array.isArray(result?.warnings)
+ 222:           ? result.warnings
+ 223:           : [];
+ 224: 
+ 225:         setWarnings(resultWarnings);
+ 226:         setSaveStatus("success");
+ 227: 
+ 228:         return result?.certification || result;
+ 229:       } catch (caughtError) {
+ 230:         const normalizedError = normalizeContextError(caughtError);
+ 231: 
+ 232:         setError(normalizedError);
+ 233: 
+ 234:         setWarnings(normalizedError.warnings);
+ 235: 
+ 236:         setSaveStatus("error");
+ 237: 
+ 238:         throw caughtError;
+ 239:       } finally {
+ 240:         setOperation(null);
+ 241:       }
+ 242:     },
+ 243:     [synchronizeCertifications],
+ 244:   );
+ 245: 
+ 246:   /*
+ 247:    * =========================================
+ 248:    * Create Certification
+ 249:    * =========================================
+ 250:    */
+ 251: 
+ 252:   const createCertification = useCallback(
+ 253:     (certificationData, options = {}) =>
+ 254:       runMutation(
+ 255:         {
+ 256:           type: "create",
+ 257: 
+ 258:           certificationId: certificationData?.id || "",
+ 259:         },
+ 260:         () => createService(certificationData, options),
+ 261:       ),
+ 262:     [runMutation],
+ 263:   );
+ 264: 
+ 265:   /*
+ 266:    * =========================================
+ 267:    * Update Certification
+ 268:    * =========================================
+ 269:    */
+ 270: 
+ 271:   const updateCertification = useCallback(
+ 272:     (certificationId, certificationData, options = {}) =>
+ 273:       runMutation(
+ 274:         {
+ 275:           type: "update",
+ 276:           certificationId,
+ 277:         },
+ 278:         () => updateService(certificationId, certificationData, options),
+ 279:       ),
+ 280:     [runMutation],
+ 281:   );
+ 282: 
+ 283:   /*
+ 284:    * =========================================
+ 285:    * Archive Certification
+ 286:    * =========================================
+ 287:    */
+ 288: 
+ 289:   const archiveCertification = useCallback(
+ 290:     (certificationId) =>
+ 291:       runMutation(
+ 292:         {
+ 293:           type: "archive",
+ 294:           certificationId,
+ 295:         },
+ 296:         () => archiveService(certificationId),
+ 297:       ),
+ 298:     [runMutation],
+ 299:   );
+ 300: 
+ 301:   /*
+ 302:    * =========================================
+ 303:    * Restore Certification
+ 304:    * =========================================
+ 305:    */
+ 306: 
+ 307:   const restoreCertification = useCallback(
+ 308:     (certificationId) =>
+ 309:       runMutation(
+ 310:         {
+ 311:           type: "restore",
+ 312:           certificationId,
+ 313:         },
+ 314:         () => restoreService(certificationId),
+ 315:       ),
+ 316:     [runMutation],
+ 317:   );
+ 318: 
+ 319:   /*
+ 320:    * =========================================
+ 321:    * Delete Certification
+ 322:    * =========================================
+ 323:    */
+ 324: 
+ 325:   const deleteCertification = useCallback(
+ 326:     (certificationId) =>
+ 327:       runMutation(
+ 328:         {
+ 329:           type: "delete",
+ 330:           certificationId,
+ 331:         },
+ 332:         () => deleteService(certificationId),
+ 333:       ),
+ 334:     [runMutation],
+ 335:   );
+ 336: 
+ 337:   /*
+ 338:    * =========================================
+ 339:    * Add Certification Document
+ 340:    * =========================================
+ 341:    */
+ 342: 
+ 343:   const addCertificationDocument = useCallback(
+ 344:     (
+ 345:       certificationId,
+ 346:       file,
+ 347:       documentInformation = {},
+ 348:       validationCollections = {},
+ 349:     ) =>
+ 350:       runMutation(
+ 351:         {
+ 352:           type: "add-document",
+ 353:           certificationId,
+ 354:         },
+ 355:         () =>
+ 356:           addDocumentService(
+ 357:             certificationId,
+ 358:             file,
+ 359:             documentInformation,
+ 360:             validationCollections,
+ 361:           ),
+ 362:       ),
+ 363:     [runMutation],
+ 364:   );
+ 365: 
+ 366:   /*
+ 367:    * =========================================
+ 368:    * Remove Certification Document
+ 369:    * =========================================
+ 370:    */
+ 371: 
+ 372:   const removeCertificationDocument = useCallback(
+ 373:     (certificationId, documentId, validationCollections = {}) =>
+ 374:       runMutation(
+ 375:         {
+ 376:           type: "remove-document",
+ 377:           certificationId,
+ 378:           documentId,
+ 379:         },
+ 380:         () =>
+ 381:           removeDocumentService(
+ 382:             certificationId,
+ 383:             documentId,
+ 384:             validationCollections,
+ 385:           ),
+ 386:       ),
+ 387:     [runMutation],
+ 388:   );
+ 389: 
+ 390:   /*
+ 391:    * =========================================
+ 392:    * Replace Certification Document
+ 393:    * =========================================
+ 394:    */
+ 395: 
+ 396:   const replaceCertificationDocumentFile = useCallback(
+ 397:     (certificationId, documentId, file, validationCollections = {}) =>
+ 398:       runMutation(
+ 399:         {
+ 400:           type: "replace-document",
+ 401:           certificationId,
+ 402:           documentId,
+ 403:         },
+ 404:         () =>
+ 405:           replaceDocumentService(
+ 406:             certificationId,
+ 407:             documentId,
+ 408:             file,
+ 409:             validationCollections,
+ 410:           ),
+ 411:       ),
+ 412:     [runMutation],
+ 413:   );
+ 414: 
+ 415:   /*
+ 416:    * =========================================
+ 417:    * Set Primary Preview Document
+ 418:    * =========================================
+ 419:    */
+ 420: 
+ 421:   const setPrimaryCertificationDocument = useCallback(
+ 422:     (certificationId, documentId, validationCollections = {}) =>
+ 423:       runMutation(
+ 424:         {
+ 425:           type: "set-primary-document",
+ 426: 
+ 427:           certificationId,
+ 428:           documentId,
+ 429:         },
+ 430:         () =>
+ 431:           setPrimaryDocumentService(
+ 432:             certificationId,
+ 433:             documentId,
+ 434:             validationCollections,
+ 435:           ),
+ 436:       ),
+ 437:     [runMutation],
+ 438:   );
+ 439: 
+ 440:   /*
+ 441:    * =========================================
+ 442:    * Message Management
+ 443:    * =========================================
+ 444:    */
+ 445: 
+ 446:   const clearError = useCallback(() => {
+ 447:     setError(null);
+ 448:   }, []);
+ 449: 
+ 450:   const clearWarnings = useCallback(() => {
+ 451:     setWarnings([]);
+ 452:   }, []);
+ 453: 
+ 454:   const resetSaveStatus = useCallback(() => {
+ 455:     setSaveStatus("idle");
+ 456:   }, []);
+ 457: 
+ 458:   /*
+ 459:    * =========================================
+ 460:    * Derived Collections
+ 461:    * =========================================
+ 462:    */
+ 463: 
+ 464:   const activeCertifications = useMemo(
+ 465:     () =>
+ 466:       certifications.filter(
+ 467:         (certification) => certification.status !== "archived",
+ 468:       ),
+ 469:     [certifications],
+ 470:   );
+ 471: 
+ 472:   const archivedCertifications = useMemo(
+ 473:     () =>
+ 474:       certifications.filter(
+ 475:         (certification) => certification.status === "archived",
+ 476:       ),
+ 477:     [certifications],
+ 478:   );
+ 479: 
+ 480:   /*
+ 481:    * =========================================
+ 482:    * Context Value
+ 483:    * =========================================
+ 484:    */
+ 485: 
+ 486:   const contextValue = useMemo(
+ 487:     () => ({
+ 488:       certifications,
+ 489: 
+ 490:       activeCertifications,
+ 491: 
+ 492:       archivedCertifications,
+ 493: 
+ 494:       isLoading,
+ 495: 
+ 496:       loadStatus,
+ 497: 
+ 498:       saveStatus,
+ 499: 
+ 500:       operation,
+ 501: 
+ 502:       error,
+ 503: 
+ 504:       warnings,
+ 505: 
+ 506:       refreshCertifications,
+ 507: 
+ 508:       synchronizeCertifications,
+ 509: 
+ 510:       createCertification,
+ 511: 
+ 512:       updateCertification,
+ 513: 
+ 514:       archiveCertification,
+ 515: 
+ 516:       restoreCertification,
+ 517: 
+ 518:       deleteCertification,
+ 519: 
+ 520:       addCertificationDocument,
+ 521: 
+ 522:       removeCertificationDocument,
+ 523: 
+ 524:       replaceCertificationDocumentFile,
+ 525: 
+ 526:       setPrimaryCertificationDocument,
+ 527: 
+ 528:       clearError,
+ 529: 
+ 530:       clearWarnings,
+ 531: 
+ 532:       resetSaveStatus,
+ 533:     }),
+ 534:     [
+ 535:       certifications,
+ 536:       activeCertifications,
+ 537:       archivedCertifications,
+ 538:       isLoading,
+ 539:       loadStatus,
+ 540:       saveStatus,
+ 541:       operation,
+ 542:       error,
+ 543:       warnings,
+ 544:       refreshCertifications,
+ 545:       synchronizeCertifications,
+ 546:       createCertification,
+ 547:       updateCertification,
+ 548:       archiveCertification,
+ 549:       restoreCertification,
+ 550:       deleteCertification,
+ 551:       addCertificationDocument,
+ 552:       removeCertificationDocument,
+ 553:       replaceCertificationDocumentFile,
+ 554:       setPrimaryCertificationDocument,
+ 555:       clearError,
+ 556:       clearWarnings,
+ 557:       resetSaveStatus,
+ 558:     ],
+ 559:   );
+ 560: 
+ 561:   return (
+ 562:     <CertificationDataContext.Provider value={contextValue}>
+ 563:       {children}
+ 564:     </CertificationDataContext.Provider>
+ 565:   );
+ 566: }
+ 567: 
+ 568: /*
+ 569:  * =========================================
+ 570:  * Certification Context Hook
+ 571:  * =========================================
+ 572:  */
+ 573: 
+ 574: export function useCertificationData() {
+ 575:   const context = useContext(CertificationDataContext);
+ 576: 
+ 577:   if (!context) {
+ 578:     throw new Error(
+ 579:       "useCertificationData must be used within a CertificationDataProvider.",
+ 580:     );
+ 581:   }
+ 582: 
+ 583:   return context;
+ 584: }
+ 585: 
+ 586: export default CertificationDataContext;
+
+======================================================================
+ADDITIONAL STORAGE AND AUTH FILE CANDIDATES
+======================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\certificationConfig.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\trainingConfig.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\AuthContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\CertificationDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProfileDataContext.localStorage.backup.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\layouts\AuthLayout\AuthLayout.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\layouts\AuthLayout\AuthLayout.css.20261020-230451.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\layouts\AuthLayout\AuthLayout.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\models\certificationModel.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\models\trainingModel.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\Certifications.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\Certifications.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationDashboard\CertificationDashboard.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationDashboard\CertificationDashboard.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationDocumentPreview\CertificationDocumentPreview.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationDocumentPreview\CertificationDocumentPreview.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationDocumentViewer\CertificationDocumentViewer.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationDocumentViewer\CertificationDocumentViewer.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationItem\CertificationItem.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationItem\CertificationItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationLibrary\CertificationLibrary.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationLibrary\CertificationLibrary.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationPageHeader\CertificationPageHeader.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationPageHeader\CertificationPageHeader.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Certifications\Certifications.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Certifications\Certifications.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Certifications\CertificationForm\CertificationForm.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Certifications\CertificationForm\CertificationForm.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Certifications\CertificationItem\CertificationItem.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Portfolio\components\Certifications\CertificationItem\CertificationItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\Training.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\Training.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDashboard\TrainingDashboard.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDashboard\TrainingDashboard.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingForm\TrainingForm.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingForm\TrainingForm.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingItem\TrainingItem.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingItem\TrainingItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingLibrary\TrainingLibrary.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingOrderedItemEditor\TrainingOrderedItemEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingOrderedItemEditor\TrainingOrderedItemEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingPageHeader\TrainingPageHeader.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingPageHeader\TrainingPageHeader.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Account\sessionService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Auth\authService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationDocumentStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingMigrationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingRelationshipService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Documents\documentStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileService.localStorage.backup.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingValidation.js

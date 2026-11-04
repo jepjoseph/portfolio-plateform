@@ -1,0 +1,537 @@
+CERTIFICATION SQL SERVER READINESS
+Generated: 2026-11-03T13:27:31.7744586-05:00
+
+===========================================================================
+FILE: src\repositories\certificationRepository.js
+===========================================================================
+Total lines: 208
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const CERTIFICATION_COLUMNS = `
+   4:   id,
+   5:   user_id,
+   6:   name,
+   7:   certification_type,
+   8:   issuing_organization_name,
+   9:   status,
+  10:   certification_data,
+  11:   created_at,
+  12:   updated_at,
+  13:   row_version
+  14: `;
+  15: 
+  16: function mapCertificationRow(row) {
+  17:   if (!row) return null;
+  18: 
+  19:   const data = typeof row.certification_data === "string"
+  20:     ? JSON.parse(row.certification_data)
+  21:     : row.certification_data;
+  22: 
+  23:   if (!data || typeof data !== "object" || Array.isArray(data)) {
+  24:     throw new Error("Stored Certification data is invalid.");
+  25:   }
+  26: 
+  27:   return {
+  28:     ...data,
+  29:     id: row.id,
+  30:     name: row.name,
+  31:     certificationType: row.certification_type,
+  32:     issuingOrganization: {
+  33:       ...(data.issuingOrganization || {}),
+  34:       name: row.issuing_organization_name,
+  35:     },
+  36:     status: row.status,
+  37:     createdAt: row.created_at,
+  38:     updatedAt: row.updated_at,
+  39:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+  40:   };
+  41: }
+  42: 
+  43: function bindCertification(request, userId, certification) {
+  44:   return request
+  45:     .input("id", sql.NVarChar(200), certification.id)
+  46:     .input("userId", sql.UniqueIdentifier, userId)
+  47:     .input("name", sql.NVarChar(500), certification.name)
+  48:     .input(
+  49:       "certificationType",
+  50:       sql.NVarChar(100),
+  51:       certification.certificationType,
+  52:     )
+  53:     .input(
+  54:       "issuerName",
+  55:       sql.NVarChar(500),
+  56:       certification.issuingOrganization.name,
+  57:     )
+  58:     .input("status", sql.NVarChar(100), certification.status)
+  59:     .input(
+  60:       "certificationData",
+  61:       sql.NVarChar(sql.MAX),
+  62:       JSON.stringify(certification),
+  63:     );
+  64: }
+  65: 
+  66: function decodeRowVersion(value) {
+  67:   if (typeof value !== "string" ||
+  68:       !/^[A-Za-z0-9+/]{11}=$/.test(value)) {
+  69:     throw new TypeError("A valid rowVersion is required.");
+  70:   }
+  71: 
+  72:   const buffer = Buffer.from(value, "base64");
+  73: 
+  74:   if (buffer.length !== 8 ||
+  75:       buffer.toString("base64") !== value) {
+  76:     throw new TypeError("Invalid rowVersion.");
+  77:   }
+  78: 
+  79:   return buffer;
+  80: }
+  81: 
+  82: export async function listCertificationsByUser(userId) {
+  83:   const pool = await getDatabasePool();
+  84: 
+  85:   const result = await pool.request()
+  86:     .input("userId", sql.UniqueIdentifier, userId)
+  87:     .query(`
+  88:       SELECT ${CERTIFICATION_COLUMNS}
+  89:       FROM dbo.certifications
+  90:       WHERE user_id = @userId
+  91:       ORDER BY updated_at DESC, id ASC;
+  92:     `);
+  93: 
+  94:   return result.recordset.map(mapCertificationRow);
+  95: }
+  96: 
+  97: export async function findCertificationById(userId, certificationId) {
+  98:   const pool = await getDatabasePool();
+  99: 
+ 100:   const result = await pool.request()
+ 101:     .input("userId", sql.UniqueIdentifier, userId)
+ 102:     .input("id", sql.NVarChar(200), certificationId)
+ 103:     .query(`
+ 104:       SELECT ${CERTIFICATION_COLUMNS}
+ 105:       FROM dbo.certifications
+ 106:       WHERE user_id = @userId AND id = @id;
+ 107:     `);
+ 108: 
+ 109:   return mapCertificationRow(result.recordset[0]);
+ 110: }
+ 111: 
+ 112: export async function createCertificationRecord(userId, certification) {
+ 113:   const pool = await getDatabasePool();
+ 114: 
+ 115:   const result = await bindCertification(
+ 116:     pool.request(), userId, certification
+ 117:   ).query(`
+ 118:     INSERT INTO dbo.certifications (
+ 119:       id, user_id, name, certification_type,
+ 120:       issuing_organization_name, status, certification_data
+ 121:     )
+ 122:     OUTPUT
+ 123:       INSERTED.id,
+ 124:       INSERTED.user_id,
+ 125:       INSERTED.name,
+ 126:       INSERTED.certification_type,
+ 127:       INSERTED.issuing_organization_name,
+ 128:       INSERTED.status,
+ 129:       INSERTED.certification_data,
+ 130:       INSERTED.created_at,
+ 131:       INSERTED.updated_at,
+ 132:       INSERTED.row_version
+ 133:     VALUES (
+ 134:       @id, @userId, @name, @certificationType,
+ 135:       @issuerName, @status, @certificationData
+ 136:     );
+ 137:   `);
+ 138: 
+ 139:   return mapCertificationRow(result.recordset[0]);
+ 140: }
+ 141: 
+ 142: export async function updateCertificationRecord(
+ 143:   userId,
+ 144:   certification,
+ 145:   expectedRowVersion,
+ 146: ) {
+ 147:   const pool = await getDatabasePool();
+ 148: 
+ 149:   const result = await bindCertification(
+ 150:     pool.request(), userId, certification
+ 151:   )
+ 152:     .input(
+ 153:       "expectedRowVersion",
+ 154:       sql.Binary(8),
+ 155:       decodeRowVersion(expectedRowVersion),
+ 156:     )
+ 157:     .query(`
+ 158:       UPDATE dbo.certifications
+ 159:       SET
+ 160:         name = @name,
+ 161:         certification_type = @certificationType,
+ 162:         issuing_organization_name = @issuerName,
+ 163:         status = @status,
+ 164:         certification_data = @certificationData,
+ 165:         updated_at = SYSUTCDATETIME()
+ 166:       OUTPUT
+ 167:         INSERTED.id,
+ 168:         INSERTED.user_id,
+ 169:         INSERTED.name,
+ 170:         INSERTED.certification_type,
+ 171:         INSERTED.issuing_organization_name,
+ 172:         INSERTED.status,
+ 173:         INSERTED.certification_data,
+ 174:         INSERTED.created_at,
+ 175:         INSERTED.updated_at,
+ 176:         INSERTED.row_version
+ 177:       WHERE id = @id
+ 178:         AND user_id = @userId
+ 179:         AND row_version = @expectedRowVersion;
+ 180:     `);
+ 181: 
+ 182:   return mapCertificationRow(result.recordset[0]);
+ 183: }
+ 184: 
+ 185: export async function deleteCertificationRecord(
+ 186:   userId,
+ 187:   certificationId,
+ 188:   expectedRowVersion,
+ 189: ) {
+ 190:   const pool = await getDatabasePool();
+ 191: 
+ 192:   const result = await pool.request()
+ 193:     .input("userId", sql.UniqueIdentifier, userId)
+ 194:     .input("id", sql.NVarChar(200), certificationId)
+ 195:     .input(
+ 196:       "expectedRowVersion",
+ 197:       sql.Binary(8),
+ 198:       decodeRowVersion(expectedRowVersion),
+ 199:     )
+ 200:     .query(`
+ 201:       DELETE FROM dbo.certifications
+ 202:       WHERE id = @id
+ 203:         AND user_id = @userId
+ 204:         AND row_version = @expectedRowVersion;
+ 205:     `);
+ 206: 
+ 207:   return result.rowsAffected[0] > 0;
+ 208: }
+
+===========================================================================
+FILE: src\config\database.js
+===========================================================================
+Total lines: 218
+   1: import sql from "mssql";
+   2: 
+   3: import { getEnvironment, isDatabaseConfigured } from "./environment.js";
+   4: 
+   5: /*
+   6:  * =========================================
+   7:  * Shared Connection State
+   8:  * =========================================
+   9:  */
+  10: 
+  11: let connectionPool = null;
+  12: 
+  13: let connectionPromise = null;
+  14: 
+  15: /*
+  16:  * =========================================
+  17:  * Database Configuration
+  18:  * =========================================
+  19:  */
+  20: 
+  21: function createDatabaseConfig() {
+  22:   const environment = getEnvironment();
+  23: 
+  24:   return {
+  25:     server: environment.DB_HOST,
+  26: 
+  27:     port: environment.DB_PORT,
+  28: 
+  29:     database: environment.DB_NAME,
+  30: 
+  31:     user: environment.DB_USER,
+  32: 
+  33:     password: environment.DB_PASSWORD,
+  34: 
+  35:     connectionTimeout: environment.DB_CONNECTION_TIMEOUT_MS,
+  36: 
+  37:     requestTimeout: environment.DB_REQUEST_TIMEOUT_MS,
+  38: 
+  39:     pool: {
+  40:       min: environment.DB_POOL_MIN,
+  41: 
+  42:       max: environment.DB_POOL_MAX,
+  43: 
+  44:       idleTimeoutMillis: environment.DB_POOL_IDLE_TIMEOUT_MS,
+  45:     },
+  46: 
+  47:     options: {
+  48:       encrypt: environment.DB_ENCRYPT,
+  49: 
+  50:       trustServerCertificate: environment.DB_TRUST_SERVER_CERTIFICATE,
+  51: 
+  52:       enableArithAbort: true,
+  53:     },
+  54:   };
+  55: }
+  56: 
+  57: /*
+  58:  * =========================================
+  59:  * Connect to Database
+  60:  * =========================================
+  61:  */
+  62: 
+  63: export async function connectDatabase() {
+  64:   const environment = getEnvironment();
+  65: 
+  66:   if (!isDatabaseConfigured(environment)) {
+  67:     const error = new Error("Database access has not been configured.");
+  68: 
+  69:     error.name = "DatabaseConfigurationError";
+  70: 
+  71:     error.code = "DATABASE_NOT_CONFIGURED";
+  72: 
+  73:     error.status = 503;
+  74: 
+  75:     error.publicMessage = "Database service is not configured.";
+  76: 
+  77:     throw error;
+  78:   }
+  79: 
+  80:   /*
+  81:    * Reuse an existing connected pool.
+  82:    */
+  83: 
+  84:   if (connectionPool?.connected) {
+  85:     return connectionPool;
+  86:   }
+  87: 
+  88:   /*
+  89:    * Reuse an in-progress connection attempt.
+  90:    * This prevents multiple pools from being
+  91:    * created simultaneously.
+  92:    */
+  93: 
+  94:   if (connectionPromise) {
+  95:     return connectionPromise;
+  96:   }
+  97: 
+  98:   const nextPool = new sql.ConnectionPool(createDatabaseConfig());
+  99: 
+ 100:   nextPool.on("error", (error) => {
+ 101:     console.error("MSSQL connection pool error:", error.message);
+ 102:   });
+ 103: 
+ 104:   connectionPromise = nextPool
+ 105:     .connect()
+ 106:     .then((connectedPool) => {
+ 107:       connectionPool = connectedPool;
+ 108: 
+ 109:       console.log(
+ 110:         `Connected to SQL Server database "${environment.DB_NAME}" on ${environment.DB_HOST}.`,
+ 111:       );
+ 112: 
+ 113:       return connectedPool;
+ 114:     })
+ 115:     .catch((error) => {
+ 116:       connectionPool = null;
+ 117: 
+ 118:       throw error;
+ 119:     })
+ 120:     .finally(() => {
+ 121:       connectionPromise = null;
+ 122:     });
+ 123: 
+ 124:   return connectionPromise;
+ 125: }
+ 126: 
+ 127: /*
+ 128:  * =========================================
+ 129:  * Get Database Pool
+ 130:  * =========================================
+ 131:  */
+ 132: 
+ 133: export async function getDatabasePool() {
+ 134:   return connectDatabase();
+ 135: }
+ 136: 
+ 137: /*
+ 138:  * =========================================
+ 139:  * Database Health Check
+ 140:  * =========================================
+ 141:  */
+ 142: 
+ 143: export async function checkDatabaseHealth() {
+ 144:   const startedAt = Date.now();
+ 145: 
+ 146:   try {
+ 147:     const pool = await getDatabasePool();
+ 148: 
+ 149:     await pool.request().query("SELECT 1 AS healthy;");
+ 150: 
+ 151:     return {
+ 152:       status: "ok",
+ 153: 
+ 154:       configured: true,
+ 155: 
+ 156:       responseTimeMs: Date.now() - startedAt,
+ 157:     };
+ 158:   } catch (error) {
+ 159:     const isNotConfigured = error.code === "DATABASE_NOT_CONFIGURED";
+ 160: 
+ 161:     return {
+ 162:       status: isNotConfigured ? "not-configured" : "error",
+ 163: 
+ 164:       configured: !isNotConfigured,
+ 165: 
+ 166:       responseTimeMs: Date.now() - startedAt,
+ 167: 
+ 168:       error,
+ 169:     };
+ 170:   }
+ 171: }
+ 172: 
+ 173: /*
+ 174:  * =========================================
+ 175:  * Close Database Pool
+ 176:  * =========================================
+ 177:  */
+ 178: 
+ 179: export async function closeDatabase() {
+ 180:   /*
+ 181:    * If a connection attempt is still running,
+ 182:    * wait for it before closing the pool.
+ 183:    */
+ 184: 
+ 185:   if (connectionPromise) {
+ 186:     try {
+ 187:       await connectionPromise;
+ 188:     } catch {
+ 189:       /*
+ 190:        * A failed connection does not leave
+ 191:        * an active pool to close.
+ 192:        */
+ 193:     }
+ 194:   }
+ 195: 
+ 196:   if (!connectionPool) {
+ 197:     return;
+ 198:   }
+ 199: 
+ 200:   const poolToClose = connectionPool;
+ 201: 
+ 202:   connectionPool = null;
+ 203: 
+ 204:   await poolToClose.close();
+ 205: 
+ 206:   console.log("SQL Server connection pool closed.");
+ 207: }
+ 208: 
+ 209: /*
+ 210:  * =========================================
+ 211:  * SQL Types
+ 212:  * =========================================
+ 213:  *
+ 214:  * Repositories can import sql from this module
+ 215:  * when creating parameterized requests.
+ 216:  */
+ 217: 
+ 218: export { sql };
+
+===========================================================================
+FILE: src\database\migrations\011_certifications.sql
+===========================================================================
+Total lines: 35
+   1: /*
+   2:  * Portfolio Platform - Certification Persistence Foundation
+   3:  * Migration 011. Do not add GO statements.
+   4:  * Stores metadata and versioned Certification JSON, not document bytes.
+   5:  */
+   6: CREATE TABLE dbo.certifications
+   7: (
+   8:     id NVARCHAR(200) NOT NULL,
+   9:     user_id UNIQUEIDENTIFIER NOT NULL,
+  10:     name NVARCHAR(500) NOT NULL,
+  11:     certification_type NVARCHAR(100) NOT NULL,
+  12:     issuing_organization_name NVARCHAR(500) NOT NULL,
+  13:     status NVARCHAR(100) NOT NULL,
+  14:     certification_data NVARCHAR(MAX) NOT NULL,
+  15:     created_at DATETIME2(3) NOT NULL
+  16:         CONSTRAINT DF_certifications_created_at DEFAULT SYSUTCDATETIME(),
+  17:     updated_at DATETIME2(3) NOT NULL
+  18:         CONSTRAINT DF_certifications_updated_at DEFAULT SYSUTCDATETIME(),
+  19:     row_version ROWVERSION NOT NULL,
+  20:     CONSTRAINT PK_certifications PRIMARY KEY CLUSTERED (id),
+  21:     CONSTRAINT FK_certifications_user FOREIGN KEY (user_id) REFERENCES dbo.users(id),
+  22:     CONSTRAINT UQ_certifications_id_user UNIQUE (id, user_id),
+  23:     CONSTRAINT CK_certifications_id_not_blank CHECK (LEN(LTRIM(RTRIM(id))) > 0),
+  24:     CONSTRAINT CK_certifications_name_not_blank CHECK (LEN(LTRIM(RTRIM(name))) > 0),
+  25:     CONSTRAINT CK_certifications_type_not_blank CHECK (LEN(LTRIM(RTRIM(certification_type))) > 0),
+  26:     CONSTRAINT CK_certifications_status_not_blank CHECK (LEN(LTRIM(RTRIM(status))) > 0),
+  27:     CONSTRAINT CK_certifications_data_json CHECK (ISJSON(certification_data) = 1),
+  28:     CONSTRAINT CK_certifications_dates CHECK (updated_at >= created_at)
+  29: );
+  30: CREATE INDEX IX_certifications_user_status_updated
+  31:     ON dbo.certifications (user_id, status, updated_at DESC)
+  32:     INCLUDE (name, certification_type, issuing_organization_name);
+  33: CREATE INDEX IX_certifications_user_issuer
+  34:     ON dbo.certifications (user_id, issuing_organization_name)
+  35:     INCLUDE (name, certification_type, status);
+
+===========================================================================
+FILE: src\database\migrations\012_certification_documents.sql
+===========================================================================
+Total lines: 53
+   1: /*
+   2:  * Portfolio Platform - Certification Document Metadata
+   3:  * Migration 012. Do not add GO statements.
+   4:  * Document bytes remain in private filesystem storage.
+   5:  */
+   6: CREATE TABLE dbo.certification_documents
+   7: (
+   8:     id NVARCHAR(200) NOT NULL,
+   9:     certification_id NVARCHAR(200) NOT NULL,
+  10:     user_id UNIQUEIDENTIFIER NOT NULL,
+  11:     storage_key NVARCHAR(500) NOT NULL,
+  12:     original_file_name NVARCHAR(255) NOT NULL,
+  13:     mime_type NVARCHAR(150) NOT NULL,
+  14:     file_size BIGINT NOT NULL,
+  15:     created_at DATETIME2(3) NOT NULL
+  16:         CONSTRAINT DF_certification_documents_created_at DEFAULT SYSUTCDATETIME(),
+  17:     CONSTRAINT PK_certification_documents PRIMARY KEY CLUSTERED (id),
+  18:     CONSTRAINT FK_certification_documents_certification_owner
+  19:         FOREIGN KEY (certification_id, user_id)
+  20:         REFERENCES dbo.certifications(id, user_id),
+  21:     CONSTRAINT UQ_certification_documents_storage_key UNIQUE (storage_key),
+  22:     CONSTRAINT CK_certification_documents_storage_key
+  23:         CHECK (LEN(LTRIM(RTRIM(storage_key))) > 0),
+  24:     CONSTRAINT CK_certification_documents_original_file_name
+  25:         CHECK (LEN(LTRIM(RTRIM(original_file_name))) > 0),
+  26:     CONSTRAINT CK_certification_documents_file_size
+  27:         CHECK (file_size BETWEEN 1 AND 20971520),
+  28:     CONSTRAINT CK_certification_documents_mime_type
+  29:         CHECK (mime_type IN (
+  30:             N'application/pdf',
+  31:             N'application/msword',
+  32:             N'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  33:             N'application/vnd.ms-powerpoint',
+  34:             N'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  35:             N'application/vnd.ms-excel',
+  36:             N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  37:             N'text/plain', N'text/markdown', N'text/csv',
+  38:             N'application/json', N'application/zip',
+  39:             N'image/jpeg',       -- .jpg, .jpeg
+  40:             N'image/png',        -- .png
+  41:             N'image/webp',       -- .webp
+  42:             N'image/gif',        -- .gif
+  43:             N'image/avif',       -- .avif
+  44:             N'image/bmp',        -- .bmp
+  45:             N'image/tiff',       -- .tif, .tiff
+  46:             N'image/heic',       -- .heic
+  47:             N'image/heif'        -- .heif
+  48:         ))
+  49: );
+  50: CREATE INDEX IX_certification_documents_certification_created
+  51:     ON dbo.certification_documents (certification_id, created_at DESC);
+  52: CREATE INDEX IX_certification_documents_user_certification
+  53:     ON dbo.certification_documents (user_id, certification_id);
+

@@ -20,9 +20,15 @@ import {
   updateCertification as updateService,
 } from "../services/Certification/certificationService.js";
 
+import {
+  fetchCertifications,
+  patchCertification,
+} from "../services/Certification/certificationApiService.js";
 import { CERTIFICATION_STORAGE_KEY } from "../services/Certification/certificationStorage.js";
 
 import { migrateLegacyTrainingCertifications } from "../services/Certification/certificationTrainingMigrationService.js";
+
+const CERTIFICATIONS_BACKEND_READ_MODE = true;
 
 const CertificationDataContext = createContext(null);
 
@@ -90,20 +96,28 @@ export function CertificationDataProvider({ children }) {
       try {
         let migrationReport = null;
 
-        if (runLegacyMigration) {
+        if (runLegacyMigration && !CERTIFICATIONS_BACKEND_READ_MODE) {
           migrationReport = await migrateLegacyTrainingCertifications();
         }
 
-        const records = getCertifications({
-          includeArchived,
-        });
+        const records = CERTIFICATIONS_BACKEND_READ_MODE
+          ? await fetchCertifications()
+          : getCertifications({ includeArchived });
 
-        setCertifications(records);
+        if (!Array.isArray(records)) {
+          throw new TypeError("Certification API returned an invalid records collection.");
+        }
+
+        const visibleRecords = includeArchived
+          ? records
+          : records.filter((certification) => certification.status !== "archived");
+
+        setCertifications(visibleRecords);
         setLoadStatus("success");
         setError(null);
 
         return {
-          certifications: records,
+          certifications: visibleRecords,
           migration: migrationReport,
         };
       } catch (caughtError) {
@@ -128,6 +142,10 @@ export function CertificationDataProvider({ children }) {
    */
 
   const synchronizeCertifications = useCallback(() => {
+    if (CERTIFICATIONS_BACKEND_READ_MODE) {
+      return refreshCertifications({ includeArchived: true });
+    }
+
     const records = getCertifications({
       includeArchived: true,
     });
@@ -136,7 +154,7 @@ export function CertificationDataProvider({ children }) {
     setLoadStatus("success");
 
     return records;
-  }, []);
+  }, [refreshCertifications]);
 
   /*
    * =========================================
@@ -154,7 +172,7 @@ export function CertificationDataProvider({ children }) {
        * Certification context load.
        */
 
-      runLegacyMigration: true,
+      runLegacyMigration: !CERTIFICATIONS_BACKEND_READ_MODE,
     }).catch(() => {
       /*
        * The loading or migration error is already
@@ -193,6 +211,10 @@ export function CertificationDataProvider({ children }) {
       });
     };
 
+    if (CERTIFICATIONS_BACKEND_READ_MODE) {
+      return undefined;
+    }
+
     window.addEventListener("storage", handleStorageChange);
 
     return () => {
@@ -208,6 +230,19 @@ export function CertificationDataProvider({ children }) {
 
   const runMutation = useCallback(
     async (operationInformation, mutation) => {
+      if (CERTIFICATIONS_BACKEND_READ_MODE) {
+        const unsupportedError = new Error(
+          "Certification editing is temporarily disabled until backend write endpoints are connected.",
+        );
+
+        unsupportedError.code = "CERTIFICATION_BACKEND_WRITE_NOT_READY";
+
+        setError(normalizeContextError(unsupportedError));
+        setSaveStatus("error");
+
+        throw unsupportedError;
+      }
+
       setOperation(operationInformation);
       setSaveStatus("saving");
       setError(null);
@@ -269,17 +304,117 @@ export function CertificationDataProvider({ children }) {
    */
 
   const updateCertification = useCallback(
-    (certificationId, certificationData, options = {}) =>
-      runMutation(
-        {
-          type: "update",
-          certificationId,
-        },
-        () => updateService(certificationId, certificationData, options),
-      ),
-    [runMutation],
-  );
+    async (certificationId, certificationData, options = {}) => {
+      if (!CERTIFICATIONS_BACKEND_READ_MODE) {
+        return runMutation(
+          { type: "update", certificationId },
+          () => updateService(certificationId, certificationData, options),
+        );
+      }
 
+      setOperation({ type: "update", certificationId });
+      setSaveStatus("saving");
+      setError(null);
+      setWarnings([]);
+
+      try {
+        const existing = certifications.find(
+          (item) => item.id === certificationId,
+        );
+
+        if (!existing) {
+          throw new Error("Certification not found. Refresh and try again.");
+        }
+
+        if (!existing.rowVersion) {
+          throw new Error(
+            "Certification rowVersion is missing. Refresh and try again.",
+          );
+        }
+
+        if (
+          !certificationData ||
+          typeof certificationData !== "object" ||
+          Array.isArray(certificationData)
+        ) {
+          throw new TypeError("Invalid certification update data.");
+        }
+
+        const protectedFields = [
+          "supportingDocuments",
+          "skillRelationships",
+          "relatedRecords",
+        ];
+
+        for (const field of protectedFields) {
+          if (
+            Object.prototype.hasOwnProperty.call(certificationData, field) &&
+            JSON.stringify(certificationData[field]) !==
+              JSON.stringify(existing[field])
+          ) {
+            throw new Error(
+              `${field} changes require a separate backend operation.`,
+            );
+          }
+        }
+
+        const excludedFields = new Set([
+          "id",
+          "rowVersion",
+          "modelVersion",
+          "createdAt",
+          "updatedAt",
+          ...protectedFields,
+        ]);
+
+        const updates = {};
+
+        for (const [key, value] of Object.entries(certificationData)) {
+          if (excludedFields.has(key)) continue;
+
+          if (
+            JSON.stringify(value) !==
+            JSON.stringify(existing[key])
+          ) {
+            updates[key] = value;
+          }
+        }
+
+        if (Object.keys(updates).length === 0) {
+          setSaveStatus("success");
+          return existing;
+        }
+
+        const updated = await patchCertification(
+          certificationId,
+          updates,
+          existing.rowVersion,
+        );
+
+        if (!updated || updated.id !== certificationId) {
+          throw new Error("Invalid certification response from backend.");
+        }
+
+        setCertifications((current) =>
+          current.map((item) =>
+            item.id === certificationId ? updated : item,
+          ),
+        );
+
+        setSaveStatus("success");
+        return updated;
+      } catch (caughtError) {
+        const normalizedError = normalizeContextError(caughtError);
+        setError(normalizedError);
+        setWarnings(normalizedError.warnings);
+        setSaveStatus("error");
+        throw caughtError;
+      } finally {
+        setOperation(null);
+      }
+    },
+    [certifications, runMutation],
+  );
   /*
    * =========================================
    * Archive Certification

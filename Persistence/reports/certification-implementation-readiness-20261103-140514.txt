@@ -1,0 +1,705 @@
+CERTIFICATION IMPLEMENTATION READINESS
+Generated: 2026-11-03T14:05:14.2774551-05:00
+
+================================================================================
+FILE: src/services/Service/projectDocumentService.js
+================================================================================
+    1: import path from "node:path";
+    2: 
+    3: import {
+    4:   createProjectDocument,
+    5:   findProjectDocumentByStorageKey,
+    6:   findProjectDocumentById,
+    7:   listProjectDocuments,
+    8:   deleteProjectDocument,
+    9: } from "../../repositories/projectDocumentRepository.js";
+   10: 
+   11: import {
+   12:   assertSafeProjectDocumentDirectory,
+   13:   createProjectDocumentStorageKey,
+   14:   resolveOwnedProjectDocumentPath,
+   15:   deleteOwnedProjectDocument,
+   16: } from "../Storage/projectDocumentStorageService.js";
+   17: 
+   18: /*
+   19:  * =========================================
+   20:  * Project Document Service Errors
+   21:  * =========================================
+   22:  */
+   23: 
+   24: function createDocumentServiceError(message, code, status = 400) {
+   25:   const error = new Error(message);
+   26: 
+   27:   error.name = "ProjectDocumentServiceError";
+   28:   error.code = code;
+   29:   error.status = status;
+   30:   error.publicMessage = message;
+   31: 
+   32:   return error;
+   33: }
+   34: 
+   35: /*
+   36:  * =========================================
+   37:  * Register Uploaded Project Document
+   38:  * =========================================
+   39:  */
+   40: 
+   41: export async function registerProjectDocument({
+   42:   userId,
+   43:   projectId,
+   44:   uploadedFile,
+   45: }) {
+   46:   if (!userId || !projectId) {
+   47:     throw createDocumentServiceError(
+   48:       "Project document registration is not authorized.",
+   49:       "PROJECT_DOCUMENT_REGISTRATION_UNAUTHORIZED",
+   50:       403,
+   51:     );
+   52:   }
+   53: 
+   54:   if (!uploadedFile) {
+   55:     throw createDocumentServiceError(
+   56:       "Validated Project document is required.",
+   57:       "PROJECT_DOCUMENT_FILE_REQUIRED",
+   58:     );
+   59:   }
+   60: 
+   61:   const {
+   62:     filename,
+   63:     path: uploadedPath,
+   64:     originalname,
+   65:     verifiedMimeType,
+   66:     verifiedSize,
+   67:   } = uploadedFile;
+   68: 
+   69:   if (
+   70:     !filename ||
+   71:     !uploadedPath ||
+   72:     !originalname ||
+   73:     !verifiedMimeType ||
+   74:     !Number.isSafeInteger(verifiedSize) ||
+   75:     verifiedSize <= 0
+   76:   ) {
+   77:     throw createDocumentServiceError(
+   78:       "Project document validation information is incomplete.",
+   79:       "PROJECT_DOCUMENT_VALIDATION_INCOMPLETE",
+   80:     );
+   81:   }
+   82: 
+   83:   const storageKey = createProjectDocumentStorageKey(userId, projectId, filename);
+   84: 
+   85:   const expectedPath = resolveOwnedProjectDocumentPath(
+   86:     userId,
+   87:     projectId,
+   88:     storageKey,
+   89:   );
+   90: 
+   91:   if (path.resolve(uploadedPath) !== expectedPath) {
+   92:     throw createDocumentServiceError(
+   93:       "Project document file location is invalid.",
+   94:       "PROJECT_DOCUMENT_INVALID_FILE_LOCATION",
+   95:       403,
+   96:     );
+   97:   }
+   98: 
+   99:   await assertSafeProjectDocumentDirectory(userId, projectId);
+  100: 
+  101:   /*
+  102:    * The file has already been stored and verified
+  103:    * by the upload and validation middleware.
+  104:    *
+  105:    * Now register its metadata in Azure SQL.
+  106:    */
+  107: 
+  108:   try {
+  109:     return await createProjectDocument(userId, projectId, {
+  110:       storageKey,
+  111:       originalFileName: originalname,
+  112:       mimeType: verifiedMimeType,
+  113:       fileSize: verifiedSize,
+  114:     });
+  115:   } catch (databaseError) {
+  116:     /*
+  117:      * The insert failed or its result is uncertain.
+  118:      *
+  119:      * Do not delete the uploaded file:
+  120:      * SQL Server might have committed the insert
+  121:      * before the connection failed.
+  122:      */
+  123: 
+  124:     try {
+  125:       const existingDocument = await findProjectDocumentByStorageKey(
+  126:         userId,
+  127:         projectId,
+  128:         storageKey,
+  129:       );
+  130: 
+  131:       if (existingDocument) {
+  132:         // The metadata exists, so preserve its file.
+  133:         return existingDocument;
+  134:       }
+  135:     } catch (lookupError) {
+  136:       console.error(
+  137:         "Unable to reconcile Project document registration:",
+  138:         lookupError,
+  139:       );
+  140:     }
+  141: 
+  142:     /*
+  143:      * A missing record at lookup time does not prove
+  144:      * that the original insert cannot commit later.
+  145:      *
+  146:      * Preserve the file for later reconciliation.
+  147:      */
+  148: 
+  149:     const error = createDocumentServiceError(
+  150:       "Project document registration could not be confirmed.",
+  151:       "PROJECT_DOCUMENT_REGISTRATION_UNCONFIRMED",
+  152:       503,
+  153:     );
+  154: 
+  155:     error.cause = databaseError;
+  156: 
+  157:     throw error;
+  158:   }
+  159: }
+  160: 
+  161: /*
+  162:  * =========================================
+  163:  * List Project Document
+  164:  * =========================================
+  165:  */
+  166: 
+  167: export async function listAuthenticatedProjectDocuments({ userId, projectId }) {
+  168:   if (!userId || !projectId) {
+  169:     throw createDocumentServiceError(
+  170:       "Project document access is not authorized.",
+  171:       "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+  172:       403,
+  173:     );
+  174:   }
+  175: 
+  176:   return listProjectDocuments(userId, projectId);
+  177: }
+  178: 
+  179: /*
+  180:  * =========================================
+  181:  * Get Authenticated Project Document
+  182:  * =========================================
+  183:  *
+  184:  * Retrieve document metadata belonging to
+  185:  * the authenticated user and Project.
+  186:  */
+  187: 
+  188: export async function getAuthenticatedProjectDocument({
+  189:   userId,
+  190:   projectId,
+  191:   documentId,
+  192: }) {
+  193:   if (!userId || !projectId || !documentId) {
+  194:     throw createDocumentServiceError(
+  195:       "Project document access is not authorized.",
+  196:       "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+  197:       403,
+  198:     );
+  199:   }
+  200: 
+  201:   const document = await findProjectDocumentById(userId, projectId, documentId);
+  202: 
+  203:   if (!document) {
+  204:     throw createDocumentServiceError(
+  205:       "Project document not found.",
+  206:       "PROJECT_DOCUMENT_NOT_FOUND",
+  207:       404,
+  208:     );
+  209:   }
+  210: 
+  211:   return document;
+  212: }
+  213: 
+  214: /*
+  215:  * =========================================
+  216:  * Delete Authenticated Project Document
+  217:  * =========================================
+  218:  */
+  219: 
+  220: export async function deleteAuthenticatedProjectDocument({
+  221:   userId,
+  222:   projectId,
+  223:   documentId,
+  224: }) {
+  225:   if (!userId || !projectId || !documentId) {
+  226:     throw createDocumentServiceError(
+  227:       "Project document deletion is not authorized.",
+  228:       "PROJECT_DOCUMENT_ACCESS_UNAUTHORIZED",
+  229:       403,
+  230:     );
+  231:   }
+  232: 
+  233:   const document = await findProjectDocumentById(userId, projectId, documentId);
+  234: 
+  235:   if (!document) {
+  236:     throw createDocumentServiceError(
+  237:       "Project document not found.",
+  238:       "PROJECT_DOCUMENT_NOT_FOUND",
+  239:       404,
+  240:     );
+  241:   }
+  242: 
+  243:   /*
+  244:    * Delete the owned physical file first.
+  245:    *
+  246:    * The storage service handles an already-missing
+  247:    * file without throwing an error.
+  248:    */
+  249:   await deleteOwnedProjectDocument(userId, projectId, document.storageKey);
+  250: 
+  251:   /*
+  252:    * Remove the database record only after
+  253:    * filesystem deletion succeeds.
+  254:    */
+  255:   const deletedDocument = await deleteProjectDocument(userId, projectId, documentId);
+  256: 
+  257:   if (!deletedDocument) {
+  258:     throw createDocumentServiceError(
+  259:       "Project document deletion could not be confirmed.",
+  260:       "PROJECT_DOCUMENT_DELETION_UNCONFIRMED",
+  261:       503,
+  262:     );
+  263:   }
+  264: 
+  265:   return deletedDocument;
+  266: }
+  267: 
+  268: 
+
+================================================================================
+FILE: src/database/migrations/012_certification_documents.sql
+================================================================================
+    1: /*
+    2:  * Portfolio Platform - Certification Document Metadata
+    3:  * Migration 012. Do not add GO statements.
+    4:  * Document bytes remain in private filesystem storage.
+    5:  */
+    6: CREATE TABLE dbo.certification_documents
+    7: (
+    8:     id NVARCHAR(200) NOT NULL,
+    9:     certification_id NVARCHAR(200) NOT NULL,
+   10:     user_id UNIQUEIDENTIFIER NOT NULL,
+   11:     storage_key NVARCHAR(500) NOT NULL,
+   12:     original_file_name NVARCHAR(255) NOT NULL,
+   13:     mime_type NVARCHAR(150) NOT NULL,
+   14:     file_size BIGINT NOT NULL,
+   15:     created_at DATETIME2(3) NOT NULL
+   16:         CONSTRAINT DF_certification_documents_created_at DEFAULT SYSUTCDATETIME(),
+   17:     CONSTRAINT PK_certification_documents PRIMARY KEY CLUSTERED (id),
+   18:     CONSTRAINT FK_certification_documents_certification_owner
+   19:         FOREIGN KEY (certification_id, user_id)
+   20:         REFERENCES dbo.certifications(id, user_id),
+   21:     CONSTRAINT UQ_certification_documents_storage_key UNIQUE (storage_key),
+   22:     CONSTRAINT CK_certification_documents_storage_key
+   23:         CHECK (LEN(LTRIM(RTRIM(storage_key))) > 0),
+   24:     CONSTRAINT CK_certification_documents_original_file_name
+   25:         CHECK (LEN(LTRIM(RTRIM(original_file_name))) > 0),
+   26:     CONSTRAINT CK_certification_documents_file_size
+   27:         CHECK (file_size BETWEEN 1 AND 20971520),
+   28:     CONSTRAINT CK_certification_documents_mime_type
+   29:         CHECK (mime_type IN (
+   30:             N'application/pdf',
+   31:             N'application/msword',
+   32:             N'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+   33:             N'application/vnd.ms-powerpoint',
+   34:             N'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+   35:             N'application/vnd.ms-excel',
+   36:             N'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+   37:             N'text/plain', N'text/markdown', N'text/csv',
+   38:             N'application/json', N'application/zip',
+   39:             N'image/jpeg',       -- .jpg, .jpeg
+   40:             N'image/png',        -- .png
+   41:             N'image/webp',       -- .webp
+   42:             N'image/gif',        -- .gif
+   43:             N'image/avif',       -- .avif
+   44:             N'image/bmp',        -- .bmp
+   45:             N'image/tiff',       -- .tif, .tiff
+   46:             N'image/heic',       -- .heic
+   47:             N'image/heif'        -- .heif
+   48:         ))
+   49: );
+   50: CREATE INDEX IX_certification_documents_certification_created
+   51:     ON dbo.certification_documents (certification_id, created_at DESC);
+   52: CREATE INDEX IX_certification_documents_user_certification
+   53:     ON dbo.certification_documents (user_id, certification_id);
+
+================================================================================
+FILE: src/database/migrations/011_certifications.sql
+================================================================================
+    1: /*
+    2:  * Portfolio Platform - Certification Persistence Foundation
+    3:  * Migration 011. Do not add GO statements.
+    4:  * Stores metadata and versioned Certification JSON, not document bytes.
+    5:  */
+    6: CREATE TABLE dbo.certifications
+    7: (
+    8:     id NVARCHAR(200) NOT NULL,
+    9:     user_id UNIQUEIDENTIFIER NOT NULL,
+   10:     name NVARCHAR(500) NOT NULL,
+   11:     certification_type NVARCHAR(100) NOT NULL,
+   12:     issuing_organization_name NVARCHAR(500) NOT NULL,
+   13:     status NVARCHAR(100) NOT NULL,
+   14:     certification_data NVARCHAR(MAX) NOT NULL,
+   15:     created_at DATETIME2(3) NOT NULL
+   16:         CONSTRAINT DF_certifications_created_at DEFAULT SYSUTCDATETIME(),
+   17:     updated_at DATETIME2(3) NOT NULL
+   18:         CONSTRAINT DF_certifications_updated_at DEFAULT SYSUTCDATETIME(),
+   19:     row_version ROWVERSION NOT NULL,
+   20:     CONSTRAINT PK_certifications PRIMARY KEY CLUSTERED (id),
+   21:     CONSTRAINT FK_certifications_user FOREIGN KEY (user_id) REFERENCES dbo.users(id),
+   22:     CONSTRAINT UQ_certifications_id_user UNIQUE (id, user_id),
+   23:     CONSTRAINT CK_certifications_id_not_blank CHECK (LEN(LTRIM(RTRIM(id))) > 0),
+   24:     CONSTRAINT CK_certifications_name_not_blank CHECK (LEN(LTRIM(RTRIM(name))) > 0),
+   25:     CONSTRAINT CK_certifications_type_not_blank CHECK (LEN(LTRIM(RTRIM(certification_type))) > 0),
+   26:     CONSTRAINT CK_certifications_status_not_blank CHECK (LEN(LTRIM(RTRIM(status))) > 0),
+   27:     CONSTRAINT CK_certifications_data_json CHECK (ISJSON(certification_data) = 1),
+   28:     CONSTRAINT CK_certifications_dates CHECK (updated_at >= created_at)
+   29: );
+   30: CREATE INDEX IX_certifications_user_status_updated
+   31:     ON dbo.certifications (user_id, status, updated_at DESC)
+   32:     INCLUDE (name, certification_type, issuing_organization_name);
+   33: CREATE INDEX IX_certifications_user_issuer
+   34:     ON dbo.certifications (user_id, issuing_organization_name)
+   35:     INCLUDE (name, certification_type, status);
+
+================================================================================
+FILE: src/middleware/errorMiddleware.js
+================================================================================
+    1: /*
+    2:  * =========================================
+    3:  * Route Not Found
+    4:  * =========================================
+    5:  */
+    6: 
+    7: export function notFoundHandler(request, response) {
+    8:   response.set({
+    9:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+   10: 
+   11:     Pragma: "no-cache",
+   12: 
+   13:     Expires: "0",
+   14:   });
+   15: 
+   16:   return response.status(404).json({
+   17:     status: "error",
+   18: 
+   19:     code: "ROUTE_NOT_FOUND",
+   20: 
+   21:     message: `Route not found: ${request.method} ${request.originalUrl}`,
+   22:   });
+   23: }
+   24: 
+   25: /*
+   26:  * =========================================
+   27:  * Global Error Handler
+   28:  * =========================================
+   29:  */
+   30: 
+   31: export function globalErrorHandler(error, request, response, next) {
+   32:   /*
+   33:    * Express delegates to its default handler
+   34:    * if a response has already started.
+   35:    */
+   36: 
+   37:   if (response.headersSent) {
+   38:     return next(error);
+   39:   }
+   40: 
+   41:   const isMalformedJson =
+   42:     error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+   43: 
+   44:   const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+   45: 
+   46:   const code = isMalformedJson
+   47:     ? "INVALID_JSON"
+   48:     : normalizePublicCode(error, status);
+   49: 
+   50:   const message = isMalformedJson
+   51:     ? "The request body contains invalid JSON."
+   52:     : getPublicMessage(error, status);
+   53: 
+   54:   /*
+   55:    * Log complete technical information only
+   56:    * on the server.
+   57:    */
+   58: 
+   59:   console.error("Unhandled API error:", {
+   60:     method: request.method,
+   61: 
+   62:     url: request.originalUrl,
+   63: 
+   64:     name: error?.name,
+   65: 
+   66:     code: error?.code,
+   67: 
+   68:     message: error?.message,
+   69: 
+   70:     status,
+   71: 
+   72:     provider: error?.provider,
+   73: 
+   74:     stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+   75:   });
+   76: 
+   77:   response.set({
+   78:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+   79: 
+   80:     Pragma: "no-cache",
+   81: 
+   82:     Expires: "0",
+   83:   });
+   84: 
+   85:   const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+   86: 
+   87:   const validationErrors = normalizeValidationErrors(
+   88:     error?.errors || error?.validationErrors,
+   89:   );
+   90: 
+   91:   return response.status(status).json({
+   92:     status: "error",
+   93: 
+   94:     code,
+   95: 
+   96:     message,
+   97: 
+   98:     ...(Object.keys(fieldErrors).length > 0
+   99:       ? {
+  100:           fieldErrors,
+  101:         }
+  102:       : {}),
+  103: 
+  104:     ...(validationErrors.length > 0
+  105:       ? {
+  106:           errors: validationErrors,
+  107:         }
+  108:       : {}),
+  109: 
+  110:     /*
+  111:      * Development details are useful while
+  112:      * building the API but are excluded from
+  113:      * production responses.
+  114:      */
+  115: 
+  116:     ...(process.env.NODE_ENV === "development"
+  117:       ? {
+  118:           debug: {
+  119:             name: error?.name || "Error",
+  120: 
+  121:             technicalMessage: error?.message || "Unknown error",
+  122: 
+  123:             provider: error?.provider || null,
+  124:           },
+  125:         }
+  126:       : {}),
+  127:   });
+  128: }
+  129: 
+  130: /*
+  131:  * =========================================
+  132:  * Status Normalization
+  133:  * =========================================
+  134:  */
+  135: 
+  136: function normalizeStatus(status) {
+  137:   const numericStatus = Number(status);
+  138: 
+  139:   if (
+  140:     Number.isInteger(numericStatus) &&
+  141:     numericStatus >= 400 &&
+  142:     numericStatus <= 599
+  143:   ) {
+  144:     return numericStatus;
+  145:   }
+  146: 
+  147:   return 500;
+  148: }
+  149: 
+  150: /*
+  151:  * =========================================
+  152:  * Public Error Code
+  153:  * =========================================
+  154:  *
+  155:  * Internal database and provider codes should
+  156:  * not automatically be returned to clients.
+  157:  * Application errors are public only when
+  158:  * they also provide a publicMessage.
+  159:  */
+  160: 
+  161: function normalizePublicCode(error, status) {
+  162:   const code = typeof error?.code === "string" ? error.code.trim() : "";
+  163: 
+  164:   const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+  165: 
+  166:   if (error?.publicMessage && isSafeCode) {
+  167:     return code;
+  168:   }
+  169: 
+  170:   if (status === 400) {
+  171:     return "BAD_REQUEST";
+  172:   }
+  173: 
+  174:   if (status === 401) {
+  175:     return "AUTHENTICATION_REQUIRED";
+  176:   }
+  177: 
+  178:   if (status === 403) {
+  179:     return "ACCESS_FORBIDDEN";
+  180:   }
+  181: 
+  182:   if (status === 404) {
+  183:     return "RESOURCE_NOT_FOUND";
+  184:   }
+  185: 
+  186:   if (status === 409) {
+  187:     return "RESOURCE_CONFLICT";
+  188:   }
+  189: 
+  190:   if (status === 429) {
+  191:     return "RATE_LIMIT_EXCEEDED";
+  192:   }
+  193: 
+  194:   if (status === 503) {
+  195:     return "SERVICE_UNAVAILABLE";
+  196:   }
+  197: 
+  198:   return "INTERNAL_SERVER_ERROR";
+  199: }
+  200: 
+  201: /*
+  202:  * =========================================
+  203:  * Public Error Message
+  204:  * =========================================
+  205:  */
+  206: 
+  207: function getPublicMessage(error, status) {
+  208:   if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+  209:     return error.publicMessage.trim();
+  210:   }
+  211: 
+  212:   if (status === 400) {
+  213:     return "The request could not be processed.";
+  214:   }
+  215: 
+  216:   if (status === 401) {
+  217:     return "Authentication is required.";
+  218:   }
+  219: 
+  220:   if (status === 403) {
+  221:     return "You do not have permission to perform this operation.";
+  222:   }
+  223: 
+  224:   if (status === 404) {
+  225:     return "The requested resource was not found.";
+  226:   }
+  227: 
+  228:   if (status === 409) {
+  229:     return "The request conflicts with the current resource state.";
+  230:   }
+  231: 
+  232:   if (status === 429) {
+  233:     return "Too many requests were submitted. Please try again later.";
+  234:   }
+  235: 
+  236:   if (status === 503) {
+  237:     return "The service is temporarily unavailable.";
+  238:   }
+  239: 
+  240:   return "An unexpected server error occurred.";
+  241: }
+  242: 
+  243: /*
+  244:  * =========================================
+  245:  * Field Error Normalization
+  246:  * =========================================
+  247:  */
+  248: 
+  249: function normalizeFieldErrors(fieldErrors) {
+  250:   if (
+  251:     !fieldErrors ||
+  252:     typeof fieldErrors !== "object" ||
+  253:     Array.isArray(fieldErrors)
+  254:   ) {
+  255:     return {};
+  256:   }
+  257: 
+  258:   const normalized = {};
+  259: 
+  260:   for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+  261:     const safeFieldName = String(fieldName).slice(0, 100);
+  262: 
+  263:     const messageValues = Array.isArray(messages) ? messages : [messages];
+  264: 
+  265:     const safeMessages = messageValues
+  266:       .filter((message) => typeof message === "string")
+  267:       .map((message) => message.trim().slice(0, 500))
+  268:       .filter(Boolean);
+  269: 
+  270:     if (safeMessages.length > 0) {
+  271:       normalized[safeFieldName] = safeMessages;
+  272:     }
+  273:   }
+  274: 
+  275:   return normalized;
+  276: }
+  277: 
+  278: /*
+  279:  * =========================================
+  280:  * Validation Error Normalization
+  281:  * =========================================
+  282:  */
+  283: 
+  284: function normalizeValidationErrors(errors) {
+  285:   if (!Array.isArray(errors)) {
+  286:     return [];
+  287:   }
+  288: 
+  289:   return errors
+  290:     .slice(0, 50)
+  291:     .map((validationError) => {
+  292:       if (typeof validationError === "string") {
+  293:         return {
+  294:           field: "",
+  295: 
+  296:           code: "VALIDATION_ERROR",
+  297: 
+  298:           message: validationError.trim().slice(0, 500),
+  299:         };
+  300:       }
+  301: 
+  302:       if (!validationError || typeof validationError !== "object") {
+  303:         return null;
+  304:       }
+  305: 
+  306:       const message =
+  307:         typeof validationError.message === "string"
+  308:           ? validationError.message.trim().slice(0, 500)
+  309:           : "";
+  310: 
+  311:       if (!message) {
+  312:         return null;
+  313:       }
+  314: 
+  315:       return {
+  316:         field:
+  317:           typeof validationError.field === "string"
+  318:             ? validationError.field.trim().slice(0, 100)
+  319:             : "",
+  320: 
+  321:         code:
+  322:           typeof validationError.code === "string"
+  323:             ? validationError.code.trim().slice(0, 100)
+  324:             : "VALIDATION_ERROR",
+  325: 
+  326:         message,
+  327:       };
+  328:     })
+  329:     .filter(Boolean);
+  330: }
+

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   createCertificationDocumentUrl,
   revokeCertificationDocumentUrl,
-} from "../../../../services/Certification/certificationDocumentStorage.js";
+} from "../../../../services/Certification/certificationDocumentLoader.js";
 
 import "./CertificationDocumentPreview.css";
 
@@ -23,7 +23,7 @@ function CertificationDocumentPreview({
 
     setDocumentUrl("");
 
-    if (!certificationDocument?.storageKey) {
+    if (!certificationDocument?.storageKey && !(certificationDocument?.certificationId && certificationDocument?.id)) {
       setStatus(certificationDocument ? "missing" : "empty");
 
       return undefined;
@@ -31,7 +31,7 @@ function CertificationDocumentPreview({
 
     setStatus("loading");
 
-    createCertificationDocumentUrl(certificationDocument.storageKey)
+    createCertificationDocumentUrl(certificationDocument)
       .then((url) => {
         createdUrl = url;
 
@@ -56,7 +56,7 @@ function CertificationDocumentPreview({
 
       revokeCertificationDocumentUrl(createdUrl);
     };
-  }, [certificationDocument?.storageKey]);
+  }, [certificationDocument?.storageKey, certificationDocument?.certificationId, certificationDocument?.id]);
 
   if (!certificationDocument) {
     return (

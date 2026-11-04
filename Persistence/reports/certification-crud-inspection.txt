@@ -1,0 +1,152 @@
+﻿CERTIFICATION CRUD INSPECTION
+Generated: 11/03/2026 22:07:40
+======================================
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\CertificationDataContext.jsx
+   11:   addCertificationDocument as addDocumentService,
+   12:   archiveCertification as archiveService,
+   13:   createCertification as createService,
+   14:   deleteCertification as deleteService,
+   18:   restoreCertification as restoreService,
+   20:   updateCertification as updateService,
+  235:         unsupportedError.code = "CERTIFICATION_BACKEND_WRITE_NOT_READY";
+  284:   const createCertification = useCallback(
+  303:   const updateCertification = useCallback(
+  321:   const archiveCertification = useCallback(
+  339:   const restoreCertification = useCallback(
+  357:   const deleteCertification = useCallback(
+  375:   const addCertificationDocument = useCallback(
+  542:       createCertification,
+  544:       updateCertification,
+  546:       archiveCertification,
+  548:       restoreCertification,
+  550:       deleteCertification,
+  552:       addCertificationDocument,
+  578:       createCertification,
+  579:       updateCertification,
+  580:       archiveCertification,
+  581:       restoreCertification,
+  582:       deleteCertification,
+  583:       addCertificationDocument,
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationApiService.js
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js
+    2:   createCertification as createCertificationModel,
+    3:   createCertificationDocument,
+    6:   updateCertification as updateCertificationModel,
+   10:   deleteCertificationDocument,
+   11:   deleteCertificationDocuments,
+   12:   deleteCertificationDocumentsForCertification,
+   23: import { saveCertificationWithTrainingSync } from "./certificationTrainingRelationshipService.js";
+   49: function createCertificationServiceError(
+   72:   return createCertificationServiceError(
+   83:   return createCertificationServiceError(
+   97:   return createCertificationServiceError(
+  206:     storageKeys.map((storageKey) => deleteCertificationDocument(storageKey)),
+  216:     await deleteCertificationDocuments(storageKeys);
+  244:         throw createCertificationServiceError(
+  265:       const document = createCertificationDocument(
+  371: export async function createCertification(
+  382:   let certification = createCertificationModel(certificationData);
+  413:     const transaction = saveCertificationWithTrainingSync({
+  441: export async function updateCertification(
+  466:   let nextCertification = updateCertificationModel(
+  510:     const transaction = saveCertificationWithTrainingSync({
+  540: export async function archiveCertification(certificationId) {
+  568:   const transaction = saveCertificationWithTrainingSync({
+  587: export async function restoreCertification(certificationId) {
+  625:   const transaction = saveCertificationWithTrainingSync({
+  644: export async function deleteCertification(certificationId) {
+  671:   saveCertificationWithTrainingSync({
+  678:     await deleteCertificationDocumentsForCertification(normalizedId);
+  692: export async function addCertificationDocument(
+  708:   return updateCertification(certification.id, certification, {
+  747:     throw createCertificationServiceError(
+  763:   return updateCertification(
+  798:     throw createCertificationServiceError(
+  814:   return updateCertification(
+  849:     throw createCertificationServiceError(
+  875:   const replacement = createCertificationDocument({
+  896:     return await updateCertification(
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\Certifications.jsx
+   34:     createCertification,
+   35:     updateCertification,
+   36:     archiveCertification,
+   37:     restoreCertification,
+   38:     deleteCertification,
+  109:   const handleAddCertification = () => {
+  147:   const handleSaveCertification = async (
+  157:       await updateCertification(
+  163:       await createCertification(certificationData, options);
+  176:   const handleArchiveCertification = async (certification) => {
+  178:       await archiveCertification(certification.id);
+  197:   const handleRestoreCertification = async (certification) => {
+  199:       await restoreCertification(certification.id);
+  214:   const handleDeleteCertification = async (certification) => {
+  228:       await deleteCertification(certification.id);
+  283:         onAddCertification={handleAddCertification}
+  425:             onSubmit={handleSaveCertification}
+  441:         onAddCertification={handleAddCertification}
+  444:         onArchive={handleArchiveCertification}
+  445:         onRestore={handleRestoreCertification}
+  446:         onDelete={handleDeleteCertification}
+
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Certifications\components\CertificationForm\CertificationForm.jsx
+   16:   createCertificationSkillRelationship,
+   17:   createCertificationTrainingRelationship,
+  165:             createCertificationSkillRelationship(
+  194:               createCertificationTrainingRelationship(
+  413:   const handleSubmit = async (event) => {
+  513:     <form className="certification-form" onSubmit={handleSubmit} noValidate>
+
+BACKEND CERTIFICATION FILES
+======================================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js.pre-step-4.9.01C.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js.pre-step-4.9.01E.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js.pre-step-4.9.01G.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js.pre-step-4.9.01H.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js.pre-step-4.9.02E.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js.pre-step-4.9.02G.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\reconcileWEB101Certification.mjs
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationDocumentController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\011_certifications.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\database\migrations\012_certification_documents.sql
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\certification\certificationDocumentUploadMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\certification\certificationDocumentValidationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\certification\certificationOwnershipMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\certificationDocumentRepository.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\certificationRepository.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\repositories\certificationRepository.js.backup-20261103-130830
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\certificationRoutes.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\certificationSchemas.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\certificationSchemas.js.backup-20261103-130830
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\certificationDocumentService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\certificationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\certificationService.js.20261103-131917.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\certificationService.js.20261103-132242.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\certificationDocumentStorageService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\services\certificationService.test.js
+
+BACKEND ROUTE DEFINITIONS
+======================================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js:415: new Date(certification.createdAt)
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js:420: new Date(certification.updatedAt)
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\reconcileWEB101Certification.mjs:126: certification_data, created_at, updated_at
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\reconcileWEB101Certification.mjs:191: new Date(expectedCertification.createdAt).getTime(),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\reconcileWEB101Certification.mjs:192: "Certification created_at mismatch",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\reconcileWEB101Certification.mjs:198: new Date(expectedCertification.updatedAt).getTime(),
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\reconcileWEB101Certification.mjs:199: "Certification updated_at mismatch",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js:93: const certification = await createAuthenticatedCertification({
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js:101: "Certification created successfully.",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js:116: const certification = await updateAuthenticatedCertification({
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js:126: "Certification updated successfully.",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\certificationRoutes.js:39: router.post("/", createMyCertification);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\certificationRoutes.js:43: router.patch("/:certificationId", updateMyCertification);
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\schemas\certificationSchemas.js:293: "Provide at least one Certification field to update.",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Service\certificationService.js:182: "CERTIFICATION_RELATIONSHIP_UPDATE_NOT_READY",
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\services\certificationService.test.js:209: { code: "CERTIFICATION_RELATIONSHIP_UPDATE_NOT_READY" },

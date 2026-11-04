@@ -1,0 +1,982 @@
+
+===========================================================================
+FILE: src\repositories\certificationRepository.js
+===========================================================================
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const CERTIFICATION_COLUMNS = `
+   4:   id,
+   5:   user_id,
+   6:   name,
+   7:   certification_type,
+   8:   issuing_organization_name,
+   9:   status,
+  10:   certification_data,
+  11:   created_at,
+  12:   updated_at,
+  13:   row_version
+  14: `;
+  15: 
+  16: function mapCertificationRow(row) {
+  17:   if (!row) return null;
+  18: 
+  19:   const data = typeof row.certification_data === "string"
+  20:     ? JSON.parse(row.certification_data)
+  21:     : row.certification_data;
+  22: 
+  23:   if (!data || typeof data !== "object" || Array.isArray(data)) {
+  24:     throw new Error("Stored Certification data is invalid.");
+  25:   }
+  26: 
+  27:   return {
+  28:     ...data,
+  29:     id: row.id,
+  30:     name: row.name,
+  31:     certificationType: row.certification_type,
+  32:     issuingOrganization: {
+  33:       ...(data.issuingOrganization || {}),
+  34:       name: row.issuing_organization_name,
+  35:     },
+  36:     status: row.status,
+  37:     createdAt: row.created_at,
+  38:     updatedAt: row.updated_at,
+  39:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+  40:   };
+  41: }
+  42: 
+  43: function bindCertification(request, userId, certification) {
+  44:   return request
+  45:     .input("id", sql.NVarChar(200), certification.id)
+  46:     .input("userId", sql.UniqueIdentifier, userId)
+  47:     .input("name", sql.NVarChar(500), certification.name)
+  48:     .input(
+  49:       "certificationType",
+  50:       sql.NVarChar(100),
+  51:       certification.certificationType,
+  52:     )
+  53:     .input(
+  54:       "issuerName",
+  55:       sql.NVarChar(500),
+  56:       certification.issuingOrganization.name,
+  57:     )
+  58:     .input("status", sql.NVarChar(100), certification.status)
+  59:     .input(
+  60:       "certificationData",
+  61:       sql.NVarChar(sql.MAX),
+  62:       JSON.stringify(certification),
+  63:     );
+  64: }
+  65: 
+  66: function decodeRowVersion(value) {
+  67:   if (typeof value !== "string" ||
+  68:       !/^[A-Za-z0-9+/]{11}=$/.test(value)) {
+  69:     throw new TypeError("A valid rowVersion is required.");
+  70:   }
+  71: 
+  72:   const buffer = Buffer.from(value, "base64");
+  73: 
+  74:   if (buffer.length !== 8 ||
+  75:       buffer.toString("base64") !== value) {
+  76:     throw new TypeError("Invalid rowVersion.");
+  77:   }
+  78: 
+  79:   return buffer;
+  80: }
+  81: 
+  82: export async function listCertificationsByUser(userId) {
+  83:   const pool = await getDatabasePool();
+  84: 
+  85:   const result = await pool.request()
+  86:     .input("userId", sql.UniqueIdentifier, userId)
+  87:     .query(`
+  88:       SELECT ${CERTIFICATION_COLUMNS}
+  89:       FROM dbo.certifications
+  90:       WHERE user_id = @userId
+  91:       ORDER BY updated_at DESC, id ASC;
+  92:     `);
+  93: 
+  94:   return result.recordset.map(mapCertificationRow);
+  95: }
+  96: 
+  97: export async function findCertificationById(userId, certificationId) {
+  98:   const pool = await getDatabasePool();
+  99: 
+ 100:   const result = await pool.request()
+ 101:     .input("userId", sql.UniqueIdentifier, userId)
+ 102:     .input("id", sql.NVarChar(200), certificationId)
+ 103:     .query(`
+ 104:       SELECT ${CERTIFICATION_COLUMNS}
+ 105:       FROM dbo.certifications
+ 106:       WHERE user_id = @userId AND id = @id;
+ 107:     `);
+ 108: 
+ 109:   return mapCertificationRow(result.recordset[0]);
+ 110: }
+ 111: 
+ 112: export async function createCertificationRecord(userId, certification) {
+ 113:   const pool = await getDatabasePool();
+ 114: 
+ 115:   const result = await bindCertification(
+ 116:     pool.request(), userId, certification
+ 117:   ).query(`
+ 118:     INSERT INTO dbo.certifications (
+ 119:       id, user_id, name, certification_type,
+ 120:       issuing_organization_name, status, certification_data
+ 121:     )
+ 122:     OUTPUT
+ 123:       INSERTED.id,
+ 124:       INSERTED.user_id,
+ 125:       INSERTED.name,
+ 126:       INSERTED.certification_type,
+ 127:       INSERTED.issuing_organization_name,
+ 128:       INSERTED.status,
+ 129:       INSERTED.certification_data,
+ 130:       INSERTED.created_at,
+ 131:       INSERTED.updated_at,
+ 132:       INSERTED.row_version
+ 133:     VALUES (
+ 134:       @id, @userId, @name, @certificationType,
+ 135:       @issuerName, @status, @certificationData
+ 136:     );
+ 137:   `);
+ 138: 
+ 139:   return mapCertificationRow(result.recordset[0]);
+ 140: }
+ 141: 
+ 142: export async function updateCertificationRecord(
+ 143:   userId,
+ 144:   certification,
+ 145:   expectedRowVersion,
+ 146: ) {
+ 147:   const pool = await getDatabasePool();
+ 148: 
+ 149:   const result = await bindCertification(
+ 150:     pool.request(), userId, certification
+ 151:   )
+ 152:     .input(
+ 153:       "expectedRowVersion",
+ 154:       sql.Binary(8),
+ 155:       decodeRowVersion(expectedRowVersion),
+ 156:     )
+ 157:     .query(`
+ 158:       UPDATE dbo.certifications
+ 159:       SET
+ 160:         name = @name,
+ 161:         certification_type = @certificationType,
+ 162:         issuing_organization_name = @issuerName,
+ 163:         status = @status,
+ 164:         certification_data = @certificationData,
+ 165:         updated_at = SYSUTCDATETIME()
+ 166:       OUTPUT
+ 167:         INSERTED.id,
+ 168:         INSERTED.user_id,
+ 169:         INSERTED.name,
+ 170:         INSERTED.certification_type,
+ 171:         INSERTED.issuing_organization_name,
+ 172:         INSERTED.status,
+ 173:         INSERTED.certification_data,
+ 174:         INSERTED.created_at,
+ 175:         INSERTED.updated_at,
+ 176:         INSERTED.row_version
+ 177:       WHERE id = @id
+ 178:         AND user_id = @userId
+ 179:         AND row_version = @expectedRowVersion;
+ 180:     `);
+ 181: 
+ 182:   return mapCertificationRow(result.recordset[0]);
+ 183: }
+ 184: 
+ 185: export async function deleteCertificationRecord(
+ 186:   userId,
+ 187:   certificationId,
+ 188:   expectedRowVersion,
+ 189: ) {
+ 190:   const pool = await getDatabasePool();
+ 191: 
+ 192:   const result = await pool.request()
+ 193:     .input("userId", sql.UniqueIdentifier, userId)
+ 194:     .input("id", sql.NVarChar(200), certificationId)
+ 195:     .input(
+ 196:       "expectedRowVersion",
+ 197:       sql.Binary(8),
+ 198:       decodeRowVersion(expectedRowVersion),
+ 199:     )
+ 200:     .query(`
+ 201:       DELETE FROM dbo.certifications
+ 202:       WHERE id = @id
+ 203:         AND user_id = @userId
+ 204:         AND row_version = @expectedRowVersion;
+ 205:     `);
+ 206: 
+ 207:   return result.rowsAffected[0] > 0;
+ 208: }
+
+===========================================================================
+FILE: src\controllers\certificationController.js
+===========================================================================
+   1: import {
+   2:   getAuthenticatedCertifications,
+   3:   getAuthenticatedCertification,
+   4:   createAuthenticatedCertification,
+   5:   updateAuthenticatedCertification,
+   6: } from "../services/Service/certificationService.js";
+   7: 
+   8: function certificationRequestError(message) {
+   9:   const error = new Error(message);
+  10:   error.name = "CertificationRequestError";
+  11:   error.code = "CERTIFICATION_REQUEST_INVALID";
+  12:   error.status = 400;
+  13:   error.publicMessage = message;
+  14:   return error;
+  15: }
+  16: 
+  17: function requireFields(value, allowedFields) {
+  18:   if (
+  19:     value === null ||
+  20:     typeof value !== "object" ||
+  21:     Array.isArray(value)
+  22:   ) {
+  23:     throw certificationRequestError(
+  24:       "Request body must be a JSON object.",
+  25:     );
+  26:   }
+  27: 
+  28:   const unexpected = Object.keys(value).filter(
+  29:     (field) => !allowedFields.includes(field),
+  30:   );
+  31: 
+  32:   if (unexpected.length > 0) {
+  33:     throw certificationRequestError(
+  34:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+  35:     );
+  36:   }
+  37: 
+  38:   return value;
+  39: }
+  40: 
+  41: function sendSuccess(response, status, message, data) {
+  42:   response.set({
+  43:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  44:     Pragma: "no-cache",
+  45:     Expires: "0",
+  46:     "X-Content-Type-Options": "nosniff",
+  47:   });
+  48: 
+  49:   return response.status(status).json({
+  50:     status: "success",
+  51:     message,
+  52:     data,
+  53:   });
+  54: }
+  55: 
+  56: export async function listMyCertifications(request, response, next) {
+  57:   try {
+  58:     const certifications = await getAuthenticatedCertifications({
+  59:       userId: request.auth.userId,
+  60:     });
+  61: 
+  62:     return sendSuccess(
+  63:       response,
+  64:       200,
+  65:       "Certifications retrieved successfully.",
+  66:       { certifications },
+  67:     );
+  68:   } catch (error) {
+  69:     return next(error);
+  70:   }
+  71: }
+  72: 
+  73: export async function getMyCertification(request, response, next) {
+  74:   try {
+  75:     const certification = await getAuthenticatedCertification({
+  76:       userId: request.auth.userId,
+  77:       certificationId: request.params.certificationId,
+  78:     });
+  79: 
+  80:     return sendSuccess(
+  81:       response,
+  82:       200,
+  83:       "Certification retrieved successfully.",
+  84:       { certification },
+  85:     );
+  86:   } catch (error) {
+  87:     return next(error);
+  88:   }
+  89: }
+  90: 
+  91: export async function createMyCertification(request, response, next) {
+  92:   try {
+  93:     const certification = await createAuthenticatedCertification({
+  94:       userId: request.auth.userId,
+  95:       certification: request.body,
+  96:     });
+  97: 
+  98:     return sendSuccess(
+  99:       response,
+ 100:       201,
+ 101:       "Certification created successfully.",
+ 102:       { certification },
+ 103:     );
+ 104:   } catch (error) {
+ 105:     return next(error);
+ 106:   }
+ 107: }
+ 108: 
+ 109: export async function updateMyCertification(request, response, next) {
+ 110:   try {
+ 111:     const body = requireFields(request.body, [
+ 112:       "updates",
+ 113:       "rowVersion",
+ 114:     ]);
+ 115: 
+ 116:     const certification = await updateAuthenticatedCertification({
+ 117:       userId: request.auth.userId,
+ 118:       certificationId: request.params.certificationId,
+ 119:       updates: body.updates,
+ 120:       rowVersion: body.rowVersion,
+ 121:     });
+ 122: 
+ 123:     return sendSuccess(
+ 124:       response,
+ 125:       200,
+ 126:       "Certification updated successfully.",
+ 127:       { certification },
+ 128:     );
+ 129:   } catch (error) {
+ 130:     return next(error);
+ 131:   }
+ 132: }
+
+===========================================================================
+FILE: src\routes\certificationRoutes.js
+===========================================================================
+   1: import { Router } from "express";
+   2: 
+   3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+   4: 
+   5: import {
+   6:   listMyCertifications,
+   7:   getMyCertification,
+   8:   createMyCertification,
+   9:   updateMyCertification,
+  10: } from "../controllers/certificationController.js";
+  11: 
+  12: import {
+  13:   uploadMyCertificationDocument,
+  14:   listMyCertificationDocuments,
+  15:   getMyCertificationDocument,
+  16:   deleteMyCertificationDocument,
+  17: } from "../controllers/certificationDocumentController.js";
+  18: 
+  19: import {
+  20:   requireCertificationOwnership,
+  21: } from "../middleware/certification/certificationOwnershipMiddleware.js";
+  22: 
+  23: import {
+  24:   uploadCertificationDocument,
+  25: } from "../middleware/certification/certificationDocumentUploadMiddleware.js";
+  26: 
+  27: import {
+  28:   validateCertificationDocument,
+  29: } from "../middleware/certification/certificationDocumentValidationMiddleware.js";
+  30: 
+  31: const router = Router();
+  32: 
+  33: // All Certification endpoints require a valid authenticated session.
+  34: router.use(requireAuthentication);
+  35: 
+  36: // Certification CRUD.
+  37: router.get("/", listMyCertifications);
+  38: 
+  39: router.post("/", createMyCertification);
+  40: 
+  41: router.get("/:certificationId", getMyCertification);
+  42: 
+  43: router.patch("/:certificationId", updateMyCertification);
+  44: 
+  45: // List documents belonging to an owned Certification.
+  46: router.get(
+  47:   "/:certificationId/documents",
+  48:   requireCertificationOwnership,
+  49:   listMyCertificationDocuments,
+  50: );
+  51: 
+  52: // Verify ownership before writing uploaded files.
+  53: router.post(
+  54:   "/:certificationId/documents",
+  55:   requireCertificationOwnership,
+  56:   uploadCertificationDocument,
+  57:   validateCertificationDocument,
+  58:   uploadMyCertificationDocument,
+  59: );
+  60: 
+  61: // Download only documents belonging to an owned Certification.
+  62: router.get(
+  63:   "/:certificationId/documents/:documentId",
+  64:   requireCertificationOwnership,
+  65:   getMyCertificationDocument,
+  66: );
+  67: 
+  68: // Delete only documents belonging to an owned Certification.
+  69: router.delete(
+  70:   "/:certificationId/documents/:documentId",
+  71:   requireCertificationOwnership,
+  72:   deleteMyCertificationDocument,
+  73: );
+  74: 
+  75: // Certification deletion is intentionally not exposed.
+  76: // It requires coordinated SQL and private-file cleanup.
+  77: 
+  78: export default router;
+
+===========================================================================
+FILE: src\services\Service\certificationService.js
+===========================================================================
+   1: import { randomUUID } from "node:crypto";
+   2: 
+   3: import {
+   4:   listCertificationsByUser,
+   5:   findCertificationById,
+   6:   createCertificationRecord,
+   7:   updateCertificationRecord,
+   8: } from "../../repositories/certificationRepository.js";
+   9: 
+  10: import {
+  11:   createCertificationSchema,
+  12:   updateCertificationSchema,
+  13:   completeCertificationSchema,
+  14:   certificationIdParamsSchema,
+  15:   certificationRowVersionSchema,
+  16:   formatCertificationSchemaErrors,
+  17: } from "../../schemas/certificationSchemas.js";
+  18: 
+  19: function certificationError(message, code, status, errors) {
+  20:   const error = new Error(message);
+  21:   error.name = "CertificationServiceError";
+  22:   error.code = code;
+  23:   error.status = status;
+  24:   error.publicMessage = message;
+  25: 
+  26:   if (errors) error.errors = errors;
+  27: 
+  28:   return error;
+  29: }
+  30: 
+  31: function validate(schema, value) {
+  32:   const result = schema.safeParse(value);
+  33: 
+  34:   if (!result.success) {
+  35:     throw certificationError(
+  36:       "Certification validation failed.",
+  37:       "CERTIFICATION_VALIDATION_FAILED",
+  38:       400,
+  39:       formatCertificationSchemaErrors(result.error),
+  40:     );
+  41:   }
+  42: 
+  43:   return result.data;
+  44: }
+  45: 
+  46: function requireUserId(userId) {
+  47:   if (typeof userId !== "string" || !userId.trim()) {
+  48:     throw certificationError(
+  49:       "Authentication is required.",
+  50:       "CERTIFICATION_AUTH_REQUIRED",
+  51:       401,
+  52:     );
+  53:   }
+  54: 
+  55:   return userId;
+  56: }
+  57: 
+  58: function requireNoDocuments(certification) {
+  59:   if (certification.supportingDocuments.length > 0) {
+  60:     throw certificationError(
+  61:       "Certification document uploads are not available yet.",
+  62:       "CERTIFICATION_DOCUMENTS_NOT_READY",
+  63:       400,
+  64:     );
+  65:   }
+  66: }
+  67: 
+  68: function normalizeRecord(record) {
+  69:   if (!record) return null;
+  70: 
+  71:   return {
+  72:     ...record,
+  73:     createdAt: new Date(record.createdAt).toISOString(),
+  74:     updatedAt: new Date(record.updatedAt).toISOString(),
+  75:   };
+  76: }
+  77: 
+  78: export async function getAuthenticatedCertifications({ userId }) {
+  79:   requireUserId(userId);
+  80: 
+  81:   const records = await listCertificationsByUser(userId);
+  82: 
+  83:   return records.map(normalizeRecord);
+  84: }
+  85: 
+  86: export async function getAuthenticatedCertification({
+  87:   userId,
+  88:   certificationId,
+  89: }) {
+  90:   requireUserId(userId);
+  91: 
+  92:   const params = validate(certificationIdParamsSchema, {
+  93:     certificationId,
+  94:   });
+  95: 
+  96:   const record = await findCertificationById(
+  97:     userId,
+  98:     params.certificationId,
+  99:   );
+ 100: 
+ 101:   if (!record) {
+ 102:     throw certificationError(
+ 103:       "Certification not found.",
+ 104:       "CERTIFICATION_NOT_FOUND",
+ 105:       404,
+ 106:     );
+ 107:   }
+ 108: 
+ 109:   return normalizeRecord(record);
+ 110: }
+ 111: 
+ 112: export async function createAuthenticatedCertification({
+ 113:   userId,
+ 114:   certification,
+ 115: }) {
+ 116:   requireUserId(userId);
+ 117: 
+ 118:   if (
+ 119:     certification === null ||
+ 120:     typeof certification !== "object" ||
+ 121:     Array.isArray(certification)
+ 122:   ) {
+ 123:     throw certificationError(
+ 124:       "Certification must be a JSON object.",
+ 125:       "CERTIFICATION_REQUEST_INVALID",
+ 126:       400,
+ 127:     );
+ 128:   }
+ 129: 
+ 130:   const now = new Date().toISOString();
+ 131: 
+ 132:   const candidate = {
+ 133:     ...certification,
+ 134:     id: randomUUID(),
+ 135:     createdAt: now,
+ 136:     updatedAt: now,
+ 137:   };
+ 138: 
+ 139:   const validated = validate(
+ 140:     createCertificationSchema,
+ 141:     candidate,
+ 142:   );
+ 143: 
+ 144:   requireNoDocuments(validated);
+ 145: 
+ 146:   try {
+ 147:     const created = await createCertificationRecord(
+ 148:       userId,
+ 149:       validated,
+ 150:     );
+ 151: 
+ 152:     return normalizeRecord(created);
+ 153:   } catch (error) {
+ 154:     const number =
+ 155:       error.number ??
+ 156:       error.originalError?.number ??
+ 157:       error.cause?.number;
+ 158: 
+ 159:     if (number === 2601 || number === 2627) {
+ 160:       throw certificationError(
+ 161:         "A Certification identifier already exists.",
+ 162:         "CERTIFICATION_ID_CONFLICT",
+ 163:         409,
+ 164:       );
+ 165:     }
+ 166: 
+ 167:     throw error;
+ 168:   }
+ 169: }
+ 170: 
+ 171: function requireMetadataOnlyUpdates(updates) {
+ 172:   const restricted = [
+ 173:     "supportingDocuments",
+ 174:     "skillRelationships",
+ 175:     "relatedRecords",
+ 176:   ];
+ 177: 
+ 178:   for (const field of restricted) {
+ 179:     if (Object.hasOwn(updates, field)) {
+ 180:       throw certificationError(
+ 181:         `Updating ${field} is not available yet.`,
+ 182:         "CERTIFICATION_RELATIONSHIP_UPDATE_NOT_READY",
+ 183:         400,
+ 184:       );
+ 185:     }
+ 186:   }
+ 187: }
+ 188: 
+ 189: export async function updateAuthenticatedCertification({
+ 190:   userId,
+ 191:   certificationId,
+ 192:   updates,
+ 193:   rowVersion,
+ 194: }) {
+ 195:   requireUserId(userId);
+ 196: 
+ 197:   const params = validate(certificationIdParamsSchema, {
+ 198:     certificationId,
+ 199:   });
+ 200: 
+ 201:   const expectedVersion = validate(
+ 202:     certificationRowVersionSchema,
+ 203:     rowVersion,
+ 204:   );
+ 205: 
+ 206:   const validatedUpdates = validate(
+ 207:     updateCertificationSchema,
+ 208:     updates,
+ 209:   );
+ 210: 
+ 211:   requireMetadataOnlyUpdates(validatedUpdates);
+ 212: 
+ 213:   const existing = await findCertificationById(
+ 214:     userId,
+ 215:     params.certificationId,
+ 216:   );
+ 217: 
+ 218:   if (!existing) {
+ 219:     throw certificationError(
+ 220:       "Certification not found.",
+ 221:       "CERTIFICATION_NOT_FOUND",
+ 222:       404,
+ 223:     );
+ 224:   }
+ 225: 
+ 226:   if (existing.rowVersion !== expectedVersion) {
+ 227:     throw certificationError(
+ 228:       "Certification was modified by another operation.",
+ 229:       "CERTIFICATION_VERSION_CONFLICT",
+ 230:       409,
+ 231:     );
+ 232:   }
+ 233: 
+ 234:   const {
+ 235:     rowVersion: _storedRowVersion,
+ 236:     ...storedModel
+ 237:   } = normalizeRecord(existing);
+ 238: 
+ 239:   const now = new Date().toISOString();
+ 240: 
+ 241:   const merged = {
+ 242:     ...storedModel,
+ 243:     ...validatedUpdates,
+ 244:     id: storedModel.id,
+ 245:     createdAt: storedModel.createdAt,
+ 246:     updatedAt: now,
+ 247:   };
+ 248: 
+ 249: 
+ 250: 
+ 251:   const complete = validate(
+ 252:     completeCertificationSchema,
+ 253:     merged,
+ 254:   );
+ 255: 
+ 256:   const updated = await updateCertificationRecord(
+ 257:     userId,
+ 258:     complete,
+ 259:     expectedVersion,
+ 260:   );
+ 261: 
+ 262:   if (!updated) {
+ 263:     const current = await findCertificationById(
+ 264:       userId,
+ 265:       params.certificationId,
+ 266:     );
+ 267: 
+ 268:     if (!current) {
+ 269:       throw certificationError(
+ 270:         "Certification not found.",
+ 271:         "CERTIFICATION_NOT_FOUND",
+ 272:         404,
+ 273:       );
+ 274:     }
+ 275: 
+ 276:     throw certificationError(
+ 277:       "Certification was modified by another operation.",
+ 278:       "CERTIFICATION_VERSION_CONFLICT",
+ 279:       409,
+ 280:     );
+ 281:   }
+ 282: 
+ 283:   return normalizeRecord(updated);
+ 284: }
+
+===========================================================================
+FILE: test\services\certificationService.test.js
+===========================================================================
+   1: import assert from "node:assert/strict";
+   2: import { beforeEach, mock, test } from "node:test";
+   3: 
+   4: import {
+   5:   createEmptyCertification,
+   6: } from "../../../frontend/src/models/certificationModel.js";
+   7: 
+   8: const USER_ID = "11111111-1111-4111-8111-111111111111";
+   9: const CERT_ID = "certification-test-1";
+  10: const VERSION = "AAAAAAAAAAE=";
+  11: const NEXT_VERSION = "AAAAAAAAAAI=";
+  12: 
+  13: let record;
+  14: let calls;
+  15: let updateResult;
+  16: 
+  17: function validRecord(overrides = {}) {
+  18:   const base = createEmptyCertification();
+  19: 
+  20:   return {
+  21:     ...base,
+  22:     id: CERT_ID,
+  23:     name: "CompTIA A+",
+  24:     issuingOrganization: {
+  25:       ...base.issuingOrganization,
+  26:       name: "CompTIA",
+  27:     },
+  28:     dates: {
+  29:       ...base.dates,
+  30:       issueDate: "2026-01",
+  31:     },
+  32:     supportingDocuments: [],
+  33:     skillRelationships: [],
+  34:     createdAt: "2026-01-15T12:00:00.000Z",
+  35:     updatedAt: "2026-01-15T12:00:00.000Z",
+  36:     rowVersion: VERSION,
+  37:     ...overrides,
+  38:   };
+  39: }
+  40: 
+  41: mock.module("../../src/repositories/certificationRepository.js", {
+  42:   namedExports: {
+  43:     listCertificationsByUser: async () => [],
+  44:     findCertificationById: async (userId, id) => {
+  45:       calls.push(["find", userId, id]);
+  46:       return record?.id === id && userId === USER_ID
+  47:         ? record
+  48:         : null;
+  49:     },
+  50:     createCertificationRecord: async () => {
+  51:       throw new Error("Unexpected create operation");
+  52:     },
+  53:     updateCertificationRecord: async (
+  54:       userId,
+  55:       certification,
+  56:       version,
+  57:     ) => {
+  58:       calls.push(["update", userId, certification, version]);
+  59: 
+  60:       if (updateResult !== undefined) {
+  61:         return updateResult;
+  62:       }
+  63: 
+  64:       return {
+  65:         ...certification,
+  66:         rowVersion: NEXT_VERSION,
+  67:       };
+  68:     },
+  69:     deleteCertificationRecord: async () => {
+  70:       throw new Error("Unexpected delete operation");
+  71:     },
+  72:   },
+  73: });
+  74: 
+  75: const { updateAuthenticatedCertification } = await import(
+  76:   "../../src/services/Service/certificationService.js"
+  77: );
+  78: 
+  79: beforeEach(() => {
+  80:   record = validRecord();
+  81:   calls = [];
+  82:   updateResult = undefined;
+  83: });
+  84: 
+  85: function update(updates, rowVersion = VERSION) {
+  86:   return updateAuthenticatedCertification({
+  87:     userId: USER_ID,
+  88:     certificationId: CERT_ID,
+  89:     updates,
+  90:     rowVersion,
+  91:   });
+  92: }
+  93: 
+  94: test("updates Certification name and preserves identity", async () => {
+  95:   const result = await update({ name: "CompTIA A+ Updated" });
+  96: 
+  97:   assert.equal(result.name, "CompTIA A+ Updated");
+  98:   assert.equal(result.id, CERT_ID);
+  99:   assert.equal(result.createdAt, record.createdAt);
+ 100:   assert.equal(result.rowVersion, NEXT_VERSION);
+ 101: 
+ 102:   const write = calls.find(([operation]) => operation === "update");
+ 103: 
+ 104:   assert.ok(write);
+ 105:   assert.equal(write[1], USER_ID);
+ 106:   assert.equal(write[2].id, CERT_ID);
+ 107:   assert.equal(write[3], VERSION);
+ 108: });
+ 109: 
+ 110: test("preserves unrelated fields during metadata update", async () => {
+ 111:   const result = await update({ description: "Updated description" });
+ 112: 
+ 113:   assert.equal(result.description, "Updated description");
+ 114:   assert.equal(result.name, "CompTIA A+");
+ 115:   assert.equal(result.dates.issueDate, "2026-01");
+ 116:   assert.equal(result.issuingOrganization.name, "CompTIA");
+ 117: });
+ 118: 
+ 119: test("accepts complete nested date replacement", async () => {
+ 120:   const result = await update({
+ 121:     dates: {
+ 122:       ...record.dates,
+ 123:       expirationDate: "2028-01",
+ 124:     },
+ 125:   });
+ 126: 
+ 127:   assert.equal(result.dates.issueDate, "2026-01");
+ 128:   assert.equal(result.dates.expirationDate, "2028-01");
+ 129: });
+ 130: 
+ 131: test("rejects incomplete nested date replacement", async () => {
+ 132:   await assert.rejects(
+ 133:     update({
+ 134:       dates: {
+ 135:         expirationDate: "2028-01",
+ 136:       },
+ 137:     }),
+ 138:     { code: "CERTIFICATION_VALIDATION_FAILED" },
+ 139:   );
+ 140: 
+ 141:   assert.equal(
+ 142:     calls.filter(([operation]) => operation === "update").length,
+ 143:     0,
+ 144:   );
+ 145: });
+ 146: 
+ 147: test("rejects stale rowVersion before database update", async () => {
+ 148:   await assert.rejects(
+ 149:     update({ name: "Updated" }, NEXT_VERSION),
+ 150:     { code: "CERTIFICATION_VERSION_CONFLICT", status: 409 },
+ 151:   );
+ 152: 
+ 153:   assert.equal(
+ 154:     calls.filter(([operation]) => operation === "update").length,
+ 155:     0,
+ 156:   );
+ 157: });
+ 158: 
+ 159: test("returns 404 when Certification does not exist", async () => {
+ 160:   record = null;
+ 161: 
+ 162:   await assert.rejects(
+ 163:     update({ name: "Updated" }),
+ 164:     { code: "CERTIFICATION_NOT_FOUND", status: 404 },
+ 165:   );
+ 166: });
+ 167: 
+ 168: test("detects concurrent modification during update", async () => {
+ 169:   updateResult = null;
+ 170: 
+ 171:   await assert.rejects(
+ 172:     update({ name: "Updated" }),
+ 173:     { code: "CERTIFICATION_VERSION_CONFLICT", status: 409 },
+ 174:   );
+ 175: 
+ 176:   assert.equal(
+ 177:     calls.filter(([operation]) => operation === "update").length,
+ 178:     1,
+ 179:   );
+ 180: });
+ 181: 
+ 182: test("detects deletion during concurrent update", async () => {
+ 183:   updateResult = null;
+ 184: 
+ 185:   const originalFind = record;
+ 186: 
+ 187:   // Simulate a record disappearing after the initial read.
+ 188:   let reads = 0;
+ 189:   record = new Proxy(originalFind, {
+ 190:     get(target, property) {
+ 191:       if (property === "id") {
+ 192:         reads++;
+ 193:         return reads > 1 ? "deleted-record" : target.id;
+ 194:       }
+ 195: 
+ 196:       return Reflect.get(target, property);
+ 197:     },
+ 198:   });
+ 199: 
+ 200:   await assert.rejects(
+ 201:     update({ name: "Updated" }),
+ 202:     { code: "CERTIFICATION_NOT_FOUND", status: 404 },
+ 203:   );
+ 204: });
+ 205: 
+ 206: test("rejects direct document collection updates", async () => {
+ 207:   await assert.rejects(
+ 208:     update({ supportingDocuments: [] }),
+ 209:     { code: "CERTIFICATION_RELATIONSHIP_UPDATE_NOT_READY" },
+ 210:   );
+ 211: 
+ 212:   assert.equal(calls.length, 0);
+ 213: });
+ 214: 
+ 215: test("updates metadata while preserving existing documents", async () => {
+ 216:   const timestamp = "2026-01-15T12:00:00.000Z";
+ 217: 
+ 218:   const document = {
+ 219:     id: "document-test-1",
+ 220:     documentType: "certificate",
+ 221:     name: "CompTIA A+ Certificate",
+ 222:     description: "",
+ 223:     fileName: "comptia-a-plus.pdf",
+ 224:     extension: ".pdf",
+ 225:     mimeType: "application/pdf",
+ 226:     size: 951223,
+ 227:     storageKey: "certifications/test/comptia-a-plus.pdf",
+ 228:     checksum: "",
+ 229:     isPrimary: true,
+ 230:     previewMode: "pdf",
+ 231:     order: 0,
+ 232:     status: "active",
+ 233:     uploadedAt: timestamp,
+ 234:     createdAt: timestamp,
+ 235:     updatedAt: timestamp,
+ 236:   };
+ 237: 
+ 238:   record = validRecord({
+ 239:     supportingDocuments: [document],
+ 240:   });
+ 241: 
+ 242:   const result = await update({
+ 243:     name: "CompTIA A+ Updated",
+ 244:   });
+ 245: 
+ 246:   assert.equal(result.name, "CompTIA A+ Updated");
+ 247:   assert.equal(result.rowVersion, NEXT_VERSION);
+ 248:   assert.deepEqual(result.supportingDocuments, [document]);
+ 249: 
+ 250:   const writes = calls.filter(
+ 251:     ([operation]) => operation === "update",
+ 252:   );
+ 253: 
+ 254:   assert.equal(writes.length, 1);
+ 255:   assert.deepEqual(
+ 256:     writes[0][2].supportingDocuments,
+ 257:     [document],
+ 258:   );
+ 259:   assert.equal(writes[0][3], VERSION);
+ 260: });

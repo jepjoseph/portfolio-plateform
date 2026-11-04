@@ -1,0 +1,760 @@
+
+============================================================
+TRANSACTIONAL WEB101 IMPORTER
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\scripts\importWEB101Certification.transactional.js
+SHA256: E51DCE86E4B89D9FC7745B155FC1665445114F6BD0AC60FA2DD5255B4690AA2A
+
+   1: import assert from "node:assert/strict";
+   2: import crypto from "node:crypto";
+   3: import fs from "node:fs";
+   4: import path from "node:path";
+   5: import { fileURLToPath } from "node:url";
+   6: 
+   7: import {
+   8:   completeCertificationSchema
+   9: } from "../src/schemas/certificationSchemas.js";
+  10: 
+  11: import {
+  12:   createCertificationDocumentStorageKey,
+  13:   resolveOwnedCertificationDocumentPath
+  14: } from "../src/services/Storage/certificationDocumentStorageService.js";
+  15: 
+  16: import {
+  17:   getDatabasePool,
+  18:   sql
+  19: } from "../src/config/database.js";
+  20: 
+  21: const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+  22: const backendDirectory = path.resolve(scriptDirectory, "..");
+  23: const projectRoot = path.resolve(backendDirectory, "..");
+  24: 
+  25: const backupDirectory = path.join(
+  26:   projectRoot,
+  27:   "Persistence",
+  28:   "backups",
+  29:   "Certification"
+  30: );
+  31: 
+  32: const jsonPath = path.join(
+  33:   backupDirectory,
+  34:   "WEB101-certification-migration-backup.json"
+  35: );
+  36: 
+  37: const pdfPath = path.join(
+  38:   backupDirectory,
+  39:   "9b0c369a-69f0-4c4d-9079-2faad2a809b9 (1).pdf"
+  40: );
+  41: 
+  42: const expectedJsonHash =
+  43:   "00581D380C8EEAA564A59D64FB4C07D5AEB1CDB69F174EB5EDE754429B7A4562";
+  44: 
+  45: const expectedPdfHash =
+  46:   "5435366AB3792A77AA4E84A3DAEFD72C127F20B0ABE1E024EC5E46BB5BDED67F";
+  47: 
+  48: const userId = "4CD8FF00-72B1-F111-A6A9-0022484A15B1";
+  49: 
+  50: function sha256(buffer) {
+  51:   return crypto
+  52:     .createHash("sha256")
+  53:     .update(buffer)
+  54:     .digest("hex")
+  55:     .toUpperCase();
+  56: }
+  57: 
+  58: function prepareImport() {
+  59:   const jsonBytes = fs.readFileSync(jsonPath);
+  60:   const pdfBytes = fs.readFileSync(pdfPath);
+  61: 
+  62:   assert.equal(sha256(jsonBytes), expectedJsonHash);
+  63:   assert.equal(sha256(pdfBytes), expectedPdfHash);
+  64: 
+  65:   const backup = JSON.parse(jsonBytes.toString("utf8"));
+  66: 
+  67:   const original = backup.certification;
+  68: 
+  69:   assert.equal(
+  70:     original.id,
+  71:     "certification-81578373-9cad-4ddb-83dd-2fe825ae7811"
+  72:   );
+  73: 
+  74:   assert.equal(original.supportingDocuments.length, 1);
+  75:   assert.equal(backup.documents.length, 1);
+  76: 
+  77:   const originalDocument = original.supportingDocuments[0];
+  78: 
+  79:   assert.equal(
+  80:     originalDocument.id,
+  81:     backup.documents[0].id
+  82:   );
+  83: 
+  84:   assert.equal(originalDocument.size, pdfBytes.length);
+  85: 
+  86:   const storageKey = createCertificationDocumentStorageKey(
+  87:     userId,
+  88:     original.id,
+  89:     originalDocument.fileName
+  90:   );
+  91: 
+  92:   const destination = resolveOwnedCertificationDocumentPath(
+  93:     userId,
+  94:     original.id,
+  95:     storageKey
+  96:   );
+  97: 
+  98:   const certification = structuredClone(original);
+  99: 
+ 100:   certification.supportingDocuments[0].storageKey = storageKey;
+ 101:   certification.supportingDocuments[0].checksum =
+ 102:     expectedPdfHash.toLowerCase();
+ 103: 
+ 104:   const parsed = completeCertificationSchema.safeParse(certification);
+ 105: 
+ 106:   if (!parsed.success) {
+ 107:     console.error(parsed.error.issues);
+ 108:     throw new Error("Prepared Certification is invalid.");
+ 109:   }
+ 110: 
+ 111:   assert.ok(
+ 112:     !fs.existsSync(destination),
+ 113:     "Destination already exists. Stop for reconciliation."
+ 114:   );
+ 115: 
+ 116:   return {
+ 117:     certification,
+ 118:     document: certification.supportingDocuments[0],
+ 119:     storageKey,
+ 120:     destination
+ 121:   };
+ 122: }
+ 123: 
+ 124: async function inspectDatabase(plan) {
+ 125:   const pool = await getDatabasePool();
+ 126: 
+ 127:   try {
+ 128:     const result = await pool.request()
+ 129:       .input("userId", sql.UniqueIdentifier, userId)
+ 130:       .input(
+ 131:         "certificationId",
+ 132:         sql.NVarChar(200),
+ 133:         plan.certification.id
+ 134:       )
+ 135:       .input(
+ 136:         "documentId",
+ 137:         sql.NVarChar(200),
+ 138:         plan.document.id
+ 139:       )
+ 140:       .input(
+ 141:         "storageKey",
+ 142:         sql.NVarChar(500),
+ 143:         plan.storageKey
+ 144:       )
+ 145:       .query(`
+ 146:         SELECT
+ 147:           (
+ 148:             SELECT COUNT(*)
+ 149:             FROM dbo.users
+ 150:             WHERE id = @userId
+ 151:           ) AS owner_count,
+ 152: 
+ 153:           (
+ 154:             SELECT COUNT(*)
+ 155:             FROM dbo.certifications
+ 156:             WHERE id = @certificationId
+ 157:           ) AS certification_count,
+ 158: 
+ 159:           (
+ 160:             SELECT COUNT(*)
+ 161:             FROM dbo.certification_documents
+ 162:             WHERE id = @documentId
+ 163:           ) AS document_count,
+ 164: 
+ 165:           (
+ 166:             SELECT COUNT(*)
+ 167:             FROM dbo.certification_documents
+ 168:             WHERE storage_key = @storageKey
+ 169:           ) AS storage_key_count;
+ 170:       `);
+ 171: 
+ 172:     const counts = result.recordset[0];
+ 173: 
+ 174:     assert.equal(counts.owner_count, 1);
+ 175:     assert.equal(counts.certification_count, 0);
+ 176:     assert.equal(counts.document_count, 0);
+ 177:     assert.equal(counts.storage_key_count, 0);
+ 178: 
+ 179:     return counts;
+ 180:   } finally {
+ 181:     await pool.close();
+ 182:   }
+ 183: }
+ 184: 
+ 185: /*
+ 186:  * Transactional SQL insertion foundation.
+ 187:  *
+ 188:  * Not invoked by the current dry-run entry point.
+ 189:  * Do not enable until filesystem and recovery handling
+ 190:  * have been implemented and reviewed.
+ 191:  */
+ 192: /*
+ 193:  * Protected PDF copy.
+ 194:  *
+ 195:  * This function is intentionally not invoked until
+ 196:  * the full migration and recovery workflow is enabled.
+ 197:  */
+ 198: async function copyWEB101Document(plan) {
+ 199:   const storage = await import(
+ 200:     "../src/services/Storage/certificationDocumentStorageService.js"
+ 201:   );
+ 202: 
+ 203:   const certificationId = plan.certification.id;
+ 204: 
+ 205:   const targetDirectory = path.dirname(plan.destination);
+ 206:   const userDirectory = path.dirname(targetDirectory);
+ 207:   const storageRoot = path.dirname(userDirectory);
+ 208: 
+ 209:   const expectedRoot = storage.getCertificationDocumentStorageRoot();
+ 210: 
+ 211:   assert.equal(path.resolve(storageRoot), path.resolve(expectedRoot));
+ 212: 
+ 213:   const createSafeDirectory = (directory) => {
+ 214:     if (fs.existsSync(directory)) {
+ 215:       const stats = fs.lstatSync(directory);
+ 216: 
+ 217:       assert.ok(
+ 218:         stats.isDirectory() && !stats.isSymbolicLink(),
+ 219:         "Unsafe Certification storage directory."
+ 220:       );
+ 221: 
+ 222:       return;
+ 223:     }
+ 224: 
+ 225:     fs.mkdirSync(directory);
+ 226:   };
+ 227: 
+ 228:   createSafeDirectory(storageRoot);
+ 229:   createSafeDirectory(userDirectory);
+ 230:   createSafeDirectory(targetDirectory);
+ 231: 
+ 232:   await storage.assertSafeCertificationDocumentDirectory(
+ 233:     userId,
+ 234:     certificationId
+ 235:   );
+ 236: 
+ 237:   assert.ok(
+ 238:     !fs.existsSync(plan.destination),
+ 239:     "Destination already exists. Refusing overwrite."
+ 240:   );
+ 241: 
+ 242:   fs.copyFileSync(
+ 243:     pdfPath,
+ 244:     plan.destination,
+ 245:     fs.constants.COPYFILE_EXCL
+ 246:   );
+ 247: 
+ 248:   const stats = fs.lstatSync(plan.destination);
+ 249: 
+ 250:   assert.ok(
+ 251:     stats.isFile() && !stats.isSymbolicLink(),
+ 252:     "Copied PDF is not a regular file."
+ 253:   );
+ 254: 
+ 255:   assert.equal(
+ 256:     sha256(fs.readFileSync(plan.destination)),
+ 257:     expectedPdfHash,
+ 258:     "Copied PDF checksum mismatch."
+ 259:   );
+ 260: 
+ 261:   assert.equal(stats.size, plan.document.size);
+ 262: 
+ 263:   return {
+ 264:     copied: true,
+ 265:     destination: plan.destination,
+ 266:     size: stats.size,
+ 267:     checksum: expectedPdfHash
+ 268:   };
+ 269: }
+ 270: async function insertWEB101Transaction(pool, plan) {
+ 271:   const certification = plan.certification;
+ 272:   const document = plan.document;
+ 273: 
+ 274:   const transaction = new sql.Transaction(pool);
+ 275:   let begun = false;
+ 276:   let commitAttempted = false;
+ 277: 
+ 278:   try {
+ 279:     await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+ 280:     begun = true;
+ 281: 
+ 282:     const identity = await new sql.Request(transaction).query(`
+ 283:       SELECT DB_NAME() AS database_name;
+ 284:     `);
+ 285: 
+ 286:     assert.equal(
+ 287:       identity.recordset[0].database_name,
+ 288:       "portfolio-platform-db"
+ 289:     );
+ 290: 
+ 291:     const conflictResult = await new sql.Request(transaction)
+ 292:       .input("userId", sql.UniqueIdentifier, userId)
+ 293:       .input("certificationId", sql.NVarChar(200), certification.id)
+ 294:       .input("documentId", sql.NVarChar(200), document.id)
+ 295:       .input("storageKey", sql.NVarChar(500), plan.storageKey)
+ 296:       .query(`
+ 297:         SELECT
+ 298:           (SELECT COUNT(*) FROM dbo.users WITH (HOLDLOCK)
+ 299:            WHERE id = @userId) AS owner_count,
+ 300: 
+ 301:           (SELECT COUNT(*) FROM dbo.certifications WITH (UPDLOCK, HOLDLOCK)
+ 302:            WHERE id = @certificationId) AS certification_count,
+ 303: 
+ 304:           (SELECT COUNT(*) FROM dbo.certification_documents WITH (UPDLOCK, HOLDLOCK)
+ 305:            WHERE id = @documentId) AS document_count,
+ 306: 
+ 307:           (SELECT COUNT(*) FROM dbo.certification_documents WITH (UPDLOCK, HOLDLOCK)
+ 308:            WHERE storage_key = @storageKey) AS storage_key_count;
+ 309:       `);
+ 310: 
+ 311:     const counts = conflictResult.recordset[0];
+ 312: 
+ 313:     assert.equal(counts.owner_count, 1);
+ 314:     assert.equal(counts.certification_count, 0);
+ 315:     assert.equal(counts.document_count, 0);
+ 316:     assert.equal(counts.storage_key_count, 0);
+ 317: 
+ 318:     // Validate ownership of every linked Skill before importing.
+ 319:     const skillRelationships = certification.skillRelationships;
+ 320: 
+ 321:     assert.ok(
+ 322:       Array.isArray(skillRelationships) && skillRelationships.length === 1,
+ 323:       "Unexpected WEB101 Skill relationship count."
+ 324:     );
+ 325: 
+ 326:     const expectedSkillId =
+ 327:       "skill-54e7185b-3cb7-42bb-88ca-ab87ae3b756b";
+ 328: 
+ 329:     assert.equal(
+ 330:       skillRelationships[0].skillId,
+ 331:       expectedSkillId,
+ 332:       "WEB101 linked Skill differs from the verified backup."
+ 333:     );
+ 334: 
+ 335:     const skillOwnership = await new sql.Request(transaction)
+ 336:       .input("userId", sql.UniqueIdentifier, userId)
+ 337:       .input("skillId", sql.NVarChar(200), expectedSkillId)
+ 338:       .query(`
+ 339:         SELECT COUNT(*) AS skill_count
+ 340:         FROM dbo.skills WITH (HOLDLOCK)
+ 341:         WHERE id = @skillId
+ 342:           AND user_id = @userId;
+ 343:       `);
+ 344: 
+ 345:     assert.equal(
+ 346:       skillOwnership.recordset[0].skill_count,
+ 347:       1,
+ 348:       "WEB101 linked Skill is missing or not owned by the expected user."
+ 349:     );
+ 350:     const certificationInsert = await new sql.Request(transaction)
+ 351:       .input("id", sql.NVarChar(200), certification.id)
+ 352:       .input("userId", sql.UniqueIdentifier, userId)
+ 353:       .input("name", sql.NVarChar(500), certification.name)
+ 354:       .input(
+ 355:         "certificationType",
+ 356:         sql.NVarChar(100),
+ 357:         certification.certificationType
+ 358:       )
+ 359:       .input(
+ 360:         "issuerName",
+ 361:         sql.NVarChar(500),
+ 362:         certification.issuingOrganization.name
+ 363:       )
+ 364:       .input("status", sql.NVarChar(100), certification.status)
+ 365:       .input(
+ 366:         "certificationData",
+ 367:         sql.NVarChar(sql.MAX),
+ 368:         JSON.stringify(certification)
+ 369:       )
+ 370:       .input(
+ 371:         "createdAt",
+ 372:         sql.DateTime2(3),
+ 373:         new Date(certification.createdAt)
+ 374:       )
+ 375:       .input(
+ 376:         "updatedAt",
+ 377:         sql.DateTime2(3),
+ 378:         new Date(certification.updatedAt)
+ 379:       )
+ 380:       .query(`
+ 381:         INSERT INTO dbo.certifications (
+ 382:           id, user_id, name, certification_type,
+ 383:           issuing_organization_name, status, certification_data,
+ 384:           created_at, updated_at
+ 385:         )
+ 386:         VALUES (
+ 387:           @id, @userId, @name, @certificationType,
+ 388:           @issuerName, @status, @certificationData,
+ 389:           @createdAt, @updatedAt
+ 390:         );
+ 391:       `);
+ 392: 
+ 393:     assert.equal(certificationInsert.rowsAffected[0], 1);
+ 394: 
+ 395:     const documentInsert = await new sql.Request(transaction)
+ 396:       .input("id", sql.NVarChar(200), document.id)
+ 397:       .input(
+ 398:         "certificationId",
+ 399:         sql.NVarChar(200),
+ 400:         certification.id
+ 401:       )
+ 402:       .input("userId", sql.UniqueIdentifier, userId)
+ 403:       .input("storageKey", sql.NVarChar(500), plan.storageKey)
+ 404:       .input(
+ 405:         "originalFileName",
+ 406:         sql.NVarChar(255),
+ 407:         document.fileName
+ 408:       )
+ 409:       .input("mimeType", sql.NVarChar(150), document.mimeType)
+ 410:       .input("fileSize", sql.BigInt, document.size)
+ 411:       .input(
+ 412:         "createdAt",
+ 413:         sql.DateTime2(3),
+ 414:         new Date(document.uploadedAt)
+ 415:       )
+ 416:       .query(`
+ 417:         INSERT INTO dbo.certification_documents (
+ 418:           id, certification_id, user_id, storage_key,
+ 419:           original_file_name, mime_type, file_size, created_at
+ 420:         )
+ 421:         VALUES (
+ 422:           @id, @certificationId, @userId, @storageKey,
+ 423:           @originalFileName, @mimeType, @fileSize, @createdAt
+ 424:         );
+ 425:       `);
+ 426: 
+ 427:     assert.equal(documentInsert.rowsAffected[0], 1);
+ 428: 
+ 429:     const verification = await new sql.Request(transaction)
+ 430:       .input("certificationId", sql.NVarChar(200), certification.id)
+ 431:       .input("documentId", sql.NVarChar(200), document.id)
+ 432:       .query(`
+ 433:         SELECT
+ 434:           (SELECT COUNT(*) FROM dbo.certifications
+ 435:            WHERE id = @certificationId) AS certification_count,
+ 436:           (SELECT COUNT(*) FROM dbo.certification_documents
+ 437:            WHERE id = @documentId
+ 438:              AND certification_id = @certificationId) AS document_count;
+ 439:       `);
+ 440: 
+ 441:     assert.equal(verification.recordset[0].certification_count, 1);
+ 442:     assert.equal(verification.recordset[0].document_count, 1);
+ 443: 
+ 444:     commitAttempted = true;
+ 445:     await transaction.commit();
+ 446: 
+ 447:     return {
+ 448:       committed: true,
+ 449:       certificationId: certification.id,
+ 450:       documentId: document.id
+ 451:     };
+ 452:   } catch (error) {
+ 453:     if (begun && !commitAttempted) {
+ 454:       try {
+ 455:         await transaction.rollback();
+ 456:       } catch (rollbackError) {
+ 457:         console.error(
+ 458:           "Transaction rollback could not be confirmed:",
+ 459:           rollbackError.message
+ 460:         );
+ 461:       }
+ 462:     }
+ 463: 
+ 464:     if (commitAttempted) {
+ 465:       console.error(
+ 466:         "Commit outcome may be uncertain. Reconcile SQL before retrying."
+ 467:       );
+ 468:     }
+ 469: 
+ 470:     throw error;
+ 471:   }
+ 472: }
+ 473: /*
+ 474:  * Coordinates filesystem and SQL migration.
+ 475:  *
+ 476:  * Not invoked by the dry-run entry point.
+ 477:  * The PDF is deliberately retained on SQL failure
+ 478:  * until reconciliation establishes the database outcome.
+ 479:  */
+ 480: async function coordinateWEB101Migration(plan) {
+ 481:   let pool;
+ 482: 
+ 483:   const result = {
+ 484:     certificationId: plan.certification.id,
+ 485:     documentId: plan.document.id,
+ 486:     destination: plan.destination,
+ 487:     pdfCopied: false,
+ 488:     sqlCommitted: false
+ 489:   };
+ 490: 
+ 491:   try {
+ 492:     const copied = await copyWEB101Document(plan);
+ 493: 
+ 494:     result.pdfCopied = copied.copied;
+ 495: 
+ 496:     console.log("PASS: PDF copied and checksum verified");
+ 497: 
+ 498:     pool = await getDatabasePool();
+ 499: 
+ 500:     const sqlResult = await insertWEB101Transaction(pool, plan);
+ 501: 
+ 502:     result.sqlCommitted = sqlResult.committed;
+ 503: 
+ 504:     console.log("PASS: Certification and document SQL transaction committed");
+ 505: 
+ 506:     return result;
+ 507:   } catch (error) {
+ 508:     console.error(
+ 509:       "WEB101 migration stopped:",
+ 510:       error.message
+ 511:     );
+ 512: 
+ 513:     console.error(
+ 514:       "Do not automatically retry or remove destination files."
+ 515:     );
+ 516: 
+ 517:     console.error(
+ 518:       "Reconcile the Certification and document SQL rows, " +
+ 519:       "then verify the destination PDF checksum."
+ 520:     );
+ 521: 
+ 522:     throw error;
+ 523:   } finally {
+ 524:     if (pool) {
+ 525:       await pool.close();
+ 526:     }
+ 527:   }
+ 528: }
+ 529: async function main() {
+ 530:   if (
+ 531:     process.argv.length !== 3 ||
+ 532:     process.argv[2] !== "--dry-run"
+ 533:   ) {
+ 534:     throw new Error(
+ 535:       "This importer currently supports --dry-run only."
+ 536:     );
+ 537:   }
+ 538: 
+ 539:   console.log("\n=== WEB101 CERTIFICATION IMPORT DRY RUN ===");
+ 540: 
+ 541:   const plan = prepareImport();
+ 542: 
+ 543:   console.log("PASS: Backups and Certification schema");
+ 544:   console.log("PASS: Destination file is unoccupied");
+ 545: 
+ 546:   const counts = await inspectDatabase(plan);
+ 547: 
+ 548:   console.log("PASS: Owner and duplicate SQL checks");
+ 549: 
+ 550:   console.log("\n=== IMPORT PLAN ===");
+ 551:   console.log("Certification:", plan.certification.id);
+ 552:   console.log("Document:", plan.document.id);
+ 553:   console.log("Storage key:", plan.storageKey);
+ 554:   console.log("Destination:", plan.destination);
+ 555:   console.log("Database counts:", counts);
+ 556: 
+ 557:   console.log("\nDRY RUN PASSED.");
+ 558:   console.log("No SQL or document storage writes performed.");
+ 559: }
+ 560: 
+ 561: main().catch((error) => {
+ 562:   console.error("\nIMPORT DRY RUN FAILED:", error.message);
+ 563:   process.exitCode = 1;
+ 564: });
+
+============================================================
+CERTIFICATION DOCUMENT STORAGE SERVICE
+============================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\services\Storage\certificationDocumentStorageService.js
+SHA256: 2B289265652FFC96FD4A336681E11C0223F372B71E610CC7E7380A897EF15737
+
+   1: import crypto from "node:crypto";
+   2: import fs from "node:fs/promises";
+   3: import path from "node:path";
+   4: 
+   5: import { getEnvironment } from "../../config/environment.js";
+   6: 
+   7: function requireIdentifier(value, label) {
+   8:   const normalized = String(value ?? "").trim();
+   9: 
+  10:   if (!normalized) {
+  11:     throw new Error(`${label} is required for Certification document storage.`);
+  12:   }
+  13: 
+  14:   return normalized;
+  15: }
+  16: 
+  17: function hashIdentifier(value) {
+  18:   return crypto.createHash("sha256").update(value).digest("hex");
+  19: }
+  20: 
+  21: function validateFileName(fileName) {
+  22:   const normalized = String(fileName ?? "").trim();
+  23: 
+  24:   if (
+  25:     !normalized ||
+  26:     normalized === "." ||
+  27:     normalized === ".." ||
+  28:     normalized.includes("/") ||
+  29:     normalized.includes("\\") ||
+  30:     path.basename(normalized) !== normalized ||
+  31:     !/^[a-f0-9-]{36}\.(?:pdf|doc|docx|ppt|pptx|xls|xlsx|txt|md|csv|json|zip|jpg|jpeg|png|webp)$/i.test(
+  32:       normalized,
+  33:     )
+  34:   ) {
+  35:     throw new Error("Invalid Certification document filename.");
+  36:   }
+  37: 
+  38:   return normalized;
+  39: }
+  40: 
+  41: export function getCertificationDocumentStorageRoot() {
+  42:   const environment = getEnvironment();
+  43: 
+  44:   const configuredPath = String(
+  45:     environment.CERTIFICATION_DOCUMENT_STORAGE_PATH || "",
+  46:   ).trim();
+  47: 
+  48:   if (!configuredPath) {
+  49:     throw new Error("CERTIFICATION_DOCUMENT_STORAGE_PATH is not configured.");
+  50:   }
+  51: 
+  52:   return path.resolve(configuredPath);
+  53: }
+  54: 
+  55: export function getCertificationDocumentUserDirectory(userId) {
+  56:   return hashIdentifier(requireIdentifier(userId, "User ID"));
+  57: }
+  58: 
+  59: export function getCertificationDocumentCertificationDirectory(certificationId) {
+  60:   return hashIdentifier(requireIdentifier(certificationId, "Certification ID"));
+  61: }
+  62: 
+  63: export function getCertificationDocumentDirectory(userId, certificationId) {
+  64:   return path.join(
+  65:     getCertificationDocumentStorageRoot(),
+  66:     getCertificationDocumentUserDirectory(userId),
+  67:     getCertificationDocumentCertificationDirectory(certificationId),
+  68:   );
+  69: }
+  70: 
+  71: export function createCertificationDocumentStorageKey(userId, certificationId, fileName) {
+  72:   const safeFileName = validateFileName(fileName);
+  73: 
+  74:   return [
+  75:     getCertificationDocumentUserDirectory(userId),
+  76:     getCertificationDocumentCertificationDirectory(certificationId),
+  77:     safeFileName,
+  78:   ].join("/");
+  79: }
+  80: 
+  81: export function resolveOwnedCertificationDocumentPath(userId, certificationId, storageKey) {
+  82:   const normalizedKey = String(storageKey ?? "").trim();
+  83: 
+  84:   const expectedUserDirectory = getCertificationDocumentUserDirectory(userId);
+  85:   const expectedCertificationDirectory = getCertificationDocumentCertificationDirectory(certificationId);
+  86: 
+  87:   const parts = normalizedKey.split("/");
+  88: 
+  89:   if (
+  90:     parts.length !== 3 ||
+  91:     parts[0] !== expectedUserDirectory ||
+  92:     parts[1] !== expectedCertificationDirectory
+  93:   ) {
+  94:     throw new Error(
+  95:       "Certification document storage key does not belong to this user and Certification.",
+  96:     );
+  97:   }
+  98: 
+  99:   const safeFileName = validateFileName(parts[2]);
+ 100: 
+ 101:   const mediaDirectory = path.resolve(
+ 102:     getCertificationDocumentDirectory(userId, certificationId),
+ 103:   );
+ 104: 
+ 105:   const filePath = path.resolve(mediaDirectory, safeFileName);
+ 106: 
+ 107:   if (path.dirname(filePath) !== mediaDirectory) {
+ 108:     throw new Error("Certification document path is outside the expected directory.");
+ 109:   }
+ 110: 
+ 111:   return filePath;
+ 112: }
+ 113: 
+ 114: export async function assertSafeCertificationDocumentDirectory(userId, certificationId) {
+ 115:   const root = getCertificationDocumentStorageRoot();
+ 116:   const userDirectory = path.join(root, getCertificationDocumentUserDirectory(userId));
+ 117:   const certificationDirectory = path.join(
+ 118:     userDirectory,
+ 119:     getCertificationDocumentCertificationDirectory(certificationId),
+ 120:   );
+ 121: 
+ 122:   const directories = [root, userDirectory, certificationDirectory];
+ 123: 
+ 124:   for (const directory of directories) {
+ 125:     const stats = await fs.lstat(directory);
+ 126: 
+ 127:     if (stats.isSymbolicLink() || !stats.isDirectory()) {
+ 128:       throw new Error(
+ 129:         "Certification document storage directory is not a regular directory.",
+ 130:       );
+ 131:     }
+ 132:   }
+ 133: 
+ 134:   const canonicalRoot = await fs.realpath(root);
+ 135:   const canonicalCertificationDirectory = await fs.realpath(certificationDirectory);
+ 136: 
+ 137:   const relative = path.relative(
+ 138:     canonicalRoot,
+ 139:     canonicalCertificationDirectory,
+ 140:   );
+ 141: 
+ 142:   if (
+ 143:     relative === "" ||
+ 144:     relative === ".." ||
+ 145:     relative.startsWith(`..${path.sep}`) ||
+ 146:     path.isAbsolute(relative)
+ 147:   ) {
+ 148:     throw new Error("Certification document directory is outside the storage root.");
+ 149:   }
+ 150: }
+ 151: 
+ 152: export async function deleteOwnedCertificationDocument(userId, certificationId, storageKey) {
+ 153:   const filePath = resolveOwnedCertificationDocumentPath(userId, certificationId, storageKey);
+ 154: 
+ 155:   try {
+ 156:     await assertSafeCertificationDocumentDirectory(userId, certificationId);
+ 157: 
+ 158:     const stats = await fs.lstat(filePath);
+ 159: 
+ 160:     if (stats.isSymbolicLink() || !stats.isFile()) {
+ 161:       throw new Error("Certification document target is not a regular file.");
+ 162:     }
+ 163: 
+ 164:     await fs.unlink(filePath);
+ 165: 
+ 166:     return {
+ 167:       deleted: true,
+ 168:       storageKey,
+ 169:     };
+ 170:   } catch (error) {
+ 171:     if (error?.code === "ENOENT") {
+ 172:       return {
+ 173:         deleted: false,
+ 174:         storageKey,
+ 175:       };
+ 176:     }
+ 177: 
+ 178:     throw error;
+ 179:   }
+ 180: }
+ 181: 
+ 182: 

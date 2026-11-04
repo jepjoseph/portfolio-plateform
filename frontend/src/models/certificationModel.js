@@ -98,7 +98,11 @@ export function createCertificationSkillRelationship(skill = {}, order = 0) {
   const skillId = getText(skill.skillId || skill.profileSkillId || skill.id);
 
   return {
-    id: getText(skill.relationshipId) || createId("certification-skill"),
+    id:
+      getText(
+        skill.relationshipId ||
+          (skill.skillId ? skill.id : ""),
+      ) || createId("certification-skill"),
 
     skillId,
 
@@ -159,7 +163,13 @@ export function createCertificationTrainingRelationship(
   );
 
   return {
-    id: getText(training.relationshipId) || createId("certification-training"),
+    id:
+      getText(
+        training.relationshipId ||
+          (training.trainingId || training.trainingRecordId
+            ? training.id
+            : ""),
+      ) || createId("certification-training"),
 
     trainingId,
 
@@ -455,6 +465,7 @@ export function normalizeCertification(value = {}) {
 
     id: getText(source.id) || empty.id,
 
+    rowVersion: getText(source.rowVersion),
     name: getText(source.name || source.title),
 
     certificationType: getOptionValue(
