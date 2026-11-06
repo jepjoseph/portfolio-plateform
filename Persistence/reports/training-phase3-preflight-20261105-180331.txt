@@ -1,0 +1,142 @@
+TRAINING PHASE 3 PREFLIGHT
+Generated: 11/05/2026 18:03:31
+Backend: D:\Documents\Project\Portfolio\portfolio-plateform\backend
+
+=== COMPLETE TRAINING UNIT SUITE ===
+(node:17576) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ö LIST returns 200 and trainings array (2.7174ms)
+Γ£ö LIST forwards service errors (0.4751ms)
+Γ£ö GET returns 200 and requested Training (0.4165ms)
+Γ£ö GET forwards not-found errors (0.6213ms)
+Γ£ö CREATE returns 201 and created Training (0.8577ms)
+Γ£ö CREATE forwards validation errors (0.6523ms)
+Γ£ö UPDATE returns 200 and passes version (0.5343ms)
+Γ£ö UPDATE rejects non-object body (1.6359ms)
+Γ£ö UPDATE rejects unexpected request fields (0.3749ms)
+Γ£ö UPDATE forwards concurrency conflicts (0.4195ms)
+Γ£ö Controller forwards missing authentication errors (0.2145ms)
+Γ£ö UPDATE forwards missing version to service validation (0.1814ms)
+Γ£ö UPDATE rejects array request bodies (0.1454ms)
+(node:15936) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15936) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+Γ£ö lists Training records scoped to the user (3.5384ms)
+Γ£ö finds Training using both owner and record ID (0.7014ms)
+Γ£ö returns null when Training is not found (0.4088ms)
+Γ£ö creates Training using parameterized SQL (1.4454ms)
+Γ£ö maps complete Training JSON and authoritative SQL columns (0.5617ms)
+Γ£ö updates Training with binary rowVersion and owner scope (1.3622ms)
+Γ£ö returns null for an update that affects no records (0.3568ms)
+Γ£ö rejects malformed rowVersion without executing SQL (2.4231ms)
+Γ£ö rejects invalid stored Training JSON (0.4164ms)
+Γ£ö keeps ownership parameters separate from SQL text (0.4177ms)
+Γ£ö Training router is an Express router (1.2525ms)
+Γ£ö Authentication middleware is registered first (0.1836ms)
+Γ£ö Exactly four Training routes are registered (0.1677ms)
+Γ£ö GET / uses correct controller (0.3601ms)
+Γ£ö POST / uses correct controller (0.1367ms)
+Γ£ö GET /:trainingId uses correct controller (0.1024ms)
+Γ£ö PATCH /:trainingId uses correct controller (0.1145ms)
+Γ£ö No DELETE Training route is exposed (0.2751ms)
+Γ£ö No PUT Training route is exposed (0.2736ms)
+Γ£ö No document upload routes are exposed (0.229ms)
+Γ£ö All route handlers are functions (0.2385ms)
+Γ£ö Training router does not modify existing routers (113.471ms)
+Γ£ö Accepts a complete Training v2 record (16.6107ms)
+Γ£ö Create schema accepts a complete record (0.7183ms)
+Γ£ö Rejects missing title (2.1839ms)
+Γ£ö Rejects title exceeding 250 characters (0.8519ms)
+Γ£ö Rejects missing provider name (1.0446ms)
+Γ£ö Rejects invalid training type (0.7143ms)
+Γ£ö Rejects invalid provider type (0.6317ms)
+Γ£ö Rejects invalid delivery format (0.7073ms)
+Γ£ö Rejects invalid completion status (1.2137ms)
+Γ£ö Rejects impossible calendar dates (1.6082ms)
+Γ£ö Rejects missing start date (0.7306ms)
+Γ£ö Rejects end date before start date (0.4574ms)
+Γ£ö Rejects end date for current training (0.3565ms)
+Γ£ö Rejects negative duration (0.491ms)
+Γ£ö Rejects excessive duration (0.5532ms)
+Γ£ö Rejects invalid provider website (2.552ms)
+Γ£ö Rejects too many instructors (1.889ms)
+Γ£ö Rejects duplicate related Education IDs (0.4133ms)
+Γ£ö Rejects mismatched Certification relationship IDs (0.3285ms)
+Γ£ö Rejects unknown top-level fields (0.4656ms)
+Γ£ö Rejects wrong model version (0.3151ms)
+Γ£ö Rejects updated timestamp before created timestamp (0.2191ms)
+Γ£ö Update schema accepts partial updates (1.9553ms)
+Γ£ö Update schema rejects empty updates (0.2467ms)
+Γ£ö Update schema rejects server-owned ID (0.1749ms)
+Γ£ö Validates SQL row versions (0.4201ms)
+Γ£ö Formats validation errors (0.5218ms)
+Γ£ö Schema rejects unknown nested provider properties (0.3502ms)
+Γ£ö Schema rejects unknown nested delivery properties (0.3832ms)
+Γ£ö Schema rejects invalid completion duration type (0.3798ms)
+Γ£ö Schema rejects duplicate topics (1.2119ms)
+Γ£ö Schema rejects in-progress training without current dates (0.5164ms)
+Γ£ö Schema rejects invalid nested PATCH object (0.2823ms)
+(node:26600) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26600) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+Γ£ö LIST rejects missing authentication (3.2049ms)
+Γ£ö LIST returns an empty array (1.7523ms)
+Γ£ö LIST returns normalized records (1.8415ms)
+Γ£ö GET rejects an invalid Training ID (0.5152ms)
+Γ£ö GET returns 404 when record is missing (0.6363ms)
+Γ£ö GET retrieves an authenticated user's Training (0.5274ms)
+Γ£ö GET passes the requesting user ID to repository (0.5251ms)
+Γ£ö CREATE rejects missing authentication (0.6327ms)
+Γ£ö CREATE rejects non-object input (0.7385ms)
+Γ£ö CREATE generates server-owned ID and timestamps (13.1715ms)
+Γ£ö CREATE rejects invalid title (1.5775ms)
+Γ£ö CREATE rejects invalid provider (0.9751ms)
+Γ£ö CREATE rejects unsupported model version (0.6895ms)
+Γ£ö CREATE rejects unsupported documents (0.3551ms)
+Γ£ö CREATE maps duplicate SQL ID errors to 409 (0.7872ms)
+Γ£ö CREATE propagates unexpected repository errors (0.8494ms)
+Γ£ö UPDATE rejects invalid rowVersion (0.6955ms)
+Γ£ö UPDATE rejects empty changes (0.3331ms)
+Γ£ö UPDATE rejects server-owned fields (0.5509ms)
+Γ£ö UPDATE rejects restricted relationships (0.6527ms)
+Γ£ö UPDATE rejects document changes (0.3232ms)
+Γ£ö UPDATE returns 404 when record is missing (0.2891ms)
+Γ£ö UPDATE rejects stale rowVersion before writing (0.3761ms)
+Γ£ö UPDATE preserves existing fields (3.2206ms)
+Γ£ö UPDATE returns 409 when concurrent write wins (0.6913ms)
+Γ£ö UPDATE returns 404 when record disappears (0.9838ms)
+Γ£ö CREATE rejects invalid delivery format (0.6302ms)
+Γ£ö CREATE rejects unknown nested provider property (0.4905ms)
+Γ£ö UPDATE preserves provider fields during nested PATCH (0.5099ms)
+Γ£ö UPDATE preserves delivery location during nested PATCH (0.5238ms)
+Γ£ö UPDATE rejects unknown nested provider property (0.34ms)
+Γ£ö UPDATE rejects invalid date combination (0.6945ms)
+Γä╣ tests 100
+Γä╣ suites 0
+Γä╣ pass 100
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 2498.6203
+EXIT CODE: 0
+
+=== BACKEND SYNTAX CHECK ===
+
+> portfolio-platform-backend@1.0.0 check
+> node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js
+
+CHECK EXIT CODE: 0
+
+=== DATABASE ENVIRONMENT PREFLIGHT ===
+RUN_TRAINING_DB_TESTS: NOT SET
+TRAINING_TEST_USER_ID: NOT SET
+TRAINING_TEST_OTHER_USER_ID: NOT SET
+
+=== DATABASE CONFIGURATION FILE DISCOVERY ===
+src\config\database.js: True
+src\config\environment.js: True
+test\integration\trainingRepository.integration.test.js: True
+
+=== FINAL RESULT ===
+LOCAL BACKEND VERIFICATION: PASS

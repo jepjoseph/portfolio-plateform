@@ -1,0 +1,1029 @@
+TRAINING BACKEND SCHEMA REVIEW
+Generated: 11/05/2026 18:26:51
+Files: 3
+
+================================================================================
+FILE: src\repositories\trainingRepository.js
+================================================================================
+    1: import { getDatabasePool, sql } from "../config/database.js";
+    2: 
+    3: const TRAINING_COLUMNS = `
+    4:   id,
+    5:   user_id,
+    6:   title,
+    7:   training_type,
+    8:   provider_name,
+    9:   status,
+   10:   training_data,
+   11:   created_at,
+   12:   updated_at,
+   13:   row_version
+   14: `;
+   15: 
+   16: function mapTrainingRow(row) {
+   17:   if (!row) return null;
+   18: 
+   19:   const data = typeof row.training_data === "string"
+   20:     ? JSON.parse(row.training_data)
+   21:     : row.training_data;
+   22: 
+   23:   if (!data || typeof data !== "object" || Array.isArray(data)) {
+   24:     throw new Error("Stored Training data is invalid.");
+   25:   }
+   26: 
+   27:   return {
+   28:     ...data,
+   29:     id: row.id,
+   30:     title: row.title,
+   31:     trainingType: row.training_type,
+   32:     provider: {
+   33:       ...(data.provider || {}),
+   34:       name: row.provider_name,
+   35:     },
+   36:     status: row.status,
+   37:     createdAt: new Date(row.created_at).toISOString(),
+   38:     updatedAt: new Date(row.updated_at).toISOString(),
+   39:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+   40:   };
+   41: }
+   42: 
+   43: function bindTraining(request, userId, training) {
+   44:   return request
+   45:     .input("id", sql.NVarChar(200), training.id)
+   46:     .input("userId", sql.UniqueIdentifier, userId)
+   47:     .input("title", sql.NVarChar(250), training.title)
+   48:     .input("trainingType", sql.NVarChar(100), training.trainingType)
+   49:     .input("providerName", sql.NVarChar(500), training.provider.name)
+   50:     .input("status", sql.NVarChar(20), training.status)
+   51:     .input(
+   52:       "trainingData",
+   53:       sql.NVarChar(sql.MAX),
+   54:       JSON.stringify(training),
+   55:     );
+   56: }
+   57: 
+   58: function decodeRowVersion(value) {
+   59:   if (
+   60:     typeof value !== "string" ||
+   61:     !/^[A-Za-z0-9+/]{11}=$/.test(value)
+   62:   ) {
+   63:     throw new TypeError("A valid rowVersion is required.");
+   64:   }
+   65: 
+   66:   const buffer = Buffer.from(value, "base64");
+   67: 
+   68:   if (
+   69:     buffer.length !== 8 ||
+   70:     buffer.toString("base64") !== value
+   71:   ) {
+   72:     throw new TypeError("Invalid rowVersion.");
+   73:   }
+   74: 
+   75:   return buffer;
+   76: }
+   77: 
+   78: export async function listTrainingsByUser(userId) {
+   79:   const pool = await getDatabasePool();
+   80: 
+   81:   const result = await pool.request()
+   82:     .input("userId", sql.UniqueIdentifier, userId)
+   83:     .query(`
+   84:       SELECT ${TRAINING_COLUMNS}
+   85:       FROM dbo.trainings
+   86:       WHERE user_id = @userId
+   87:       ORDER BY updated_at DESC, id ASC;
+   88:     `);
+   89: 
+   90:   return result.recordset.map(mapTrainingRow);
+   91: }
+   92: 
+   93: export async function findTrainingById(userId, trainingId) {
+   94:   const pool = await getDatabasePool();
+   95: 
+   96:   const result = await pool.request()
+   97:     .input("userId", sql.UniqueIdentifier, userId)
+   98:     .input("id", sql.NVarChar(200), trainingId)
+   99:     .query(`
+  100:       SELECT ${TRAINING_COLUMNS}
+  101:       FROM dbo.trainings
+  102:       WHERE user_id = @userId
+  103:         AND id = @id;
+  104:     `);
+  105: 
+  106:   return mapTrainingRow(result.recordset[0]);
+  107: }
+  108: 
+  109: export async function createTrainingRecord(userId, training) {
+  110:   const pool = await getDatabasePool();
+  111: 
+  112:   const result = await bindTraining(
+  113:     pool.request(),
+  114:     userId,
+  115:     training,
+  116:   ).query(`
+  117:     INSERT INTO dbo.trainings (
+  118:       id,
+  119:       user_id,
+  120:       title,
+  121:       training_type,
+  122:       provider_name,
+  123:       status,
+  124:       training_data
+  125:     )
+  126:     OUTPUT
+  127:       INSERTED.id,
+  128:       INSERTED.user_id,
+  129:       INSERTED.title,
+  130:       INSERTED.training_type,
+  131:       INSERTED.provider_name,
+  132:       INSERTED.status,
+  133:       INSERTED.training_data,
+  134:       INSERTED.created_at,
+  135:       INSERTED.updated_at,
+  136:       INSERTED.row_version
+  137:     VALUES (
+  138:       @id,
+  139:       @userId,
+  140:       @title,
+  141:       @trainingType,
+  142:       @providerName,
+  143:       @status,
+  144:       @trainingData
+  145:     );
+  146:   `);
+  147: 
+  148:   return mapTrainingRow(result.recordset[0]);
+  149: }
+  150: 
+  151: export async function updateTrainingRecord(
+  152:   userId,
+  153:   training,
+  154:   expectedRowVersion,
+  155: ) {
+  156:   const pool = await getDatabasePool();
+  157: 
+  158:   const result = await bindTraining(
+  159:     pool.request(),
+  160:     userId,
+  161:     training,
+  162:   )
+  163:     .input(
+  164:       "expectedRowVersion",
+  165:       sql.Binary(8),
+  166:       decodeRowVersion(expectedRowVersion),
+  167:     )
+  168:     .query(`
+  169:       UPDATE dbo.trainings
+  170:       SET
+  171:         title = @title,
+  172:         training_type = @trainingType,
+  173:         provider_name = @providerName,
+  174:         status = @status,
+  175:         training_data = @trainingData,
+  176:         updated_at = SYSUTCDATETIME()
+  177:       OUTPUT
+  178:         INSERTED.id,
+  179:         INSERTED.user_id,
+  180:         INSERTED.title,
+  181:         INSERTED.training_type,
+  182:         INSERTED.provider_name,
+  183:         INSERTED.status,
+  184:         INSERTED.training_data,
+  185:         INSERTED.created_at,
+  186:         INSERTED.updated_at,
+  187:         INSERTED.row_version
+  188:       WHERE id = @id
+  189:         AND user_id = @userId
+  190:         AND row_version = @expectedRowVersion;
+  191:     `);
+  192: 
+  193:   return mapTrainingRow(result.recordset[0]);
+  194: }
+
+================================================================================
+FILE: src\schemas\trainingSchemas.js
+================================================================================
+    1: import { z } from "zod";
+    2: 
+    3: export const TRAINING_MODEL_VERSION = 2;
+    4: 
+    5: export const TRAINING_TYPE_VALUES = [
+    6:   "professional-course", "technical-training", "workshop",
+    7:   "bootcamp", "seminar", "webinar", "conference",
+    8:   "employer-training", "vendor-training", "compliance-training",
+    9:   "leadership-training", "self-paced-learning", "other",
+   10: ];
+   11: 
+   12: export const TRAINING_PROVIDER_TYPE_VALUES = [
+   13:   "", "education-institution", "employer", "technology-vendor",
+   14:   "training-company", "professional-association", "government",
+   15:   "nonprofit", "online-platform", "independent-instructor",
+   16:   "self-directed", "other",
+   17: ];
+   18: 
+   19: export const TRAINING_DELIVERY_FORMAT_VALUES = [
+   20:   "in-person", "online-live", "online-self-paced",
+   21:   "hybrid", "on-the-job", "other",
+   22: ];
+   23: 
+   24: export const TRAINING_COMPLETION_STATUS_VALUES = [
+   25:   "planned", "in-progress", "completed", "paused", "withdrawn",
+   26: ];
+   27: 
+   28: export const TRAINING_DOCUMENT_TYPE_VALUES = [
+   29:   "completion-certificate", "attendance-certificate",
+   30:   "transcript", "course-outline", "syllabus", "assessment",
+   31:   "badge", "receipt", "supporting-evidence", "other",
+   32: ];
+   33: 
+   34: export const TRAINING_SOURCE_VALUES = [
+   35:   "manual", "imported", "ai-suggested",
+   36: ];
+   37: 
+   38: export const TRAINING_STATUS_VALUES = ["active", "archived"];
+   39: 
+   40: const text = (max) => z.string().trim().max(max);
+   41: const requiredText = (max) => text(max).min(1);
+   42: const id = requiredText(200);
+   43: const order = z.number().int().nonnegative();
+   44: 
+   45: const timestamp = z.string().datetime({ offset: true });
+   46: 
+   47: function validDate(value) {
+   48:   if (value === "") return true;
+   49: 
+   50:   if (!/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(value)) {
+   51:     return false;
+   52:   }
+   53: 
+   54:   if (value.length === 7) return true;
+   55: 
+   56:   const [year, month, day] = value.split("-").map(Number);
+   57:   const actual = new Date(Date.UTC(year, month - 1, day));
+   58: 
+   59:   return actual.getUTCFullYear() === year &&
+   60:     actual.getUTCMonth() === month - 1 &&
+   61:     actual.getUTCDate() === day;
+   62: }
+   63: 
+   64: const date = z.string().refine(validDate, "Invalid calendar date.");
+   65: const requiredDate = date.refine(Boolean, "A date is required.");
+   66: 
+   67: function dateBounds(value) {
+   68:   const [year, month, day] = value.split("-").map(Number);
+   69:   const start = Date.UTC(year, month - 1, day || 1);
+   70:   const end = value.length === 7
+   71:     ? Date.UTC(year, month, 0)
+   72:     : start;
+   73: 
+   74:   return { start, end };
+   75: }
+   76: 
+   77: const url = (max) => text(max).refine((value) => {
+   78:   if (!value) return true;
+   79: 
+   80:   try {
+   81:     const candidate = /^https?:\/\//i.test(value)
+   82:       ? value
+   83:       : `https://${value}`;
+   84: 
+   85:     const parsed = new URL(candidate);
+   86:     return ["http:", "https:"].includes(parsed.protocol) &&
+   87:       Boolean(parsed.hostname);
+   88:   } catch {
+   89:     return false;
+   90:   }
+   91: }, "Enter a valid HTTP or HTTPS URL.");
+   92: 
+   93: const provider = z.object({
+   94:   name: requiredText(200),
+   95:   type: z.enum(TRAINING_PROVIDER_TYPE_VALUES),
+   96:   website: url(500),
+   97: }).strict();
+   98: 
+   99: const delivery = z.object({
+  100:   format: z.enum(TRAINING_DELIVERY_FORMAT_VALUES),
+  101:   location: z.object({
+  102:     city: text(120),
+  103:     stateRegion: text(120),
+  104:     country: text(120),
+  105:     displayValue: text(300),
+  106:   }).strict(),
+  107: }).strict();
+  108: 
+  109: const dates = z.object({
+  110:   startDate: requiredDate,
+  111:   endDate: date,
+  112:   isCurrent: z.boolean(),
+  113: }).strict();
+  114: 
+  115: const completion = z.object({
+  116:   status: z.enum(TRAINING_COMPLETION_STATUS_VALUES),
+  117:   durationHours: z.number().finite().min(0).max(100000).nullable(),
+  118:   certificateEarned: z.boolean(),
+  119:   credentialId: text(250),
+  120:   credentialUrl: url(1000),
+  121: }).strict();
+  122: 
+  123: const instructor = z.object({
+  124:   id,
+  125:   name: requiredText(200),
+  126:   title: text(200),
+  127:   organization: text(200),
+  128:   order,
+  129: }).strict();
+  130: 
+  131: const topic = z.object({
+  132:   id,
+  133:   name: requiredText(250),
+  134:   description: text(1500),
+  135:   order,
+  136: }).strict();
+  137: 
+  138: const learningOutcome = z.object({
+  139:   id,
+  140:   text: requiredText(1500),
+  141:   order,
+  142: }).strict();
+  143: 
+  144: const skillRelationship = z.object({
+  145:   id,
+  146:   skillId: text(200),
+  147:   nameSnapshot: text(150),
+  148:   categorySnapshot: text(100),
+  149:   typeSnapshot: text(100),
+  150:   order,
+  151: }).strict().refine(
+  152:   (value) => Boolean(value.skillId || value.nameSnapshot),
+  153:   "A skill identifier or name is required.",
+  154: );
+  155: 
+  156: const certificationRelationship = z.object({
+  157:   id,
+  158:   certificationId: id,
+  159:   order,
+  160:   snapshot: z.object({
+  161:     name: text(160),
+  162:     issuingOrganizationName: text(160),
+  163:     certificationType: text(100),
+  164:     credentialState: text(100),
+  165:     issueDate: date,
+  166:     expirationDate: date,
+  167:     doesNotExpire: z.boolean(),
+  168:   }).strict(),
+  169: }).strict();
+  170: 
+  171: const document = z.object({
+  172:   id,
+  173:   documentType: z.enum(TRAINING_DOCUMENT_TYPE_VALUES),
+  174:   name: text(250),
+  175:   description: text(1000),
+  176:   fileName: text(500),
+  177:   mimeType: text(200),
+  178:   fileSize: z.number().finite().nonnegative().nullable(),
+  179:   storageProvider: text(100),
+  180:   storageKey: text(500),
+  181:   fileUrl: text(2000),
+  182:   uploadedAt: text(100),
+  183:   visibility: z.enum(["private", "public"]),
+  184:   order,
+  185: }).strict();
+  186: 
+  187: const visibilityFields = [
+  188:   "showProvider",
+  189:   "showProviderWebsite",
+  190:   "showDeliveryFormat",
+  191:   "showLocation",
+  192:   "showDates",
+  193:   "showDuration",
+  194:   "showDescription",
+  195:   "showInstructors",
+  196:   "showTopics",
+  197:   "showLearningOutcomes",
+  198:   "showSkills",
+  199:   "showCredential",
+  200:   "showCertifications",
+  201:   "showSupportingDocuments",
+  202: ];
+  203: 
+  204: const visibility = z.object(
+  205:   Object.fromEntries(
+  206:     visibilityFields.map((field) => [field, z.boolean()]),
+  207:   ),
+  208: ).strict();
+  209: 
+  210: const baseSchema = z.object({
+  211:   modelVersion: z.literal(TRAINING_MODEL_VERSION),
+  212:   id,
+  213:   title: requiredText(250),
+  214:   trainingType: z.enum(TRAINING_TYPE_VALUES),
+  215:   provider,
+  216:   delivery,
+  217:   dates,
+  218:   completion,
+  219:   description: text(3000),
+  220:   instructors: z.array(instructor).max(20),
+  221:   topics: z.array(topic).max(50),
+  222:   learningOutcomes: z.array(learningOutcome).max(30),
+  223:   skillRelationships: z.array(skillRelationship).max(50),
+  224:   supportingDocuments: z.array(document).max(20),
+  225:   relatedEducationIds: z.array(id).max(20),
+  226:   certificationRelationships: z.array(certificationRelationship).max(20),
+  227:   relatedCertificationIds: z.array(id).max(20),
+  228:   relatedExperienceIds: z.array(id).max(30),
+  229:   relatedProjectIds: z.array(id).max(30),
+  230:   visibility,
+  231:   privateInformation: z.object({
+  232:     notes: text(3000),
+  233:   }).strict(),
+  234:   source: z.enum(TRAINING_SOURCE_VALUES),
+  235:   sourceContext: text(500),
+  236:   status: z.enum(TRAINING_STATUS_VALUES),
+  237:   createdAt: timestamp,
+  238:   updatedAt: timestamp,
+  239: }).strict();
+  240: 
+  241: function validateRules(value, context) {
+  242:   const issue = (path, message) => context.addIssue({
+  243:     code: "custom",
+  244:     path,
+  245:     message,
+  246:   });
+  247: 
+  248:   if (value.dates.isCurrent && value.dates.endDate) {
+  249:     issue(["dates", "endDate"], "Current training cannot have an end date.");
+  250:   }
+  251: 
+  252:   if (
+  253:     value.dates.endDate &&
+  254:     dateBounds(value.dates.endDate).end <
+  255:       dateBounds(value.dates.startDate).start
+  256:   ) {
+  257:     issue(["dates", "endDate"], "End date precedes start date.");
+  258:   }
+  259: 
+  260:   if (
+  261:     value.completion.status === "in-progress" &&
+  262:     !value.dates.isCurrent
+  263:   ) {
+  264:     issue(["dates", "isCurrent"], "In-progress training must be current.");
+  265:   }
+  266: 
+  267:   if (
+  268:     new Date(value.updatedAt).getTime() <
+  269:     new Date(value.createdAt).getTime()
+  270:   ) {
+  271:     issue(["updatedAt"], "Updated timestamp precedes creation.");
+  272:   }
+  273: 
+  274:   function unique(items, path, getKey) {
+  275:     const seen = new Set();
+  276: 
+  277:     items.forEach((item, index) => {
+  278:       const key = getKey(item);
+  279: 
+  280:       if (!key) return;
+  281: 
+  282:       const normalized = String(key).normalize("NFKC").toLowerCase();
+  283: 
+  284:       if (seen.has(normalized)) {
+  285:         issue([...path, index], "Duplicate item.");
+  286:       }
+  287: 
+  288:       seen.add(normalized);
+  289:     });
+  290:   }
+  291: 
+  292:   for (const field of [
+  293:     "instructors", "topics", "learningOutcomes",
+  294:     "skillRelationships", "certificationRelationships",
+  295:     "supportingDocuments",
+  296:   ]) {
+  297:     unique(value[field], [field], (item) => item.id);
+  298:   }
+  299: 
+  300:   unique(
+  301:     value.skillRelationships,
+  302:     ["skillRelationships"],
+  303:     (item) => item.skillId || item.nameSnapshot,
+  304:   );
+  305: 
+  306:   unique(
+  307:     value.certificationRelationships,
+  308:     ["certificationRelationships"],
+  309:     (item) => item.certificationId,
+  310:   );
+  311: 
+  312:   for (const field of [
+  313:     "relatedEducationIds", "relatedCertificationIds",
+  314:     "relatedExperienceIds", "relatedProjectIds",
+  315:   ]) {
+  316:     unique(value[field], [field], (item) => item);
+  317:   }
+  318: 
+  319:   const canonicalIds = value.certificationRelationships.map(
+  320:     (item) => item.certificationId,
+  321:   );
+  322: 
+  323:   if (
+  324:     JSON.stringify(canonicalIds) !==
+  325:     JSON.stringify(value.relatedCertificationIds)
+  326:   ) {
+  327:     issue(
+  328:       ["relatedCertificationIds"],
+  329:       "Certification IDs must match canonical relationships.",
+  330:     );
+  331:   }
+  332: }
+  333: 
+  334: export const completeTrainingSchema =
+  335:   baseSchema.superRefine(validateRules);
+  336: 
+  337: export const createTrainingSchema = completeTrainingSchema;
+  338: 
+  339: export const updateTrainingSchema = baseSchema
+  340:   .omit({
+  341:     id: true,
+  342:     modelVersion: true,
+  343:     createdAt: true,
+  344:     updatedAt: true,
+  345:   })
+  346:   .partial()
+  347:   .refine(
+  348:     (value) => Object.keys(value).length > 0,
+  349:     "Provide at least one Training field to update.",
+  350:   );
+  351: 
+  352: export const trainingIdParamsSchema = z.object({
+  353:   trainingId: id,
+  354: }).strict();
+  355: 
+  356: export const trainingRowVersionSchema = z.string().refine(
+  357:   (value) => {
+  358:     if (!/^[A-Za-z0-9+/]{11}=$/.test(value)) return false;
+  359:     const bytes = Buffer.from(value, "base64");
+  360:     return bytes.length === 8 &&
+  361:       bytes.toString("base64") === value;
+  362:   },
+  363:   "A valid SQL row version is required.",
+  364: );
+  365: 
+  366: export function formatTrainingSchemaErrors(error) {
+  367:   return (error?.issues || []).map((item) => ({
+  368:     field: item.path.join("."),
+  369:     code: item.code,
+  370:     message: item.message,
+  371:   }));
+  372: }
+
+================================================================================
+FILE: src\services\Service\trainingService.js
+================================================================================
+    1: import { randomUUID } from "node:crypto";
+    2: 
+    3: import {
+    4:   completeTrainingSchema,
+    5:   updateTrainingSchema,
+    6:   formatTrainingSchemaErrors,
+    7: } from "../../schemas/trainingSchemas.js";
+    8: 
+    9: import {
+   10:   listTrainingsByUser,
+   11:   findTrainingById,
+   12:   createTrainingRecord,
+   13:   updateTrainingRecord,
+   14: } from "../../repositories/trainingRepository.js";
+   15: 
+   16: function trainingError(message, code, status, errors) {
+   17:   const error = new Error(message);
+   18:   error.name = "TrainingServiceError";
+   19:   error.code = code;
+   20:   error.status = status;
+   21:   error.publicMessage = message;
+   22: 
+   23:   if (errors) error.errors = errors;
+   24: 
+   25:   return error;
+   26: }
+   27: 
+   28: function requireUserId(userId) {
+   29:   if (typeof userId !== "string" || !userId.trim()) {
+   30:     throw trainingError(
+   31:       "Authentication is required.",
+   32:       "TRAINING_AUTH_REQUIRED",
+   33:       401,
+   34:     );
+   35:   }
+   36: 
+   37:   return userId.trim();
+   38: }
+   39: 
+   40: function requireTrainingId(trainingId) {
+   41:   if (
+   42:     typeof trainingId !== "string" ||
+   43:     !trainingId.trim() ||
+   44:     trainingId.length > 200
+   45:   ) {
+   46:     throw trainingError(
+   47:       "A valid Training identifier is required.",
+   48:       "TRAINING_ID_INVALID",
+   49:       400,
+   50:     );
+   51:   }
+   52: 
+   53:   return trainingId.trim();
+   54: }
+   55: 
+   56: function requireObject(value, field) {
+   57:   if (
+   58:     value === null ||
+   59:     typeof value !== "object" ||
+   60:     Array.isArray(value)
+   61:   ) {
+   62:     throw trainingError(
+   63:       `${field} must be a JSON object.`,
+   64:       "TRAINING_REQUEST_INVALID",
+   65:       400,
+   66:     );
+   67:   }
+   68: 
+   69:   return value;
+   70: }
+   71: 
+   72: function validateTraining(training) {
+   73:   requireObject(training, "Training");
+   74: 
+   75:   const result = completeTrainingSchema.safeParse(training);
+   76: 
+   77:   if (!result.success) {
+   78:     throw trainingError(
+   79:       "Training validation failed.",
+   80:       "TRAINING_VALIDATION_FAILED",
+   81:       400,
+   82:       formatTrainingSchemaErrors(result.error),
+   83:     );
+   84:   }
+   85: 
+   86:   return result.data;
+   87: }
+   88: 
+   89: function validateTrainingUpdates(updates) {
+   90:   const result = updateTrainingSchema.safeParse(updates);
+   91: 
+   92:   if (!result.success) {
+   93:     throw trainingError(
+   94:       "Training validation failed.",
+   95:       "TRAINING_VALIDATION_FAILED",
+   96:       400,
+   97:       formatTrainingSchemaErrors(result.error),
+   98:     );
+   99:   }
+  100: 
+  101:   return result.data;
+  102: }
+  103: 
+  104: function mergeTrainingUpdates(existing, changes) {
+  105:   const candidate = {
+  106:     ...existing,
+  107:     ...changes,
+  108:   };
+  109: 
+  110:   if (changes.provider) {
+  111:     candidate.provider = {
+  112:       ...existing.provider,
+  113:       ...changes.provider,
+  114:     };
+  115:   }
+  116: 
+  117:   if (changes.delivery) {
+  118:     candidate.delivery = {
+  119:       ...existing.delivery,
+  120:       ...changes.delivery,
+  121:       location: {
+  122:         ...existing.delivery.location,
+  123:         ...(changes.delivery.location || {}),
+  124:       },
+  125:     };
+  126:   }
+  127: 
+  128:   for (const field of [
+  129:     "dates",
+  130:     "completion",
+  131:     "visibility",
+  132:     "privateInformation",
+  133:   ]) {
+  134:     if (changes[field]) {
+  135:       candidate[field] = {
+  136:         ...existing[field],
+  137:         ...changes[field],
+  138:       };
+  139:     }
+  140:   }
+  141: 
+  142:   return candidate;
+  143: }
+  144: 
+  145: function requireValidRowVersion(value) {
+  146:   if (
+  147:     typeof value !== "string" ||
+  148:     !/^[A-Za-z0-9+/]{11}=$/.test(value)
+  149:   ) {
+  150:     throw trainingError(
+  151:       "A valid Training version is required.",
+  152:       "TRAINING_VERSION_INVALID",
+  153:       400,
+  154:     );
+  155:   }
+  156: 
+  157:   const bytes = Buffer.from(value, "base64");
+  158: 
+  159:   if (
+  160:     bytes.length !== 8 ||
+  161:     bytes.toString("base64") !== value
+  162:   ) {
+  163:     throw trainingError(
+  164:       "A valid Training version is required.",
+  165:       "TRAINING_VERSION_INVALID",
+  166:       400,
+  167:     );
+  168:   }
+  169: 
+  170:   return value;
+  171: }
+  172: 
+  173: function requireNoNewDocuments(documents) {
+  174:   if (documents !== undefined) {
+  175:     if (!Array.isArray(documents)) {
+  176:       throw trainingError(
+  177:         "Supporting documents must be an array.",
+  178:         "TRAINING_DOCUMENTS_INVALID",
+  179:         400,
+  180:       );
+  181:     }
+  182: 
+  183:     if (documents.length > 0) {
+  184:       throw trainingError(
+  185:         "Training document uploads are not available yet.",
+  186:         "TRAINING_DOCUMENTS_NOT_READY",
+  187:         400,
+  188:       );
+  189:     }
+  190:   }
+  191: }
+  192: 
+  193: function requireNoRelationshipUpdates(updates) {
+  194:   const restricted = [
+  195:     "skillRelationships",
+  196:     "certificationRelationships",
+  197:     "relatedCertificationIds",
+  198:     "relatedEducationIds",
+  199:     "relatedExperienceIds",
+  200:     "relatedProjectIds",
+  201:   ];
+  202: 
+  203:   for (const field of restricted) {
+  204:     if (Object.hasOwn(updates, field)) {
+  205:       throw trainingError(
+  206:         `Updating ${field} is not available yet.`,
+  207:         "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+  208:         400,
+  209:       );
+  210:     }
+  211:   }
+  212: }
+  213: 
+  214: function normalizeRecord(record) {
+  215:   if (!record) return null;
+  216: 
+  217:   return {
+  218:     ...record,
+  219:     createdAt: new Date(record.createdAt).toISOString(),
+  220:     updatedAt: new Date(record.updatedAt).toISOString(),
+  221:   };
+  222: }
+  223: 
+  224: function notFound() {
+  225:   return trainingError(
+  226:     "Training not found.",
+  227:     "TRAINING_NOT_FOUND",
+  228:     404,
+  229:   );
+  230: }
+  231: 
+  232: function versionConflict() {
+  233:   return trainingError(
+  234:     "Training was modified by another operation. Reload before saving.",
+  235:     "TRAINING_VERSION_CONFLICT",
+  236:     409,
+  237:   );
+  238: }
+  239: 
+  240: export async function getAuthenticatedTrainings({ userId }) {
+  241:   const authenticatedUserId = requireUserId(userId);
+  242:   const records = await listTrainingsByUser(authenticatedUserId);
+  243: 
+  244:   return records.map(normalizeRecord);
+  245: }
+  246: 
+  247: export async function getAuthenticatedTraining({
+  248:   userId,
+  249:   trainingId,
+  250: }) {
+  251:   const authenticatedUserId = requireUserId(userId);
+  252:   const id = requireTrainingId(trainingId);
+  253: 
+  254:   const record = await findTrainingById(authenticatedUserId, id);
+  255: 
+  256:   if (!record) throw notFound();
+  257: 
+  258:   return normalizeRecord(record);
+  259: }
+  260: 
+  261: export async function createAuthenticatedTraining({
+  262:   userId,
+  263:   training,
+  264: }) {
+  265:   const authenticatedUserId = requireUserId(userId);
+  266:   const input = requireObject(training, "Training");
+  267: 
+  268:   requireNoNewDocuments(input.supportingDocuments);
+  269: 
+  270:   const now = new Date().toISOString();
+  271: 
+  272:   // Remove backend-managed metadata from the client payload.
+  273:   const {
+  274:     rowVersion: _clientRowVersion,
+  275:     userId: _clientUserId,
+  276:     user_id: _clientUserIdSql,
+  277:     ...clientModel
+  278:   } = input;
+  279: 
+  280:   const candidate = validateTraining({
+  281:     ...clientModel,
+  282:     id: randomUUID(),
+  283:     createdAt: now,
+  284:     updatedAt: now,
+  285:   });
+  286: 
+  287:   try {
+  288:     const created = await createTrainingRecord(
+  289:       authenticatedUserId,
+  290:       candidate,
+  291:     );
+  292: 
+  293:     return normalizeRecord(created);
+  294:   } catch (error) {
+  295:     const number =
+  296:       error.number ??
+  297:       error.originalError?.number ??
+  298:       error.cause?.number;
+  299: 
+  300:     if (number === 2601 || number === 2627) {
+  301:       throw trainingError(
+  302:         "A Training identifier already exists.",
+  303:         "TRAINING_ID_CONFLICT",
+  304:         409,
+  305:       );
+  306:     }
+  307: 
+  308:     throw error;
+  309:   }
+  310: }
+  311: 
+  312: export async function updateAuthenticatedTraining({
+  313:   userId,
+  314:   trainingId,
+  315:   updates,
+  316:   rowVersion,
+  317: }) {
+  318:   const authenticatedUserId = requireUserId(userId);
+  319:   const id = requireTrainingId(trainingId);
+  320:   const expectedVersion = requireValidRowVersion(rowVersion);
+  321:   const changes = requireObject(updates, "Training updates");
+  322: 
+  323:   if (!Object.keys(changes).length) {
+  324:     throw trainingError(
+  325:       "Provide at least one Training field to update.",
+  326:       "TRAINING_REQUEST_INVALID",
+  327:       400,
+  328:     );
+  329:   }
+  330: 
+  331:   const forbidden = [
+  332:     "id",
+  333:     "userId",
+  334:     "user_id",
+  335:     "createdAt",
+  336:     "updatedAt",
+  337:     "rowVersion",
+  338:     "modelVersion",
+  339:   ];
+  340: 
+  341:   for (const field of forbidden) {
+  342:     if (Object.hasOwn(changes, field)) {
+  343:       throw trainingError(
+  344:         `${field} cannot be updated.`,
+  345:         "TRAINING_SERVER_FIELD_FORBIDDEN",
+  346:         400,
+  347:       );
+  348:     }
+  349:   }
+  350: 
+  351:   requireNoRelationshipUpdates(changes);
+  352: 
+  353:   if (Object.hasOwn(changes, "supportingDocuments")) {
+  354:     throw trainingError(
+  355:       "Updating Training documents is not available yet.",
+  356:       "TRAINING_DOCUMENTS_NOT_READY",
+  357:       400,
+  358:     );
+  359:   }
+  360: 
+  361:   // Reject unsupported top-level fields before database access.
+  362:   const allowedFields = new Set([
+  363:     "title",
+  364:     "trainingType",
+  365:     "provider",
+  366:     "delivery",
+  367:     "dates",
+  368:     "completion",
+  369:     "description",
+  370:     "instructors",
+  371:     "topics",
+  372:     "learningOutcomes",
+  373:     "visibility",
+  374:     "privateInformation",
+  375:     "source",
+  376:     "sourceContext",
+  377:     "status",
+  378:   ]);
+  379: 
+  380:   for (const field of Object.keys(changes)) {
+  381:     if (!allowedFields.has(field)) {
+  382:       throw trainingError(
+  383:         "Training validation failed.",
+  384:         "TRAINING_VALIDATION_FAILED",
+  385:         400,
+  386:         [{
+  387:           field,
+  388:           code: "unrecognized_keys",
+  389:           message: "Unsupported Training field.",
+  390:         }],
+  391:       );
+  392:     }
+  393:   }
+  394: 
+  395:   const existing = await findTrainingById(
+  396:     authenticatedUserId,
+  397:     id,
+  398:   );
+  399: 
+  400:   if (!existing) throw notFound();
+  401: 
+  402:   if (existing.rowVersion !== expectedVersion) {
+  403:     throw versionConflict();
+  404:   }
+  405: 
+  406:   const {
+  407:     rowVersion: _storedVersion,
+  408:     ...storedModel
+  409:   } = normalizeRecord(existing);
+  410: 
+  411:   const merged = mergeTrainingUpdates(storedModel, changes);
+  412: 
+  413:   // Validate PATCH fields after merging nested structures.
+  414:   const validatedChanges = validateTrainingUpdates(
+  415:     Object.fromEntries(
+  416:       Object.keys(changes).map((field) => [
+  417:         field,
+  418:         merged[field],
+  419:       ]),
+  420:     ),
+  421:   );
+  422: 
+  423:   const candidate = validateTraining({
+  424:     ...mergeTrainingUpdates(storedModel, validatedChanges),
+  425:     id: storedModel.id,
+  426:     createdAt: storedModel.createdAt,
+  427:     updatedAt: new Date().toISOString(),
+  428:   });
+  429: 
+  430:   const updated = await updateTrainingRecord(
+  431:     authenticatedUserId,
+  432:     candidate,
+  433:     expectedVersion,
+  434:   );
+  435: 
+  436:   if (!updated) {
+  437:     const current = await findTrainingById(
+  438:       authenticatedUserId,
+  439:       id,
+  440:     );
+  441: 
+  442:     if (!current) throw notFound();
+  443: 
+  444:     throw versionConflict();
+  445:   }
+  446: 
+  447:   return normalizeRecord(updated);
+  448: }

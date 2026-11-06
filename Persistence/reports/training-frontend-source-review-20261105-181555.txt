@@ -1,0 +1,3347 @@
+TRAINING FRONTEND SOURCE REVIEW
+Generated: 11/05/2026 18:15:55
+Files: 6
+
+================================================================================
+FILE: src\context\TrainingDataContext.jsx
+================================================================================
+    1: import {
+    2:   createContext,
+    3:   useCallback,
+    4:   useContext,
+    5:   useEffect,
+    6:   useMemo,
+    7:   useState,
+    8: } from "react";
+    9: 
+   10: import {
+   11:   archiveTraining as archiveTrainingService,
+   12:   createTraining as createTrainingService,
+   13:   deleteTraining as deleteTrainingService,
+   14:   getTrainingById as getTrainingByIdService,
+   15:   getTrainingRecords as getTrainingRecordsService,
+   16:   replaceTrainingRecords as replaceTrainingRecordsService,
+   17:   restoreTraining as restoreTrainingService,
+   18:   updateTraining as updateTrainingService,
+   19:   validateTrainingDraft as validateTrainingDraftService,
+   20: } from "../services/Training/trainingService.js";
+   21: 
+   22: import { TRAINING_STORAGE_KEY } from "../services/Training/trainingStorage.js";
+   23: 
+   24: /*
+   25:  * =========================================
+   26:  * Context
+   27:  * =========================================
+   28:  */
+   29: 
+   30: const TrainingDataContext = createContext(null);
+   31: 
+   32: /*
+   33:  * =========================================
+   34:  * Initial Operation
+   35:  * =========================================
+   36:  */
+   37: 
+   38: const INITIAL_OPERATION = {
+   39:   type: "",
+   40:   trainingId: "",
+   41:   status: "idle",
+   42: };
+   43: 
+   44: /*
+   45:  * =========================================
+   46:  * Error Normalization
+   47:  * =========================================
+   48:  */
+   49: 
+   50: function normalizeTrainingContextError(error) {
+   51:   return {
+   52:     message:
+   53:       error?.publicMessage ||
+   54:       error?.message ||
+   55:       "An unexpected Training Library error occurred.",
+   56: 
+   57:     code: error?.code || "TRAINING_OPERATION_FAILED",
+   58: 
+   59:     status: Number(error?.status) || 500,
+   60: 
+   61:     errors: Array.isArray(error?.errors) ? error.errors : [],
+   62: 
+   63:     warnings: Array.isArray(error?.warnings) ? error.warnings : [],
+   64: 
+   65:     fieldErrors:
+   66:       error?.fieldErrors && typeof error.fieldErrors === "object"
+   67:         ? error.fieldErrors
+   68:         : {},
+   69: 
+   70:     validation:
+   71:       error?.validation && typeof error.validation === "object"
+   72:         ? error.validation
+   73:         : null,
+   74: 
+   75:     details:
+   76:       error?.details && typeof error.details === "object"
+   77:         ? error.details
+   78:         : null,
+   79: 
+   80:     originalError: error,
+   81:   };
+   82: }
+   83: 
+   84: /*
+   85:  * =========================================
+   86:  * Library Sorting
+   87:  * =========================================
+   88:  */
+   89: 
+   90: function getTrainingDateValue(training) {
+   91:   const value =
+   92:     training?.dates?.endDate ||
+   93:     training?.dates?.startDate ||
+   94:     training?.updatedAt ||
+   95:     "";
+   96: 
+   97:   const timestamp = new Date(value).getTime();
+   98: 
+   99:   return Number.isFinite(timestamp) ? timestamp : 0;
+  100: }
+  101: 
+  102: function sortTrainingLibrary(trainingRecords = []) {
+  103:   return [...trainingRecords].sort((firstTraining, secondTraining) => {
+  104:     const firstCurrent =
+  105:       firstTraining?.dates?.isCurrent === true ||
+  106:       firstTraining?.completion?.status === "in-progress";
+  107: 
+  108:     const secondCurrent =
+  109:       secondTraining?.dates?.isCurrent === true ||
+  110:       secondTraining?.completion?.status === "in-progress";
+  111: 
+  112:     if (firstCurrent !== secondCurrent) {
+  113:       return firstCurrent ? -1 : 1;
+  114:     }
+  115: 
+  116:     const dateDifference =
+  117:       getTrainingDateValue(secondTraining) -
+  118:       getTrainingDateValue(firstTraining);
+  119: 
+  120:     if (dateDifference !== 0) {
+  121:       return dateDifference;
+  122:     }
+  123: 
+  124:     return String(firstTraining?.title || "").localeCompare(
+  125:       String(secondTraining?.title || ""),
+  126:       undefined,
+  127:       {
+  128:         sensitivity: "base",
+  129:       },
+  130:     );
+  131:   });
+  132: }
+  133: 
+  134: /*
+  135:  * =========================================
+  136:  * Provider
+  137:  * =========================================
+  138:  */
+  139: 
+  140: export function TrainingDataProvider({ children }) {
+  141:   const [trainingRecords, setTrainingRecords] = useState([]);
+  142: 
+  143:   const [isLoading, setIsLoading] = useState(true);
+  144: 
+  145:   const [loadStatus, setLoadStatus] = useState("idle");
+  146: 
+  147:   const [saveStatus, setSaveStatus] = useState("idle");
+  148: 
+  149:   const [error, setError] = useState(null);
+  150: 
+  151:   const [operation, setOperation] = useState(INITIAL_OPERATION);
+  152: 
+  153:   /*
+  154:    * =========================================
+  155:    * Status Management
+  156:    * =========================================
+  157:    */
+  158: 
+  159:   const clearError = useCallback(() => {
+  160:     setError(null);
+  161:   }, []);
+  162: 
+  163:   const resetSaveStatus = useCallback(() => {
+  164:     setSaveStatus("idle");
+  165:   }, []);
+  166: 
+  167:   const resetOperation = useCallback(() => {
+  168:     setOperation(INITIAL_OPERATION);
+  169:   }, []);
+  170: 
+  171:   /*
+  172:    * =========================================
+  173:    * Load Training Records
+  174:    * =========================================
+  175:    */
+  176: 
+  177:   const refreshTraining = useCallback(
+  178:     async ({ includeArchived = true, showLoading = true } = {}) => {
+  179:       try {
+  180:         if (showLoading) {
+  181:           setIsLoading(true);
+  182:           setLoadStatus("loading");
+  183:         }
+  184: 
+  185:         setError(null);
+  186: 
+  187:         const loadedRecords = await getTrainingRecordsService({
+  188:           includeArchived,
+  189:         });
+  190: 
+  191:         const nextRecords = sortTrainingLibrary(
+  192:           Array.isArray(loadedRecords) ? loadedRecords : [],
+  193:         );
+  194: 
+  195:         setTrainingRecords(nextRecords);
+  196:         setLoadStatus("success");
+  197: 
+  198:         return nextRecords;
+  199:       } catch (loadError) {
+  200:         console.error("Unable to load training records:", loadError);
+  201: 
+  202:         setLoadStatus("error");
+  203:         setError(normalizeTrainingContextError(loadError));
+  204: 
+  205:         throw loadError;
+  206:       } finally {
+  207:         if (showLoading) {
+  208:           setIsLoading(false);
+  209:         }
+  210:       }
+  211:     },
+  212:     [],
+  213:   );
+  214: 
+  215:   /*
+  216:    * =========================================
+  217:    * Initial Load
+  218:    * =========================================
+  219:    */
+  220: 
+  221:   useEffect(() => {
+  222:     let isActive = true;
+  223: 
+  224:     const loadInitialTraining = async () => {
+  225:       try {
+  226:         setIsLoading(true);
+  227:         setLoadStatus("loading");
+  228:         setError(null);
+  229: 
+  230:         const loadedRecords = await getTrainingRecordsService({
+  231:           includeArchived: true,
+  232:         });
+  233: 
+  234:         if (!isActive) {
+  235:           return;
+  236:         }
+  237: 
+  238:         setTrainingRecords(
+  239:           sortTrainingLibrary(
+  240:             Array.isArray(loadedRecords) ? loadedRecords : [],
+  241:           ),
+  242:         );
+  243: 
+  244:         setLoadStatus("success");
+  245:       } catch (loadError) {
+  246:         if (!isActive) {
+  247:           return;
+  248:         }
+  249: 
+  250:         console.error("Unable to load training records:", loadError);
+  251: 
+  252:         setTrainingRecords([]);
+  253:         setLoadStatus("error");
+  254:         setError(normalizeTrainingContextError(loadError));
+  255:       } finally {
+  256:         if (isActive) {
+  257:           setIsLoading(false);
+  258:         }
+  259:       }
+  260:     };
+  261: 
+  262:     loadInitialTraining();
+  263: 
+  264:     return () => {
+  265:       isActive = false;
+  266:     };
+  267:   }, []);
+  268: 
+  269:   /*
+  270:    * =========================================
+  271:    * Cross-Tab Synchronization
+  272:    * =========================================
+  273:    */
+  274: 
+  275:   useEffect(() => {
+  276:     const handleStorageChange = (event) => {
+  277:       if (
+  278:         event.storageArea !== window.localStorage ||
+  279:         event.key !== TRAINING_STORAGE_KEY
+  280:       ) {
+  281:         return;
+  282:       }
+  283: 
+  284:       refreshTraining({
+  285:         includeArchived: true,
+  286:         showLoading: false,
+  287:       }).catch(() => {
+  288:         /*
+  289:          * The context already records the error.
+  290:          */
+  291:       });
+  292:     };
+  293: 
+  294:     window.addEventListener("storage", handleStorageChange);
+  295: 
+  296:     return () => {
+  297:       window.removeEventListener("storage", handleStorageChange);
+  298:     };
+  299:   }, [refreshTraining]);
+  300: 
+  301:   /*
+  302:    * =========================================
+  303:    * Get Training By ID
+  304:    * =========================================
+  305:    */
+  306: 
+  307:   const getTrainingById = useCallback(
+  308:     async (trainingId) => {
+  309:       const existingTraining = trainingRecords.find(
+  310:         (training) => training.id === trainingId,
+  311:       );
+  312: 
+  313:       if (existingTraining) {
+  314:         return existingTraining;
+  315:       }
+  316: 
+  317:       try {
+  318:         setError(null);
+  319: 
+  320:         return await getTrainingByIdService(trainingId);
+  321:       } catch (getError) {
+  322:         console.error("Unable to retrieve training record:", getError);
+  323: 
+  324:         setError(normalizeTrainingContextError(getError));
+  325: 
+  326:         throw getError;
+  327:       }
+  328:     },
+  329:     [trainingRecords],
+  330:   );
+  331: 
+  332:   /*
+  333:    * =========================================
+  334:    * Create Training
+  335:    * =========================================
+  336:    */
+  337: 
+  338:   const createTraining = useCallback(async (trainingData) => {
+  339:     try {
+  340:       setSaveStatus("saving");
+  341:       setError(null);
+  342: 
+  343:       setOperation({
+  344:         type: "create",
+  345:         trainingId: "",
+  346:         status: "loading",
+  347:       });
+  348: 
+  349:       const createdTraining = await createTrainingService(trainingData);
+  350: 
+  351:       setTrainingRecords((currentRecords) =>
+  352:         sortTrainingLibrary([
+  353:           createdTraining,
+  354: 
+  355:           ...currentRecords.filter(
+  356:             (training) => training.id !== createdTraining.id,
+  357:           ),
+  358:         ]),
+  359:       );
+  360: 
+  361:       setSaveStatus("success");
+  362: 
+  363:       setOperation({
+  364:         type: "create",
+  365:         trainingId: createdTraining.id,
+  366:         status: "success",
+  367:       });
+  368: 
+  369:       return createdTraining;
+  370:     } catch (createError) {
+  371:       console.error("Unable to create training record:", createError);
+  372: 
+  373:       setSaveStatus("error");
+  374: 
+  375:       setOperation({
+  376:         type: "create",
+  377:         trainingId: "",
+  378:         status: "error",
+  379:       });
+  380: 
+  381:       setError(normalizeTrainingContextError(createError));
+  382: 
+  383:       throw createError;
+  384:     }
+  385:   }, []);
+  386: 
+  387:   /*
+  388:    * =========================================
+  389:    * Update Training
+  390:    * =========================================
+  391:    */
+  392: 
+  393:   const updateTraining = useCallback(async (trainingId, updates) => {
+  394:     try {
+  395:       setSaveStatus("saving");
+  396:       setError(null);
+  397: 
+  398:       setOperation({
+  399:         type: "update",
+  400:         trainingId,
+  401:         status: "loading",
+  402:       });
+  403: 
+  404:       const updatedTraining = await updateTrainingService(trainingId, updates);
+  405: 
+  406:       setTrainingRecords((currentRecords) =>
+  407:         sortTrainingLibrary(
+  408:           currentRecords.map((training) =>
+  409:             training.id === trainingId ? updatedTraining : training,
+  410:           ),
+  411:         ),
+  412:       );
+  413: 
+  414:       setSaveStatus("success");
+  415: 
+  416:       setOperation({
+  417:         type: "update",
+  418:         trainingId,
+  419:         status: "success",
+  420:       });
+  421: 
+  422:       return updatedTraining;
+  423:     } catch (updateError) {
+  424:       console.error("Unable to update training record:", updateError);
+  425: 
+  426:       setSaveStatus("error");
+  427: 
+  428:       setOperation({
+  429:         type: "update",
+  430:         trainingId,
+  431:         status: "error",
+  432:       });
+  433: 
+  434:       setError(normalizeTrainingContextError(updateError));
+  435: 
+  436:       throw updateError;
+  437:     }
+  438:   }, []);
+  439: 
+  440:   /*
+  441:    * =========================================
+  442:    * Archive Training
+  443:    * =========================================
+  444:    */
+  445: 
+  446:   const archiveTraining = useCallback(async (trainingId) => {
+  447:     try {
+  448:       setSaveStatus("saving");
+  449:       setError(null);
+  450: 
+  451:       setOperation({
+  452:         type: "archive",
+  453:         trainingId,
+  454:         status: "loading",
+  455:       });
+  456: 
+  457:       const archivedTraining = await archiveTrainingService(trainingId);
+  458: 
+  459:       setTrainingRecords((currentRecords) =>
+  460:         sortTrainingLibrary(
+  461:           currentRecords.map((training) =>
+  462:             training.id === trainingId ? archivedTraining : training,
+  463:           ),
+  464:         ),
+  465:       );
+  466: 
+  467:       setSaveStatus("success");
+  468: 
+  469:       setOperation({
+  470:         type: "archive",
+  471:         trainingId,
+  472:         status: "success",
+  473:       });
+  474: 
+  475:       return archivedTraining;
+  476:     } catch (archiveError) {
+  477:       console.error("Unable to archive training record:", archiveError);
+  478: 
+  479:       setSaveStatus("error");
+  480: 
+  481:       setOperation({
+  482:         type: "archive",
+  483:         trainingId,
+  484:         status: "error",
+  485:       });
+  486: 
+  487:       setError(normalizeTrainingContextError(archiveError));
+  488: 
+  489:       throw archiveError;
+  490:     }
+  491:   }, []);
+  492: 
+  493:   /*
+  494:    * =========================================
+  495:    * Restore Training
+  496:    * =========================================
+  497:    */
+  498: 
+  499:   const restoreTraining = useCallback(async (trainingId) => {
+  500:     try {
+  501:       setSaveStatus("saving");
+  502:       setError(null);
+  503: 
+  504:       setOperation({
+  505:         type: "restore",
+  506:         trainingId,
+  507:         status: "loading",
+  508:       });
+  509: 
+  510:       const restoredTraining = await restoreTrainingService(trainingId);
+  511: 
+  512:       setTrainingRecords((currentRecords) =>
+  513:         sortTrainingLibrary(
+  514:           currentRecords.map((training) =>
+  515:             training.id === trainingId ? restoredTraining : training,
+  516:           ),
+  517:         ),
+  518:       );
+  519: 
+  520:       setSaveStatus("success");
+  521: 
+  522:       setOperation({
+  523:         type: "restore",
+  524:         trainingId,
+  525:         status: "success",
+  526:       });
+  527: 
+  528:       return restoredTraining;
+  529:     } catch (restoreError) {
+  530:       console.error("Unable to restore training record:", restoreError);
+  531: 
+  532:       setSaveStatus("error");
+  533: 
+  534:       setOperation({
+  535:         type: "restore",
+  536:         trainingId,
+  537:         status: "error",
+  538:       });
+  539: 
+  540:       setError(normalizeTrainingContextError(restoreError));
+  541: 
+  542:       throw restoreError;
+  543:     }
+  544:   }, []);
+  545: 
+  546:   /*
+  547:    * =========================================
+  548:    * Delete Training
+  549:    * =========================================
+  550:    */
+  551: 
+  552:   const deleteTraining = useCallback(async (trainingId) => {
+  553:     try {
+  554:       setSaveStatus("saving");
+  555:       setError(null);
+  556: 
+  557:       setOperation({
+  558:         type: "delete",
+  559:         trainingId,
+  560:         status: "loading",
+  561:       });
+  562: 
+  563:       const deletionResult = await deleteTrainingService(trainingId);
+  564: 
+  565:       setTrainingRecords((currentRecords) =>
+  566:         currentRecords.filter((training) => training.id !== trainingId),
+  567:       );
+  568: 
+  569:       setSaveStatus("success");
+  570: 
+  571:       setOperation({
+  572:         type: "delete",
+  573:         trainingId,
+  574:         status: "success",
+  575:       });
+  576: 
+  577:       return deletionResult;
+  578:     } catch (deleteError) {
+  579:       console.error("Unable to delete training record:", deleteError);
+  580: 
+  581:       setSaveStatus("error");
+  582: 
+  583:       setOperation({
+  584:         type: "delete",
+  585:         trainingId,
+  586:         status: "error",
+  587:       });
+  588: 
+  589:       setError(normalizeTrainingContextError(deleteError));
+  590: 
+  591:       throw deleteError;
+  592:     }
+  593:   }, []);
+  594: 
+  595:   /*
+  596:    * =========================================
+  597:    * Replace Training Library
+  598:    * =========================================
+  599:    */
+  600: 
+  601:   const replaceTrainingRecords = useCallback(async (trainingValues) => {
+  602:     try {
+  603:       setSaveStatus("saving");
+  604:       setError(null);
+  605: 
+  606:       setOperation({
+  607:         type: "replace",
+  608:         trainingId: "",
+  609:         status: "loading",
+  610:       });
+  611: 
+  612:       const replacedRecords =
+  613:         await replaceTrainingRecordsService(trainingValues);
+  614: 
+  615:       const nextRecords = sortTrainingLibrary(replacedRecords);
+  616: 
+  617:       setTrainingRecords(nextRecords);
+  618: 
+  619:       setSaveStatus("success");
+  620: 
+  621:       setOperation({
+  622:         type: "replace",
+  623:         trainingId: "",
+  624:         status: "success",
+  625:       });
+  626: 
+  627:       return nextRecords;
+  628:     } catch (replaceError) {
+  629:       console.error("Unable to replace Training Library:", replaceError);
+  630: 
+  631:       setSaveStatus("error");
+  632: 
+  633:       setOperation({
+  634:         type: "replace",
+  635:         trainingId: "",
+  636:         status: "error",
+  637:       });
+  638: 
+  639:       setError(normalizeTrainingContextError(replaceError));
+  640: 
+  641:       throw replaceError;
+  642:     }
+  643:   }, []);
+  644: 
+  645:   /*
+  646:    * =========================================
+  647:    * Draft Validation
+  648:    * =========================================
+  649:    */
+  650: 
+  651:   const validateTrainingDraft = useCallback(
+  652:     async (trainingData, validationOptions = {}) => {
+  653:       try {
+  654:         return await validateTrainingDraftService(
+  655:           trainingData,
+  656:           validationOptions,
+  657:         );
+  658:       } catch (validationError) {
+  659:         console.error("Unable to validate training record:", validationError);
+  660: 
+  661:         setError(normalizeTrainingContextError(validationError));
+  662: 
+  663:         throw validationError;
+  664:       }
+  665:     },
+  666:     [],
+  667:   );
+  668: 
+  669:   /*
+  670:    * =========================================
+  671:    * Derived Collections
+  672:    * =========================================
+  673:    */
+  674: 
+  675:   const activeTrainingRecords = useMemo(
+  676:     () => trainingRecords.filter((training) => training.status !== "archived"),
+  677:     [trainingRecords],
+  678:   );
+  679: 
+  680:   const archivedTrainingRecords = useMemo(
+  681:     () => trainingRecords.filter((training) => training.status === "archived"),
+  682:     [trainingRecords],
+  683:   );
+  684: 
+  685:   const plannedTrainingRecords = useMemo(
+  686:     () =>
+  687:       activeTrainingRecords.filter(
+  688:         (training) => training.completion?.status === "planned",
+  689:       ),
+  690:     [activeTrainingRecords],
+  691:   );
+  692: 
+  693:   const inProgressTrainingRecords = useMemo(
+  694:     () =>
+  695:       activeTrainingRecords.filter(
+  696:         (training) =>
+  697:           training.completion?.status === "in-progress" ||
+  698:           training.dates?.isCurrent === true,
+  699:       ),
+  700:     [activeTrainingRecords],
+  701:   );
+  702: 
+  703:   const completedTrainingRecords = useMemo(
+  704:     () =>
+  705:       activeTrainingRecords.filter(
+  706:         (training) => training.completion?.status === "completed",
+  707:       ),
+  708:     [activeTrainingRecords],
+  709:   );
+  710: 
+  711:   const pausedTrainingRecords = useMemo(
+  712:     () =>
+  713:       activeTrainingRecords.filter(
+  714:         (training) => training.completion?.status === "paused",
+  715:       ),
+  716:     [activeTrainingRecords],
+  717:   );
+  718: 
+  719:   const withdrawnTrainingRecords = useMemo(
+  720:     () =>
+  721:       activeTrainingRecords.filter(
+  722:         (training) => training.completion?.status === "withdrawn",
+  723:       ),
+  724:     [activeTrainingRecords],
+  725:   );
+  726: 
+  727:   const trainingById = useMemo(
+  728:     () => new Map(trainingRecords.map((training) => [training.id, training])),
+  729:     [trainingRecords],
+  730:   );
+  731: 
+  732:   const trainingByType = useMemo(
+  733:     () =>
+  734:       activeTrainingRecords.reduce((groups, training) => {
+  735:         const trainingType = training.trainingType || "other";
+  736: 
+  737:         if (!groups[trainingType]) {
+  738:           groups[trainingType] = [];
+  739:         }
+  740: 
+  741:         groups[trainingType].push(training);
+  742: 
+  743:         return groups;
+  744:       }, {}),
+  745:     [activeTrainingRecords],
+  746:   );
+  747: 
+  748:   const statistics = useMemo(
+  749:     () => ({
+  750:       total: trainingRecords.length,
+  751: 
+  752:       active: activeTrainingRecords.length,
+  753: 
+  754:       archived: archivedTrainingRecords.length,
+  755: 
+  756:       planned: plannedTrainingRecords.length,
+  757: 
+  758:       inProgress: inProgressTrainingRecords.length,
+  759: 
+  760:       completed: completedTrainingRecords.length,
+  761: 
+  762:       paused: pausedTrainingRecords.length,
+  763: 
+  764:       withdrawn: withdrawnTrainingRecords.length,
+  765: 
+  766:       withCredentials: activeTrainingRecords.filter(
+  767:         (training) =>
+  768:           training.completion?.certificateEarned === true ||
+  769:           Boolean(training.completion?.credentialId) ||
+  770:           Boolean(training.completion?.credentialUrl) ||
+  771:           (Array.isArray(training.certificationRelationships) &&
+  772:             training.certificationRelationships.length > 0),
+  773:       ).length,
+  774: 
+  775:       withSkills: activeTrainingRecords.filter(
+  776:         (training) =>
+  777:           Array.isArray(training.skillRelationships) &&
+  778:           training.skillRelationships.length > 0,
+  779:       ).length,
+  780: 
+  781:       withDocuments: activeTrainingRecords.filter(
+  782:         (training) =>
+  783:           Array.isArray(training.supportingDocuments) &&
+  784:           training.supportingDocuments.length > 0,
+  785:       ).length,
+  786:     }),
+  787:     [
+  788:       trainingRecords,
+  789:       activeTrainingRecords,
+  790:       archivedTrainingRecords,
+  791:       plannedTrainingRecords,
+  792:       inProgressTrainingRecords,
+  793:       completedTrainingRecords,
+  794:       pausedTrainingRecords,
+  795:       withdrawnTrainingRecords,
+  796:     ],
+  797:   );
+  798: 
+  799:   /*
+  800:    * =========================================
+  801:    * Context Value
+  802:    * =========================================
+  803:    */
+  804: 
+  805:   const contextValue = useMemo(
+  806:     () => ({
+  807:       /*
+  808:        * Collections
+  809:        */
+  810: 
+  811:       trainingRecords,
+  812: 
+  813:       activeTrainingRecords,
+  814:       archivedTrainingRecords,
+  815: 
+  816:       plannedTrainingRecords,
+  817:       inProgressTrainingRecords,
+  818:       completedTrainingRecords,
+  819:       pausedTrainingRecords,
+  820:       withdrawnTrainingRecords,
+  821: 
+  822:       trainingById,
+  823:       trainingByType,
+  824: 
+  825:       statistics,
+  826: 
+  827:       /*
+  828:        * Status
+  829:        */
+  830: 
+  831:       isLoading,
+  832:       loadStatus,
+  833:       saveStatus,
+  834:       operation,
+  835:       error,
+  836: 
+  837:       /*
+  838:        * Read Operations
+  839:        */
+  840: 
+  841:       refreshTraining,
+  842:       getTrainingById,
+  843: 
+  844:       /*
+  845:        * Write Operations
+  846:        */
+  847: 
+  848:       createTraining,
+  849:       updateTraining,
+  850:       archiveTraining,
+  851:       restoreTraining,
+  852:       deleteTraining,
+  853:       replaceTrainingRecords,
+  854: 
+  855:       /*
+  856:        * Validation
+  857:        */
+  858: 
+  859:       validateTrainingDraft,
+  860: 
+  861:       /*
+  862:        * Status Management
+  863:        */
+  864: 
+  865:       clearError,
+  866:       resetSaveStatus,
+  867:       resetOperation,
+  868:     }),
+  869:     [
+  870:       trainingRecords,
+  871:       activeTrainingRecords,
+  872:       archivedTrainingRecords,
+  873:       plannedTrainingRecords,
+  874:       inProgressTrainingRecords,
+  875:       completedTrainingRecords,
+  876:       pausedTrainingRecords,
+  877:       withdrawnTrainingRecords,
+  878:       trainingById,
+  879:       trainingByType,
+  880:       statistics,
+  881:       isLoading,
+  882:       loadStatus,
+  883:       saveStatus,
+  884:       operation,
+  885:       error,
+  886:       refreshTraining,
+  887:       getTrainingById,
+  888:       createTraining,
+  889:       updateTraining,
+  890:       archiveTraining,
+  891:       restoreTraining,
+  892:       deleteTraining,
+  893:       replaceTrainingRecords,
+  894:       validateTrainingDraft,
+  895:       clearError,
+  896:       resetSaveStatus,
+  897:       resetOperation,
+  898:     ],
+  899:   );
+  900: 
+  901:   return (
+  902:     <TrainingDataContext.Provider value={contextValue}>
+  903:       {children}
+  904:     </TrainingDataContext.Provider>
+  905:   );
+  906: }
+  907: 
+  908: /*
+  909:  * =========================================
+  910:  * Context Hook
+  911:  * =========================================
+  912:  */
+  913: 
+  914: export function useTrainingData() {
+  915:   const context = useContext(TrainingDataContext);
+  916: 
+  917:   if (!context) {
+  918:     throw new Error(
+  919:       "useTrainingData must be used inside TrainingDataProvider.",
+  920:     );
+  921:   }
+  922: 
+  923:   return context;
+  924: }
+
+================================================================================
+FILE: src\services\Training\trainingService.js
+================================================================================
+    1: import {
+    2:   createEmptyTraining,
+    3:   createTraining as createTrainingModel,
+    4:   normalizeTraining,
+    5:   normalizeTrainingCollection,
+    6:   updateTrainingModel,
+    7: } from "../../models/trainingModel.js";
+    8: 
+    9: import { deleteStoredDocuments } from "../Documents/documentStorage.js";
+   10: 
+   11: import { assertValidTraining, validateTraining } from "./trainingValidation.js";
+   12: 
+   13: import { readStoredTraining } from "./trainingStorage.js";
+   14: 
+   15: import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
+   16: 
+   17: function createTrainingServiceError({
+   18:   message,
+   19:   publicMessage,
+   20:   code,
+   21:   status = 500,
+   22:   details = null,
+   23: }) {
+   24:   const error = new Error(message);
+   25: 
+   26:   error.name = "TrainingServiceError";
+   27:   error.code = code;
+   28:   error.status = status;
+   29:   error.publicMessage = publicMessage;
+   30:   error.details = details;
+   31: 
+   32:   return error;
+   33: }
+   34: 
+   35: function createTrainingNotFoundError(trainingId) {
+   36:   return createTrainingServiceError({
+   37:     message: `Training record "${trainingId}" was not found.`,
+   38:     publicMessage: "The requested training record could not be found.",
+   39:     code: "TRAINING_NOT_FOUND",
+   40:     status: 404,
+   41:   });
+   42: }
+   43: 
+   44: function createTrainingCandidate(trainingData = {}) {
+   45:   const defaults = createEmptyTraining();
+   46: 
+   47:   const source =
+   48:     trainingData && typeof trainingData === "object" ? trainingData : {};
+   49: 
+   50:   return {
+   51:     ...defaults,
+   52:     ...source,
+   53: 
+   54:     provider: {
+   55:       ...defaults.provider,
+   56:       ...source.provider,
+   57:     },
+   58: 
+   59:     delivery: {
+   60:       ...defaults.delivery,
+   61:       ...source.delivery,
+   62: 
+   63:       location: {
+   64:         ...defaults.delivery.location,
+   65:         ...source.delivery?.location,
+   66:       },
+   67:     },
+   68: 
+   69:     dates: {
+   70:       ...defaults.dates,
+   71:       ...source.dates,
+   72:     },
+   73: 
+   74:     completion: {
+   75:       ...defaults.completion,
+   76:       ...source.completion,
+   77:     },
+   78: 
+   79:     visibility: {
+   80:       ...defaults.visibility,
+   81:       ...source.visibility,
+   82:     },
+   83: 
+   84:     privateInformation: {
+   85:       ...defaults.privateInformation,
+   86:       ...source.privateInformation,
+   87:     },
+   88:   };
+   89: }
+   90: 
+   91: export async function getTrainingRecords({ includeArchived = false } = {}) {
+   92:   const records = readStoredTraining();
+   93: 
+   94:   return includeArchived
+   95:     ? records
+   96:     : records.filter((training) => training.status !== "archived");
+   97: }
+   98: 
+   99: export const getTraining = getTrainingRecords;
+  100: 
+  101: export async function getTrainingById(trainingId) {
+  102:   if (!trainingId) {
+  103:     throw createTrainingServiceError({
+  104:       message: "A training ID is required.",
+  105:       publicMessage: "The training record could not be identified.",
+  106:       code: "TRAINING_ID_REQUIRED",
+  107:       status: 400,
+  108:     });
+  109:   }
+  110: 
+  111:   const training = readStoredTraining().find(
+  112:     (record) => record.id === trainingId,
+  113:   );
+  114: 
+  115:   if (!training) {
+  116:     throw createTrainingNotFoundError(trainingId);
+  117:   }
+  118: 
+  119:   return training;
+  120: }
+  121: 
+  122: export async function createTraining(trainingData) {
+  123:   const records = readStoredTraining();
+  124: 
+  125:   const candidate = createTrainingCandidate(trainingData);
+  126: 
+  127:   assertValidTraining(candidate);
+  128: 
+  129:   const training = createTrainingModel(candidate);
+  130: 
+  131:   if (records.some((record) => record.id === training.id)) {
+  132:     throw createTrainingServiceError({
+  133:       message: `Training ID "${training.id}" already exists.`,
+  134:       publicMessage:
+  135:         "This training record could not be created because its identifier already exists.",
+  136:       code: "TRAINING_ID_CONFLICT",
+  137:       status: 409,
+  138:     });
+  139:   }
+  140: 
+  141:   const transaction = saveTrainingWithCertificationSync({
+  142:     trainingRecords: [training, ...records],
+  143: 
+  144:     changedTrainingIds: [training.id],
+  145:   });
+  146: 
+  147:   return (
+  148:     transaction.trainingRecords.find((record) => record.id === training.id) ||
+  149:     training
+  150:   );
+  151: }
+  152: 
+  153: export async function updateTraining(trainingId, updates = {}) {
+  154:   if (!trainingId) {
+  155:     throw createTrainingServiceError({
+  156:       message: "A training ID is required.",
+  157:       publicMessage: "The training record could not be identified.",
+  158:       code: "TRAINING_ID_REQUIRED",
+  159:       status: 400,
+  160:     });
+  161:   }
+  162: 
+  163:   const records = readStoredTraining();
+  164: 
+  165:   const recordIndex = records.findIndex(
+  166:     (training) => training.id === trainingId,
+  167:   );
+  168: 
+  169:   if (recordIndex === -1) {
+  170:     throw createTrainingNotFoundError(trainingId);
+  171:   }
+  172: 
+  173:   const currentTraining = records[recordIndex];
+  174: 
+  175:   const candidate = createTrainingCandidate({
+  176:     ...currentTraining,
+  177:     ...updates,
+  178: 
+  179:     provider: {
+  180:       ...currentTraining.provider,
+  181:       ...updates.provider,
+  182:     },
+  183: 
+  184:     delivery: {
+  185:       ...currentTraining.delivery,
+  186:       ...updates.delivery,
+  187: 
+  188:       location: {
+  189:         ...currentTraining.delivery?.location,
+  190:         ...updates.delivery?.location,
+  191:       },
+  192:     },
+  193: 
+  194:     dates: {
+  195:       ...currentTraining.dates,
+  196:       ...updates.dates,
+  197:     },
+  198: 
+  199:     completion: {
+  200:       ...currentTraining.completion,
+  201:       ...updates.completion,
+  202:     },
+  203: 
+  204:     visibility: {
+  205:       ...currentTraining.visibility,
+  206:       ...updates.visibility,
+  207:     },
+  208: 
+  209:     privateInformation: {
+  210:       ...currentTraining.privateInformation,
+  211:       ...updates.privateInformation,
+  212:     },
+  213:   });
+  214: 
+  215:   assertValidTraining(candidate);
+  216: 
+  217:   const updatedTraining = updateTrainingModel(currentTraining, updates);
+  218: 
+  219:   const nextRecords = [...records];
+  220: 
+  221:   nextRecords[recordIndex] = updatedTraining;
+  222: 
+  223:   const transaction = saveTrainingWithCertificationSync({
+  224:     trainingRecords: nextRecords,
+  225: 
+  226:     changedTrainingIds: [updatedTraining.id],
+  227:   });
+  228: 
+  229:   return (
+  230:     transaction.trainingRecords.find(
+  231:       (record) => record.id === updatedTraining.id,
+  232:     ) || updatedTraining
+  233:   );
+  234: }
+  235: 
+  236: export async function archiveTraining(trainingId) {
+  237:   return updateTraining(trainingId, {
+  238:     status: "archived",
+  239:   });
+  240: }
+  241: 
+  242: export async function restoreTraining(trainingId) {
+  243:   return updateTraining(trainingId, {
+  244:     status: "active",
+  245:   });
+  246: }
+  247: 
+  248: function getTrainingDocumentStorageKeys(training) {
+  249:   const documents = Array.isArray(training?.supportingDocuments)
+  250:     ? training.supportingDocuments
+  251:     : [];
+  252: 
+  253:   return [
+  254:     ...new Set(
+  255:       documents
+  256:         .map((document) =>
+  257:           typeof document?.storageKey === "string"
+  258:             ? document.storageKey.trim()
+  259:             : "",
+  260:         )
+  261:         .filter(Boolean),
+  262:     ),
+  263:   ];
+  264: }
+  265: 
+  266: export async function deleteTraining(trainingId) {
+  267:   if (!trainingId) {
+  268:     throw createTrainingServiceError({
+  269:       message: "A training ID is required.",
+  270:       publicMessage: "The training record could not be identified.",
+  271:       code: "TRAINING_ID_REQUIRED",
+  272:       status: 400,
+  273:     });
+  274:   }
+  275: 
+  276:   const records = readStoredTraining();
+  277: 
+  278:   const recordToDelete = records.find((training) => training.id === trainingId);
+  279: 
+  280:   if (!recordToDelete) {
+  281:     throw createTrainingNotFoundError(trainingId);
+  282:   }
+  283: 
+  284:   const storageKeys = getTrainingDocumentStorageKeys(recordToDelete);
+  285: 
+  286:   const remainingRecords = records.filter(
+  287:     (training) => training.id !== trainingId,
+  288:   );
+  289: 
+  290:   /*
+  291:    * Remove Training metadata and reciprocal
+  292:    * Certification links first.
+  293:    */
+  294: 
+  295:   saveTrainingWithCertificationSync({
+  296:     trainingRecords: remainingRecords,
+  297: 
+  298:     deletedTrainingIds: [trainingId],
+  299:   });
+  300: 
+  301:   let documentCleanup = null;
+  302: 
+  303:   try {
+  304:     documentCleanup = await deleteStoredDocuments(storageKeys);
+  305:   } catch (cleanupError) {
+  306:     /*
+  307:      * Metadata and relationships are already
+  308:      * consistently deleted. Failed binary cleanup
+  309:      * can be handled later as orphan maintenance.
+  310:      */
+  311: 
+  312:     documentCleanup = {
+  313:       completed: false,
+  314:       storageKeys,
+  315:       error:
+  316:         cleanupError?.publicMessage ||
+  317:         cleanupError?.message ||
+  318:         "Document cleanup failed.",
+  319:     };
+  320:   }
+  321: 
+  322:   return {
+  323:     id: trainingId,
+  324:     title: recordToDelete.title,
+  325:     providerName: recordToDelete.provider?.name || "",
+  326:     deleted: true,
+  327:     documents: documentCleanup,
+  328:   };
+  329: }
+  330: 
+  331: export async function validateTrainingDraft(
+  332:   trainingData,
+  333:   validationOptions = {},
+  334: ) {
+  335:   return validateTraining(
+  336:     createTrainingCandidate(trainingData),
+  337:     validationOptions,
+  338:   );
+  339: }
+  340: 
+  341: export async function replaceTrainingRecords(trainingValues) {
+  342:   if (!Array.isArray(trainingValues)) {
+  343:     throw createTrainingServiceError({
+  344:       message: "The replacement Training Library must be an array.",
+  345: 
+  346:       publicMessage: "The Training Library has an invalid format.",
+  347: 
+  348:       code: "INVALID_TRAINING_COLLECTION",
+  349: 
+  350:       status: 400,
+  351:     });
+  352:   }
+  353: 
+  354:   const currentRecords = readStoredTraining();
+  355: 
+  356:   const validatedRecords = trainingValues.map((value) => {
+  357:     const candidate = createTrainingCandidate(value);
+  358: 
+  359:     assertValidTraining(candidate);
+  360: 
+  361:     return normalizeTraining(candidate);
+  362:   });
+  363: 
+  364:   const normalizedRecords = normalizeTrainingCollection(validatedRecords);
+  365: 
+  366:   const nextTrainingIds = new Set(
+  367:     normalizedRecords.map((training) => training.id),
+  368:   );
+  369: 
+  370:   const deletedTrainingIds = currentRecords
+  371:     .map((training) => training.id)
+  372:     .filter((trainingId) => !nextTrainingIds.has(trainingId));
+  373: 
+  374:   const transaction = saveTrainingWithCertificationSync({
+  375:     trainingRecords: normalizedRecords,
+  376: 
+  377:     changedTrainingIds: normalizedRecords.map((training) => training.id),
+  378: 
+  379:     deletedTrainingIds,
+  380:   });
+  381: 
+  382:   return transaction.trainingRecords;
+  383: }
+
+================================================================================
+FILE: src\services\Training\trainingStorage.js
+================================================================================
+    1: import {
+    2:   normalizeTrainingCollection,
+    3:   TRAINING_MODEL_VERSION,
+    4: } from "../../models/trainingModel.js";
+    5: 
+    6: export const TRAINING_STORAGE_KEY = "portfolio-platform:training";
+    7: 
+    8: const TRAINING_STORAGE_VERSION = 1;
+    9: 
+   10: function createTrainingStorageError(message, publicMessage, cause = null) {
+   11:   const error = new Error(message);
+   12: 
+   13:   error.name = "TrainingStorageError";
+   14:   error.code = "TRAINING_STORAGE_ERROR";
+   15:   error.publicMessage = publicMessage;
+   16: 
+   17:   if (cause) {
+   18:     error.cause = cause;
+   19:   }
+   20: 
+   21:   return error;
+   22: }
+   23: 
+   24: function getBrowserStorage() {
+   25:   if (typeof window === "undefined" || !window.localStorage) {
+   26:     throw createTrainingStorageError(
+   27:       "Training storage is unavailable.",
+   28:       "Training storage is not supported in this environment.",
+   29:     );
+   30:   }
+   31: 
+   32:   return window.localStorage;
+   33: }
+   34: 
+   35: function createEmptyTrainingStorageDocument() {
+   36:   return {
+   37:     storageVersion: TRAINING_STORAGE_VERSION,
+   38:     trainingModelVersion: TRAINING_MODEL_VERSION,
+   39:     trainingRecords: [],
+   40:     updatedAt: new Date().toISOString(),
+   41:   };
+   42: }
+   43: 
+   44: function parseTrainingStorageDocument(value) {
+   45:   if (!value) {
+   46:     return createEmptyTrainingStorageDocument();
+   47:   }
+   48: 
+   49:   let parsedValue;
+   50: 
+   51:   try {
+   52:     parsedValue = JSON.parse(value);
+   53:   } catch (cause) {
+   54:     throw createTrainingStorageError(
+   55:       "Unable to parse stored training data.",
+   56:       "The saved Training Library could not be read.",
+   57:       cause,
+   58:     );
+   59:   }
+   60: 
+   61:   if (Array.isArray(parsedValue)) {
+   62:     return {
+   63:       ...createEmptyTrainingStorageDocument(),
+   64:       trainingRecords: normalizeTrainingCollection(parsedValue),
+   65:     };
+   66:   }
+   67: 
+   68:   if (!parsedValue || typeof parsedValue !== "object") {
+   69:     throw createTrainingStorageError(
+   70:       "Stored training data has an invalid structure.",
+   71:       "The saved Training Library has an invalid format.",
+   72:     );
+   73:   }
+   74: 
+   75:   return {
+   76:     storageVersion:
+   77:       Number(parsedValue.storageVersion) || TRAINING_STORAGE_VERSION,
+   78: 
+   79:     trainingModelVersion:
+   80:       Number(parsedValue.trainingModelVersion) || TRAINING_MODEL_VERSION,
+   81: 
+   82:     trainingRecords: normalizeTrainingCollection(
+   83:       parsedValue.trainingRecords ||
+   84:         parsedValue.training ||
+   85:         parsedValue.records,
+   86:     ),
+   87: 
+   88:     updatedAt:
+   89:       typeof parsedValue.updatedAt === "string"
+   90:         ? parsedValue.updatedAt
+   91:         : new Date().toISOString(),
+   92:   };
+   93: }
+   94: 
+   95: export function readTrainingStorage() {
+   96:   const storage = getBrowserStorage();
+   97: 
+   98:   try {
+   99:     return parseTrainingStorageDocument(storage.getItem(TRAINING_STORAGE_KEY));
+  100:   } catch (error) {
+  101:     if (error?.name === "TrainingStorageError") {
+  102:       throw error;
+  103:     }
+  104: 
+  105:     throw createTrainingStorageError(
+  106:       "Unable to read Training Library storage.",
+  107:       "Your saved training records could not be loaded.",
+  108:       error,
+  109:     );
+  110:   }
+  111: }
+  112: 
+  113: export function writeTrainingStorage(trainingRecords) {
+  114:   const storage = getBrowserStorage();
+  115: 
+  116:   const document = {
+  117:     storageVersion: TRAINING_STORAGE_VERSION,
+  118:     trainingModelVersion: TRAINING_MODEL_VERSION,
+  119:     trainingRecords: normalizeTrainingCollection(trainingRecords),
+  120:     updatedAt: new Date().toISOString(),
+  121:   };
+  122: 
+  123:   try {
+  124:     storage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(document));
+  125: 
+  126:     return document;
+  127:   } catch (error) {
+  128:     throw createTrainingStorageError(
+  129:       "Unable to write Training Library storage.",
+  130:       "Your training records could not be saved.",
+  131:       error,
+  132:     );
+  133:   }
+  134: }
+  135: 
+  136: export function readStoredTraining() {
+  137:   return readTrainingStorage().trainingRecords;
+  138: }
+  139: 
+  140: export function replaceStoredTraining(trainingRecords) {
+  141:   return writeTrainingStorage(trainingRecords).trainingRecords;
+  142: }
+  143: 
+  144: export function updateStoredTraining(updater) {
+  145:   if (typeof updater !== "function") {
+  146:     throw createTrainingStorageError(
+  147:       "The training updater must be a function.",
+  148:       "The Training Library could not be updated.",
+  149:     );
+  150:   }
+  151: 
+  152:   const nextRecords = updater([...readStoredTraining()]);
+  153: 
+  154:   if (!Array.isArray(nextRecords)) {
+  155:     throw createTrainingStorageError(
+  156:       "The training updater did not return an array.",
+  157:       "The Training Library could not be updated.",
+  158:     );
+  159:   }
+  160: 
+  161:   return replaceStoredTraining(nextRecords);
+  162: }
+  163: 
+  164: export function clearTrainingStorage() {
+  165:   try {
+  166:     getBrowserStorage().removeItem(TRAINING_STORAGE_KEY);
+  167:   } catch (error) {
+  168:     throw createTrainingStorageError(
+  169:       "Unable to clear Training Library storage.",
+  170:       "The saved Training Library could not be cleared.",
+  171:       error,
+  172:     );
+  173:   }
+  174: }
+  175: 
+  176: export function getTrainingStorageInformation() {
+  177:   const document = readTrainingStorage();
+  178: 
+  179:   return {
+  180:     storageKey: TRAINING_STORAGE_KEY,
+  181:     storageVersion: document.storageVersion,
+  182:     trainingModelVersion: document.trainingModelVersion,
+  183:     trainingCount: document.trainingRecords.length,
+  184:     updatedAt: document.updatedAt,
+  185:   };
+  186: }
+
+================================================================================
+FILE: src\services\apiClient.js
+================================================================================
+    1: /*
+    2:  * =========================================
+    3:  * API Configuration
+    4:  * =========================================
+    5:  */
+    6: 
+    7: const DEFAULT_API_ORIGIN = "http://localhost:5000";
+    8: 
+    9: const DEFAULT_TIMEOUT_MS = 30000;
+   10: 
+   11: /*
+   12:  * =========================================
+   13:  * Authentication Session Event
+   14:  * =========================================
+   15:  */
+   16: 
+   17: export const AUTH_SESSION_INVALID_EVENT =
+   18:   "portfolio-platform:auth-session-invalid";
+   19: 
+   20: const INVALID_SESSION_CODES = new Set([
+   21:   "AUTHENTICATION_REQUIRED",
+   22:   "SESSION_REFRESH_TOKEN_INVALID",
+   23:   "SESSION_NOT_FOUND",
+   24:   "SESSION_REFRESH_CONFLICT",
+   25: ]);
+   26: 
+   27: /*
+   28:  * =========================================
+   29:  * Invalid Session Notification
+   30:  * =========================================
+   31:  */
+   32: 
+   33: function notifyInvalidAuthenticationSession(error) {
+   34:   if (
+   35:     typeof window === "undefined" ||
+   36:     (Number(error?.status) !== 401 &&
+   37:       error?.code !== "SESSION_REFRESH_CONFLICT")
+   38:   ) {
+   39:     return;
+   40:   }
+   41: 
+   42:   if (!INVALID_SESSION_CODES.has(error?.code)) {
+   43:     return;
+   44:   }
+   45: 
+   46:   window.dispatchEvent(
+   47:     new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+   48:       detail: {
+   49:         status: error.status,
+   50: 
+   51:         code: error.code,
+   52: 
+   53:         message: error.message,
+   54:       },
+   55:     }),
+   56:   );
+   57: }
+   58: 
+   59: /*
+   60:  * VITE_API_BASE_URL may be configured as:
+   61:  *
+   62:  * http://localhost:5000
+   63:  *
+   64:  * or:
+   65:  *
+   66:  * http://localhost:5000/api
+   67:  *
+   68:  * Both formats are supported.
+   69:  */
+   70: 
+   71: function normalizeApiBaseUrl(value) {
+   72:   const configuredValue = typeof value === "string" ? value.trim() : "";
+   73: 
+   74:   const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+   75: 
+   76:   return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+   77: }
+   78: 
+   79: export const API_BASE_URL = normalizeApiBaseUrl(
+   80:   import.meta.env?.VITE_API_BASE_URL,
+   81: );
+   82: 
+   83: /*
+   84:  * =========================================
+   85:  * API Error
+   86:  * =========================================
+   87:  */
+   88: 
+   89: export class ApiError extends Error {
+   90:   constructor({
+   91:     message,
+   92:     status = 0,
+   93:     code = "API_REQUEST_FAILED",
+   94:     fieldErrors = {},
+   95:     errors = [],
+   96:     details = null,
+   97:     method = "",
+   98:     url = "",
+   99:     cause,
+  100:   }) {
+  101:     super(message || "The request could not be completed.", {
+  102:       cause,
+  103:     });
+  104: 
+  105:     this.name = "ApiError";
+  106: 
+  107:     this.status = Number(status) || 0;
+  108: 
+  109:     this.code = code || "API_REQUEST_FAILED";
+  110: 
+  111:     this.fieldErrors =
+  112:       fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+  113: 
+  114:     this.errors = Array.isArray(errors) ? errors : [];
+  115: 
+  116:     this.details = details || null;
+  117: 
+  118:     this.method = method;
+  119: 
+  120:     this.url = url;
+  121:   }
+  122: }
+  123: 
+  124: /*
+  125:  * =========================================
+  126:  * Endpoint Normalization
+  127:  * =========================================
+  128:  */
+  129: 
+  130: function normalizeEndpoint(endpoint) {
+  131:   if (typeof endpoint !== "string" || !endpoint.trim()) {
+  132:     throw new TypeError("A relative API endpoint is required.");
+  133:   }
+  134: 
+  135:   const normalizedEndpoint = endpoint.trim();
+  136: 
+  137:   /*
+  138:    * Prevent accidental cookie-bearing
+  139:    * requests to arbitrary external origins.
+  140:    */
+  141: 
+  142:   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+  143:     throw new TypeError("API endpoints must be relative paths.");
+  144:   }
+  145: 
+  146:   return normalizedEndpoint.startsWith("/")
+  147:     ? normalizedEndpoint
+  148:     : `/${normalizedEndpoint}`;
+  149: }
+  150: 
+  151: /*
+  152:  * =========================================
+  153:  * Query Parameters
+  154:  * =========================================
+  155:  */
+  156: 
+  157: function appendQueryParameters(url, query) {
+  158:   if (!query || typeof query !== "object") {
+  159:     return url;
+  160:   }
+  161: 
+  162:   const requestUrl = new URL(url);
+  163: 
+  164:   for (const [name, value] of Object.entries(query)) {
+  165:     if (value === undefined || value === null || value === "") {
+  166:       continue;
+  167:     }
+  168: 
+  169:     if (Array.isArray(value)) {
+  170:       for (const item of value) {
+  171:         requestUrl.searchParams.append(name, String(item));
+  172:       }
+  173: 
+  174:       continue;
+  175:     }
+  176: 
+  177:     requestUrl.searchParams.set(name, String(value));
+  178:   }
+  179: 
+  180:   return requestUrl.toString();
+  181: }
+  182: 
+  183: /*
+  184:  * =========================================
+  185:  * Request Body Preparation
+  186:  * =========================================
+  187:  */
+  188: 
+  189: function isFormData(value) {
+  190:   return typeof FormData !== "undefined" && value instanceof FormData;
+  191: }
+  192: 
+  193: function isUrlSearchParams(value) {
+  194:   return (
+  195:     typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+  196:   );
+  197: }
+  198: 
+  199: function isBlob(value) {
+  200:   return typeof Blob !== "undefined" && value instanceof Blob;
+  201: }
+  202: 
+  203: function shouldSerializeAsJson(body) {
+  204:   return (
+  205:     body !== undefined &&
+  206:     body !== null &&
+  207:     typeof body === "object" &&
+  208:     !isFormData(body) &&
+  209:     !isUrlSearchParams(body) &&
+  210:     !isBlob(body) &&
+  211:     !(body instanceof ArrayBuffer)
+  212:   );
+  213: }
+  214: 
+  215: function prepareRequestBody({ body, headers }) {
+  216:   if (body === undefined || body === null) {
+  217:     return undefined;
+  218:   }
+  219: 
+  220:   if (shouldSerializeAsJson(body)) {
+  221:     if (!headers.has("Content-Type")) {
+  222:       headers.set("Content-Type", "application/json");
+  223:     }
+  224: 
+  225:     return JSON.stringify(body);
+  226:   }
+  227: 
+  228:   /*
+  229:    * Never set Content-Type manually for
+  230:    * FormData. The browser must add its
+  231:    * multipart boundary.
+  232:    */
+  233: 
+  234:   return body;
+  235: }
+  236: 
+  237: /*
+  238:  * =========================================
+  239:  * Response Parsing
+  240:  * =========================================
+  241:  */
+  242: 
+  243: async function parseResponseBody(response) {
+  244:   if (response.status === 204 || response.status === 205) {
+  245:     return null;
+  246:   }
+  247: 
+  248:   const text = await response.text();
+  249: 
+  250:   if (!text) {
+  251:     return null;
+  252:   }
+  253: 
+  254:   const contentType = response.headers.get("content-type") || "";
+  255: 
+  256:   if (contentType.includes("application/json")) {
+  257:     try {
+  258:       return JSON.parse(text);
+  259:     } catch {
+  260:       return {
+  261:         message: "The server returned an invalid JSON response.",
+  262:       };
+  263:     }
+  264:   }
+  265: 
+  266:   /*
+  267:    * Some development proxies may omit the
+  268:    * JSON content type. Attempt JSON parsing
+  269:    * before treating the body as plain text.
+  270:    */
+  271: 
+  272:   try {
+  273:     return JSON.parse(text);
+  274:   } catch {
+  275:     return {
+  276:       message: text,
+  277:     };
+  278:   }
+  279: }
+  280: 
+  281: /*
+  282:  * =========================================
+  283:  * API Error Creation
+  284:  * =========================================
+  285:  */
+  286: 
+  287: function createResponseError({ response, data, method, url }) {
+  288:   const error = new ApiError({
+  289:     message: data?.message || `The server returned HTTP ${response.status}.`,
+  290: 
+  291:     status: response.status,
+  292: 
+  293:     code: data?.code || "API_REQUEST_FAILED",
+  294: 
+  295:     fieldErrors: data?.fieldErrors,
+  296: 
+  297:     errors: data?.errors,
+  298: 
+  299:     details: data?.details,
+  300: 
+  301:     method,
+  302: 
+  303:     url,
+  304:   });
+  305: 
+  306:   notifyInvalidAuthenticationSession(error);
+  307: 
+  308:   return error;
+  309: }
+  310: 
+  311: /*
+  312:  * =========================================
+  313:  * Timeout and Abort Signal
+  314:  * =========================================
+  315:  */
+  316: 
+  317: function createRequestAbortController({ signal, timeoutMs }) {
+  318:   const controller = new AbortController();
+  319: 
+  320:   let wasTimedOut = false;
+  321: 
+  322:   const handleExternalAbort = () => {
+  323:     controller.abort(signal?.reason);
+  324:   };
+  325: 
+  326:   if (signal) {
+  327:     if (signal.aborted) {
+  328:       handleExternalAbort();
+  329:     } else {
+  330:       signal.addEventListener("abort", handleExternalAbort, {
+  331:         once: true,
+  332:       });
+  333:     }
+  334:   }
+  335: 
+  336:   const timeoutId = globalThis.setTimeout(() => {
+  337:     wasTimedOut = true;
+  338: 
+  339:     controller.abort();
+  340:   }, timeoutMs);
+  341: 
+  342:   return {
+  343:     signal: controller.signal,
+  344: 
+  345:     wasTimedOut() {
+  346:       return wasTimedOut;
+  347:     },
+  348: 
+  349:     cleanup() {
+  350:       globalThis.clearTimeout(timeoutId);
+  351: 
+  352:       signal?.removeEventListener?.("abort", handleExternalAbort);
+  353:     },
+  354:   };
+  355: }
+  356: 
+  357: /*
+  358:  * =========================================
+  359:  * API Request
+  360:  * =========================================
+  361:  */
+  362: 
+  363: export async function apiRequest(
+  364:   endpoint,
+  365:   {
+  366:     method = "GET",
+  367:     body,
+  368:     query,
+  369:     headers: customHeaders,
+  370:     signal,
+  371:     timeoutMs = DEFAULT_TIMEOUT_MS,
+  372:     cache = "no-store",
+  373:   } = {},
+  374: ) {
+  375:   const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+  376: 
+  377:   const normalizedEndpoint = normalizeEndpoint(endpoint);
+  378: 
+  379:   const requestUrl = appendQueryParameters(
+  380:     `${API_BASE_URL}${normalizedEndpoint}`,
+  381:     query,
+  382:   );
+  383: 
+  384:   const headers = new Headers(customHeaders || {});
+  385: 
+  386:   if (!headers.has("Accept")) {
+  387:     headers.set("Accept", "application/json");
+  388:   }
+  389: 
+  390:   const requestBody = prepareRequestBody({
+  391:     body,
+  392: 
+  393:     headers,
+  394:   });
+  395: 
+  396:   const abortState = createRequestAbortController({
+  397:     signal,
+  398: 
+  399:     timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+  400:   });
+  401: 
+  402:   try {
+  403:     const response = await fetch(requestUrl, {
+  404:       method: normalizedMethod,
+  405: 
+  406:       /*
+  407:        * Required for HttpOnly session
+  408:        * cookies on cross-origin requests.
+  409:        */
+  410: 
+  411:       credentials: "include",
+  412: 
+  413:       headers,
+  414: 
+  415:       body: ["GET", "HEAD"].includes(normalizedMethod)
+  416:         ? undefined
+  417:         : requestBody,
+  418: 
+  419:       signal: abortState.signal,
+  420: 
+  421:       cache,
+  422:     });
+  423: 
+  424:     const data = await parseResponseBody(response);
+  425: 
+  426:     if (!response.ok) {
+  427:       throw createResponseError({
+  428:         response,
+  429: 
+  430:         data,
+  431: 
+  432:         method: normalizedMethod,
+  433: 
+  434:         url: requestUrl,
+  435:       });
+  436:     }
+  437: 
+  438:     return data;
+  439:   } catch (error) {
+  440:     if (error instanceof ApiError) {
+  441:       throw error;
+  442:     }
+  443: 
+  444:     if (error?.name === "AbortError") {
+  445:       throw new ApiError({
+  446:         message: abortState.wasTimedOut()
+  447:           ? "The server took too long to respond."
+  448:           : "The request was canceled.",
+  449: 
+  450:         status: 0,
+  451: 
+  452:         code: abortState.wasTimedOut()
+  453:           ? "API_REQUEST_TIMEOUT"
+  454:           : "API_REQUEST_ABORTED",
+  455: 
+  456:         method: normalizedMethod,
+  457: 
+  458:         url: requestUrl,
+  459: 
+  460:         cause: error,
+  461:       });
+  462:     }
+  463: 
+  464:     throw new ApiError({
+  465:       message:
+  466:         "Unable to connect to the server. Check your connection and try again.",
+  467: 
+  468:       status: 0,
+  469: 
+  470:       code: "API_NETWORK_ERROR",
+  471: 
+  472:       method: normalizedMethod,
+  473: 
+  474:       url: requestUrl,
+  475: 
+  476:       cause: error,
+  477:     });
+  478:   } finally {
+  479:     abortState.cleanup();
+  480:   }
+  481: }
+  482: 
+  483: /*
+  484:  * =========================================
+  485:  * Convenience Methods
+  486:  * =========================================
+  487:  */
+  488: 
+  489: export function apiGet(endpoint, options = {}) {
+  490:   return apiRequest(endpoint, {
+  491:     ...options,
+  492: 
+  493:     method: "GET",
+  494:   });
+  495: }
+  496: 
+  497: export function apiPost(endpoint, body, options = {}) {
+  498:   return apiRequest(endpoint, {
+  499:     ...options,
+  500: 
+  501:     method: "POST",
+  502: 
+  503:     body,
+  504:   });
+  505: }
+  506: 
+  507: export function apiPut(endpoint, body, options = {}) {
+  508:   return apiRequest(endpoint, {
+  509:     ...options,
+  510: 
+  511:     method: "PUT",
+  512: 
+  513:     body,
+  514:   });
+  515: }
+  516: 
+  517: export function apiPatch(endpoint, body, options = {}) {
+  518:   return apiRequest(endpoint, {
+  519:     ...options,
+  520: 
+  521:     method: "PATCH",
+  522: 
+  523:     body,
+  524:   });
+  525: }
+  526: 
+  527: export function apiDelete(endpoint, options = {}) {
+  528:   return apiRequest(endpoint, {
+  529:     ...options,
+  530: 
+  531:     method: "DELETE",
+  532:   });
+  533: }
+  534: 
+
+================================================================================
+FILE: src\services\Certification\certificationApiService.js
+================================================================================
+    1: import { apiGet, apiPatch } from "../apiClient.js";
+    2: 
+    3: const CERTIFICATIONS_ENDPOINT = "/certifications";
+    4: 
+    5: function certificationPath(certificationId) {
+    6:   if (
+    7:     typeof certificationId !== "string" ||
+    8:     !certificationId.trim() ||
+    9:     certificationId.trim().length > 200
+   10:   ) {
+   11:     throw new TypeError("A valid Certification ID is required.");
+   12:   }
+   13: 
+   14:   return `${CERTIFICATIONS_ENDPOINT}/${encodeURIComponent(
+   15:     certificationId.trim(),
+   16:   )}`;
+   17: }
+   18: 
+   19: function documentPath(certificationId, documentId) {
+   20:   if (
+   21:     typeof documentId !== "string" ||
+   22:     !documentId.trim() ||
+   23:     documentId.trim().length > 200
+   24:   ) {
+   25:     throw new TypeError("A valid Certification Document ID is required.");
+   26:   }
+   27: 
+   28:   return `${certificationPath(certificationId)}/documents/${encodeURIComponent(
+   29:     documentId.trim(),
+   30:   )}`;
+   31: }
+   32: 
+   33: export async function fetchCertifications(options = {}) {
+   34:   const response = await apiGet(CERTIFICATIONS_ENDPOINT, options);
+   35:   return response.data.certifications;
+   36: }
+   37: 
+   38: export async function fetchCertificationById(
+   39:   certificationId,
+   40:   options = {},
+   41: ) {
+   42:   const response = await apiGet(
+   43:     certificationPath(certificationId),
+   44:     options,
+   45:   );
+   46: 
+   47:   return response.data.certification;
+   48: }
+   49: 
+   50: export async function fetchCertificationDocuments(
+   51:   certificationId,
+   52:   options = {},
+   53: ) {
+   54:   const response = await apiGet(
+   55:     `${certificationPath(certificationId)}/documents`,
+   56:     options,
+   57:   );
+   58: 
+   59:   return response.data.documents;
+   60: }
+   61: 
+   62: export function getCertificationDocumentEndpoint(
+   63:   certificationId,
+   64:   documentId,
+   65: ) {
+   66:   return documentPath(certificationId, documentId);
+   67: }
+   68: 
+   69: /*
+   70:  * =========================================
+   71:  * Update Certification Metadata
+   72:  * =========================================
+   73:  */
+   74: export async function patchCertification(
+   75:   certificationId,
+   76:   updates,
+   77:   rowVersion,
+   78:   options = {},
+   79: ) {
+   80:   if (
+   81:     typeof rowVersion !== "string" ||
+   82:     !/^[A-Za-z0-9+/]{11}=$/.test(rowVersion)
+   83:   ) {
+   84:     throw new TypeError("A valid Certification rowVersion is required.");
+   85:   }
+   86: 
+   87:   if (
+   88:     !updates ||
+   89:     typeof updates !== "object" ||
+   90:     Array.isArray(updates)
+   91:   ) {
+   92:     throw new TypeError("Certification updates must be an object.");
+   93:   }
+   94: 
+   95:   const response = await apiPatch(
+   96:     certificationPath(certificationId),
+   97:     {
+   98:       updates,
+   99:       rowVersion,
+  100:     },
+  101:     options,
+  102:   );
+  103: 
+  104:   return response.data.certification;
+  105: }
+
+================================================================================
+FILE: src\models\trainingModel.js
+================================================================================
+    1: import {
+    2:   TRAINING_FIELD_LIMITS,
+    3:   isValidTrainingCompletionStatus,
+    4:   isValidTrainingDeliveryFormat,
+    5:   isValidTrainingDocumentType,
+    6:   isValidTrainingProviderType,
+    7:   isValidTrainingSource,
+    8:   isValidTrainingStatus,
+    9:   isValidTrainingType,
+   10: } from "../config/trainingConfig.js";
+   11: 
+   12: import { isValidDocumentVisibility } from "../config/documentConfig.js";
+   13: 
+   14: /*
+   15:  * =========================================
+   16:  * Model Version
+   17:  * =========================================
+   18:  */
+   19: 
+   20: export const TRAINING_MODEL_VERSION = 2;
+   21: 
+   22: /*
+   23:  * =========================================
+   24:  * ID Creation
+   25:  * =========================================
+   26:  */
+   27: 
+   28: export function createTrainingId(prefix = "training") {
+   29:   if (
+   30:     typeof crypto !== "undefined" &&
+   31:     typeof crypto.randomUUID === "function"
+   32:   ) {
+   33:     return `${prefix}-${crypto.randomUUID()}`;
+   34:   }
+   35: 
+   36:   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+   37: }
+   38: 
+   39: /*
+   40:  * =========================================
+   41:  * Primitive Normalization
+   42:  * =========================================
+   43:  */
+   44: 
+   45: function normalizeText(value, maximumLength = Infinity) {
+   46:   if (typeof value !== "string") {
+   47:     return "";
+   48:   }
+   49: 
+   50:   return value.trim().slice(0, maximumLength);
+   51: }
+   52: 
+   53: function normalizeBoolean(value, defaultValue = false) {
+   54:   return typeof value === "boolean" ? value : defaultValue;
+   55: }
+   56: 
+   57: function normalizeNullableNumber(value, maximumValue = Infinity) {
+   58:   if (value === "" || value === null || value === undefined) {
+   59:     return null;
+   60:   }
+   61: 
+   62:   const numberValue = Number(value);
+   63: 
+   64:   if (!Number.isFinite(numberValue)) {
+   65:     return null;
+   66:   }
+   67: 
+   68:   return Math.min(maximumValue, Math.max(0, numberValue));
+   69: }
+   70: 
+   71: function normalizeDate(value) {
+   72:   if (typeof value !== "string") {
+   73:     return "";
+   74:   }
+   75: 
+   76:   const text = value.trim();
+   77: 
+   78:   if (!/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(text)) {
+   79:     return "";
+   80:   }
+   81: 
+   82:   return text;
+   83: }
+   84: 
+   85: function normalizeIdentifierList(values, maximumItems) {
+   86:   if (!Array.isArray(values)) {
+   87:     return [];
+   88:   }
+   89: 
+   90:   return [
+   91:     ...new Set(
+   92:       values
+   93:         .map((value) =>
+   94:           typeof value === "string"
+   95:             ? value.trim()
+   96:             : String(value?.id || "").trim(),
+   97:         )
+   98:         .filter(Boolean),
+   99:     ),
+  100:   ].slice(0, maximumItems);
+  101: }
+  102: 
+  103: /*
+  104:  * =========================================
+  105:  * Instructor
+  106:  * =========================================
+  107:  */
+  108: 
+  109: export function createTrainingInstructor(value = {}) {
+  110:   const source =
+  111:     typeof value === "string"
+  112:       ? {
+  113:           name: value,
+  114:         }
+  115:       : value && typeof value === "object"
+  116:         ? value
+  117:         : {};
+  118: 
+  119:   return {
+  120:     id:
+  121:       normalizeText(source.id, 200) || createTrainingId("training-instructor"),
+  122: 
+  123:     name: normalizeText(source.name, TRAINING_FIELD_LIMITS.instructorName),
+  124: 
+  125:     title: normalizeText(source.title, TRAINING_FIELD_LIMITS.instructorTitle),
+  126: 
+  127:     organization: normalizeText(
+  128:       source.organization,
+  129:       TRAINING_FIELD_LIMITS.instructorOrganization,
+  130:     ),
+  131: 
+  132:     order:
+  133:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  134:   };
+  135: }
+  136: 
+  137: function normalizeTrainingInstructors(values) {
+  138:   if (!Array.isArray(values)) {
+  139:     return [];
+  140:   }
+  141: 
+  142:   return values
+  143:     .map(createTrainingInstructor)
+  144:     .filter((instructor) => instructor.name)
+  145:     .slice(0, TRAINING_FIELD_LIMITS.maximumInstructors)
+  146:     .map((instructor, index) => ({
+  147:       ...instructor,
+  148:       order: index,
+  149:     }));
+  150: }
+  151: 
+  152: /*
+  153:  * =========================================
+  154:  * Topic
+  155:  * =========================================
+  156:  */
+  157: 
+  158: export function createTrainingTopic(value = {}) {
+  159:   const source =
+  160:     typeof value === "string"
+  161:       ? {
+  162:           name: value,
+  163:         }
+  164:       : value && typeof value === "object"
+  165:         ? value
+  166:         : {};
+  167: 
+  168:   return {
+  169:     id: normalizeText(source.id, 200) || createTrainingId("training-topic"),
+  170: 
+  171:     name: normalizeText(
+  172:       source.name || source.title,
+  173:       TRAINING_FIELD_LIMITS.topicName,
+  174:     ),
+  175: 
+  176:     description: normalizeText(
+  177:       source.description,
+  178:       TRAINING_FIELD_LIMITS.topicDescription,
+  179:     ),
+  180: 
+  181:     order:
+  182:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  183:   };
+  184: }
+  185: 
+  186: function normalizeTrainingTopics(values) {
+  187:   if (!Array.isArray(values)) {
+  188:     return [];
+  189:   }
+  190: 
+  191:   return values
+  192:     .map(createTrainingTopic)
+  193:     .filter((topic) => topic.name)
+  194:     .slice(0, TRAINING_FIELD_LIMITS.maximumTopics)
+  195:     .map((topic, index) => ({
+  196:       ...topic,
+  197:       order: index,
+  198:     }));
+  199: }
+  200: 
+  201: /*
+  202:  * =========================================
+  203:  * Learning Outcome
+  204:  * =========================================
+  205:  */
+  206: 
+  207: export function createTrainingOutcome(value = {}) {
+  208:   const source =
+  209:     typeof value === "string"
+  210:       ? {
+  211:           text: value,
+  212:         }
+  213:       : value && typeof value === "object"
+  214:         ? value
+  215:         : {};
+  216: 
+  217:   return {
+  218:     id: normalizeText(source.id, 200) || createTrainingId("training-outcome"),
+  219: 
+  220:     text: normalizeText(
+  221:       source.text || source.description || source.value,
+  222:       TRAINING_FIELD_LIMITS.outcomeText,
+  223:     ),
+  224: 
+  225:     order:
+  226:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  227:   };
+  228: }
+  229: 
+  230: function normalizeTrainingOutcomes(values) {
+  231:   if (!Array.isArray(values)) {
+  232:     return [];
+  233:   }
+  234: 
+  235:   return values
+  236:     .map(createTrainingOutcome)
+  237:     .filter((outcome) => outcome.text)
+  238:     .slice(0, TRAINING_FIELD_LIMITS.maximumLearningOutcomes)
+  239:     .map((outcome, index) => ({
+  240:       ...outcome,
+  241:       order: index,
+  242:     }));
+  243: }
+  244: 
+  245: /*
+  246:  * =========================================
+  247:  * Skill Relationship
+  248:  * =========================================
+  249:  */
+  250: 
+  251: export function createTrainingSkillRelationship(value = {}) {
+  252:   const source =
+  253:     typeof value === "string"
+  254:       ? {
+  255:           nameSnapshot: value,
+  256:         }
+  257:       : value && typeof value === "object"
+  258:         ? value
+  259:         : {};
+  260: 
+  261:   return {
+  262:     id: normalizeText(source.id, 200) || createTrainingId("training-skill"),
+  263: 
+  264:     skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+  265: 
+  266:     nameSnapshot: normalizeText(
+  267:       source.nameSnapshot || source.name || source.label,
+  268:       TRAINING_FIELD_LIMITS.skillName,
+  269:     ),
+  270: 
+  271:     categorySnapshot: normalizeText(
+  272:       source.categorySnapshot || source.category,
+  273:       TRAINING_FIELD_LIMITS.skillCategory,
+  274:     ),
+  275: 
+  276:     typeSnapshot: normalizeText(
+  277:       source.typeSnapshot || source.type,
+  278:       TRAINING_FIELD_LIMITS.skillType,
+  279:     ),
+  280: 
+  281:     order:
+  282:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  283:   };
+  284: }
+  285: 
+  286: function normalizeTrainingSkillRelationships(values) {
+  287:   if (!Array.isArray(values)) {
+  288:     return [];
+  289:   }
+  290: 
+  291:   const normalizedRelationships = values
+  292:     .map(createTrainingSkillRelationship)
+  293:     .filter(
+  294:       (relationship) => relationship.skillId || relationship.nameSnapshot,
+  295:     );
+  296: 
+  297:   const uniqueRelationships = normalizedRelationships.filter(
+  298:     (relationship, index, collection) => {
+  299:       const identity = (
+  300:         relationship.skillId || relationship.nameSnapshot
+  301:       ).toLocaleLowerCase();
+  302: 
+  303:       return (
+  304:         collection.findIndex((candidate) => {
+  305:           const candidateIdentity = (
+  306:             candidate.skillId || candidate.nameSnapshot
+  307:           ).toLocaleLowerCase();
+  308: 
+  309:           return candidateIdentity === identity;
+  310:         }) === index
+  311:       );
+  312:     },
+  313:   );
+  314: 
+  315:   return uniqueRelationships
+  316:     .slice(0, TRAINING_FIELD_LIMITS.maximumSkills)
+  317:     .map((relationship, index) => ({
+  318:       ...relationship,
+  319:       order: index,
+  320:     }));
+  321: }
+  322: 
+  323: /*
+  324:  * =========================================
+  325:  * Certification Relationship
+  326:  * =========================================
+  327:  */
+  328: 
+  329: export function createTrainingCertificationRelationship(value = {}, order = 0) {
+  330:   const source =
+  331:     typeof value === "string"
+  332:       ? {
+  333:           certificationId: value,
+  334:         }
+  335:       : value && typeof value === "object" && !Array.isArray(value)
+  336:         ? value
+  337:         : {};
+  338: 
+  339:   const snapshot =
+  340:     source.snapshot &&
+  341:     typeof source.snapshot === "object" &&
+  342:     !Array.isArray(source.snapshot)
+  343:       ? source.snapshot
+  344:       : {};
+  345: 
+  346:   /*
+  347:    * When a complete Certification record is supplied,
+  348:    * its id is the Certification id.
+  349:    *
+  350:    * When an existing relationship is supplied,
+  351:    * source.id is the relationship id and
+  352:    * source.certificationId identifies the Certification.
+  353:    */
+  354: 
+  355:   const certificationId = normalizeText(
+  356:     source.certificationId ||
+  357:       source.credentialId ||
+  358:       source.certificationRecordId ||
+  359:       source.id,
+  360:     200,
+  361:   );
+  362: 
+  363:   const relationshipId =
+  364:     normalizeText(
+  365:       source.relationshipId || (source.certificationId ? source.id : ""),
+  366:       200,
+  367:     ) || createTrainingId("training-certification");
+  368: 
+  369:   return {
+  370:     id: relationshipId,
+  371: 
+  372:     certificationId,
+  373: 
+  374:     order:
+  375:       Number.isInteger(source.order) && source.order >= 0
+  376:         ? source.order
+  377:         : order,
+  378: 
+  379:     snapshot: {
+  380:       name: normalizeText(
+  381:         snapshot.name ||
+  382:           snapshot.title ||
+  383:           source.certificationName ||
+  384:           source.name ||
+  385:           source.title,
+  386:         160,
+  387:       ),
+  388: 
+  389:       issuingOrganizationName: normalizeText(
+  390:         snapshot.issuingOrganizationName ||
+  391:           snapshot.issuerName ||
+  392:           source.issuingOrganizationName ||
+  393:           source.issuerName ||
+  394:           source.issuingOrganization?.name,
+  395:         160,
+  396:       ),
+  397: 
+  398:       certificationType: normalizeText(
+  399:         snapshot.certificationType || snapshot.type || source.certificationType,
+  400:         100,
+  401:       ),
+  402: 
+  403:       credentialState: normalizeText(
+  404:         snapshot.credentialState ||
+  405:           snapshot.state ||
+  406:           source.credentialState ||
+  407:           source.credential?.state,
+  408:         100,
+  409:       ),
+  410: 
+  411:       issueDate: normalizeDate(
+  412:         snapshot.issueDate || source.issueDate || source.dates?.issueDate,
+  413:       ),
+  414: 
+  415:       expirationDate: normalizeDate(
+  416:         snapshot.expirationDate ||
+  417:           source.expirationDate ||
+  418:           source.dates?.expirationDate,
+  419:       ),
+  420: 
+  421:       doesNotExpire: normalizeBoolean(
+  422:         snapshot.doesNotExpire ??
+  423:           source.doesNotExpire ??
+  424:           source.dates?.doesNotExpire,
+  425:         false,
+  426:       ),
+  427:     },
+  428:   };
+  429: }
+  430: 
+  431: function normalizeTrainingCertificationRelationships(values) {
+  432:   if (!Array.isArray(values)) {
+  433:     return [];
+  434:   }
+  435: 
+  436:   const usedCertificationIds = new Set();
+  437: 
+  438:   return values.reduce((relationships, value) => {
+  439:     const relationship = createTrainingCertificationRelationship(
+  440:       value,
+  441:       relationships.length,
+  442:     );
+  443: 
+  444:     if (!relationship.certificationId) {
+  445:       return relationships;
+  446:     }
+  447: 
+  448:     const comparisonId = relationship.certificationId.toLocaleLowerCase();
+  449: 
+  450:     if (usedCertificationIds.has(comparisonId)) {
+  451:       return relationships;
+  452:     }
+  453: 
+  454:     if (
+  455:       relationships.length >= TRAINING_FIELD_LIMITS.maximumRelatedCertifications
+  456:     ) {
+  457:       return relationships;
+  458:     }
+  459: 
+  460:     usedCertificationIds.add(comparisonId);
+  461: 
+  462:     relationships.push({
+  463:       ...relationship,
+  464:       order: relationships.length,
+  465:     });
+  466: 
+  467:     return relationships;
+  468:   }, []);
+  469: }
+  470: 
+  471: export function getTrainingCertificationRelationships(training) {
+  472:   return normalizeTrainingCertificationRelationships(
+  473:     training?.certificationRelationships || training?.relatedCertificationIds,
+  474:   );
+  475: }
+  476: 
+  477: export function getTrainingCertificationIds(training) {
+  478:   return getTrainingCertificationRelationships(training).map(
+  479:     (relationship) => relationship.certificationId,
+  480:   );
+  481: }
+  482: 
+  483: export function isCertificationLinkedToTraining(training, certificationId) {
+  484:   const normalizedCertificationId = normalizeText(certificationId, 200);
+  485: 
+  486:   if (!normalizedCertificationId) {
+  487:     return false;
+  488:   }
+  489: 
+  490:   return getTrainingCertificationRelationships(training).some(
+  491:     (relationship) =>
+  492:       relationship.certificationId === normalizedCertificationId,
+  493:   );
+  494: }
+  495: 
+  496: /*
+  497:  * =========================================
+  498:  * Supporting Document
+  499:  * =========================================
+  500:  */
+  501: 
+  502: export function createTrainingDocument(value = {}) {
+  503:   const source =
+  504:     value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  505: 
+  506:   return {
+  507:     id: normalizeText(source.id, 200) || createTrainingId("training-document"),
+  508: 
+  509:     documentType: isValidTrainingDocumentType(source.documentType)
+  510:       ? source.documentType
+  511:       : "supporting-evidence",
+  512: 
+  513:     name: normalizeText(source.name || source.title, 250),
+  514: 
+  515:     description: normalizeText(source.description, 1000),
+  516: 
+  517:     fileName: normalizeText(source.fileName, 500),
+  518: 
+  519:     mimeType: normalizeText(source.mimeType || source.fileType, 200),
+  520: 
+  521:     fileSize: normalizeNullableNumber(source.fileSize),
+  522: 
+  523:     storageProvider:
+  524:       normalizeText(source.storageProvider, 100) ||
+  525:       (source.storageKey ? "indexed-db" : ""),
+  526: 
+  527:     storageKey: normalizeText(source.storageKey, 500),
+  528: 
+  529:     fileUrl: normalizeText(source.fileUrl || source.url, 2000),
+  530: 
+  531:     uploadedAt: normalizeText(source.uploadedAt, 100),
+  532: 
+  533:     visibility: isValidDocumentVisibility(source.visibility)
+  534:       ? source.visibility
+  535:       : "private",
+  536: 
+  537:     order:
+  538:       Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  539:   };
+  540: }
+  541: 
+  542: function normalizeTrainingDocuments(values) {
+  543:   if (!Array.isArray(values)) {
+  544:     return [];
+  545:   }
+  546: 
+  547:   const normalizedDocuments = values
+  548:     .map(createTrainingDocument)
+  549:     .filter(
+  550:       (document) =>
+  551:         document.name ||
+  552:         document.fileName ||
+  553:         document.storageKey ||
+  554:         document.fileUrl,
+  555:     );
+  556: 
+  557:   const uniqueDocuments = normalizedDocuments.filter(
+  558:     (document, index, collection) => {
+  559:       const identity =
+  560:         document.storageKey ||
+  561:         document.fileUrl ||
+  562:         document.id ||
+  563:         document.fileName;
+  564: 
+  565:       return (
+  566:         collection.findIndex((candidate) => {
+  567:           const candidateIdentity =
+  568:             candidate.storageKey ||
+  569:             candidate.fileUrl ||
+  570:             candidate.id ||
+  571:             candidate.fileName;
+  572: 
+  573:           return candidateIdentity === identity;
+  574:         }) === index
+  575:       );
+  576:     },
+  577:   );
+  578: 
+  579:   return uniqueDocuments
+  580:     .slice(0, TRAINING_FIELD_LIMITS.maximumDocuments)
+  581:     .map((document, index) => ({
+  582:       ...document,
+  583:       order: index,
+  584:     }));
+  585: }
+  586: 
+  587: /*
+  588:  * =========================================
+  589:  * Empty Training
+  590:  * =========================================
+  591:  */
+  592: 
+  593: export function createEmptyTraining() {
+  594:   const timestamp = new Date().toISOString();
+  595: 
+  596:   return {
+  597:     modelVersion: TRAINING_MODEL_VERSION,
+  598: 
+  599:     id: createTrainingId(),
+  600: 
+  601:     title: "",
+  602: 
+  603:     trainingType: "professional-course",
+  604: 
+  605:     provider: {
+  606:       name: "",
+  607:       type: "",
+  608:       website: "",
+  609:     },
+  610: 
+  611:     delivery: {
+  612:       format: "in-person",
+  613: 
+  614:       location: {
+  615:         city: "",
+  616:         stateRegion: "",
+  617:         country: "",
+  618:         displayValue: "",
+  619:       },
+  620:     },
+  621: 
+  622:     dates: {
+  623:       startDate: "",
+  624:       endDate: "",
+  625:       isCurrent: false,
+  626:     },
+  627: 
+  628:     completion: {
+  629:       status: "completed",
+  630:       durationHours: null,
+  631: 
+  632:       certificateEarned: false,
+  633: 
+  634:       credentialId: "",
+  635:       credentialUrl: "",
+  636:     },
+  637: 
+  638:     description: "",
+  639: 
+  640:     instructors: [],
+  641: 
+  642:     topics: [],
+  643: 
+  644:     learningOutcomes: [],
+  645: 
+  646:     skillRelationships: [],
+  647: 
+  648:     supportingDocuments: [],
+  649: 
+  650:     relatedEducationIds: [],
+  651: 
+  652:     /*
+  653:      * Canonical Certification relationships.
+  654:      *
+  655:      * Each relationship includes the Certification ID
+  656:      * and a readable snapshot so Training can still show
+  657:      * useful information if the Certification record is
+  658:      * temporarily unavailable.
+  659:      */
+  660: 
+  661:     certificationRelationships: [],
+  662: 
+  663:     /*
+  664:      * Legacy compatibility field.
+  665:      *
+  666:      * This is derived from certificationRelationships
+  667:      * during normalization and should not be edited
+  668:      * independently by new components.
+  669:      */
+  670: 
+  671:     relatedCertificationIds: [],
+  672: 
+  673:     relatedExperienceIds: [],
+  674: 
+  675:     relatedProjectIds: [],
+  676: 
+  677:     visibility: {
+  678:       showProvider: true,
+  679:       showProviderWebsite: true,
+  680:       showDeliveryFormat: true,
+  681:       showLocation: true,
+  682:       showDates: true,
+  683:       showDuration: true,
+  684:       showDescription: true,
+  685:       showInstructors: true,
+  686:       showTopics: true,
+  687:       showLearningOutcomes: true,
+  688:       showSkills: true,
+  689:       showCredential: true,
+  690:       showCertifications: true,
+  691:       showSupportingDocuments: false,
+  692:     },
+  693: 
+  694:     privateInformation: {
+  695:       notes: "",
+  696:     },
+  697: 
+  698:     source: "manual",
+  699: 
+  700:     sourceContext: "",
+  701: 
+  702:     status: "active",
+  703: 
+  704:     createdAt: timestamp,
+  705:     updatedAt: timestamp,
+  706:   };
+  707: }
+  708: 
+  709: /*
+  710:  * =========================================
+  711:  * Normalize Training
+  712:  * =========================================
+  713:  */
+  714: 
+  715: export function normalizeTraining(value = {}) {
+  716:   const defaults = createEmptyTraining();
+  717: 
+  718:   const source =
+  719:     value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  720: 
+  721:   const provider =
+  722:     source.provider &&
+  723:     typeof source.provider === "object" &&
+  724:     !Array.isArray(source.provider)
+  725:       ? source.provider
+  726:       : {};
+  727: 
+  728:   const delivery =
+  729:     source.delivery &&
+  730:     typeof source.delivery === "object" &&
+  731:     !Array.isArray(source.delivery)
+  732:       ? source.delivery
+  733:       : {};
+  734: 
+  735:   const location =
+  736:     delivery.location &&
+  737:     typeof delivery.location === "object" &&
+  738:     !Array.isArray(delivery.location)
+  739:       ? delivery.location
+  740:       : source.location &&
+  741:           typeof source.location === "object" &&
+  742:           !Array.isArray(source.location)
+  743:         ? source.location
+  744:         : {};
+  745: 
+  746:   const dates =
+  747:     source.dates &&
+  748:     typeof source.dates === "object" &&
+  749:     !Array.isArray(source.dates)
+  750:       ? source.dates
+  751:       : {};
+  752: 
+  753:   const completion =
+  754:     source.completion &&
+  755:     typeof source.completion === "object" &&
+  756:     !Array.isArray(source.completion)
+  757:       ? source.completion
+  758:       : {};
+  759: 
+  760:   const visibility =
+  761:     source.visibility &&
+  762:     typeof source.visibility === "object" &&
+  763:     !Array.isArray(source.visibility)
+  764:       ? source.visibility
+  765:       : {};
+  766: 
+  767:   const privateInformation =
+  768:     source.privateInformation &&
+  769:     typeof source.privateInformation === "object" &&
+  770:     !Array.isArray(source.privateInformation)
+  771:       ? source.privateInformation
+  772:       : {};
+  773: 
+  774:   const trainingType = isValidTrainingType(source.trainingType)
+  775:     ? source.trainingType
+  776:     : defaults.trainingType;
+  777: 
+  778:   const providerType = isValidTrainingProviderType(provider.type ?? "")
+  779:     ? (provider.type ?? "")
+  780:     : defaults.provider.type;
+  781: 
+  782:   const deliveryFormat = isValidTrainingDeliveryFormat(delivery.format)
+  783:     ? delivery.format
+  784:     : defaults.delivery.format;
+  785: 
+  786:   const completionStatus = isValidTrainingCompletionStatus(completion.status)
+  787:     ? completion.status
+  788:     : defaults.completion.status;
+  789: 
+  790:   const trainingStatus = isValidTrainingStatus(source.status)
+  791:     ? source.status
+  792:     : defaults.status;
+  793: 
+  794:   const trainingSource = isValidTrainingSource(source.source)
+  795:     ? source.source
+  796:     : defaults.source;
+  797: 
+  798:   const isCurrent =
+  799:     completionStatus === "in-progress" ||
+  800:     normalizeBoolean(dates.isCurrent, false);
+  801: 
+  802:   /*
+  803:    * Version 1 records stored only Certification IDs.
+  804:    * Version 2 stores complete relationship objects.
+  805:    */
+  806: 
+  807:   const certificationRelationshipSource = Array.isArray(
+  808:     source.certificationRelationships,
+  809:   )
+  810:     ? source.certificationRelationships
+  811:     : source.relatedCertificationIds;
+  812: 
+  813:   const certificationRelationships =
+  814:     normalizeTrainingCertificationRelationships(
+  815:       certificationRelationshipSource,
+  816:     );
+  817: 
+  818:   return {
+  819:     modelVersion: TRAINING_MODEL_VERSION,
+  820: 
+  821:     id: normalizeText(source.id, 200) || defaults.id,
+  822: 
+  823:     title: normalizeText(
+  824:       source.title || source.name,
+  825:       TRAINING_FIELD_LIMITS.title,
+  826:     ),
+  827: 
+  828:     trainingType,
+  829: 
+  830:     provider: {
+  831:       name: normalizeText(
+  832:         provider.name || source.providerName || source.organizationName,
+  833:         TRAINING_FIELD_LIMITS.providerName,
+  834:       ),
+  835: 
+  836:       type: providerType,
+  837: 
+  838:       website: normalizeText(
+  839:         provider.website || source.providerWebsite,
+  840:         TRAINING_FIELD_LIMITS.providerWebsite,
+  841:       ),
+  842:     },
+  843: 
+  844:     delivery: {
+  845:       format: deliveryFormat,
+  846: 
+  847:       location: {
+  848:         city: normalizeText(location.city, TRAINING_FIELD_LIMITS.city),
+  849: 
+  850:         stateRegion: normalizeText(
+  851:           location.stateRegion || location.state,
+  852:           TRAINING_FIELD_LIMITS.stateRegion,
+  853:         ),
+  854: 
+  855:         country: normalizeText(location.country, TRAINING_FIELD_LIMITS.country),
+  856: 
+  857:         displayValue: normalizeText(
+  858:           location.displayValue ||
+  859:             source.locationValue ||
+  860:             (typeof source.location === "string" ? source.location : ""),
+  861:           TRAINING_FIELD_LIMITS.locationDisplayValue,
+  862:         ),
+  863:       },
+  864:     },
+  865: 
+  866:     dates: {
+  867:       startDate: normalizeDate(dates.startDate || source.startDate),
+  868: 
+  869:       endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+  870: 
+  871:       isCurrent,
+  872:     },
+  873: 
+  874:     completion: {
+  875:       status: completionStatus,
+  876: 
+  877:       durationHours: normalizeNullableNumber(
+  878:         completion.durationHours ?? source.durationHours,
+  879:         TRAINING_FIELD_LIMITS.maximumDurationHours,
+  880:       ),
+  881: 
+  882:       certificateEarned: normalizeBoolean(completion.certificateEarned, false),
+  883: 
+  884:       credentialId: normalizeText(
+  885:         completion.credentialId || source.credentialId,
+  886:         TRAINING_FIELD_LIMITS.credentialId,
+  887:       ),
+  888: 
+  889:       credentialUrl: normalizeText(
+  890:         completion.credentialUrl || source.credentialUrl,
+  891:         TRAINING_FIELD_LIMITS.credentialUrl,
+  892:       ),
+  893:     },
+  894: 
+  895:     description: normalizeText(
+  896:       source.description || source.overview,
+  897:       TRAINING_FIELD_LIMITS.description,
+  898:     ),
+  899: 
+  900:     instructors: normalizeTrainingInstructors(source.instructors),
+  901: 
+  902:     topics: normalizeTrainingTopics(source.topics || source.curriculum),
+  903: 
+  904:     learningOutcomes: normalizeTrainingOutcomes(
+  905:       source.learningOutcomes || source.outcomes,
+  906:     ),
+  907: 
+  908:     skillRelationships: normalizeTrainingSkillRelationships(
+  909:       source.skillRelationships || source.skills,
+  910:     ),
+  911: 
+  912:     supportingDocuments: normalizeTrainingDocuments(
+  913:       source.supportingDocuments || source.documents || source.attachments,
+  914:     ),
+  915: 
+  916:     relatedEducationIds: normalizeIdentifierList(
+  917:       source.relatedEducationIds,
+  918:       TRAINING_FIELD_LIMITS.maximumRelatedEducation,
+  919:     ),
+  920: 
+  921:     certificationRelationships,
+  922: 
+  923:     /*
+  924:      * Keep the previous ID list synchronized for
+  925:      * services or saved records still using model v1.
+  926:      */
+  927: 
+  928:     relatedCertificationIds: certificationRelationships.map(
+  929:       (relationship) => relationship.certificationId,
+  930:     ),
+  931: 
+  932:     relatedExperienceIds: normalizeIdentifierList(
+  933:       source.relatedExperienceIds,
+  934:       TRAINING_FIELD_LIMITS.maximumRelatedExperiences,
+  935:     ),
+  936: 
+  937:     relatedProjectIds: normalizeIdentifierList(
+  938:       source.relatedProjectIds,
+  939:       TRAINING_FIELD_LIMITS.maximumRelatedProjects,
+  940:     ),
+  941: 
+  942:     visibility: {
+  943:       showProvider: normalizeBoolean(
+  944:         visibility.showProvider,
+  945:         defaults.visibility.showProvider,
+  946:       ),
+  947: 
+  948:       showProviderWebsite: normalizeBoolean(
+  949:         visibility.showProviderWebsite,
+  950:         defaults.visibility.showProviderWebsite,
+  951:       ),
+  952: 
+  953:       showDeliveryFormat: normalizeBoolean(
+  954:         visibility.showDeliveryFormat,
+  955:         defaults.visibility.showDeliveryFormat,
+  956:       ),
+  957: 
+  958:       showLocation: normalizeBoolean(
+  959:         visibility.showLocation,
+  960:         defaults.visibility.showLocation,
+  961:       ),
+  962: 
+  963:       showDates: normalizeBoolean(
+  964:         visibility.showDates,
+  965:         defaults.visibility.showDates,
+  966:       ),
+  967: 
+  968:       showDuration: normalizeBoolean(
+  969:         visibility.showDuration,
+  970:         defaults.visibility.showDuration,
+  971:       ),
+  972: 
+  973:       showDescription: normalizeBoolean(
+  974:         visibility.showDescription,
+  975:         defaults.visibility.showDescription,
+  976:       ),
+  977: 
+  978:       showInstructors: normalizeBoolean(
+  979:         visibility.showInstructors,
+  980:         defaults.visibility.showInstructors,
+  981:       ),
+  982: 
+  983:       showTopics: normalizeBoolean(
+  984:         visibility.showTopics,
+  985:         defaults.visibility.showTopics,
+  986:       ),
+  987: 
+  988:       showLearningOutcomes: normalizeBoolean(
+  989:         visibility.showLearningOutcomes,
+  990:         defaults.visibility.showLearningOutcomes,
+  991:       ),
+  992: 
+  993:       showSkills: normalizeBoolean(
+  994:         visibility.showSkills,
+  995:         defaults.visibility.showSkills,
+  996:       ),
+  997: 
+  998:       showCredential: normalizeBoolean(
+  999:         visibility.showCredential,
+ 1000:         defaults.visibility.showCredential,
+ 1001:       ),
+ 1002: 
+ 1003:       showCertifications: normalizeBoolean(
+ 1004:         visibility.showCertifications,
+ 1005:         defaults.visibility.showCertifications,
+ 1006:       ),
+ 1007: 
+ 1008:       showSupportingDocuments: normalizeBoolean(
+ 1009:         visibility.showSupportingDocuments,
+ 1010:         defaults.visibility.showSupportingDocuments,
+ 1011:       ),
+ 1012:     },
+ 1013: 
+ 1014:     privateInformation: {
+ 1015:       notes: normalizeText(
+ 1016:         privateInformation.notes || source.privateNotes,
+ 1017:         TRAINING_FIELD_LIMITS.privateNotes,
+ 1018:       ),
+ 1019:     },
+ 1020: 
+ 1021:     source: trainingSource,
+ 1022: 
+ 1023:     sourceContext: normalizeText(
+ 1024:       source.sourceContext,
+ 1025:       TRAINING_FIELD_LIMITS.sourceContext,
+ 1026:     ),
+ 1027: 
+ 1028:     status: trainingStatus,
+ 1029: 
+ 1030:     createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+ 1031: 
+ 1032:     updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+ 1033:   };
+ 1034: }
+ 1035: 
+ 1036: /*
+ 1037:  * =========================================
+ 1038:  * Create Training
+ 1039:  * =========================================
+ 1040:  */
+ 1041: 
+ 1042: export function createTraining(values = {}) {
+ 1043:   const timestamp = new Date().toISOString();
+ 1044: 
+ 1045:   return normalizeTraining({
+ 1046:     ...values,
+ 1047: 
+ 1048:     id: normalizeText(values?.id, 200) || createTrainingId(),
+ 1049: 
+ 1050:     createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+ 1051: 
+ 1052:     updatedAt: timestamp,
+ 1053:   });
+ 1054: }
+ 1055: 
+ 1056: /*
+ 1057:  * =========================================
+ 1058:  * Update Training
+ 1059:  * =========================================
+ 1060:  */
+ 1061: 
+ 1062: export function updateTrainingModel(currentTraining, updates = {}) {
+ 1063:   const safeUpdates = updates && typeof updates === "object" ? updates : {};
+ 1064: 
+ 1065:   return normalizeTraining({
+ 1066:     ...currentTraining,
+ 1067:     ...safeUpdates,
+ 1068: 
+ 1069:     provider: {
+ 1070:       ...currentTraining?.provider,
+ 1071:       ...safeUpdates.provider,
+ 1072:     },
+ 1073: 
+ 1074:     delivery: {
+ 1075:       ...currentTraining?.delivery,
+ 1076:       ...safeUpdates.delivery,
+ 1077: 
+ 1078:       location: {
+ 1079:         ...currentTraining?.delivery?.location,
+ 1080:         ...safeUpdates.delivery?.location,
+ 1081:       },
+ 1082:     },
+ 1083: 
+ 1084:     dates: {
+ 1085:       ...currentTraining?.dates,
+ 1086:       ...safeUpdates.dates,
+ 1087:     },
+ 1088: 
+ 1089:     completion: {
+ 1090:       ...currentTraining?.completion,
+ 1091:       ...safeUpdates.completion,
+ 1092:     },
+ 1093: 
+ 1094:     certificationRelationships:
+ 1095:       safeUpdates.certificationRelationships ??
+ 1096:       currentTraining?.certificationRelationships ??
+ 1097:       currentTraining?.relatedCertificationIds ??
+ 1098:       [],
+ 1099: 
+ 1100:     visibility: {
+ 1101:       ...currentTraining?.visibility,
+ 1102:       ...safeUpdates.visibility,
+ 1103:     },
+ 1104: 
+ 1105:     privateInformation: {
+ 1106:       ...currentTraining?.privateInformation,
+ 1107:       ...safeUpdates.privateInformation,
+ 1108:     },
+ 1109: 
+ 1110:     id: currentTraining?.id,
+ 1111: 
+ 1112:     createdAt: currentTraining?.createdAt,
+ 1113: 
+ 1114:     updatedAt: new Date().toISOString(),
+ 1115:   });
+ 1116: }
+ 1117: 
+ 1118: /*
+ 1119:  * =========================================
+ 1120:  * Normalize Collection
+ 1121:  * =========================================
+ 1122:  */
+ 1123: 
+ 1124: export function normalizeTrainingCollection(values) {
+ 1125:   if (!Array.isArray(values)) {
+ 1126:     return [];
+ 1127:   }
+ 1128: 
+ 1129:   const normalizedTraining = values.map(normalizeTraining);
+ 1130: 
+ 1131:   return normalizedTraining.filter(
+ 1132:     (training, index, collection) =>
+ 1133:       collection.findIndex((candidate) => candidate.id === training.id) ===
+ 1134:       index,
+ 1135:   );
+ 1136: }
+ 1137: 
+ 1138: /*
+ 1139:  * =========================================
+ 1140:  * Public Training
+ 1141:  * =========================================
+ 1142:  */
+ 1143: 
+ 1144: export function createPublicTraining(value) {
+ 1145:   const training = normalizeTraining(value);
+ 1146: 
+ 1147:   const {
+ 1148:     privateInformation,
+ 1149:     sourceContext,
+ 1150:     relatedCertificationIds,
+ 1151:     ...publicTraining
+ 1152:   } = training;
+ 1153: 
+ 1154:   return {
+ 1155:     ...publicTraining,
+ 1156: 
+ 1157:     certificationRelationships: publicTraining.visibility.showCertifications
+ 1158:       ? publicTraining.certificationRelationships.map((relationship) => ({
+ 1159:           id: relationship.id,
+ 1160:           certificationId: relationship.certificationId,
+ 1161:           order: relationship.order,
+ 1162: 
+ 1163:           snapshot: {
+ 1164:             name: relationship.snapshot.name,
+ 1165: 
+ 1166:             issuingOrganizationName:
+ 1167:               relationship.snapshot.issuingOrganizationName,
+ 1168: 
+ 1169:             certificationType: relationship.snapshot.certificationType,
+ 1170: 
+ 1171:             credentialState: relationship.snapshot.credentialState,
+ 1172: 
+ 1173:             issueDate: relationship.snapshot.issueDate,
+ 1174: 
+ 1175:             expirationDate: relationship.snapshot.expirationDate,
+ 1176: 
+ 1177:             doesNotExpire: relationship.snapshot.doesNotExpire,
+ 1178:           },
+ 1179:         }))
+ 1180:       : [],
+ 1181: 
+ 1182:     supportingDocuments: publicTraining.visibility.showSupportingDocuments
+ 1183:       ? publicTraining.supportingDocuments.filter(
+ 1184:           (document) => document.visibility === "public",
+ 1185:         )
+ 1186:       : [],
+ 1187:   };
+ 1188: }

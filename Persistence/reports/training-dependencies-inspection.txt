@@ -1,0 +1,289 @@
+﻿TRAINING DEPENDENCY INSPECTION
+Generated: 2026-11-04 14:16:14
+
+===========================================================================
+FILE: frontend\src\services\Certification\certificationTrainingRelationshipService.js
+===========================================================================
+Total lines: 626
+Line 1: import {
+Line 6: import {
+Line 12: import {
+Line 13: readStoredTraining,
+Line 14: replaceStoredTraining,
+Line 17: import {
+Line 28: function getText(value) {
+Line 32: function getArray(value) {
+Line 36: function createIdSet(values) {
+Line 50: function createRelationshipError(
+Line 79: function getTrainingCertificationIds(training) {
+Line 80: const relationships = Array.isArray(training?.certificationRelationships)
+Line 81: ? training.certificationRelationships
+Line 100: function getCertificationTrainingIds(certification) {
+Line 118: function createRecordMap(records) {
+Line 126: function requireTraining(trainingMap, trainingId) {
+Line 143: function requireCertification(certificationMap, certificationId) {
+Line 166: function refreshTrainingCertificationRelationships(training, certificationMap) {
+Line 169: const certificationRelationships = certificationIds.map(
+Line 183: certificationRelationships,
+Line 185: relatedCertificationIds: certificationRelationships.map(
+Line 193: function refreshCertificationTrainingRelationships(certification, trainingMap) {
+Line 220: function synchronizeCertificationWithTraining(
+Line 268: function synchronizeTrainingWithCertification(
+Line 273: const currentRelationships = getArray(training?.certificationRelationships);
+Line 303: const certificationRelationships = nextRelationships.map(
+Line 318: certificationRelationships,
+Line 320: relatedCertificationIds: certificationRelationships.map(
+Line 342: function commitCollections({
+Line 352: const storedTrainingRecords = replaceStoredTraining(nextTrainingRecords);
+Line 371: replaceStoredTraining(originalTrainingRecords);
+Line 417: export function saveTrainingWithCertificationSync({
+Line 422: const originalTrainingRecords = readStoredTraining();
+Line 508: ? refreshTrainingCertificationRelationships(
+Line 529: export function saveCertificationWithTrainingSync({
+Line 534: const originalTrainingRecords = readStoredTraining();
+Line 561: training?.certificationRelationships,
+Line 570: certificationRelationships: remainingRelationships,
+
+===========================================================================
+FILE: frontend\src\services\Certification\certificationTrainingMigrationService.js
+===========================================================================
+Total lines: 887
+Line 1: import {
+Line 7: import {
+Line 15: import {
+Line 20: import { getStoredDocumentFile } from "../Documents/documentStorage.js";
+Line 22: import { readStoredTraining } from "../Training/trainingStorage.js";
+Line 24: import {
+Line 29: import { readStoredCertifications } from "./certificationStorage.js";
+Line 31: import { saveCertificationWithTrainingSync } from "./certificationTrainingRelationshipService.js";
+Line 33: import { validateCertification } from "./certificationValidation.js";
+Line 41: export const CERTIFICATION_TRAINING_MIGRATION_KEY =
+Line 44: export const CERTIFICATION_TRAINING_MIGRATION_VERSION = 1;
+Line 52: function getText(value) {
+Line 56: function getArray(value) {
+Line 60: function normalizeComparisonText(value) {
+Line 64: function uniqueTextValues(values) {
+Line 74: function getBrowserStorage() {
+Line 75: if (typeof window === "undefined" || !window.localStorage) {
+Line 88: return window.localStorage;
+Line 91: function readMigrationState() {
+Line 118: function writeMigrationState(report) {
+Line 142: export function getCertificationTrainingMigrationState() {
+Line 146: export function clearCertificationTrainingMigrationState() {
+Line 156: function createMigrationError({
+Line 184: function isCertificateDocument(document) {
+Line 204: function getLegacyCertificateDocuments(training) {
+Line 205: const documents = getArray(training?.supportingDocuments);
+Line 212: CERTIFICATION_FIELD_LIMITS.maximumSupportingDocuments,
+Line 235: function hasLegacyCertificateInformation(training) {
+Line 250: function getCertificationCredentialId(certification) {
+Line 254: function getCertificationVerificationUrl(certification) {
+Line 258: function findMatchingCertification(certifications, training) {
+Line 326: function getCertificationTrainingIds(certification) {
+Line 335: function addTrainingRelationship(certification, training) {
+Line 397: function getCertificationIssueDate(training) {
+Line 403: function getCertificationDescription(training) {
+Line 418: function createCertificationFromTraining(training) {
+Line 450: skillRelationships: [],
+Line 460: supportingDocuments: [],
+Line 473: showSupportingDocuments: false,
+Line 496: function createFileFromStoredValue(storedFile, document) {
+Line 525: async function copyTrainingCertificateDocuments(
+Line 531: const copiedStorageKeys = [];
+Line 536: const originalStorageKey = getText(legacyDocument?.storageKey);
+Line 538: if (!originalStorageKey) {
+Line 551: const storedValue = await getStoredDocumentFile(originalStorageKey);
+Line 576: copiedStorageKeys.push(storedDocument.storageKey);
+Line 597: storageKey: storedDocument.storageKey,
+Line 619: sourceStorageKey: originalStorageKey,
+Line 620: certificationStorageKey: storedDocument.storageKey,
+Line 641: supportingDocuments: copiedDocuments,
+Line 646: showSupportingDocuments: copiedDocuments.length > 0,
+Line 650: copiedStorageKeys,
+Line 660: function createMigrationReport() {
+Line 692: export async function migrateLegacyTrainingCertifications({
+Line 715: normalizeTrainingCollection(readStoredTraining());
+Line 733: const copiedStorageKeys = [];
+Line 737: const recordCopiedStorageKeyStart = copiedStorageKeys.length;
+Line 789: copiedStorageKeys.push(...copied.copiedStorageKeys);
+Line 867: const recordStorageKeys = copiedStorageKeys.splice(
+Line 868: recordCopiedStorageKeyStart,
+Line 871: if (recordStorageKeys.length > 0) {
+Line 872: await deleteCertificationDocuments(recordStorageKeys).catch(() => {});
+
+===========================================================================
+FILE: frontend\src\services\Documents\documentStorage.js
+===========================================================================
+Total lines: 673
+Line 1: import {
+Line 2: createDocumentStorageKey,
+Line 9: * IndexedDB Configuration
+Line 25: function createDocumentStorageError({
+Line 52: function getIndexedDb() {
+Line 53: if (typeof window === "undefined" || !window.indexedDB) {
+Line 55: message: "IndexedDB is unavailable.",
+Line 63: return window.indexedDB;
+Line 72: function openDocumentDatabase() {
+Line 77: request = getIndexedDb().open(
+Line 91: keyPath: "storageKey",
+Line 145: export async function saveDocumentFile(
+Line 147: { storageKey = "", recordId = "", category = "general" } = {},
+Line 167: const resolvedStorageKey =
+Line 168: storageKey || createDocumentStorageKey("document-file");
+Line 173: storageKey: resolvedStorageKey,
+Line 203: storageKey: storedDocument.storageKey,
+Line 260: export async function getStoredDocument(storageKey) {
+Line 261: if (!storageKey) {
+Line 278: const request = store.get(storageKey);
+Line 293: message: `Unable to retrieve document "${storageKey}".`,
+Line 304: export async function getStoredDocumentFile(storageKey) {
+Line 305: const storedDocument = await getStoredDocument(storageKey);
+Line 316: export async function createStoredDocumentUrl(storageKey) {
+Line 317: const file = await getStoredDocumentFile(storageKey);
+Line 321: message: `Document "${storageKey}" was not found.`,
+Line 333: export function revokeDocumentUrl(objectUrl) {
+Line 345: export async function deleteStoredDocumentFile(storageKey) {
+Line 346: if (!storageKey) {
+Line 348: storageKey: "",
+Line 360: store.delete(storageKey);
+Line 366: storageKey,
+Line 378: message: `Unable to delete document "${storageKey}".`,
+Line 394: * All document deletions run inside one IndexedDB
+Line 395: * transaction. If a request fails, IndexedDB aborts
+Line 402: export async function deleteStoredDocuments(storageKeys = []) {
+Line 403: if (!Array.isArray(storageKeys)) {
+Line 414: const normalizedStorageKeys = [
+Line 416: storageKeys
+Line 417: .map((storageKey) =>
+Line 418: typeof storageKey === "string" ? storageKey.trim() : "",
+Line 434: if (normalizedStorageKeys.length === 0) {
+Line 453: const closeDatabase = () => {
+Line 463: const rejectDeletion = (cause = null) => {
+Line 484: requested: normalizedStorageKeys.length,
+Line 506: storageKey: "",
+Line 509: "The IndexedDB deletion transaction failed.",
+Line 517: normalizedStorageKeys.forEach((storageKey) => {
+Line 518: const getRequest = store.get(storageKey);
+Line 522: missingKeys.push(storageKey);
+Line 526: const deleteRequest = store.delete(storageKey);
+Line 529: deletedKeys.push(storageKey);
+Line 534: storageKey,
+Line 551: storageKey,
+Line 576: requested: normalizedStorageKeys.length,
+Line 580: * cleaned because nothing remains in IndexedDB.
+Line 615: export async function deleteDocumentFilesForRecord(recordId) {
+
+===========================================================================
+FILE: frontend\src\services\Training\trainingService.js
+===========================================================================
+Total lines: 383
+Line 1: import {
+Line 9: import { deleteStoredDocuments } from "../Documents/documentStorage.js";
+Line 11: import { assertValidTraining, validateTraining } from "./trainingValidation.js";
+Line 13: import { readStoredTraining } from "./trainingStorage.js";
+Line 15: import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
+Line 17: function createTrainingServiceError({
+Line 35: function createTrainingNotFoundError(trainingId) {
+Line 44: function createTrainingCandidate(trainingData = {}) {
+Line 91: export async function getTrainingRecords({ includeArchived = false } = {}) {
+Line 92: const records = readStoredTraining();
+Line 99: export const getTraining = getTrainingRecords;
+Line 101: export async function getTrainingById(trainingId) {
+Line 111: const training = readStoredTraining().find(
+Line 122: export async function createTraining(trainingData) {
+Line 123: const records = readStoredTraining();
+Line 141: const transaction = saveTrainingWithCertificationSync({
+Line 153: export async function updateTraining(trainingId, updates = {}) {
+Line 163: const records = readStoredTraining();
+Line 223: const transaction = saveTrainingWithCertificationSync({
+Line 236: export async function archiveTraining(trainingId) {
+Line 242: export async function restoreTraining(trainingId) {
+Line 248: function getTrainingDocumentStorageKeys(training) {
+Line 249: const documents = Array.isArray(training?.supportingDocuments)
+Line 250: ? training.supportingDocuments
+Line 257: typeof document?.storageKey === "string"
+Line 258: ? document.storageKey.trim()
+Line 266: export async function deleteTraining(trainingId) {
+Line 276: const records = readStoredTraining();
+Line 284: const storageKeys = getTrainingDocumentStorageKeys(recordToDelete);
+Line 295: saveTrainingWithCertificationSync({
+Line 304: documentCleanup = await deleteStoredDocuments(storageKeys);
+Line 314: storageKeys,
+Line 331: export async function validateTrainingDraft(
+Line 341: export async function replaceTrainingRecords(trainingValues) {
+Line 354: const currentRecords = readStoredTraining();
+Line 374: const transaction = saveTrainingWithCertificationSync({
+
+===========================================================================
+FILE: frontend\src\models\trainingModel.js
+===========================================================================
+Total lines: 1188
+Line 1: import {
+Line 12: import { isValidDocumentVisibility } from "../config/documentConfig.js";
+Line 20: export const TRAINING_MODEL_VERSION = 2;
+Line 28: export function createTrainingId(prefix = "training") {
+Line 45: function normalizeText(value, maximumLength = Infinity) {
+Line 53: function normalizeBoolean(value, defaultValue = false) {
+Line 57: function normalizeNullableNumber(value, maximumValue = Infinity) {
+Line 71: function normalizeDate(value) {
+Line 85: function normalizeIdentifierList(values, maximumItems) {
+Line 109: export function createTrainingInstructor(value = {}) {
+Line 137: function normalizeTrainingInstructors(values) {
+Line 158: export function createTrainingTopic(value = {}) {
+Line 186: function normalizeTrainingTopics(values) {
+Line 207: export function createTrainingOutcome(value = {}) {
+Line 230: function normalizeTrainingOutcomes(values) {
+Line 251: export function createTrainingSkillRelationship(value = {}) {
+Line 286: function normalizeTrainingSkillRelationships(values) {
+Line 299: const identity = (
+Line 305: const candidateIdentity = (
+Line 329: export function createTrainingCertificationRelationship(value = {}, order = 0) {
+Line 431: function normalizeTrainingCertificationRelationships(values) {
+Line 471: export function getTrainingCertificationRelationships(training) {
+Line 472: return normalizeTrainingCertificationRelationships(
+Line 473: training?.certificationRelationships || training?.relatedCertificationIds,
+Line 477: export function getTrainingCertificationIds(training) {
+Line 478: return getTrainingCertificationRelationships(training).map(
+Line 483: export function isCertificationLinkedToTraining(training, certificationId) {
+Line 490: return getTrainingCertificationRelationships(training).some(
+Line 502: export function createTrainingDocument(value = {}) {
+Line 525: (source.storageKey ? "indexed-db" : ""),
+Line 527: storageKey: normalizeText(source.storageKey, 500),
+Line 542: function normalizeTrainingDocuments(values) {
+Line 553: document.storageKey ||
+Line 560: document.storageKey ||
+Line 568: candidate.storageKey ||
+Line 593: export function createEmptyTraining() {
+Line 646: skillRelationships: [],
+Line 648: supportingDocuments: [],
+Line 661: certificationRelationships: [],
+Line 666: * This is derived from certificationRelationships
+Line 691: showSupportingDocuments: false,
+Line 715: export function normalizeTraining(value = {}) {
+Line 807: const certificationRelationshipSource = Array.isArray(
+Line 808: source.certificationRelationships,
+Line 810: ? source.certificationRelationships
+Line 813: const certificationRelationships =
+Line 814: normalizeTrainingCertificationRelationships(
+Line 815: certificationRelationshipSource,
+Line 908: skillRelationships: normalizeTrainingSkillRelationships(
+Line 909: source.skillRelationships || source.skills,
+Line 912: supportingDocuments: normalizeTrainingDocuments(
+Line 913: source.supportingDocuments || source.documents || source.attachments,
+Line 921: certificationRelationships,
+Line 928: relatedCertificationIds: certificationRelationships.map(
+Line 1008: showSupportingDocuments: normalizeBoolean(
+Line 1009: visibility.showSupportingDocuments,
+Line 1010: defaults.visibility.showSupportingDocuments,
+Line 1042: export function createTraining(values = {}) {
+Line 1062: export function updateTrainingModel(currentTraining, updates = {}) {
+Line 1094: certificationRelationships:
+Line 1095: safeUpdates.certificationRelationships ??
+Line 1096: currentTraining?.certificationRelationships ??
+Line 1124: export function normalizeTrainingCollection(values) {
+Line 1144: export function createPublicTraining(value) {
+Line 1157: certificationRelationships: publicTraining.visibility.showCertifications
+Line 1158: ? publicTraining.certificationRelationships.map((relationship) => ({
+Line 1182: supportingDocuments: publicTraining.visibility.showSupportingDocuments
+Line 1183: ? publicTraining.supportingDocuments.filter(
+

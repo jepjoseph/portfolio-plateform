@@ -1,0 +1,927 @@
+﻿TRAINING BACKEND READ SWITCH INSPECTION
+Mode: READ ONLY
+
+===========================================================================
+FILE: frontend\src\services\Training\trainingService.js
+SHA256: BDB9B7BC55CA3DBDE91E8B9BB708A1431FEDE7F35BF761CF46BCB2B387005207
+   1: import {
+   2:   createEmptyTraining,
+   3:   createTraining as createTrainingModel,
+   4:   normalizeTraining,
+   5:   normalizeTrainingCollection,
+   6:   updateTrainingModel,
+   7: } from "../../models/trainingModel.js";
+   8: 
+   9: import { deleteStoredDocuments } from "../Documents/documentStorage.js";
+  10: 
+  11: import { assertValidTraining, validateTraining } from "./trainingValidation.js";
+  12: 
+  13: import { readStoredTraining } from "./trainingStorage.js";
+  14: 
+  15: import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
+  16: 
+  17: function createTrainingServiceError({
+  18:   message,
+  19:   publicMessage,
+  20:   code,
+  21:   status = 500,
+  22:   details = null,
+  23: }) {
+  24:   const error = new Error(message);
+  25: 
+  26:   error.name = "TrainingServiceError";
+  27:   error.code = code;
+  28:   error.status = status;
+  29:   error.publicMessage = publicMessage;
+  30:   error.details = details;
+  31: 
+  32:   return error;
+  33: }
+  34: 
+  35: function createTrainingNotFoundError(trainingId) {
+  36:   return createTrainingServiceError({
+  37:     message: `Training record "${trainingId}" was not found.`,
+  38:     publicMessage: "The requested training record could not be found.",
+  39:     code: "TRAINING_NOT_FOUND",
+  40:     status: 404,
+  41:   });
+  42: }
+  43: 
+  44: function createTrainingCandidate(trainingData = {}) {
+  45:   const defaults = createEmptyTraining();
+  46: 
+  47:   const source =
+  48:     trainingData && typeof trainingData === "object" ? trainingData : {};
+  49: 
+  50:   return {
+  51:     ...defaults,
+  52:     ...source,
+  53: 
+  54:     provider: {
+  55:       ...defaults.provider,
+  56:       ...source.provider,
+  57:     },
+  58: 
+  59:     delivery: {
+  60:       ...defaults.delivery,
+  61:       ...source.delivery,
+  62: 
+  63:       location: {
+  64:         ...defaults.delivery.location,
+  65:         ...source.delivery?.location,
+  66:       },
+  67:     },
+  68: 
+  69:     dates: {
+  70:       ...defaults.dates,
+  71:       ...source.dates,
+  72:     },
+  73: 
+  74:     completion: {
+  75:       ...defaults.completion,
+  76:       ...source.completion,
+  77:     },
+  78: 
+  79:     visibility: {
+  80:       ...defaults.visibility,
+  81:       ...source.visibility,
+  82:     },
+  83: 
+  84:     privateInformation: {
+  85:       ...defaults.privateInformation,
+  86:       ...source.privateInformation,
+  87:     },
+  88:   };
+  89: }
+  90: 
+  91: export async function getTrainingRecords({ includeArchived = false } = {}) {
+  92:   const records = readStoredTraining();
+  93: 
+  94:   return includeArchived
+  95:     ? records
+  96:     : records.filter((training) => training.status !== "archived");
+  97: }
+  98: 
+  99: export const getTraining = getTrainingRecords;
+ 100: 
+ 101: export async function getTrainingById(trainingId) {
+ 102:   if (!trainingId) {
+ 103:     throw createTrainingServiceError({
+ 104:       message: "A training ID is required.",
+ 105:       publicMessage: "The training record could not be identified.",
+ 106:       code: "TRAINING_ID_REQUIRED",
+ 107:       status: 400,
+ 108:     });
+ 109:   }
+ 110: 
+ 111:   const training = readStoredTraining().find(
+ 112:     (record) => record.id === trainingId,
+ 113:   );
+ 114: 
+ 115:   if (!training) {
+ 116:     throw createTrainingNotFoundError(trainingId);
+ 117:   }
+ 118: 
+ 119:   return training;
+ 120: }
+ 121: 
+ 122: export async function createTraining(trainingData) {
+ 123:   const records = readStoredTraining();
+ 124: 
+ 125:   const candidate = createTrainingCandidate(trainingData);
+ 126: 
+ 127:   assertValidTraining(candidate);
+ 128: 
+ 129:   const training = createTrainingModel(candidate);
+ 130: 
+ 131:   if (records.some((record) => record.id === training.id)) {
+ 132:     throw createTrainingServiceError({
+ 133:       message: `Training ID "${training.id}" already exists.`,
+ 134:       publicMessage:
+ 135:         "This training record could not be created because its identifier already exists.",
+ 136:       code: "TRAINING_ID_CONFLICT",
+ 137:       status: 409,
+ 138:     });
+ 139:   }
+ 140: 
+ 141:   const transaction = saveTrainingWithCertificationSync({
+ 142:     trainingRecords: [training, ...records],
+ 143: 
+ 144:     changedTrainingIds: [training.id],
+ 145:   });
+ 146: 
+ 147:   return (
+ 148:     transaction.trainingRecords.find((record) => record.id === training.id) ||
+ 149:     training
+ 150:   );
+ 151: }
+ 152: 
+ 153: export async function updateTraining(trainingId, updates = {}) {
+ 154:   if (!trainingId) {
+ 155:     throw createTrainingServiceError({
+ 156:       message: "A training ID is required.",
+ 157:       publicMessage: "The training record could not be identified.",
+ 158:       code: "TRAINING_ID_REQUIRED",
+ 159:       status: 400,
+ 160:     });
+ 161:   }
+ 162: 
+ 163:   const records = readStoredTraining();
+ 164: 
+ 165:   const recordIndex = records.findIndex(
+ 166:     (training) => training.id === trainingId,
+ 167:   );
+ 168: 
+ 169:   if (recordIndex === -1) {
+ 170:     throw createTrainingNotFoundError(trainingId);
+ 171:   }
+ 172: 
+ 173:   const currentTraining = records[recordIndex];
+ 174: 
+ 175:   const candidate = createTrainingCandidate({
+ 176:     ...currentTraining,
+ 177:     ...updates,
+ 178: 
+ 179:     provider: {
+ 180:       ...currentTraining.provider,
+ 181:       ...updates.provider,
+ 182:     },
+ 183: 
+ 184:     delivery: {
+ 185:       ...currentTraining.delivery,
+ 186:       ...updates.delivery,
+ 187: 
+ 188:       location: {
+ 189:         ...currentTraining.delivery?.location,
+ 190:         ...updates.delivery?.location,
+ 191:       },
+ 192:     },
+ 193: 
+ 194:     dates: {
+ 195:       ...currentTraining.dates,
+ 196:       ...updates.dates,
+ 197:     },
+ 198: 
+ 199:     completion: {
+ 200:       ...currentTraining.completion,
+ 201:       ...updates.completion,
+ 202:     },
+ 203: 
+ 204:     visibility: {
+ 205:       ...currentTraining.visibility,
+ 206:       ...updates.visibility,
+ 207:     },
+ 208: 
+ 209:     privateInformation: {
+ 210:       ...currentTraining.privateInformation,
+ 211:       ...updates.privateInformation,
+ 212:     },
+ 213:   });
+ 214: 
+ 215:   assertValidTraining(candidate);
+ 216: 
+ 217:   const updatedTraining = updateTrainingModel(currentTraining, updates);
+ 218: 
+ 219:   const nextRecords = [...records];
+ 220: 
+ 221:   nextRecords[recordIndex] = updatedTraining;
+ 222: 
+ 223:   const transaction = saveTrainingWithCertificationSync({
+ 224:     trainingRecords: nextRecords,
+ 225: 
+ 226:     changedTrainingIds: [updatedTraining.id],
+ 227:   });
+ 228: 
+ 229:   return (
+ 230:     transaction.trainingRecords.find(
+ 231:       (record) => record.id === updatedTraining.id,
+ 232:     ) || updatedTraining
+ 233:   );
+ 234: }
+ 235: 
+ 236: export async function archiveTraining(trainingId) {
+ 237:   return updateTraining(trainingId, {
+ 238:     status: "archived",
+ 239:   });
+ 240: }
+ 241: 
+ 242: export async function restoreTraining(trainingId) {
+ 243:   return updateTraining(trainingId, {
+ 244:     status: "active",
+ 245:   });
+ 246: }
+ 247: 
+ 248: function getTrainingDocumentStorageKeys(training) {
+ 249:   const documents = Array.isArray(training?.supportingDocuments)
+ 250:     ? training.supportingDocuments
+ 251:     : [];
+ 252: 
+ 253:   return [
+ 254:     ...new Set(
+ 255:       documents
+ 256:         .map((document) =>
+ 257:           typeof document?.storageKey === "string"
+ 258:             ? document.storageKey.trim()
+ 259:             : "",
+ 260:         )
+ 261:         .filter(Boolean),
+ 262:     ),
+ 263:   ];
+ 264: }
+ 265: 
+ 266: export async function deleteTraining(trainingId) {
+ 267:   if (!trainingId) {
+ 268:     throw createTrainingServiceError({
+ 269:       message: "A training ID is required.",
+ 270:       publicMessage: "The training record could not be identified.",
+ 271:       code: "TRAINING_ID_REQUIRED",
+ 272:       status: 400,
+ 273:     });
+ 274:   }
+ 275: 
+ 276:   const records = readStoredTraining();
+ 277: 
+ 278:   const recordToDelete = records.find((training) => training.id === trainingId);
+ 279: 
+ 280:   if (!recordToDelete) {
+ 281:     throw createTrainingNotFoundError(trainingId);
+ 282:   }
+ 283: 
+ 284:   const storageKeys = getTrainingDocumentStorageKeys(recordToDelete);
+ 285: 
+ 286:   const remainingRecords = records.filter(
+ 287:     (training) => training.id !== trainingId,
+ 288:   );
+ 289: 
+ 290:   /*
+ 291:    * Remove Training metadata and reciprocal
+ 292:    * Certification links first.
+ 293:    */
+ 294: 
+ 295:   saveTrainingWithCertificationSync({
+ 296:     trainingRecords: remainingRecords,
+ 297: 
+ 298:     deletedTrainingIds: [trainingId],
+ 299:   });
+ 300: 
+ 301:   let documentCleanup = null;
+ 302: 
+ 303:   try {
+ 304:     documentCleanup = await deleteStoredDocuments(storageKeys);
+ 305:   } catch (cleanupError) {
+ 306:     /*
+ 307:      * Metadata and relationships are already
+ 308:      * consistently deleted. Failed binary cleanup
+ 309:      * can be handled later as orphan maintenance.
+ 310:      */
+ 311: 
+ 312:     documentCleanup = {
+ 313:       completed: false,
+ 314:       storageKeys,
+ 315:       error:
+ 316:         cleanupError?.publicMessage ||
+ 317:         cleanupError?.message ||
+ 318:         "Document cleanup failed.",
+ 319:     };
+ 320:   }
+ 321: 
+ 322:   return {
+ 323:     id: trainingId,
+ 324:     title: recordToDelete.title,
+ 325:     providerName: recordToDelete.provider?.name || "",
+ 326:     deleted: true,
+ 327:     documents: documentCleanup,
+ 328:   };
+ 329: }
+ 330: 
+ 331: export async function validateTrainingDraft(
+ 332:   trainingData,
+ 333:   validationOptions = {},
+ 334: ) {
+ 335:   return validateTraining(
+ 336:     createTrainingCandidate(trainingData),
+ 337:     validationOptions,
+ 338:   );
+ 339: }
+ 340: 
+ 341: export async function replaceTrainingRecords(trainingValues) {
+ 342:   if (!Array.isArray(trainingValues)) {
+ 343:     throw createTrainingServiceError({
+ 344:       message: "The replacement Training Library must be an array.",
+ 345: 
+ 346:       publicMessage: "The Training Library has an invalid format.",
+ 347: 
+ 348:       code: "INVALID_TRAINING_COLLECTION",
+ 349: 
+ 350:       status: 400,
+ 351:     });
+ 352:   }
+ 353: 
+ 354:   const currentRecords = readStoredTraining();
+ 355: 
+ 356:   const validatedRecords = trainingValues.map((value) => {
+ 357:     const candidate = createTrainingCandidate(value);
+ 358: 
+ 359:     assertValidTraining(candidate);
+ 360: 
+ 361:     return normalizeTraining(candidate);
+ 362:   });
+ 363: 
+ 364:   const normalizedRecords = normalizeTrainingCollection(validatedRecords);
+ 365: 
+ 366:   const nextTrainingIds = new Set(
+ 367:     normalizedRecords.map((training) => training.id),
+ 368:   );
+ 369: 
+ 370:   const deletedTrainingIds = currentRecords
+ 371:     .map((training) => training.id)
+ 372:     .filter((trainingId) => !nextTrainingIds.has(trainingId));
+ 373: 
+ 374:   const transaction = saveTrainingWithCertificationSync({
+ 375:     trainingRecords: normalizedRecords,
+ 376: 
+ 377:     changedTrainingIds: normalizedRecords.map((training) => training.id),
+ 378: 
+ 379:     deletedTrainingIds,
+ 380:   });
+ 381: 
+ 382:   return transaction.trainingRecords;
+ 383: }
+
+===========================================================================
+FILE: frontend\src\services\apiClient.js
+SHA256: 799468800C72422D1B90E75A6EB85BD8FB45FCD37180980658F9EDE64565D3B1
+   1: /*
+   2:  * =========================================
+   3:  * API Configuration
+   4:  * =========================================
+   5:  */
+   6: 
+   7: const DEFAULT_API_ORIGIN = "http://localhost:5000";
+   8: 
+   9: const DEFAULT_TIMEOUT_MS = 30000;
+  10: 
+  11: /*
+  12:  * =========================================
+  13:  * Authentication Session Event
+  14:  * =========================================
+  15:  */
+  16: 
+  17: export const AUTH_SESSION_INVALID_EVENT =
+  18:   "portfolio-platform:auth-session-invalid";
+  19: 
+  20: const INVALID_SESSION_CODES = new Set([
+  21:   "AUTHENTICATION_REQUIRED",
+  22:   "SESSION_REFRESH_TOKEN_INVALID",
+  23:   "SESSION_NOT_FOUND",
+  24:   "SESSION_REFRESH_CONFLICT",
+  25: ]);
+  26: 
+  27: /*
+  28:  * =========================================
+  29:  * Invalid Session Notification
+  30:  * =========================================
+  31:  */
+  32: 
+  33: function notifyInvalidAuthenticationSession(error) {
+  34:   if (
+  35:     typeof window === "undefined" ||
+  36:     (Number(error?.status) !== 401 &&
+  37:       error?.code !== "SESSION_REFRESH_CONFLICT")
+  38:   ) {
+  39:     return;
+  40:   }
+  41: 
+  42:   if (!INVALID_SESSION_CODES.has(error?.code)) {
+  43:     return;
+  44:   }
+  45: 
+  46:   window.dispatchEvent(
+  47:     new CustomEvent(AUTH_SESSION_INVALID_EVENT, {
+  48:       detail: {
+  49:         status: error.status,
+  50: 
+  51:         code: error.code,
+  52: 
+  53:         message: error.message,
+  54:       },
+  55:     }),
+  56:   );
+  57: }
+  58: 
+  59: /*
+  60:  * VITE_API_BASE_URL may be configured as:
+  61:  *
+  62:  * http://localhost:5000
+  63:  *
+  64:  * or:
+  65:  *
+  66:  * http://localhost:5000/api
+  67:  *
+  68:  * Both formats are supported.
+  69:  */
+  70: 
+  71: function normalizeApiBaseUrl(value) {
+  72:   const configuredValue = typeof value === "string" ? value.trim() : "";
+  73: 
+  74:   const baseUrl = (configuredValue || DEFAULT_API_ORIGIN).replace(/\/+$/, "");
+  75: 
+  76:   return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+  77: }
+  78: 
+  79: export const API_BASE_URL = normalizeApiBaseUrl(
+  80:   import.meta.env?.VITE_API_BASE_URL,
+  81: );
+  82: 
+  83: /*
+  84:  * =========================================
+  85:  * API Error
+  86:  * =========================================
+  87:  */
+  88: 
+  89: export class ApiError extends Error {
+  90:   constructor({
+  91:     message,
+  92:     status = 0,
+  93:     code = "API_REQUEST_FAILED",
+  94:     fieldErrors = {},
+  95:     errors = [],
+  96:     details = null,
+  97:     method = "",
+  98:     url = "",
+  99:     cause,
+ 100:   }) {
+ 101:     super(message || "The request could not be completed.", {
+ 102:       cause,
+ 103:     });
+ 104: 
+ 105:     this.name = "ApiError";
+ 106: 
+ 107:     this.status = Number(status) || 0;
+ 108: 
+ 109:     this.code = code || "API_REQUEST_FAILED";
+ 110: 
+ 111:     this.fieldErrors =
+ 112:       fieldErrors && typeof fieldErrors === "object" ? fieldErrors : {};
+ 113: 
+ 114:     this.errors = Array.isArray(errors) ? errors : [];
+ 115: 
+ 116:     this.details = details || null;
+ 117: 
+ 118:     this.method = method;
+ 119: 
+ 120:     this.url = url;
+ 121:   }
+ 122: }
+ 123: 
+ 124: /*
+ 125:  * =========================================
+ 126:  * Endpoint Normalization
+ 127:  * =========================================
+ 128:  */
+ 129: 
+ 130: function normalizeEndpoint(endpoint) {
+ 131:   if (typeof endpoint !== "string" || !endpoint.trim()) {
+ 132:     throw new TypeError("A relative API endpoint is required.");
+ 133:   }
+ 134: 
+ 135:   const normalizedEndpoint = endpoint.trim();
+ 136: 
+ 137:   /*
+ 138:    * Prevent accidental cookie-bearing
+ 139:    * requests to arbitrary external origins.
+ 140:    */
+ 141: 
+ 142:   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedEndpoint)) {
+ 143:     throw new TypeError("API endpoints must be relative paths.");
+ 144:   }
+ 145: 
+ 146:   return normalizedEndpoint.startsWith("/")
+ 147:     ? normalizedEndpoint
+ 148:     : `/${normalizedEndpoint}`;
+ 149: }
+ 150: 
+ 151: /*
+ 152:  * =========================================
+ 153:  * Query Parameters
+ 154:  * =========================================
+ 155:  */
+ 156: 
+ 157: function appendQueryParameters(url, query) {
+ 158:   if (!query || typeof query !== "object") {
+ 159:     return url;
+ 160:   }
+ 161: 
+ 162:   const requestUrl = new URL(url);
+ 163: 
+ 164:   for (const [name, value] of Object.entries(query)) {
+ 165:     if (value === undefined || value === null || value === "") {
+ 166:       continue;
+ 167:     }
+ 168: 
+ 169:     if (Array.isArray(value)) {
+ 170:       for (const item of value) {
+ 171:         requestUrl.searchParams.append(name, String(item));
+ 172:       }
+ 173: 
+ 174:       continue;
+ 175:     }
+ 176: 
+ 177:     requestUrl.searchParams.set(name, String(value));
+ 178:   }
+ 179: 
+ 180:   return requestUrl.toString();
+ 181: }
+ 182: 
+ 183: /*
+ 184:  * =========================================
+ 185:  * Request Body Preparation
+ 186:  * =========================================
+ 187:  */
+ 188: 
+ 189: function isFormData(value) {
+ 190:   return typeof FormData !== "undefined" && value instanceof FormData;
+ 191: }
+ 192: 
+ 193: function isUrlSearchParams(value) {
+ 194:   return (
+ 195:     typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams
+ 196:   );
+ 197: }
+ 198: 
+ 199: function isBlob(value) {
+ 200:   return typeof Blob !== "undefined" && value instanceof Blob;
+ 201: }
+ 202: 
+ 203: function shouldSerializeAsJson(body) {
+ 204:   return (
+ 205:     body !== undefined &&
+ 206:     body !== null &&
+ 207:     typeof body === "object" &&
+ 208:     !isFormData(body) &&
+ 209:     !isUrlSearchParams(body) &&
+ 210:     !isBlob(body) &&
+ 211:     !(body instanceof ArrayBuffer)
+ 212:   );
+ 213: }
+ 214: 
+ 215: function prepareRequestBody({ body, headers }) {
+ 216:   if (body === undefined || body === null) {
+ 217:     return undefined;
+ 218:   }
+ 219: 
+ 220:   if (shouldSerializeAsJson(body)) {
+ 221:     if (!headers.has("Content-Type")) {
+ 222:       headers.set("Content-Type", "application/json");
+ 223:     }
+ 224: 
+ 225:     return JSON.stringify(body);
+ 226:   }
+ 227: 
+ 228:   /*
+ 229:    * Never set Content-Type manually for
+ 230:    * FormData. The browser must add its
+ 231:    * multipart boundary.
+ 232:    */
+ 233: 
+ 234:   return body;
+ 235: }
+ 236: 
+ 237: /*
+ 238:  * =========================================
+ 239:  * Response Parsing
+ 240:  * =========================================
+ 241:  */
+ 242: 
+ 243: async function parseResponseBody(response) {
+ 244:   if (response.status === 204 || response.status === 205) {
+ 245:     return null;
+ 246:   }
+ 247: 
+ 248:   const text = await response.text();
+ 249: 
+ 250:   if (!text) {
+ 251:     return null;
+ 252:   }
+ 253: 
+ 254:   const contentType = response.headers.get("content-type") || "";
+ 255: 
+ 256:   if (contentType.includes("application/json")) {
+ 257:     try {
+ 258:       return JSON.parse(text);
+ 259:     } catch {
+ 260:       return {
+ 261:         message: "The server returned an invalid JSON response.",
+ 262:       };
+ 263:     }
+ 264:   }
+ 265: 
+ 266:   /*
+ 267:    * Some development proxies may omit the
+ 268:    * JSON content type. Attempt JSON parsing
+ 269:    * before treating the body as plain text.
+ 270:    */
+ 271: 
+ 272:   try {
+ 273:     return JSON.parse(text);
+ 274:   } catch {
+ 275:     return {
+ 276:       message: text,
+ 277:     };
+ 278:   }
+ 279: }
+ 280: 
+ 281: /*
+ 282:  * =========================================
+ 283:  * API Error Creation
+ 284:  * =========================================
+ 285:  */
+ 286: 
+ 287: function createResponseError({ response, data, method, url }) {
+ 288:   const error = new ApiError({
+ 289:     message: data?.message || `The server returned HTTP ${response.status}.`,
+ 290: 
+ 291:     status: response.status,
+ 292: 
+ 293:     code: data?.code || "API_REQUEST_FAILED",
+ 294: 
+ 295:     fieldErrors: data?.fieldErrors,
+ 296: 
+ 297:     errors: data?.errors,
+ 298: 
+ 299:     details: data?.details,
+ 300: 
+ 301:     method,
+ 302: 
+ 303:     url,
+ 304:   });
+ 305: 
+ 306:   notifyInvalidAuthenticationSession(error);
+ 307: 
+ 308:   return error;
+ 309: }
+ 310: 
+ 311: /*
+ 312:  * =========================================
+ 313:  * Timeout and Abort Signal
+ 314:  * =========================================
+ 315:  */
+ 316: 
+ 317: function createRequestAbortController({ signal, timeoutMs }) {
+ 318:   const controller = new AbortController();
+ 319: 
+ 320:   let wasTimedOut = false;
+ 321: 
+ 322:   const handleExternalAbort = () => {
+ 323:     controller.abort(signal?.reason);
+ 324:   };
+ 325: 
+ 326:   if (signal) {
+ 327:     if (signal.aborted) {
+ 328:       handleExternalAbort();
+ 329:     } else {
+ 330:       signal.addEventListener("abort", handleExternalAbort, {
+ 331:         once: true,
+ 332:       });
+ 333:     }
+ 334:   }
+ 335: 
+ 336:   const timeoutId = globalThis.setTimeout(() => {
+ 337:     wasTimedOut = true;
+ 338: 
+ 339:     controller.abort();
+ 340:   }, timeoutMs);
+ 341: 
+ 342:   return {
+ 343:     signal: controller.signal,
+ 344: 
+ 345:     wasTimedOut() {
+ 346:       return wasTimedOut;
+ 347:     },
+ 348: 
+ 349:     cleanup() {
+ 350:       globalThis.clearTimeout(timeoutId);
+ 351: 
+ 352:       signal?.removeEventListener?.("abort", handleExternalAbort);
+ 353:     },
+ 354:   };
+ 355: }
+ 356: 
+ 357: /*
+ 358:  * =========================================
+ 359:  * API Request
+ 360:  * =========================================
+ 361:  */
+ 362: 
+ 363: export async function apiRequest(
+ 364:   endpoint,
+ 365:   {
+ 366:     method = "GET",
+ 367:     body,
+ 368:     query,
+ 369:     headers: customHeaders,
+ 370:     signal,
+ 371:     timeoutMs = DEFAULT_TIMEOUT_MS,
+ 372:     cache = "no-store",
+ 373:   } = {},
+ 374: ) {
+ 375:   const normalizedMethod = String(method).trim().toUpperCase() || "GET";
+ 376: 
+ 377:   const normalizedEndpoint = normalizeEndpoint(endpoint);
+ 378: 
+ 379:   const requestUrl = appendQueryParameters(
+ 380:     `${API_BASE_URL}${normalizedEndpoint}`,
+ 381:     query,
+ 382:   );
+ 383: 
+ 384:   const headers = new Headers(customHeaders || {});
+ 385: 
+ 386:   if (!headers.has("Accept")) {
+ 387:     headers.set("Accept", "application/json");
+ 388:   }
+ 389: 
+ 390:   const requestBody = prepareRequestBody({
+ 391:     body,
+ 392: 
+ 393:     headers,
+ 394:   });
+ 395: 
+ 396:   const abortState = createRequestAbortController({
+ 397:     signal,
+ 398: 
+ 399:     timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS,
+ 400:   });
+ 401: 
+ 402:   try {
+ 403:     const response = await fetch(requestUrl, {
+ 404:       method: normalizedMethod,
+ 405: 
+ 406:       /*
+ 407:        * Required for HttpOnly session
+ 408:        * cookies on cross-origin requests.
+ 409:        */
+ 410: 
+ 411:       credentials: "include",
+ 412: 
+ 413:       headers,
+ 414: 
+ 415:       body: ["GET", "HEAD"].includes(normalizedMethod)
+ 416:         ? undefined
+ 417:         : requestBody,
+ 418: 
+ 419:       signal: abortState.signal,
+ 420: 
+ 421:       cache,
+ 422:     });
+ 423: 
+ 424:     const data = await parseResponseBody(response);
+ 425: 
+ 426:     if (!response.ok) {
+ 427:       throw createResponseError({
+ 428:         response,
+ 429: 
+ 430:         data,
+ 431: 
+ 432:         method: normalizedMethod,
+ 433: 
+ 434:         url: requestUrl,
+ 435:       });
+ 436:     }
+ 437: 
+ 438:     return data;
+ 439:   } catch (error) {
+ 440:     if (error instanceof ApiError) {
+ 441:       throw error;
+ 442:     }
+ 443: 
+ 444:     if (error?.name === "AbortError") {
+ 445:       throw new ApiError({
+ 446:         message: abortState.wasTimedOut()
+ 447:           ? "The server took too long to respond."
+ 448:           : "The request was canceled.",
+ 449: 
+ 450:         status: 0,
+ 451: 
+ 452:         code: abortState.wasTimedOut()
+ 453:           ? "API_REQUEST_TIMEOUT"
+ 454:           : "API_REQUEST_ABORTED",
+ 455: 
+ 456:         method: normalizedMethod,
+ 457: 
+ 458:         url: requestUrl,
+ 459: 
+ 460:         cause: error,
+ 461:       });
+ 462:     }
+ 463: 
+ 464:     throw new ApiError({
+ 465:       message:
+ 466:         "Unable to connect to the server. Check your connection and try again.",
+ 467: 
+ 468:       status: 0,
+ 469: 
+ 470:       code: "API_NETWORK_ERROR",
+ 471: 
+ 472:       method: normalizedMethod,
+ 473: 
+ 474:       url: requestUrl,
+ 475: 
+ 476:       cause: error,
+ 477:     });
+ 478:   } finally {
+ 479:     abortState.cleanup();
+ 480:   }
+ 481: }
+ 482: 
+ 483: /*
+ 484:  * =========================================
+ 485:  * Convenience Methods
+ 486:  * =========================================
+ 487:  */
+ 488: 
+ 489: export function apiGet(endpoint, options = {}) {
+ 490:   return apiRequest(endpoint, {
+ 491:     ...options,
+ 492: 
+ 493:     method: "GET",
+ 494:   });
+ 495: }
+ 496: 
+ 497: export function apiPost(endpoint, body, options = {}) {
+ 498:   return apiRequest(endpoint, {
+ 499:     ...options,
+ 500: 
+ 501:     method: "POST",
+ 502: 
+ 503:     body,
+ 504:   });
+ 505: }
+ 506: 
+ 507: export function apiPut(endpoint, body, options = {}) {
+ 508:   return apiRequest(endpoint, {
+ 509:     ...options,
+ 510: 
+ 511:     method: "PUT",
+ 512: 
+ 513:     body,
+ 514:   });
+ 515: }
+ 516: 
+ 517: export function apiPatch(endpoint, body, options = {}) {
+ 518:   return apiRequest(endpoint, {
+ 519:     ...options,
+ 520: 
+ 521:     method: "PATCH",
+ 522: 
+ 523:     body,
+ 524:   });
+ 525: }
+ 526: 
+ 527: export function apiDelete(endpoint, options = {}) {
+ 528:   return apiRequest(endpoint, {
+ 529:     ...options,
+ 530: 
+ 531:     method: "DELETE",
+ 532:   });
+ 533: }
+ 534: 

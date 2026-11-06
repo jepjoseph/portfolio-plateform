@@ -190,3 +190,17 @@ Step Component Action
 | 7E.7  | Migrate existing Skills data safely                   | ⏳ Pending |
 | 7E.8  | Test CRUD and cross-browser persistence               | ⏳ Pending |
 | 7E.9  | Verify production readiness                           | ⏳ Pending |
+
+## Proposed Training implementation structure
+Proposed backend files — not created yet
+database/migrations/013_trainings.sql
+
+repositories/trainingRepository.js
+
+services/Service/trainingService.js
+
+schemas/trainingSchemas.js
+
+controllers/trainingController.js
+
+routes/trainingRoutes.js

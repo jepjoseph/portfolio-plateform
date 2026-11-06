@@ -1,0 +1,1766 @@
+﻿TRAINING DOCUMENT IMPLEMENTATION PATTERNS
+Generated: 2026-11-05 19:04:05
+Inspection mode: READ ONLY
+
+
+================================================================================
+FILE: src\middleware\certification\certificationDocumentUploadMiddleware.js
+================================================================================
+   1: import crypto from "node:crypto";
+   2: import fs from "node:fs/promises";
+   3: import path from "node:path";
+   4: 
+   5: import multer from "multer";
+   6: 
+   7: import {
+   8:   getCertificationDocumentDirectory,
+   9:   getCertificationDocumentStorageRoot,
+  10:   assertSafeCertificationDocumentDirectory,
+  11: } from "../../services/Storage/certificationDocumentStorageService.js";
+  12: 
+  13: export const MAX_CERTIFICATION_DOCUMENT_SIZE = 10 * 1024 * 1024;
+  14: 
+  15: export const ALLOWED_CERTIFICATION_DOCUMENT_TYPES = new Map([
+  16:   ["application/pdf", { extension: ".pdf" }],
+  17:   [
+  18:     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  19:     { extension: ".docx" },
+  20:   ],
+  21:   ["image/jpeg", { extension: ".jpg" }],
+  22:   ["image/png", { extension: ".png" }],
+  23:   ["image/webp", { extension: ".webp" }],
+  24: ]);
+  25: 
+  26: function createUploadError(message, code, status = 400) {
+  27:   const error = new Error(message);
+  28: 
+  29:   error.name = "CertificationDocumentUploadError";
+  30:   error.code = code;
+  31:   error.status = status;
+  32:   error.publicMessage = message;
+  33: 
+  34:   return error;
+  35: }
+  36: 
+  37: function getAuthorizedUploadContext(request) {
+  38:   const userId = String(request.auth?.userId ?? "").trim();
+  39:   const certificationId = String(
+  40:     request.params?.certificationId ?? "",
+  41:   ).trim();
+  42: 
+  43:   const authorizedCertification = request.authorizedCertification;
+  44: 
+  45:   if (!userId || !certificationId || !authorizedCertification) {
+  46:     throw createUploadError(
+  47:       "Certification document upload is not authorized.",
+  48:       "CERTIFICATION_DOCUMENT_UPLOAD_UNAUTHORIZED",
+  49:       403,
+  50:     );
+  51:   }
+  52: 
+  53:   if (
+  54:     String(authorizedCertification.id ?? "").trim() !== certificationId
+  55:   ) {
+  56:     throw createUploadError(
+  57:       "Authorized Certification does not match the upload destination.",
+  58:       "CERTIFICATION_DOCUMENT_UPLOAD_CERTIFICATION_MISMATCH",
+  59:       403,
+  60:     );
+  61:   }
+  62: 
+  63:   return { userId, certificationId };
+  64: }
+  65: 
+  66: async function ensureSafeUploadDirectory(userId, certificationId) {
+  67:   const root = path.resolve(getCertificationDocumentStorageRoot());
+  68: 
+  69:   const destination = path.resolve(
+  70:     getCertificationDocumentDirectory(userId, certificationId),
+  71:   );
+  72: 
+  73:   const relative = path.relative(root, destination);
+  74: 
+  75:   if (
+  76:     !relative ||
+  77:     relative === ".." ||
+  78:     relative.startsWith(`..${path.sep}`) ||
+  79:     path.isAbsolute(relative)
+  80:   ) {
+  81:     throw new Error("Certification upload destination is invalid.");
+  82:   }
+  83: 
+  84:   // The configured storage root is expected to be a trusted
+  85:   // administrator-controlled location outside the public web root.
+  86:   await fs.mkdir(root, { recursive: true });
+  87: 
+  88:   const directories = [
+  89:     root,
+  90:     path.dirname(destination),
+  91:     destination,
+  92:   ];
+  93: 
+  94:   for (const directory of directories) {
+  95:     try {
+  96:       await fs.mkdir(directory);
+  97:     } catch (error) {
+  98:       if (error?.code !== "EEXIST") {
+  99:         throw error;
+ 100:       }
+ 101:     }
+ 102: 
+ 103:     const stats = await fs.lstat(directory);
+ 104: 
+ 105:     if (stats.isSymbolicLink() || !stats.isDirectory()) {
+ 106:       throw new Error(
+ 107:         "Certification upload directory is not a regular directory.",
+ 108:       );
+ 109:     }
+ 110:   }
+ 111: 
+ 112:   await assertSafeCertificationDocumentDirectory(
+ 113:     userId,
+ 114:     certificationId,
+ 115:   );
+ 116: 
+ 117:   return destination;
+ 118: }
+ 119: 
+ 120: const storage = multer.diskStorage({
+ 121:   destination(request, file, callback) {
+ 122:     let context;
+ 123: 
+ 124:     try {
+ 125:       context = getAuthorizedUploadContext(request);
+ 126:     } catch (error) {
+ 127:       return callback(error);
+ 128:     }
+ 129: 
+ 130:     ensureSafeUploadDirectory(
+ 131:       context.userId,
+ 132:       context.certificationId,
+ 133:     )
+ 134:       .then((directory) => callback(null, directory))
+ 135:       .catch((error) => callback(error));
+ 136:   },
+ 137: 
+ 138:   filename(request, file, callback) {
+ 139:     try {
+ 140:       getAuthorizedUploadContext(request);
+ 141: 
+ 142:       const configuration = ALLOWED_CERTIFICATION_DOCUMENT_TYPES.get(
+ 143:         file.mimetype,
+ 144:       );
+ 145: 
+ 146:       if (!configuration) {
+ 147:         throw createUploadError(
+ 148:           "Unsupported Certification document type.",
+ 149:           "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+ 150:         );
+ 151:       }
+ 152: 
+ 153:       return callback(
+ 154:         null,
+ 155:         `${crypto.randomUUID()}${configuration.extension}`,
+ 156:       );
+ 157:     } catch (error) {
+ 158:       return callback(error);
+ 159:     }
+ 160:   },
+ 161: });
+ 162: 
+ 163: function certificationDocumentFileFilter(request, file, callback) {
+ 164:   try {
+ 165:     getAuthorizedUploadContext(request);
+ 166: 
+ 167:     if (!ALLOWED_CERTIFICATION_DOCUMENT_TYPES.has(file.mimetype)) {
+ 168:       throw createUploadError(
+ 169:         "Unsupported Certification document type.",
+ 170:         "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+ 171:       );
+ 172:     }
+ 173: 
+ 174:     return callback(null, true);
+ 175:   } catch (error) {
+ 176:     return callback(error);
+ 177:   }
+ 178: }
+ 179: 
+ 180: const certificationDocumentUpload = multer({
+ 181:   storage,
+ 182:   limits: {
+ 183:     fileSize: MAX_CERTIFICATION_DOCUMENT_SIZE,
+ 184:     files: 1,
+ 185:   },
+ 186:   fileFilter: certificationDocumentFileFilter,
+ 187: }).single("document");
+ 188: 
+ 189: export function uploadCertificationDocument(request, response, next) {
+ 190:   // Reject requests lacking verified ownership before invoking Multer.
+ 191:   try {
+ 192:     getAuthorizedUploadContext(request);
+ 193:   } catch (error) {
+ 194:     return next(error);
+ 195:   }
+ 196: 
+ 197:   return certificationDocumentUpload(
+ 198:     request,
+ 199:     response,
+ 200:     (error) => {
+ 201:       if (!error) {
+ 202:         return next();
+ 203:       }
+ 204: 
+ 205:       if (error instanceof multer.MulterError) {
+ 206:         if (error.code === "LIMIT_FILE_SIZE") {
+ 207:           return next(
+ 208:             createUploadError(
+ 209:               "Certification document exceeds the 10 MiB upload limit.",
+ 210:               "CERTIFICATION_DOCUMENT_TOO_LARGE",
+ 211:               413,
+ 212:             ),
+ 213:           );
+ 214:         }
+ 215: 
+ 216:         if (
+ 217:           error.code === "LIMIT_FILE_COUNT" ||
+ 218:           error.code === "LIMIT_UNEXPECTED_FILE"
+ 219:         ) {
+ 220:           return next(
+ 221:             createUploadError(
+ 222:               "Upload exactly one file using the document field.",
+ 223:               "CERTIFICATION_DOCUMENT_INVALID_FILE_COUNT",
+ 224:             ),
+ 225:           );
+ 226:         }
+ 227: 
+ 228:         return next(
+ 229:           createUploadError(
+ 230:             "Certification document upload could not be processed.",
+ 231:             "CERTIFICATION_DOCUMENT_UPLOAD_INVALID",
+ 232:           ),
+ 233:         );
+ 234:       }
+ 235: 
+ 236:       return next(error);
+ 237:     },
+ 238:   );
+ 239: }
+
+================================================================================
+FILE: src\middleware\certification\certificationDocumentValidationMiddleware.js
+================================================================================
+   1: import fs from "node:fs/promises";
+   2: import path from "node:path";
+   3: import yauzl from "yauzl";
+   4: import { fileTypeFromFile } from "file-type";
+   5: 
+   6: import {
+   7:   MAX_CERTIFICATION_DOCUMENT_SIZE,
+   8:   ALLOWED_CERTIFICATION_DOCUMENT_TYPES,
+   9: } from "./certificationDocumentUploadMiddleware.js";
+  10: 
+  11: import {
+  12:   assertSafeCertificationDocumentDirectory,
+  13:   getCertificationDocumentDirectory,
+  14: } from "../../services/Storage/certificationDocumentStorageService.js";
+  15: 
+  16: function validationError(message, code, status = 400) {
+  17:   const error = new Error(message);
+  18:   error.name = "CertificationDocumentValidationError";
+  19:   error.code = code;
+  20:   error.status = status;
+  21:   error.publicMessage = message;
+  22:   return error;
+  23: }
+  24: 
+  25: function getContext(request) {
+  26:   const userId = String(request.auth?.userId ?? "").trim();
+  27:   const certificationId = String(request.params?.certificationId ?? "").trim();
+  28:   const authorizedId = String(
+  29:     request.authorizedCertification?.id ?? "",
+  30:   ).trim();
+  31: 
+  32:   if (!userId || !certificationId || authorizedId !== certificationId) {
+  33:     throw validationError(
+  34:       "Certification document validation is not authorized.",
+  35:       "CERTIFICATION_DOCUMENT_VALIDATION_UNAUTHORIZED",
+  36:       403,
+  37:     );
+  38:   }
+  39: 
+  40:   return { userId, certificationId };
+  41: }
+  42: 
+  43: function getUploadedPath(request, context) {
+  44:   if (!request.file?.path || !request.file?.filename) {
+  45:     throw validationError(
+  46:       "Please select a Certification document.",
+  47:       "CERTIFICATION_DOCUMENT_FILE_REQUIRED",
+  48:     );
+  49:   }
+  50: 
+  51:   const directory = path.resolve(
+  52:     getCertificationDocumentDirectory(
+  53:       context.userId,
+  54:       context.certificationId,
+  55:     ),
+  56:   );
+  57: 
+  58:   const filePath = path.resolve(request.file.path);
+  59: 
+  60:   if (
+  61:     path.dirname(filePath) !== directory ||
+  62:     path.basename(filePath) !== request.file.filename
+  63:   ) {
+  64:     throw validationError(
+  65:       "Certification document location is invalid.",
+  66:       "CERTIFICATION_DOCUMENT_INVALID_FILE_LOCATION",
+  67:       403,
+  68:     );
+  69:   }
+  70: 
+  71:   return filePath;
+  72: }
+  73: 
+  74: function validateDocxPackage(filePath) {
+  75:   return new Promise((resolve) => {
+  76:     yauzl.open(
+  77:       filePath,
+  78:       {
+  79:         lazyEntries: true,
+  80:         autoClose: true,
+  81:         validateEntrySizes: true,
+  82:         strictFileNames: true,
+  83:       },
+  84:       (error, zip) => {
+  85:         if (error || !zip) {
+  86:           resolve(false);
+  87:           return;
+  88:         }
+  89: 
+  90:         const required = new Set([
+  91:           "[Content_Types].xml",
+  92:           "_rels/.rels",
+  93:           "word/document.xml",
+  94:         ]);
+  95: 
+  96:         let finished = false;
+  97:         let count = 0;
+  98: 
+  99:         const finish = (valid) => {
+ 100:           if (finished) return;
+ 101:           finished = true;
+ 102:           zip.close();
+ 103:           resolve(valid);
+ 104:         };
+ 105: 
+ 106:         zip.on("error", () => finish(false));
+ 107: 
+ 108:         zip.on("entry", (entry) => {
+ 109:           count++;
+ 110: 
+ 111:           if (count > 10000) {
+ 112:             finish(false);
+ 113:             return;
+ 114:           }
+ 115: 
+ 116:           required.delete(entry.fileName);
+ 117:           zip.readEntry();
+ 118:         });
+ 119: 
+ 120:         zip.on("end", () => finish(required.size === 0));
+ 121:         zip.readEntry();
+ 122:       },
+ 123:     );
+ 124:   });
+ 125: }
+ 126: 
+ 127: async function matchesContent(filePath, mimeType) {
+ 128:   const detected = await fileTypeFromFile(filePath);
+ 129: 
+ 130:   if (!detected) return false;
+ 131: 
+ 132:   if (
+ 133:     mimeType ===
+ 134:     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+ 135:   ) {
+ 136:     if (
+ 137:       detected.mime !== "application/zip" &&
+ 138:       detected.mime !==
+ 139:         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+ 140:     ) {
+ 141:       return false;
+ 142:     }
+ 143:     return validateDocxPackage(filePath);
+ 144:   }
+ 145: 
+ 146:   return detected.mime === mimeType;
+ 147: }
+ 148: 
+ 149: async function removeRejectedFile(context, filePath) {
+ 150:   if (!context || !filePath) return;
+ 151: 
+ 152:   const directory = path.resolve(
+ 153:     getCertificationDocumentDirectory(
+ 154:       context.userId,
+ 155:       context.certificationId,
+ 156:     ),
+ 157:   );
+ 158: 
+ 159:   if (path.dirname(filePath) !== directory) return;
+ 160: 
+ 161:   await assertSafeCertificationDocumentDirectory(
+ 162:     context.userId,
+ 163:     context.certificationId,
+ 164:   );
+ 165: 
+ 166:   try {
+ 167:     const stats = await fs.lstat(filePath);
+ 168: 
+ 169:     if (stats.isSymbolicLink() || !stats.isFile()) {
+ 170:       throw new Error("Rejected document is not a regular file.");
+ 171:     }
+ 172: 
+ 173:     await fs.unlink(filePath);
+ 174:   } catch (error) {
+ 175:     if (error?.code !== "ENOENT") throw error;
+ 176:   }
+ 177: }
+ 178: 
+ 179: export async function validateCertificationDocument(
+ 180:   request,
+ 181:   response,
+ 182:   next,
+ 183: ) {
+ 184:   let context;
+ 185:   let filePath;
+ 186: 
+ 187:   try {
+ 188:     context = getContext(request);
+ 189:     filePath = getUploadedPath(request, context);
+ 190: 
+ 191:     await assertSafeCertificationDocumentDirectory(
+ 192:       context.userId,
+ 193:       context.certificationId,
+ 194:     );
+ 195: 
+ 196:     const stats = await fs.lstat(filePath);
+ 197: 
+ 198:     if (stats.isSymbolicLink() || !stats.isFile()) {
+ 199:       throw validationError(
+ 200:         "Uploaded Certification document is not a regular file.",
+ 201:         "CERTIFICATION_DOCUMENT_INVALID_FILE",
+ 202:       );
+ 203:     }
+ 204: 
+ 205:     if (stats.size === 0) {
+ 206:       throw validationError(
+ 207:         "Uploaded Certification document is empty.",
+ 208:         "CERTIFICATION_DOCUMENT_EMPTY_FILE",
+ 209:       );
+ 210:     }
+ 211: 
+ 212:     if (stats.size > MAX_CERTIFICATION_DOCUMENT_SIZE) {
+ 213:       throw validationError(
+ 214:         "Certification document exceeds the 10 MiB limit.",
+ 215:         "CERTIFICATION_DOCUMENT_TOO_LARGE",
+ 216:         413,
+ 217:       );
+ 218:     }
+ 219: 
+ 220:     const mimeType = request.file.mimetype;
+ 221:     const configuration = ALLOWED_CERTIFICATION_DOCUMENT_TYPES.get(mimeType);
+ 222: 
+ 223:     if (!configuration) {
+ 224:       throw validationError(
+ 225:         "Unsupported Certification document type.",
+ 226:         "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+ 227:       );
+ 228:     }
+ 229: 
+ 230:     if (
+ 231:       path.extname(request.file.filename).toLowerCase() !==
+ 232:       configuration.extension
+ 233:     ) {
+ 234:       throw validationError(
+ 235:         "Certification document extension does not match its type.",
+ 236:         "CERTIFICATION_DOCUMENT_EXTENSION_MISMATCH",
+ 237:       );
+ 238:     }
+ 239: 
+ 240:     if (!(await matchesContent(filePath, mimeType))) {
+ 241:       throw validationError(
+ 242:         "Certification document contents do not match its declared type.",
+ 243:         "CERTIFICATION_DOCUMENT_CONTENT_TYPE_MISMATCH",
+ 244:       );
+ 245:     }
+ 246: 
+ 247:     request.certificationDocumentFile = {
+ 248:       ...request.file,
+ 249:       verifiedMimeType: mimeType,
+ 250:       verifiedExtension: configuration.extension,
+ 251:       verifiedSize: stats.size,
+ 252:     };
+ 253: 
+ 254:     return next();
+ 255:   } catch (error) {
+ 256:     if (context && filePath) {
+ 257:       try {
+ 258:         await removeRejectedFile(context, filePath);
+ 259:       } catch (cleanupError) {
+ 260:         console.error(
+ 261:           "Failed to clean up rejected Certification document:",
+ 262:           cleanupError,
+ 263:         );
+ 264: 
+ 265:         return next(
+ 266:           validationError(
+ 267:             "Certification document cleanup failed.",
+ 268:             "CERTIFICATION_DOCUMENT_CLEANUP_FAILED",
+ 269:             500,
+ 270:           ),
+ 271:         );
+ 272:       }
+ 273:     }
+ 274: 
+ 275:     return next(error);
+ 276:   }
+ 277: }
+
+================================================================================
+FILE: src\services\Storage\certificationDocumentStorageService.js
+================================================================================
+   1: import crypto from "node:crypto";
+   2: import fs from "node:fs/promises";
+   3: import path from "node:path";
+   4: 
+   5: import { getEnvironment } from "../../config/environment.js";
+   6: 
+   7: function requireIdentifier(value, label) {
+   8:   const normalized = String(value ?? "").trim();
+   9: 
+  10:   if (!normalized) {
+  11:     throw new Error(`${label} is required for Certification document storage.`);
+  12:   }
+  13: 
+  14:   return normalized;
+  15: }
+  16: 
+  17: function hashIdentifier(value) {
+  18:   return crypto.createHash("sha256").update(value).digest("hex");
+  19: }
+  20: 
+  21: function validateFileName(fileName) {
+  22:   const normalized = String(fileName ?? "").trim();
+  23: 
+  24:   if (
+  25:     !normalized ||
+  26:     normalized === "." ||
+  27:     normalized === ".." ||
+  28:     normalized.includes("/") ||
+  29:     normalized.includes("\\") ||
+  30:     path.basename(normalized) !== normalized ||
+  31:     !/^[a-f0-9-]{36}\.(?:pdf|doc|docx|ppt|pptx|xls|xlsx|txt|md|csv|json|zip|jpg|jpeg|png|webp)$/i.test(
+  32:       normalized,
+  33:     )
+  34:   ) {
+  35:     throw new Error("Invalid Certification document filename.");
+  36:   }
+  37: 
+  38:   return normalized;
+  39: }
+  40: 
+  41: export function getCertificationDocumentStorageRoot() {
+  42:   const environment = getEnvironment();
+  43: 
+  44:   const configuredPath = String(
+  45:     environment.CERTIFICATION_DOCUMENT_STORAGE_PATH || "",
+  46:   ).trim();
+  47: 
+  48:   if (!configuredPath) {
+  49:     throw new Error("CERTIFICATION_DOCUMENT_STORAGE_PATH is not configured.");
+  50:   }
+  51: 
+  52:   return path.resolve(configuredPath);
+  53: }
+  54: 
+  55: export function getCertificationDocumentUserDirectory(userId) {
+  56:   return hashIdentifier(requireIdentifier(userId, "User ID"));
+  57: }
+  58: 
+  59: export function getCertificationDocumentCertificationDirectory(certificationId) {
+  60:   return hashIdentifier(requireIdentifier(certificationId, "Certification ID"));
+  61: }
+  62: 
+  63: export function getCertificationDocumentDirectory(userId, certificationId) {
+  64:   return path.join(
+  65:     getCertificationDocumentStorageRoot(),
+  66:     getCertificationDocumentUserDirectory(userId),
+  67:     getCertificationDocumentCertificationDirectory(certificationId),
+  68:   );
+  69: }
+  70: 
+  71: export function createCertificationDocumentStorageKey(userId, certificationId, fileName) {
+  72:   const safeFileName = validateFileName(fileName);
+  73: 
+  74:   return [
+  75:     getCertificationDocumentUserDirectory(userId),
+  76:     getCertificationDocumentCertificationDirectory(certificationId),
+  77:     safeFileName,
+  78:   ].join("/");
+  79: }
+  80: 
+  81: export function resolveOwnedCertificationDocumentPath(userId, certificationId, storageKey) {
+  82:   const normalizedKey = String(storageKey ?? "").trim();
+  83: 
+  84:   const expectedUserDirectory = getCertificationDocumentUserDirectory(userId);
+  85:   const expectedCertificationDirectory = getCertificationDocumentCertificationDirectory(certificationId);
+  86: 
+  87:   const parts = normalizedKey.split("/");
+  88: 
+  89:   if (
+  90:     parts.length !== 3 ||
+  91:     parts[0] !== expectedUserDirectory ||
+  92:     parts[1] !== expectedCertificationDirectory
+  93:   ) {
+  94:     throw new Error(
+  95:       "Certification document storage key does not belong to this user and Certification.",
+  96:     );
+  97:   }
+  98: 
+  99:   const safeFileName = validateFileName(parts[2]);
+ 100: 
+ 101:   const mediaDirectory = path.resolve(
+ 102:     getCertificationDocumentDirectory(userId, certificationId),
+ 103:   );
+ 104: 
+ 105:   const filePath = path.resolve(mediaDirectory, safeFileName);
+ 106: 
+ 107:   if (path.dirname(filePath) !== mediaDirectory) {
+ 108:     throw new Error("Certification document path is outside the expected directory.");
+ 109:   }
+ 110: 
+ 111:   return filePath;
+ 112: }
+ 113: 
+ 114: export async function assertSafeCertificationDocumentDirectory(userId, certificationId) {
+ 115:   const root = getCertificationDocumentStorageRoot();
+ 116:   const userDirectory = path.join(root, getCertificationDocumentUserDirectory(userId));
+ 117:   const certificationDirectory = path.join(
+ 118:     userDirectory,
+ 119:     getCertificationDocumentCertificationDirectory(certificationId),
+ 120:   );
+ 121: 
+ 122:   const directories = [root, userDirectory, certificationDirectory];
+ 123: 
+ 124:   for (const directory of directories) {
+ 125:     const stats = await fs.lstat(directory);
+ 126: 
+ 127:     if (stats.isSymbolicLink() || !stats.isDirectory()) {
+ 128:       throw new Error(
+ 129:         "Certification document storage directory is not a regular directory.",
+ 130:       );
+ 131:     }
+ 132:   }
+ 133: 
+ 134:   const canonicalRoot = await fs.realpath(root);
+ 135:   const canonicalCertificationDirectory = await fs.realpath(certificationDirectory);
+ 136: 
+ 137:   const relative = path.relative(
+ 138:     canonicalRoot,
+ 139:     canonicalCertificationDirectory,
+ 140:   );
+ 141: 
+ 142:   if (
+ 143:     relative === "" ||
+ 144:     relative === ".." ||
+ 145:     relative.startsWith(`..${path.sep}`) ||
+ 146:     path.isAbsolute(relative)
+ 147:   ) {
+ 148:     throw new Error("Certification document directory is outside the storage root.");
+ 149:   }
+ 150: }
+ 151: 
+ 152: export async function deleteOwnedCertificationDocument(userId, certificationId, storageKey) {
+ 153:   const filePath = resolveOwnedCertificationDocumentPath(userId, certificationId, storageKey);
+ 154: 
+ 155:   try {
+ 156:     await assertSafeCertificationDocumentDirectory(userId, certificationId);
+ 157: 
+ 158:     const stats = await fs.lstat(filePath);
+ 159: 
+ 160:     if (stats.isSymbolicLink() || !stats.isFile()) {
+ 161:       throw new Error("Certification document target is not a regular file.");
+ 162:     }
+ 163: 
+ 164:     await fs.unlink(filePath);
+ 165: 
+ 166:     return {
+ 167:       deleted: true,
+ 168:       storageKey,
+ 169:     };
+ 170:   } catch (error) {
+ 171:     if (error?.code === "ENOENT") {
+ 172:       return {
+ 173:         deleted: false,
+ 174:         storageKey,
+ 175:       };
+ 176:     }
+ 177: 
+ 178:     throw error;
+ 179:   }
+ 180: }
+ 181: 
+ 182: 
+
+================================================================================
+FILE: src\services\Service\certificationDocumentService.js
+================================================================================
+   1: import crypto from "node:crypto";
+   2: import path from "node:path";
+   3: 
+   4: import {
+   5:   getAuthenticatedCertification,
+   6: } from "./certificationService.js";
+   7: 
+   8: import {
+   9:   createCertificationDocument,
+  10:   listCertificationDocuments,
+  11:   findCertificationDocumentById,
+  12:   findCertificationDocumentByStorageKey,
+  13:   deleteCertificationDocument,
+  14: } from "../../repositories/certificationDocumentRepository.js";
+  15: 
+  16: import {
+  17:   assertSafeCertificationDocumentDirectory,
+  18:   createCertificationDocumentStorageKey,
+  19:   resolveOwnedCertificationDocumentPath,
+  20:   deleteOwnedCertificationDocument,
+  21: } from "../Storage/certificationDocumentStorageService.js";
+  22: 
+  23: const MAX_CERTIFICATION_DOCUMENT_SIZE = 10 * 1024 * 1024;
+  24: 
+  25: const ALLOWED_CERTIFICATION_DOCUMENT_TYPES = new Set([
+  26:   "application/pdf",
+  27:   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  28:   "image/jpeg",
+  29:   "image/png",
+  30:   "image/webp",
+  31: ]);
+  32: 
+  33: function createDocumentError(message, code, status = 400) {
+  34:   const error = new Error(message);
+  35:   error.name = "CertificationDocumentServiceError";
+  36:   error.code = code;
+  37:   error.status = status;
+  38:   error.publicMessage = message;
+  39:   return error;
+  40: }
+  41: 
+  42: async function verifyCertificationOwnership(userId, certificationId) {
+  43:   if (
+  44:     typeof userId !== "string" ||
+  45:     !userId.trim() ||
+  46:     typeof certificationId !== "string" ||
+  47:     !certificationId.trim()
+  48:   ) {
+  49:     throw createDocumentError(
+  50:       "Certification document access is not authorized.",
+  51:       "CERTIFICATION_DOCUMENT_UNAUTHORIZED",
+  52:       403,
+  53:     );
+  54:   }
+  55: 
+  56:   return getAuthenticatedCertification({ userId, certificationId });
+  57: }
+  58: 
+  59: export async function registerCertificationDocument({
+  60:   userId,
+  61:   certificationId,
+  62:   uploadedFile,
+  63: }) {
+  64:   await verifyCertificationOwnership(userId, certificationId);
+  65: 
+  66:   if (!uploadedFile) {
+  67:     throw createDocumentError(
+  68:       "Validated Certification document is required.",
+  69:       "CERTIFICATION_DOCUMENT_FILE_REQUIRED",
+  70:     );
+  71:   }
+  72: 
+  73:   const {
+  74:     filename,
+  75:     path: uploadedPath,
+  76:     originalname,
+  77:     verifiedMimeType,
+  78:     verifiedSize,
+  79:   } = uploadedFile;
+  80: 
+  81:   if (
+  82:     typeof filename !== "string" ||
+  83:     !filename ||
+  84:     typeof uploadedPath !== "string" ||
+  85:     !uploadedPath ||
+  86:     typeof originalname !== "string" ||
+  87:     !originalname ||
+  88:     originalname.length > 255 ||
+  89:     typeof verifiedMimeType !== "string" ||
+  90:     !Number.isSafeInteger(verifiedSize) ||
+  91:     verifiedSize <= 0
+  92:   ) {
+  93:     throw createDocumentError(
+  94:       "Certification document validation information is incomplete.",
+  95:       "CERTIFICATION_DOCUMENT_VALIDATION_INCOMPLETE",
+  96:     );
+  97:   }
+  98: 
+  99:   if (verifiedSize > MAX_CERTIFICATION_DOCUMENT_SIZE) {
+ 100:     throw createDocumentError(
+ 101:       "Certification document exceeds the 10 MiB limit.",
+ 102:       "CERTIFICATION_DOCUMENT_TOO_LARGE",
+ 103:       413,
+ 104:     );
+ 105:   }
+ 106: 
+ 107:   if (!ALLOWED_CERTIFICATION_DOCUMENT_TYPES.has(verifiedMimeType)) {
+ 108:     throw createDocumentError(
+ 109:       "Unsupported Certification document type.",
+ 110:       "CERTIFICATION_DOCUMENT_TYPE_NOT_ALLOWED",
+ 111:     );
+ 112:   }
+ 113: 
+ 114:   const storageKey = createCertificationDocumentStorageKey(
+ 115:     userId,
+ 116:     certificationId,
+ 117:     filename,
+ 118:   );
+ 119: 
+ 120:   const expectedPath = resolveOwnedCertificationDocumentPath(
+ 121:     userId,
+ 122:     certificationId,
+ 123:     storageKey,
+ 124:   );
+ 125: 
+ 126:   if (path.resolve(uploadedPath) !== expectedPath) {
+ 127:     throw createDocumentError(
+ 128:       "Certification document file location is invalid.",
+ 129:       "CERTIFICATION_DOCUMENT_INVALID_FILE_LOCATION",
+ 130:       403,
+ 131:     );
+ 132:   }
+ 133: 
+ 134:   await assertSafeCertificationDocumentDirectory(
+ 135:     userId,
+ 136:     certificationId,
+ 137:   );
+ 138: 
+ 139:   const documentId = crypto.randomUUID();
+ 140: 
+ 141:   try {
+ 142:     return await createCertificationDocument(userId, certificationId, {
+ 143:       id: documentId,
+ 144:       storageKey,
+ 145:       originalFileName: originalname,
+ 146:       mimeType: verifiedMimeType,
+ 147:       fileSize: verifiedSize,
+ 148:     });
+ 149:   } catch (databaseError) {
+ 150:     // A failed response does not prove the SQL insert was rolled back.
+ 151:     // Preserve the physical file while reconciling its metadata.
+ 152:     try {
+ 153:       const existing = await findCertificationDocumentByStorageKey(
+ 154:         userId,
+ 155:         certificationId,
+ 156:         storageKey,
+ 157:       );
+ 158: 
+ 159:       if (existing) {
+ 160:         return existing;
+ 161:       }
+ 162:     } catch (lookupError) {
+ 163:       console.error(
+ 164:         "Unable to reconcile Certification document registration:",
+ 165:         lookupError,
+ 166:       );
+ 167:     }
+ 168: 
+ 169:     const error = createDocumentError(
+ 170:       "Certification document registration could not be confirmed.",
+ 171:       "CERTIFICATION_DOCUMENT_REGISTRATION_UNCONFIRMED",
+ 172:       503,
+ 173:     );
+ 174: 
+ 175:     error.cause = databaseError;
+ 176:     throw error;
+ 177:   }
+ 178: }
+ 179: 
+ 180: export async function listAuthenticatedCertificationDocuments({
+ 181:   userId,
+ 182:   certificationId,
+ 183: }) {
+ 184:   await verifyCertificationOwnership(userId, certificationId);
+ 185: 
+ 186:   return listCertificationDocuments(userId, certificationId);
+ 187: }
+ 188: 
+ 189: export async function getAuthenticatedCertificationDocument({
+ 190:   userId,
+ 191:   certificationId,
+ 192:   documentId,
+ 193: }) {
+ 194:   await verifyCertificationOwnership(userId, certificationId);
+ 195: 
+ 196:   if (typeof documentId !== "string" || !documentId.trim()) {
+ 197:     throw createDocumentError(
+ 198:       "Certification document ID is required.",
+ 199:       "CERTIFICATION_DOCUMENT_ID_REQUIRED",
+ 200:     );
+ 201:   }
+ 202: 
+ 203:   const document = await findCertificationDocumentById(
+ 204:     userId,
+ 205:     certificationId,
+ 206:     documentId,
+ 207:   );
+ 208: 
+ 209:   if (!document) {
+ 210:     throw createDocumentError(
+ 211:       "Certification document not found.",
+ 212:       "CERTIFICATION_DOCUMENT_NOT_FOUND",
+ 213:       404,
+ 214:     );
+ 215:   }
+ 216: 
+ 217:   return document;
+ 218: }
+ 219: 
+ 220: export async function deleteAuthenticatedCertificationDocument({
+ 221:   userId,
+ 222:   certificationId,
+ 223:   documentId,
+ 224: }) {
+ 225:   const document = await getAuthenticatedCertificationDocument({
+ 226:     userId,
+ 227:     certificationId,
+ 228:     documentId,
+ 229:   });
+ 230: 
+ 231:   // Follow the existing Project document deletion sequence:
+ 232:   // remove the physical file before deleting SQL metadata.
+ 233:   await deleteOwnedCertificationDocument(
+ 234:     userId,
+ 235:     certificationId,
+ 236:     document.storageKey,
+ 237:   );
+ 238: 
+ 239:   const deleted = await deleteCertificationDocument(
+ 240:     userId,
+ 241:     certificationId,
+ 242:     documentId,
+ 243:   );
+ 244: 
+ 245:   if (!deleted) {
+ 246:     throw createDocumentError(
+ 247:       "Certification document deletion could not be confirmed.",
+ 248:       "CERTIFICATION_DOCUMENT_DELETION_UNCONFIRMED",
+ 249:       503,
+ 250:     );
+ 251:   }
+ 252: 
+ 253:   return deleted;
+ 254: }
+
+================================================================================
+FILE: src\repositories\certificationDocumentRepository.js
+================================================================================
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const CERTIFICATION_DOCUMENT_COLUMNS = `
+   4:   id,
+   5:   certification_id,
+   6:   user_id,
+   7:   storage_key,
+   8:   original_file_name,
+   9:   mime_type,
+  10:   file_size,
+  11:   created_at
+  12: `;
+  13: 
+  14: function mapCertificationDocumentRow(row) {
+  15:   if (!row) return null;
+  16: 
+  17:   return {
+  18:     id: row.id,
+  19:     certificationId: row.certification_id,
+  20:     storageKey: row.storage_key,
+  21:     originalFileName: row.original_file_name,
+  22:     mimeType: row.mime_type,
+  23:     fileSize: Number(row.file_size),
+  24:     createdAt: row.created_at,
+  25:   };
+  26: }
+  27: 
+  28: export async function createCertificationDocument(
+  29:   userId,
+  30:   certificationId,
+  31:   document,
+  32: ) {
+  33:   const pool = await getDatabasePool();
+  34: 
+  35:   const result = await pool.request()
+  36:     .input("id", sql.NVarChar(200), document.id)
+  37:     .input("userId", sql.UniqueIdentifier, userId)
+  38:     .input("certificationId", sql.NVarChar(200), certificationId)
+  39:     .input("storageKey", sql.NVarChar(500), document.storageKey)
+  40:     .input(
+  41:       "originalFileName",
+  42:       sql.NVarChar(255),
+  43:       document.originalFileName,
+  44:     )
+  45:     .input("mimeType", sql.NVarChar(150), document.mimeType)
+  46:     .input("fileSize", sql.BigInt, document.fileSize)
+  47:     .query(`
+  48:       INSERT INTO dbo.certification_documents (
+  49:         id,
+  50:         certification_id,
+  51:         user_id,
+  52:         storage_key,
+  53:         original_file_name,
+  54:         mime_type,
+  55:         file_size
+  56:       )
+  57:       OUTPUT
+  58:         INSERTED.id,
+  59:         INSERTED.certification_id,
+  60:         INSERTED.user_id,
+  61:         INSERTED.storage_key,
+  62:         INSERTED.original_file_name,
+  63:         INSERTED.mime_type,
+  64:         INSERTED.file_size,
+  65:         INSERTED.created_at
+  66:       VALUES (
+  67:         @id,
+  68:         @certificationId,
+  69:         @userId,
+  70:         @storageKey,
+  71:         @originalFileName,
+  72:         @mimeType,
+  73:         @fileSize
+  74:       );
+  75:     `);
+  76: 
+  77:   return mapCertificationDocumentRow(result.recordset[0]);
+  78: }
+  79: 
+  80: export async function listCertificationDocuments(userId, certificationId) {
+  81:   const pool = await getDatabasePool();
+  82: 
+  83:   const result = await pool.request()
+  84:     .input("userId", sql.UniqueIdentifier, userId)
+  85:     .input("certificationId", sql.NVarChar(200), certificationId)
+  86:     .query(`
+  87:       SELECT ${CERTIFICATION_DOCUMENT_COLUMNS}
+  88:       FROM dbo.certification_documents
+  89:       WHERE user_id = @userId
+  90:         AND certification_id = @certificationId
+  91:       ORDER BY created_at DESC, id ASC;
+  92:     `);
+  93: 
+  94:   return result.recordset.map(mapCertificationDocumentRow);
+  95: }
+  96: 
+  97: export async function findCertificationDocumentById(
+  98:   userId,
+  99:   certificationId,
+ 100:   documentId,
+ 101: ) {
+ 102:   const pool = await getDatabasePool();
+ 103: 
+ 104:   const result = await pool.request()
+ 105:     .input("userId", sql.UniqueIdentifier, userId)
+ 106:     .input("certificationId", sql.NVarChar(200), certificationId)
+ 107:     .input("documentId", sql.NVarChar(200), documentId)
+ 108:     .query(`
+ 109:       SELECT ${CERTIFICATION_DOCUMENT_COLUMNS}
+ 110:       FROM dbo.certification_documents
+ 111:       WHERE id = @documentId
+ 112:         AND certification_id = @certificationId
+ 113:         AND user_id = @userId;
+ 114:     `);
+ 115: 
+ 116:   return mapCertificationDocumentRow(result.recordset[0]);
+ 117: }
+ 118: 
+ 119: export async function findCertificationDocumentByStorageKey(
+ 120:   userId,
+ 121:   certificationId,
+ 122:   storageKey,
+ 123: ) {
+ 124:   const pool = await getDatabasePool();
+ 125: 
+ 126:   const result = await pool.request()
+ 127:     .input("userId", sql.UniqueIdentifier, userId)
+ 128:     .input("certificationId", sql.NVarChar(200), certificationId)
+ 129:     .input("storageKey", sql.NVarChar(500), storageKey)
+ 130:     .query(`
+ 131:       SELECT ${CERTIFICATION_DOCUMENT_COLUMNS}
+ 132:       FROM dbo.certification_documents
+ 133:       WHERE user_id = @userId
+ 134:         AND certification_id = @certificationId
+ 135:         AND storage_key = @storageKey;
+ 136:     `);
+ 137: 
+ 138:   return mapCertificationDocumentRow(result.recordset[0]);
+ 139: }
+ 140: 
+ 141: export async function deleteCertificationDocument(
+ 142:   userId,
+ 143:   certificationId,
+ 144:   documentId,
+ 145: ) {
+ 146:   const pool = await getDatabasePool();
+ 147: 
+ 148:   const result = await pool.request()
+ 149:     .input("userId", sql.UniqueIdentifier, userId)
+ 150:     .input("certificationId", sql.NVarChar(200), certificationId)
+ 151:     .input("documentId", sql.NVarChar(200), documentId)
+ 152:     .query(`
+ 153:       DELETE FROM dbo.certification_documents
+ 154:       OUTPUT
+ 155:         DELETED.id,
+ 156:         DELETED.certification_id,
+ 157:         DELETED.user_id,
+ 158:         DELETED.storage_key,
+ 159:         DELETED.original_file_name,
+ 160:         DELETED.mime_type,
+ 161:         DELETED.file_size,
+ 162:         DELETED.created_at
+ 163:       WHERE id = @documentId
+ 164:         AND certification_id = @certificationId
+ 165:         AND user_id = @userId;
+ 166:     `);
+ 167: 
+ 168:   return mapCertificationDocumentRow(result.recordset[0]);
+ 169: }
+
+================================================================================
+FILE: src\controllers\certificationDocumentController.js
+================================================================================
+   1: import fs from "node:fs";
+   2: import { promises as fsPromises } from "node:fs";
+   3: 
+   4: import {
+   5:   registerCertificationDocument,
+   6:   listAuthenticatedCertificationDocuments,
+   7:   getAuthenticatedCertificationDocument,
+   8:   deleteAuthenticatedCertificationDocument,
+   9: } from "../services/Service/certificationDocumentService.js";
+  10: 
+  11: import {
+  12:   resolveOwnedCertificationDocumentPath,
+  13:   assertSafeCertificationDocumentDirectory,
+  14: } from "../services/Storage/certificationDocumentStorageService.js";
+  15: 
+  16: function setPrivateHeaders(response) {
+  17:   response.set({
+  18:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  19:     Pragma: "no-cache",
+  20:     Expires: "0",
+  21:     "X-Content-Type-Options": "nosniff",
+  22:   });
+  23: }
+  24: 
+  25: function createNotFoundError() {
+  26:   const error = new Error("Certification document not found.");
+  27:   error.status = 404;
+  28:   error.code = "CERTIFICATION_DOCUMENT_NOT_FOUND";
+  29:   error.publicMessage = error.message;
+  30:   return error;
+  31: }
+  32: 
+  33: export async function uploadMyCertificationDocument(
+  34:   request,
+  35:   response,
+  36:   next,
+  37: ) {
+  38:   try {
+  39:     const document = await registerCertificationDocument({
+  40:       userId: request.auth.userId,
+  41:       certificationId: request.params.certificationId,
+  42:       uploadedFile: request.certificationDocumentFile,
+  43:     });
+  44: 
+  45:     setPrivateHeaders(response);
+  46: 
+  47:     return response.status(201).json({
+  48:       status: "success",
+  49:       message: "Certification document uploaded successfully.",
+  50:       data: { document },
+  51:     });
+  52:   } catch (error) {
+  53:     return next(error);
+  54:   }
+  55: }
+  56: 
+  57: export async function listMyCertificationDocuments(
+  58:   request,
+  59:   response,
+  60:   next,
+  61: ) {
+  62:   try {
+  63:     const documents = await listAuthenticatedCertificationDocuments({
+  64:       userId: request.auth.userId,
+  65:       certificationId: request.params.certificationId,
+  66:     });
+  67: 
+  68:     setPrivateHeaders(response);
+  69: 
+  70:     return response.status(200).json({
+  71:       status: "success",
+  72:       message: "Certification documents retrieved successfully.",
+  73:       data: { documents },
+  74:     });
+  75:   } catch (error) {
+  76:     return next(error);
+  77:   }
+  78: }
+  79: 
+  80: export async function getMyCertificationDocument(
+  81:   request,
+  82:   response,
+  83:   next,
+  84: ) {
+  85:   let fileHandle;
+  86: 
+  87:   try {
+  88:     const userId = request.auth.userId;
+  89:     const certificationId = request.params.certificationId;
+  90:     const documentId = request.params.documentId;
+  91: 
+  92:     const document = await getAuthenticatedCertificationDocument({
+  93:       userId,
+  94:       certificationId,
+  95:       documentId,
+  96:     });
+  97: 
+  98:     const filePath = resolveOwnedCertificationDocumentPath(
+  99:       userId,
+ 100:       certificationId,
+ 101:       document.storageKey,
+ 102:     );
+ 103: 
+ 104:     await assertSafeCertificationDocumentDirectory(
+ 105:       userId,
+ 106:       certificationId,
+ 107:     );
+ 108: 
+ 109:     const pathStats = await fsPromises.lstat(filePath);
+ 110: 
+ 111:     if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+ 112:       throw createNotFoundError();
+ 113:     }
+ 114: 
+ 115:     const flags =
+ 116:       fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+ 117: 
+ 118:     fileHandle = await fsPromises.open(filePath, flags);
+ 119: 
+ 120:     const stats = await fileHandle.stat();
+ 121: 
+ 122:     if (!stats.isFile() || stats.size !== document.fileSize) {
+ 123:       throw createNotFoundError();
+ 124:     }
+ 125: 
+ 126:     const safeName = String(document.originalFileName || "document")
+ 127:       .replace(/[\r\n"\\]/g, "_")
+ 128:       .replace(/[\x00-\x1f\x7f]/g, "_")
+ 129:       .slice(0, 200);
+ 130: 
+ 131:     const encodedName = encodeURIComponent(
+ 132:       document.originalFileName || "document",
+ 133:     );
+ 134: 
+ 135:     setPrivateHeaders(response);
+ 136: 
+ 137:     response.set({
+ 138:       "Content-Type": document.mimeType,
+ 139:       "Content-Length": String(stats.size),
+ 140:       "Content-Disposition":
+ 141:         `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
+ 142:       "Accept-Ranges": "none",
+ 143:     });
+ 144: 
+ 145:     const stream = fileHandle.createReadStream({
+ 146:       autoClose: true,
+ 147:     });
+ 148: 
+ 149:     fileHandle = null;
+ 150: 
+ 151:     stream.on("error", (error) => {
+ 152:       if (!response.headersSent) {
+ 153:         next(error);
+ 154:       } else {
+ 155:         response.destroy(error);
+ 156:       }
+ 157:     });
+ 158: 
+ 159:     stream.pipe(response);
+ 160:   } catch (error) {
+ 161:     if (fileHandle) {
+ 162:       await fileHandle.close().catch(() => {});
+ 163:     }
+ 164: 
+ 165:     if (error.code === "ENOENT") {
+ 166:       return next(createNotFoundError());
+ 167:     }
+ 168: 
+ 169:     return next(error);
+ 170:   }
+ 171: }
+ 172: 
+ 173: export async function deleteMyCertificationDocument(
+ 174:   request,
+ 175:   response,
+ 176:   next,
+ 177: ) {
+ 178:   try {
+ 179:     await deleteAuthenticatedCertificationDocument({
+ 180:       userId: request.auth.userId,
+ 181:       certificationId: request.params.certificationId,
+ 182:       documentId: request.params.documentId,
+ 183:     });
+ 184: 
+ 185:     setPrivateHeaders(response);
+ 186: 
+ 187:     return response.status(204).end();
+ 188:   } catch (error) {
+ 189:     return next(error);
+ 190:   }
+ 191: }
+
+================================================================================
+FILE: src\routes\certificationRoutes.js
+================================================================================
+   1: import { Router } from "express";
+   2: 
+   3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+   4: 
+   5: import {
+   6:   listMyCertifications,
+   7:   getMyCertification,
+   8:   createMyCertification,
+   9:   updateMyCertification,
+  10: } from "../controllers/certificationController.js";
+  11: 
+  12: import {
+  13:   uploadMyCertificationDocument,
+  14:   listMyCertificationDocuments,
+  15:   getMyCertificationDocument,
+  16:   deleteMyCertificationDocument,
+  17: } from "../controllers/certificationDocumentController.js";
+  18: 
+  19: import {
+  20:   requireCertificationOwnership,
+  21: } from "../middleware/certification/certificationOwnershipMiddleware.js";
+  22: 
+  23: import {
+  24:   uploadCertificationDocument,
+  25: } from "../middleware/certification/certificationDocumentUploadMiddleware.js";
+  26: 
+  27: import {
+  28:   validateCertificationDocument,
+  29: } from "../middleware/certification/certificationDocumentValidationMiddleware.js";
+  30: 
+  31: const router = Router();
+  32: 
+  33: // All Certification endpoints require a valid authenticated session.
+  34: router.use(requireAuthentication);
+  35: 
+  36: // Certification CRUD.
+  37: router.get("/", listMyCertifications);
+  38: 
+  39: router.post("/", createMyCertification);
+  40: 
+  41: router.get("/:certificationId", getMyCertification);
+  42: 
+  43: router.patch("/:certificationId", updateMyCertification);
+  44: 
+  45: // List documents belonging to an owned Certification.
+  46: router.get(
+  47:   "/:certificationId/documents",
+  48:   requireCertificationOwnership,
+  49:   listMyCertificationDocuments,
+  50: );
+  51: 
+  52: // Verify ownership before writing uploaded files.
+  53: router.post(
+  54:   "/:certificationId/documents",
+  55:   requireCertificationOwnership,
+  56:   uploadCertificationDocument,
+  57:   validateCertificationDocument,
+  58:   uploadMyCertificationDocument,
+  59: );
+  60: 
+  61: // Download only documents belonging to an owned Certification.
+  62: router.get(
+  63:   "/:certificationId/documents/:documentId",
+  64:   requireCertificationOwnership,
+  65:   getMyCertificationDocument,
+  66: );
+  67: 
+  68: // Delete only documents belonging to an owned Certification.
+  69: router.delete(
+  70:   "/:certificationId/documents/:documentId",
+  71:   requireCertificationOwnership,
+  72:   deleteMyCertificationDocument,
+  73: );
+  74: 
+  75: // Certification deletion is intentionally not exposed.
+  76: // It requires coordinated SQL and private-file cleanup.
+  77: 
+  78: export default router;
+
+================================================================================
+FILE: src\routes\projectRoutes.js
+================================================================================
+   1: import { Router } from "express";
+   2: 
+   3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+   4: 
+   5: import {
+   6:   listMyProjects,
+   7:   getMyProject,
+   8:   createMyProject,
+   9:   updateMyProject,
+  10:   setMyProjectArchiveStatus,
+  11:   deleteMyProject,
+  12: } from "../controllers/projectController.js";
+  13: 
+  14: import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+  15: 
+  16: import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+  17: 
+  18: import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+  19: 
+  20: import {
+  21:   uploadMyProjectMedia,
+  22:   listMyProjectMedia,
+  23:   getMyProjectMedia,
+  24:   deleteMyProjectMedia,
+  25: } from "../controllers/projectMediaController.js";
+  26: 
+  27: import { uploadProjectDocument } from "../middleware/project/projectDocumentUploadMiddleware.js";
+  28: import { validateProjectDocument } from "../middleware/project/projectDocumentValidationMiddleware.js";
+  29: 
+  30: import {
+  31:   uploadMyProjectDocument,
+  32:   listMyProjectDocuments,
+  33:   getMyProjectDocument,
+  34:   deleteMyProjectDocument,
+  35: } from "../controllers/projectDocumentController.js";
+  36: const router = Router();
+  37: 
+  38: /*
+  39:  * All Project API endpoints require an
+  40:  * authenticated user session.
+  41:  */
+  42: router.use(requireAuthentication);
+  43: 
+  44: /*
+  45:  * GET /api/projects
+  46:  * POST /api/projects
+  47:  */
+  48: router.get("/", listMyProjects);
+  49: router.post("/", createMyProject);
+  50: 
+  51: /*
+  52:  * GET /api/projects/:projectId
+  53:  * PUT /api/projects/:projectId
+  54:  */
+  55: router.get("/:projectId", getMyProject);
+  56: router.put("/:projectId", updateMyProject);
+  57: 
+  58: /*
+  59:  * PATCH /api/projects/:projectId/archive
+  60:  */
+  61: router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+  62: 
+  63: /*
+  64:  * =========================================
+  65:  * Project Media Listing
+  66:  * =========================================
+  67:  *
+  68:  * GET /api/projects/:projectId/media
+  69:  *
+  70:  * Authentication is applied globally.
+  71:  * Project ownership is verified before
+  72:  * returning media metadata.
+  73:  */
+  74: 
+  75: router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+  76: 
+  77: /*
+  78:  * =========================================
+  79:  * Project Media Retrieval
+  80:  * =========================================
+  81:  */
+  82: 
+  83: router.get(
+  84:   "/:projectId/media/:mediaId",
+  85:   requireProjectOwnership,
+  86:   getMyProjectMedia,
+  87: );
+  88: 
+  89: /*
+  90:  * =========================================
+  91:  * Project Media Upload
+  92:  * =========================================
+  93:  *
+  94:  * Authentication is applied globally.
+  95:  *
+  96:  * Ownership must be verified before Multer
+  97:  * writes the uploaded file.
+  98:  */
+  99: 
+ 100: router.post(
+ 101:   "/:projectId/media",
+ 102:   requireProjectOwnership,
+ 103:   uploadProjectMedia,
+ 104:   validateProjectMedia,
+ 105:   uploadMyProjectMedia,
+ 106: );
+ 107: 
+ 108: /*
+ 109:  * DELETE /api/projects/:projectId
+ 110:  */
+ 111: router.delete("/:projectId", deleteMyProject);
+ 112: 
+ 113: router.delete(
+ 114:   "/:projectId/media/:mediaId",
+ 115:   requireProjectOwnership,
+ 116:   deleteMyProjectMedia,
+ 117: );
+ 118: 
+ 119: /*
+ 120:  * =========================================
+ 121:  * Project Document API
+ 122:  * =========================================
+ 123:  *
+ 124:  * Authentication is applied globally.
+ 125:  * Ownership is checked before file access
+ 126:  * or Multer writes uploaded documents.
+ 127:  */
+ 128: 
+ 129: router.get(
+ 130:   "/:projectId/documents",
+ 131:   requireProjectOwnership,
+ 132:   listMyProjectDocuments,
+ 133: );
+ 134: 
+ 135: router.get(
+ 136:   "/:projectId/documents/:documentId",
+ 137:   requireProjectOwnership,
+ 138:   getMyProjectDocument,
+ 139: );
+ 140: 
+ 141: router.post(
+ 142:   "/:projectId/documents",
+ 143:   requireProjectOwnership,
+ 144:   uploadProjectDocument,
+ 145:   validateProjectDocument,
+ 146:   uploadMyProjectDocument,
+ 147: );
+ 148: 
+ 149: router.delete(
+ 150:   "/:projectId/documents/:documentId",
+ 151:   requireProjectOwnership,
+ 152:   deleteMyProjectDocument,
+ 153: );
+ 154: export default router;
+
+================================================================================
+FILE: src\services\Storage\projectDocumentStorageService.js
+================================================================================
+   1: import crypto from "node:crypto";
+   2: import fs from "node:fs/promises";
+   3: import path from "node:path";
+   4: 
+   5: import { getEnvironment } from "../../config/environment.js";
+   6: 
+   7: function requireIdentifier(value, label) {
+   8:   const normalized = String(value ?? "").trim();
+   9: 
+  10:   if (!normalized) {
+  11:     throw new Error(`${label} is required for Project document storage.`);
+  12:   }
+  13: 
+  14:   return normalized;
+  15: }
+  16: 
+  17: function hashIdentifier(value) {
+  18:   return crypto.createHash("sha256").update(value).digest("hex");
+  19: }
+  20: 
+  21: function validateFileName(fileName) {
+  22:   const normalized = String(fileName ?? "").trim();
+  23: 
+  24:   if (
+  25:     !normalized ||
+  26:     normalized === "." ||
+  27:     normalized === ".." ||
+  28:     normalized.includes("/") ||
+  29:     normalized.includes("\\") ||
+  30:     path.basename(normalized) !== normalized ||
+  31:     !/^[a-f0-9-]{36}\.(?:pdf|doc|docx|ppt|pptx|xls|xlsx|txt|md|csv|json|zip|jpg|jpeg|png|webp)$/i.test(
+  32:       normalized,
+  33:     )
+  34:   ) {
+  35:     throw new Error("Invalid Project document filename.");
+  36:   }
+  37: 
+  38:   return normalized;
+  39: }
+  40: 
+  41: export function getProjectDocumentStorageRoot() {
+  42:   const environment = getEnvironment();
+  43: 
+  44:   const configuredPath = String(
+  45:     environment.PROJECT_DOCUMENT_STORAGE_PATH || "",
+  46:   ).trim();
+  47: 
+  48:   if (!configuredPath) {
+  49:     throw new Error("PROJECT_DOCUMENT_STORAGE_PATH is not configured.");
+  50:   }
+  51: 
+  52:   return path.resolve(configuredPath);
+  53: }
+  54: 
+  55: export function getProjectDocumentUserDirectory(userId) {
+  56:   return hashIdentifier(requireIdentifier(userId, "User ID"));
+  57: }
+  58: 
+  59: export function getProjectDocumentProjectDirectory(projectId) {
+  60:   return hashIdentifier(requireIdentifier(projectId, "Project ID"));
+  61: }
+  62: 
+  63: export function getProjectDocumentDirectory(userId, projectId) {
+  64:   return path.join(
+  65:     getProjectDocumentStorageRoot(),
+  66:     getProjectDocumentUserDirectory(userId),
+  67:     getProjectDocumentProjectDirectory(projectId),
+  68:   );
+  69: }
+  70: 
+  71: export function createProjectDocumentStorageKey(userId, projectId, fileName) {
+  72:   const safeFileName = validateFileName(fileName);
+  73: 
+  74:   return [
+  75:     getProjectDocumentUserDirectory(userId),
+  76:     getProjectDocumentProjectDirectory(projectId),
+  77:     safeFileName,
+  78:   ].join("/");
+  79: }
+  80: 
+  81: export function resolveOwnedProjectDocumentPath(userId, projectId, storageKey) {
+  82:   const normalizedKey = String(storageKey ?? "").trim();
+  83: 
+  84:   const expectedUserDirectory = getProjectDocumentUserDirectory(userId);
+  85:   const expectedProjectDirectory = getProjectDocumentProjectDirectory(projectId);
+  86: 
+  87:   const parts = normalizedKey.split("/");
+  88: 
+  89:   if (
+  90:     parts.length !== 3 ||
+  91:     parts[0] !== expectedUserDirectory ||
+  92:     parts[1] !== expectedProjectDirectory
+  93:   ) {
+  94:     throw new Error(
+  95:       "Project document storage key does not belong to this user and Project.",
+  96:     );
+  97:   }
+  98: 
+  99:   const safeFileName = validateFileName(parts[2]);
+ 100: 
+ 101:   const mediaDirectory = path.resolve(
+ 102:     getProjectDocumentDirectory(userId, projectId),
+ 103:   );
+ 104: 
+ 105:   const filePath = path.resolve(mediaDirectory, safeFileName);
+ 106: 
+ 107:   if (path.dirname(filePath) !== mediaDirectory) {
+ 108:     throw new Error("Project document path is outside the expected directory.");
+ 109:   }
+ 110: 
+ 111:   return filePath;
+ 112: }
+ 113: 
+ 114: export async function assertSafeProjectDocumentDirectory(userId, projectId) {
+ 115:   const root = getProjectDocumentStorageRoot();
+ 116:   const userDirectory = path.join(root, getProjectDocumentUserDirectory(userId));
+ 117:   const projectDirectory = path.join(
+ 118:     userDirectory,
+ 119:     getProjectDocumentProjectDirectory(projectId),
+ 120:   );
+ 121: 
+ 122:   const directories = [root, userDirectory, projectDirectory];
+ 123: 
+ 124:   for (const directory of directories) {
+ 125:     const stats = await fs.lstat(directory);
+ 126: 
+ 127:     if (stats.isSymbolicLink() || !stats.isDirectory()) {
+ 128:       throw new Error(
+ 129:         "Project document storage directory is not a regular directory.",
+ 130:       );
+ 131:     }
+ 132:   }
+ 133: 
+ 134:   const canonicalRoot = await fs.realpath(root);
+ 135:   const canonicalProjectDirectory = await fs.realpath(projectDirectory);
+ 136: 
+ 137:   const relative = path.relative(
+ 138:     canonicalRoot,
+ 139:     canonicalProjectDirectory,
+ 140:   );
+ 141: 
+ 142:   if (
+ 143:     relative === "" ||
+ 144:     relative === ".." ||
+ 145:     relative.startsWith(`..${path.sep}`) ||
+ 146:     path.isAbsolute(relative)
+ 147:   ) {
+ 148:     throw new Error("Project document directory is outside the storage root.");
+ 149:   }
+ 150: }
+ 151: 
+ 152: export async function deleteOwnedProjectDocument(userId, projectId, storageKey) {
+ 153:   const filePath = resolveOwnedProjectDocumentPath(userId, projectId, storageKey);
+ 154: 
+ 155:   try {
+ 156:     await assertSafeProjectDocumentDirectory(userId, projectId);
+ 157: 
+ 158:     const stats = await fs.lstat(filePath);
+ 159: 
+ 160:     if (stats.isSymbolicLink() || !stats.isFile()) {
+ 161:       throw new Error("Project document target is not a regular file.");
+ 162:     }
+ 163: 
+ 164:     await fs.unlink(filePath);
+ 165: 
+ 166:     return {
+ 167:       deleted: true,
+ 168:       storageKey,
+ 169:     };
+ 170:   } catch (error) {
+ 171:     if (error?.code === "ENOENT") {
+ 172:       return {
+ 173:         deleted: false,
+ 174:         storageKey,
+ 175:       };
+ 176:     }
+ 177: 
+ 178:     throw error;
+ 179:   }
+ 180: }
+ 181: 
+ 182: 

@@ -1,0 +1,1059 @@
+﻿TRAINING DOCUMENT OWNERSHIP PREFLIGHT
+Mode: READ ONLY
+
+===========================================================================
+FILE: src\services\Service\trainingService.js
+SHA256: 55E9EDA708BE661A1C4418A163BC343FD333426282B765B4B2EC5046A2B2C34B
+   1: import { randomUUID } from "node:crypto";
+   2: 
+   3: import {
+   4:   completeTrainingSchema,
+   5:   updateTrainingSchema,
+   6:   formatTrainingSchemaErrors,
+   7: } from "../../schemas/trainingSchemas.js";
+   8: 
+   9: import {
+  10:   listTrainingsByUser,
+  11:   findTrainingById,
+  12:   createTrainingRecord,
+  13:   updateTrainingRecord,
+  14: } from "../../repositories/trainingRepository.js";
+  15: 
+  16: function trainingError(message, code, status, errors) {
+  17:   const error = new Error(message);
+  18:   error.name = "TrainingServiceError";
+  19:   error.code = code;
+  20:   error.status = status;
+  21:   error.publicMessage = message;
+  22: 
+  23:   if (errors) error.errors = errors;
+  24: 
+  25:   return error;
+  26: }
+  27: 
+  28: function requireUserId(userId) {
+  29:   if (typeof userId !== "string" || !userId.trim()) {
+  30:     throw trainingError(
+  31:       "Authentication is required.",
+  32:       "TRAINING_AUTH_REQUIRED",
+  33:       401,
+  34:     );
+  35:   }
+  36: 
+  37:   return userId.trim();
+  38: }
+  39: 
+  40: function requireTrainingId(trainingId) {
+  41:   if (
+  42:     typeof trainingId !== "string" ||
+  43:     !trainingId.trim() ||
+  44:     trainingId.length > 200
+  45:   ) {
+  46:     throw trainingError(
+  47:       "A valid Training identifier is required.",
+  48:       "TRAINING_ID_INVALID",
+  49:       400,
+  50:     );
+  51:   }
+  52: 
+  53:   return trainingId.trim();
+  54: }
+  55: 
+  56: function requireObject(value, field) {
+  57:   if (
+  58:     value === null ||
+  59:     typeof value !== "object" ||
+  60:     Array.isArray(value)
+  61:   ) {
+  62:     throw trainingError(
+  63:       `${field} must be a JSON object.`,
+  64:       "TRAINING_REQUEST_INVALID",
+  65:       400,
+  66:     );
+  67:   }
+  68: 
+  69:   return value;
+  70: }
+  71: 
+  72: function validateTraining(training) {
+  73:   requireObject(training, "Training");
+  74: 
+  75:   const result = completeTrainingSchema.safeParse(training);
+  76: 
+  77:   if (!result.success) {
+  78:     throw trainingError(
+  79:       "Training validation failed.",
+  80:       "TRAINING_VALIDATION_FAILED",
+  81:       400,
+  82:       formatTrainingSchemaErrors(result.error),
+  83:     );
+  84:   }
+  85: 
+  86:   return result.data;
+  87: }
+  88: 
+  89: function validateTrainingUpdates(updates) {
+  90:   const result = updateTrainingSchema.safeParse(updates);
+  91: 
+  92:   if (!result.success) {
+  93:     throw trainingError(
+  94:       "Training validation failed.",
+  95:       "TRAINING_VALIDATION_FAILED",
+  96:       400,
+  97:       formatTrainingSchemaErrors(result.error),
+  98:     );
+  99:   }
+ 100: 
+ 101:   return result.data;
+ 102: }
+ 103: 
+ 104: function mergeTrainingUpdates(existing, changes) {
+ 105:   const candidate = {
+ 106:     ...existing,
+ 107:     ...changes,
+ 108:   };
+ 109: 
+ 110:   if (changes.provider) {
+ 111:     candidate.provider = {
+ 112:       ...existing.provider,
+ 113:       ...changes.provider,
+ 114:     };
+ 115:   }
+ 116: 
+ 117:   if (changes.delivery) {
+ 118:     candidate.delivery = {
+ 119:       ...existing.delivery,
+ 120:       ...changes.delivery,
+ 121:       location: {
+ 122:         ...existing.delivery.location,
+ 123:         ...(changes.delivery.location || {}),
+ 124:       },
+ 125:     };
+ 126:   }
+ 127: 
+ 128:   for (const field of [
+ 129:     "dates",
+ 130:     "completion",
+ 131:     "visibility",
+ 132:     "privateInformation",
+ 133:   ]) {
+ 134:     if (changes[field]) {
+ 135:       candidate[field] = {
+ 136:         ...existing[field],
+ 137:         ...changes[field],
+ 138:       };
+ 139:     }
+ 140:   }
+ 141: 
+ 142:   return candidate;
+ 143: }
+ 144: 
+ 145: function requireValidRowVersion(value) {
+ 146:   if (
+ 147:     typeof value !== "string" ||
+ 148:     !/^[A-Za-z0-9+/]{11}=$/.test(value)
+ 149:   ) {
+ 150:     throw trainingError(
+ 151:       "A valid Training version is required.",
+ 152:       "TRAINING_VERSION_INVALID",
+ 153:       400,
+ 154:     );
+ 155:   }
+ 156: 
+ 157:   const bytes = Buffer.from(value, "base64");
+ 158: 
+ 159:   if (
+ 160:     bytes.length !== 8 ||
+ 161:     bytes.toString("base64") !== value
+ 162:   ) {
+ 163:     throw trainingError(
+ 164:       "A valid Training version is required.",
+ 165:       "TRAINING_VERSION_INVALID",
+ 166:       400,
+ 167:     );
+ 168:   }
+ 169: 
+ 170:   return value;
+ 171: }
+ 172: 
+ 173: function requireNoNewDocuments(documents) {
+ 174:   if (documents !== undefined) {
+ 175:     if (!Array.isArray(documents)) {
+ 176:       throw trainingError(
+ 177:         "Supporting documents must be an array.",
+ 178:         "TRAINING_DOCUMENTS_INVALID",
+ 179:         400,
+ 180:       );
+ 181:     }
+ 182: 
+ 183:     if (documents.length > 0) {
+ 184:       throw trainingError(
+ 185:         "Training document uploads are not available yet.",
+ 186:         "TRAINING_DOCUMENTS_NOT_READY",
+ 187:         400,
+ 188:       );
+ 189:     }
+ 190:   }
+ 191: }
+ 192: 
+ 193: function requireNoRelationshipUpdates(updates) {
+ 194:   const restricted = [
+ 195:     "skillRelationships",
+ 196:     "certificationRelationships",
+ 197:     "relatedCertificationIds",
+ 198:     "relatedEducationIds",
+ 199:     "relatedExperienceIds",
+ 200:     "relatedProjectIds",
+ 201:   ];
+ 202: 
+ 203:   for (const field of restricted) {
+ 204:     if (Object.hasOwn(updates, field)) {
+ 205:       throw trainingError(
+ 206:         `Updating ${field} is not available yet.`,
+ 207:         "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+ 208:         400,
+ 209:       );
+ 210:     }
+ 211:   }
+ 212: }
+ 213: 
+ 214: function normalizeRecord(record) {
+ 215:   if (!record) return null;
+ 216: 
+ 217:   return {
+ 218:     ...record,
+ 219:     createdAt: new Date(record.createdAt).toISOString(),
+ 220:     updatedAt: new Date(record.updatedAt).toISOString(),
+ 221:   };
+ 222: }
+ 223: 
+ 224: function notFound() {
+ 225:   return trainingError(
+ 226:     "Training not found.",
+ 227:     "TRAINING_NOT_FOUND",
+ 228:     404,
+ 229:   );
+ 230: }
+ 231: 
+ 232: function versionConflict() {
+ 233:   return trainingError(
+ 234:     "Training was modified by another operation. Reload before saving.",
+ 235:     "TRAINING_VERSION_CONFLICT",
+ 236:     409,
+ 237:   );
+ 238: }
+ 239: 
+ 240: export async function getAuthenticatedTrainings({ userId }) {
+ 241:   const authenticatedUserId = requireUserId(userId);
+ 242:   const records = await listTrainingsByUser(authenticatedUserId);
+ 243: 
+ 244:   return records.map(normalizeRecord);
+ 245: }
+ 246: 
+ 247: export async function getAuthenticatedTraining({
+ 248:   userId,
+ 249:   trainingId,
+ 250: }) {
+ 251:   const authenticatedUserId = requireUserId(userId);
+ 252:   const id = requireTrainingId(trainingId);
+ 253: 
+ 254:   const record = await findTrainingById(authenticatedUserId, id);
+ 255: 
+ 256:   if (!record) throw notFound();
+ 257: 
+ 258:   return normalizeRecord(record);
+ 259: }
+ 260: 
+ 261: export async function createAuthenticatedTraining({
+ 262:   userId,
+ 263:   training,
+ 264: }) {
+ 265:   const authenticatedUserId = requireUserId(userId);
+ 266:   const input = requireObject(training, "Training");
+ 267: 
+ 268:   requireNoNewDocuments(input.supportingDocuments);
+ 269: 
+ 270:   const now = new Date().toISOString();
+ 271: 
+ 272:   // Remove backend-managed metadata from the client payload.
+ 273:   const {
+ 274:     rowVersion: _clientRowVersion,
+ 275:     userId: _clientUserId,
+ 276:     user_id: _clientUserIdSql,
+ 277:     ...clientModel
+ 278:   } = input;
+ 279: 
+ 280:   const candidate = validateTraining({
+ 281:     ...clientModel,
+ 282:     id: randomUUID(),
+ 283:     createdAt: now,
+ 284:     updatedAt: now,
+ 285:   });
+ 286: 
+ 287:   try {
+ 288:     const created = await createTrainingRecord(
+ 289:       authenticatedUserId,
+ 290:       candidate,
+ 291:     );
+ 292: 
+ 293:     return normalizeRecord(created);
+ 294:   } catch (error) {
+ 295:     const number =
+ 296:       error.number ??
+ 297:       error.originalError?.number ??
+ 298:       error.cause?.number;
+ 299: 
+ 300:     if (number === 2601 || number === 2627) {
+ 301:       throw trainingError(
+ 302:         "A Training identifier already exists.",
+ 303:         "TRAINING_ID_CONFLICT",
+ 304:         409,
+ 305:       );
+ 306:     }
+ 307: 
+ 308:     throw error;
+ 309:   }
+ 310: }
+ 311: 
+ 312: export async function updateAuthenticatedTraining({
+ 313:   userId,
+ 314:   trainingId,
+ 315:   updates,
+ 316:   rowVersion,
+ 317: }) {
+ 318:   const authenticatedUserId = requireUserId(userId);
+ 319:   const id = requireTrainingId(trainingId);
+ 320:   const expectedVersion = requireValidRowVersion(rowVersion);
+ 321:   const changes = requireObject(updates, "Training updates");
+ 322: 
+ 323:   if (!Object.keys(changes).length) {
+ 324:     throw trainingError(
+ 325:       "Provide at least one Training field to update.",
+ 326:       "TRAINING_REQUEST_INVALID",
+ 327:       400,
+ 328:     );
+ 329:   }
+ 330: 
+ 331:   const forbidden = [
+ 332:     "id",
+ 333:     "userId",
+ 334:     "user_id",
+ 335:     "createdAt",
+ 336:     "updatedAt",
+ 337:     "rowVersion",
+ 338:     "modelVersion",
+ 339:   ];
+ 340: 
+ 341:   for (const field of forbidden) {
+ 342:     if (Object.hasOwn(changes, field)) {
+ 343:       throw trainingError(
+ 344:         `${field} cannot be updated.`,
+ 345:         "TRAINING_SERVER_FIELD_FORBIDDEN",
+ 346:         400,
+ 347:       );
+ 348:     }
+ 349:   }
+ 350: 
+ 351:   requireNoRelationshipUpdates(changes);
+ 352: 
+ 353:   if (Object.hasOwn(changes, "supportingDocuments")) {
+ 354:     throw trainingError(
+ 355:       "Updating Training documents is not available yet.",
+ 356:       "TRAINING_DOCUMENTS_NOT_READY",
+ 357:       400,
+ 358:     );
+ 359:   }
+ 360: 
+ 361:   // Reject unsupported top-level fields before database access.
+ 362:   const allowedFields = new Set([
+ 363:     "title",
+ 364:     "trainingType",
+ 365:     "provider",
+ 366:     "delivery",
+ 367:     "dates",
+ 368:     "completion",
+ 369:     "description",
+ 370:     "instructors",
+ 371:     "topics",
+ 372:     "learningOutcomes",
+ 373:     "visibility",
+ 374:     "privateInformation",
+ 375:     "source",
+ 376:     "sourceContext",
+ 377:     "status",
+ 378:   ]);
+ 379: 
+ 380:   for (const field of Object.keys(changes)) {
+ 381:     if (!allowedFields.has(field)) {
+ 382:       throw trainingError(
+ 383:         "Training validation failed.",
+ 384:         "TRAINING_VALIDATION_FAILED",
+ 385:         400,
+ 386:         [{
+ 387:           field,
+ 388:           code: "unrecognized_keys",
+ 389:           message: "Unsupported Training field.",
+ 390:         }],
+ 391:       );
+ 392:     }
+ 393:   }
+ 394: 
+ 395:   const existing = await findTrainingById(
+ 396:     authenticatedUserId,
+ 397:     id,
+ 398:   );
+ 399: 
+ 400:   if (!existing) throw notFound();
+ 401: 
+ 402:   if (existing.rowVersion !== expectedVersion) {
+ 403:     throw versionConflict();
+ 404:   }
+ 405: 
+ 406:   const {
+ 407:     rowVersion: _storedVersion,
+ 408:     ...storedModel
+ 409:   } = normalizeRecord(existing);
+ 410: 
+ 411:   const merged = mergeTrainingUpdates(storedModel, changes);
+ 412: 
+ 413:   // Validate PATCH fields after merging nested structures.
+ 414:   const validatedChanges = validateTrainingUpdates(
+ 415:     Object.fromEntries(
+ 416:       Object.keys(changes).map((field) => [
+ 417:         field,
+ 418:         merged[field],
+ 419:       ]),
+ 420:     ),
+ 421:   );
+ 422: 
+ 423:   const candidate = validateTraining({
+ 424:     ...mergeTrainingUpdates(storedModel, validatedChanges),
+ 425:     id: storedModel.id,
+ 426:     createdAt: storedModel.createdAt,
+ 427:     updatedAt: new Date().toISOString(),
+ 428:   });
+ 429: 
+ 430:   const updated = await updateTrainingRecord(
+ 431:     authenticatedUserId,
+ 432:     candidate,
+ 433:     expectedVersion,
+ 434:   );
+ 435: 
+ 436:   if (!updated) {
+ 437:     const current = await findTrainingById(
+ 438:       authenticatedUserId,
+ 439:       id,
+ 440:     );
+ 441: 
+ 442:     if (!current) throw notFound();
+ 443: 
+ 444:     throw versionConflict();
+ 445:   }
+ 446: 
+ 447:   return normalizeRecord(updated);
+ 448: }
+
+===========================================================================
+FILE: src\controllers\trainingController.js
+SHA256: BFC90FD416B37DA74B65A156754BCD9E19A12F96C0D56C05B80C6F1E54AC99DA
+   1: import {
+   2:   getAuthenticatedTrainings,
+   3:   getAuthenticatedTraining,
+   4:   createAuthenticatedTraining,
+   5:   updateAuthenticatedTraining,
+   6: } from "../services/Service/trainingService.js";
+   7: 
+   8: function trainingRequestError(message) {
+   9:   const error = new Error(message);
+  10:   error.name = "TrainingRequestError";
+  11:   error.code = "TRAINING_REQUEST_INVALID";
+  12:   error.status = 400;
+  13:   error.publicMessage = message;
+  14:   return error;
+  15: }
+  16: 
+  17: function requireFields(value, allowedFields) {
+  18:   if (
+  19:     value === null ||
+  20:     typeof value !== "object" ||
+  21:     Array.isArray(value)
+  22:   ) {
+  23:     throw trainingRequestError(
+  24:       "Request body must be a JSON object.",
+  25:     );
+  26:   }
+  27: 
+  28:   const unexpected = Object.keys(value).filter(
+  29:     (field) => !allowedFields.includes(field),
+  30:   );
+  31: 
+  32:   if (unexpected.length > 0) {
+  33:     throw trainingRequestError(
+  34:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+  35:     );
+  36:   }
+  37: 
+  38:   return value;
+  39: }
+  40: 
+  41: function sendSuccess(response, status, message, data) {
+  42:   response.set({
+  43:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  44:     Pragma: "no-cache",
+  45:     Expires: "0",
+  46:     "X-Content-Type-Options": "nosniff",
+  47:   });
+  48: 
+  49:   return response.status(status).json({
+  50:     status: "success",
+  51:     message,
+  52:     data,
+  53:   });
+  54: }
+  55: 
+  56: export async function listMyTrainings(request, response, next) {
+  57:   try {
+  58:     const trainings = await getAuthenticatedTrainings({
+  59:       userId: request.auth.userId,
+  60:     });
+  61: 
+  62:     return sendSuccess(
+  63:       response,
+  64:       200,
+  65:       "Trainings retrieved successfully.",
+  66:       { trainings },
+  67:     );
+  68:   } catch (error) {
+  69:     return next(error);
+  70:   }
+  71: }
+  72: 
+  73: export async function getMyTraining(request, response, next) {
+  74:   try {
+  75:     const training = await getAuthenticatedTraining({
+  76:       userId: request.auth.userId,
+  77:       trainingId: request.params.trainingId,
+  78:     });
+  79: 
+  80:     return sendSuccess(
+  81:       response,
+  82:       200,
+  83:       "Training retrieved successfully.",
+  84:       { training },
+  85:     );
+  86:   } catch (error) {
+  87:     return next(error);
+  88:   }
+  89: }
+  90: 
+  91: export async function createMyTraining(request, response, next) {
+  92:   try {
+  93:     const training = await createAuthenticatedTraining({
+  94:       userId: request.auth.userId,
+  95:       training: request.body,
+  96:     });
+  97: 
+  98:     return sendSuccess(
+  99:       response,
+ 100:       201,
+ 101:       "Training created successfully.",
+ 102:       { training },
+ 103:     );
+ 104:   } catch (error) {
+ 105:     return next(error);
+ 106:   }
+ 107: }
+ 108: 
+ 109: export async function updateMyTraining(request, response, next) {
+ 110:   try {
+ 111:     const body = requireFields(request.body, [
+ 112:       "updates",
+ 113:       "rowVersion",
+ 114:     ]);
+ 115: 
+ 116:     const training = await updateAuthenticatedTraining({
+ 117:       userId: request.auth.userId,
+ 118:       trainingId: request.params.trainingId,
+ 119:       updates: body.updates,
+ 120:       rowVersion: body.rowVersion,
+ 121:     });
+ 122: 
+ 123:     return sendSuccess(
+ 124:       response,
+ 125:       200,
+ 126:       "Training updated successfully.",
+ 127:       { training },
+ 128:     );
+ 129:   } catch (error) {
+ 130:     return next(error);
+ 131:   }
+ 132: }
+
+===========================================================================
+FILE: src\repositories\trainingRepository.js
+SHA256: 7FE14F17B39A34800A19A4A9BD3DCA0C204AB1D7CF486D6BC28955AFC6EFD0BE
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const TRAINING_COLUMNS = `
+   4:   id,
+   5:   user_id,
+   6:   title,
+   7:   training_type,
+   8:   provider_name,
+   9:   status,
+  10:   training_data,
+  11:   created_at,
+  12:   updated_at,
+  13:   row_version
+  14: `;
+  15: 
+  16: function mapTrainingRow(row) {
+  17:   if (!row) return null;
+  18: 
+  19:   const data = typeof row.training_data === "string"
+  20:     ? JSON.parse(row.training_data)
+  21:     : row.training_data;
+  22: 
+  23:   if (!data || typeof data !== "object" || Array.isArray(data)) {
+  24:     throw new Error("Stored Training data is invalid.");
+  25:   }
+  26: 
+  27:   return {
+  28:     ...data,
+  29:     id: row.id,
+  30:     title: row.title,
+  31:     trainingType: row.training_type,
+  32:     provider: {
+  33:       ...(data.provider || {}),
+  34:       name: row.provider_name,
+  35:     },
+  36:     status: row.status,
+  37:     createdAt: new Date(row.created_at).toISOString(),
+  38:     updatedAt: new Date(row.updated_at).toISOString(),
+  39:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+  40:   };
+  41: }
+  42: 
+  43: function bindTraining(request, userId, training) {
+  44:   return request
+  45:     .input("id", sql.NVarChar(200), training.id)
+  46:     .input("userId", sql.UniqueIdentifier, userId)
+  47:     .input("title", sql.NVarChar(250), training.title)
+  48:     .input("trainingType", sql.NVarChar(100), training.trainingType)
+  49:     .input("providerName", sql.NVarChar(500), training.provider.name)
+  50:     .input("status", sql.NVarChar(20), training.status)
+  51:     .input(
+  52:       "trainingData",
+  53:       sql.NVarChar(sql.MAX),
+  54:       JSON.stringify(training),
+  55:     );
+  56: }
+  57: 
+  58: function decodeRowVersion(value) {
+  59:   if (
+  60:     typeof value !== "string" ||
+  61:     !/^[A-Za-z0-9+/]{11}=$/.test(value)
+  62:   ) {
+  63:     throw new TypeError("A valid rowVersion is required.");
+  64:   }
+  65: 
+  66:   const buffer = Buffer.from(value, "base64");
+  67: 
+  68:   if (
+  69:     buffer.length !== 8 ||
+  70:     buffer.toString("base64") !== value
+  71:   ) {
+  72:     throw new TypeError("Invalid rowVersion.");
+  73:   }
+  74: 
+  75:   return buffer;
+  76: }
+  77: 
+  78: export async function listTrainingsByUser(userId) {
+  79:   const pool = await getDatabasePool();
+  80: 
+  81:   const result = await pool.request()
+  82:     .input("userId", sql.UniqueIdentifier, userId)
+  83:     .query(`
+  84:       SELECT ${TRAINING_COLUMNS}
+  85:       FROM dbo.trainings
+  86:       WHERE user_id = @userId
+  87:       ORDER BY updated_at DESC, id ASC;
+  88:     `);
+  89: 
+  90:   return result.recordset.map(mapTrainingRow);
+  91: }
+  92: 
+  93: export async function findTrainingById(userId, trainingId) {
+  94:   const pool = await getDatabasePool();
+  95: 
+  96:   const result = await pool.request()
+  97:     .input("userId", sql.UniqueIdentifier, userId)
+  98:     .input("id", sql.NVarChar(200), trainingId)
+  99:     .query(`
+ 100:       SELECT ${TRAINING_COLUMNS}
+ 101:       FROM dbo.trainings
+ 102:       WHERE user_id = @userId
+ 103:         AND id = @id;
+ 104:     `);
+ 105: 
+ 106:   return mapTrainingRow(result.recordset[0]);
+ 107: }
+ 108: 
+ 109: export async function createTrainingRecord(userId, training) {
+ 110:   const pool = await getDatabasePool();
+ 111: 
+ 112:   const result = await bindTraining(
+ 113:     pool.request(),
+ 114:     userId,
+ 115:     training,
+ 116:   ).query(`
+ 117:     INSERT INTO dbo.trainings (
+ 118:       id,
+ 119:       user_id,
+ 120:       title,
+ 121:       training_type,
+ 122:       provider_name,
+ 123:       status,
+ 124:       training_data
+ 125:     )
+ 126:     OUTPUT
+ 127:       INSERTED.id,
+ 128:       INSERTED.user_id,
+ 129:       INSERTED.title,
+ 130:       INSERTED.training_type,
+ 131:       INSERTED.provider_name,
+ 132:       INSERTED.status,
+ 133:       INSERTED.training_data,
+ 134:       INSERTED.created_at,
+ 135:       INSERTED.updated_at,
+ 136:       INSERTED.row_version
+ 137:     VALUES (
+ 138:       @id,
+ 139:       @userId,
+ 140:       @title,
+ 141:       @trainingType,
+ 142:       @providerName,
+ 143:       @status,
+ 144:       @trainingData
+ 145:     );
+ 146:   `);
+ 147: 
+ 148:   return mapTrainingRow(result.recordset[0]);
+ 149: }
+ 150: 
+ 151: export async function updateTrainingRecord(
+ 152:   userId,
+ 153:   training,
+ 154:   expectedRowVersion,
+ 155: ) {
+ 156:   const pool = await getDatabasePool();
+ 157: 
+ 158:   const result = await bindTraining(
+ 159:     pool.request(),
+ 160:     userId,
+ 161:     training,
+ 162:   )
+ 163:     .input(
+ 164:       "expectedRowVersion",
+ 165:       sql.Binary(8),
+ 166:       decodeRowVersion(expectedRowVersion),
+ 167:     )
+ 168:     .query(`
+ 169:       UPDATE dbo.trainings
+ 170:       SET
+ 171:         title = @title,
+ 172:         training_type = @trainingType,
+ 173:         provider_name = @providerName,
+ 174:         status = @status,
+ 175:         training_data = @trainingData,
+ 176:         updated_at = SYSUTCDATETIME()
+ 177:       OUTPUT
+ 178:         INSERTED.id,
+ 179:         INSERTED.user_id,
+ 180:         INSERTED.title,
+ 181:         INSERTED.training_type,
+ 182:         INSERTED.provider_name,
+ 183:         INSERTED.status,
+ 184:         INSERTED.training_data,
+ 185:         INSERTED.created_at,
+ 186:         INSERTED.updated_at,
+ 187:         INSERTED.row_version
+ 188:       WHERE id = @id
+ 189:         AND user_id = @userId
+ 190:         AND row_version = @expectedRowVersion;
+ 191:     `);
+ 192: 
+ 193:   return mapTrainingRow(result.recordset[0]);
+ 194: }
+
+===========================================================================
+FILE: src\middleware\authenticationMiddleware.js
+SHA256: E9960A13642AA8D570FEBEBA1F50F6C7F3974787CC08612DE1E9A3FA164982F8
+   1: import { getAuthenticatedSession } from "../services/Service/sessionService.js";
+   2: 
+   3: import {
+   4:   clearRefreshTokenCookie,
+   5:   getRefreshTokenFromRequest,
+   6: } from "../security/sessionCookieSecurity.js";
+   7: 
+   8: /*
+   9:  * =========================================
+  10:  * Authentication Error
+  11:  * =========================================
+  12:  */
+  13: 
+  14: function createAuthenticationError({
+  15:   message,
+  16:   code = "AUTHENTICATION_REQUIRED",
+  17:   status = 401,
+  18:   publicMessage = "You must sign in to access this resource.",
+  19: }) {
+  20:   const error = new Error(message);
+  21: 
+  22:   error.name = "AuthenticationError";
+  23: 
+  24:   error.code = code;
+  25: 
+  26:   error.status = status;
+  27: 
+  28:   error.publicMessage = publicMessage;
+  29: 
+  30:   return error;
+  31: }
+  32: 
+  33: /*
+  34:  * =========================================
+  35:  * Invalid Session Errors
+  36:  * =========================================
+  37:  */
+  38: 
+  39: function shouldClearSessionCookie(error) {
+  40:   const invalidSessionCodes = new Set([
+  41:     "SESSION_REFRESH_TOKEN_INVALID",
+  42:     "SESSION_NOT_FOUND",
+  43:     "SESSION_REFRESH_CONFLICT",
+  44:   ]);
+  45: 
+  46:   return invalidSessionCodes.has(error?.code);
+  47: }
+  48: 
+  49: /*
+  50:  * =========================================
+  51:  * Safely Clear Refresh Cookie
+  52:  * =========================================
+  53:  */
+  54: 
+  55: function safelyClearRefreshTokenCookie(response) {
+  56:   try {
+  57:     clearRefreshTokenCookie(response);
+  58:   } catch (error) {
+  59:     console.error(
+  60:       "Unable to clear refresh-token cookie during authentication:",
+  61:       error,
+  62:     );
+  63:   }
+  64: }
+  65: 
+  66: /*
+  67:  * =========================================
+  68:  * Normalize Roles
+  69:  * =========================================
+  70:  */
+  71: 
+  72: function normalizeRoles(roles) {
+  73:   if (!Array.isArray(roles)) {
+  74:     return [];
+  75:   }
+  76: 
+  77:   return [
+  78:     ...new Set(
+  79:       roles
+  80:         .map((role) =>
+  81:           typeof role === "string" ? role.trim().toLowerCase() : "",
+  82:         )
+  83:         .filter(Boolean),
+  84:     ),
+  85:   ];
+  86: }
+  87: 
+  88: /*
+  89:  * =========================================
+  90:  * Create Request Authentication
+  91:  * =========================================
+  92:  */
+  93: 
+  94: function createRequestAuthentication({ user, roles, session }) {
+  95:   if (!user?.id || !session?.id) {
+  96:     throw createAuthenticationError({
+  97:       message:
+  98:         "The resolved session does not contain a valid user and session.",
+  99: 
+ 100:       code: "AUTHENTICATION_CONTEXT_INVALID",
+ 101: 
+ 102:       status: 500,
+ 103: 
+ 104:       publicMessage: "Your session could not be verified.",
+ 105:     });
+ 106:   }
+ 107: 
+ 108:   const normalizedRoles = Object.freeze(normalizeRoles(roles));
+ 109: 
+ 110:   return Object.freeze({
+ 111:     isAuthenticated: true,
+ 112: 
+ 113:     userId: user.id,
+ 114: 
+ 115:     sessionId: session.id,
+ 116: 
+ 117:     user,
+ 118: 
+ 119:     roles: normalizedRoles,
+ 120: 
+ 121:     session,
+ 122:   });
+ 123: }
+ 124: 
+ 125: /*
+ 126:  * =========================================
+ 127:  * Require Authentication
+ 128:  * =========================================
+ 129:  *
+ 130:  * Resolves the HttpOnly refresh-token cookie,
+ 131:  * validates the database session and places
+ 132:  * public-safe identity information on:
+ 133:  *
+ 134:  * request.auth
+ 135:  *
+ 136:  * This middleware validates the session but
+ 137:  * does not rotate its refresh token.
+ 138:  */
+ 139: 
+ 140: export async function requireAuthentication(request, response, next) {
+ 141:   /*
+ 142:    * Protected responses must not be cached
+ 143:    * or shared between authenticated users.
+ 144:    */
+ 145: 
+ 146:   response.set({
+ 147:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+ 148: 
+ 149:     Pragma: "no-cache",
+ 150: 
+ 151:     Expires: "0",
+ 152:   });
+ 153: 
+ 154:   response.vary("Cookie");
+ 155: 
+ 156:   try {
+ 157:     const refreshToken = getRefreshTokenFromRequest(request);
+ 158: 
+ 159:     if (!refreshToken) {
+ 160:       throw createAuthenticationError({
+ 161:         message: "The request does not contain a refresh-token cookie.",
+ 162: 
+ 163:         code: "AUTHENTICATION_REQUIRED",
+ 164: 
+ 165:         status: 401,
+ 166: 
+ 167:         publicMessage: "You must sign in to access this resource.",
+ 168:       });
+ 169:     }
+ 170: 
+ 171:     const authentication = await getAuthenticatedSession({
+ 172:       refreshToken,
+ 173:     });
+ 174: 
+ 175:     request.auth = createRequestAuthentication(authentication);
+ 176: 
+ 177:     return next();
+ 178:   } catch (error) {
+ 179:     if (shouldClearSessionCookie(error)) {
+ 180:       safelyClearRefreshTokenCookie(response);
+ 181:     }
+ 182: 
+ 183:     return next(error);
+ 184:   }
+ 185: }
+
+===========================================================================
+FILE: src\routes\certificationRoutes.js
+SHA256: C7410EF0053D453FDA12C09529E81B701E1DB957B56FA0D78C3F4C2859A0EDF1
+   1: import { Router } from "express";
+   2: 
+   3: import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+   4: 
+   5: import {
+   6:   listMyCertifications,
+   7:   getMyCertification,
+   8:   createMyCertification,
+   9:   updateMyCertification,
+  10: } from "../controllers/certificationController.js";
+  11: 
+  12: import {
+  13:   uploadMyCertificationDocument,
+  14:   listMyCertificationDocuments,
+  15:   getMyCertificationDocument,
+  16:   deleteMyCertificationDocument,
+  17: } from "../controllers/certificationDocumentController.js";
+  18: 
+  19: import {
+  20:   requireCertificationOwnership,
+  21: } from "../middleware/certification/certificationOwnershipMiddleware.js";
+  22: 
+  23: import {
+  24:   uploadCertificationDocument,
+  25: } from "../middleware/certification/certificationDocumentUploadMiddleware.js";
+  26: 
+  27: import {
+  28:   validateCertificationDocument,
+  29: } from "../middleware/certification/certificationDocumentValidationMiddleware.js";
+  30: 
+  31: const router = Router();
+  32: 
+  33: // All Certification endpoints require a valid authenticated session.
+  34: router.use(requireAuthentication);
+  35: 
+  36: // Certification CRUD.
+  37: router.get("/", listMyCertifications);
+  38: 
+  39: router.post("/", createMyCertification);
+  40: 
+  41: router.get("/:certificationId", getMyCertification);
+  42: 
+  43: router.patch("/:certificationId", updateMyCertification);
+  44: 
+  45: // List documents belonging to an owned Certification.
+  46: router.get(
+  47:   "/:certificationId/documents",
+  48:   requireCertificationOwnership,
+  49:   listMyCertificationDocuments,
+  50: );
+  51: 
+  52: // Verify ownership before writing uploaded files.
+  53: router.post(
+  54:   "/:certificationId/documents",
+  55:   requireCertificationOwnership,
+  56:   uploadCertificationDocument,
+  57:   validateCertificationDocument,
+  58:   uploadMyCertificationDocument,
+  59: );
+  60: 
+  61: // Download only documents belonging to an owned Certification.
+  62: router.get(
+  63:   "/:certificationId/documents/:documentId",
+  64:   requireCertificationOwnership,
+  65:   getMyCertificationDocument,
+  66: );
+  67: 
+  68: // Delete only documents belonging to an owned Certification.
+  69: router.delete(
+  70:   "/:certificationId/documents/:documentId",
+  71:   requireCertificationOwnership,
+  72:   deleteMyCertificationDocument,
+  73: );
+  74: 
+  75: // Certification deletion is intentionally not exposed.
+  76: // It requires coordinated SQL and private-file cleanup.
+  77: 
+  78: export default router;

@@ -1,0 +1,1836 @@
+﻿TRAINING DOCUMENT API PRE-IMPLEMENTATION
+Generated: 2026-11-05 19:16:32
+Mode: READ ONLY
+
+===========================================================================
+FILE: src\routes\trainingRoutes.js
+STATUS: FOUND
+SHA256: 3FB53DA60D79C675BB037A466ED1A6E91845BBA0BDF318F98EB00B0F93851FC5
+
+   1: import { Router } from "express";
+   2: 
+   3: import {
+   4:   requireAuthentication,
+   5: } from "../middleware/authenticationMiddleware.js";
+   6: 
+   7: import {
+   8:   listMyTrainings,
+   9:   getMyTraining,
+  10:   createMyTraining,
+  11:   updateMyTraining,
+  12: } from "../controllers/trainingController.js";
+  13: 
+  14: const router = Router();
+  15: 
+  16: // All Training endpoints require authentication.
+  17: router.use(requireAuthentication);
+  18: 
+  19: // Training collection.
+  20: router.get("/", listMyTrainings);
+  21: router.post("/", createMyTraining);
+  22: 
+  23: // Individual Training records.
+  24: router.get("/:trainingId", getMyTraining);
+  25: router.patch("/:trainingId", updateMyTraining);
+  26: 
+  27: // Training deletion and document endpoints are intentionally
+  28: // unavailable until their persistence and cleanup workflows
+  29: // are implemented and verified.
+  30: 
+  31: export default router;
+===========================================================================
+FILE: src\controllers\trainingController.js
+STATUS: FOUND
+SHA256: BFC90FD416B37DA74B65A156754BCD9E19A12F96C0D56C05B80C6F1E54AC99DA
+
+   1: import {
+   2:   getAuthenticatedTrainings,
+   3:   getAuthenticatedTraining,
+   4:   createAuthenticatedTraining,
+   5:   updateAuthenticatedTraining,
+   6: } from "../services/Service/trainingService.js";
+   7: 
+   8: function trainingRequestError(message) {
+   9:   const error = new Error(message);
+  10:   error.name = "TrainingRequestError";
+  11:   error.code = "TRAINING_REQUEST_INVALID";
+  12:   error.status = 400;
+  13:   error.publicMessage = message;
+  14:   return error;
+  15: }
+  16: 
+  17: function requireFields(value, allowedFields) {
+  18:   if (
+  19:     value === null ||
+  20:     typeof value !== "object" ||
+  21:     Array.isArray(value)
+  22:   ) {
+  23:     throw trainingRequestError(
+  24:       "Request body must be a JSON object.",
+  25:     );
+  26:   }
+  27: 
+  28:   const unexpected = Object.keys(value).filter(
+  29:     (field) => !allowedFields.includes(field),
+  30:   );
+  31: 
+  32:   if (unexpected.length > 0) {
+  33:     throw trainingRequestError(
+  34:       `Unexpected request fields: ${unexpected.join(", ")}.`,
+  35:     );
+  36:   }
+  37: 
+  38:   return value;
+  39: }
+  40: 
+  41: function sendSuccess(response, status, message, data) {
+  42:   response.set({
+  43:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  44:     Pragma: "no-cache",
+  45:     Expires: "0",
+  46:     "X-Content-Type-Options": "nosniff",
+  47:   });
+  48: 
+  49:   return response.status(status).json({
+  50:     status: "success",
+  51:     message,
+  52:     data,
+  53:   });
+  54: }
+  55: 
+  56: export async function listMyTrainings(request, response, next) {
+  57:   try {
+  58:     const trainings = await getAuthenticatedTrainings({
+  59:       userId: request.auth.userId,
+  60:     });
+  61: 
+  62:     return sendSuccess(
+  63:       response,
+  64:       200,
+  65:       "Trainings retrieved successfully.",
+  66:       { trainings },
+  67:     );
+  68:   } catch (error) {
+  69:     return next(error);
+  70:   }
+  71: }
+  72: 
+  73: export async function getMyTraining(request, response, next) {
+  74:   try {
+  75:     const training = await getAuthenticatedTraining({
+  76:       userId: request.auth.userId,
+  77:       trainingId: request.params.trainingId,
+  78:     });
+  79: 
+  80:     return sendSuccess(
+  81:       response,
+  82:       200,
+  83:       "Training retrieved successfully.",
+  84:       { training },
+  85:     );
+  86:   } catch (error) {
+  87:     return next(error);
+  88:   }
+  89: }
+  90: 
+  91: export async function createMyTraining(request, response, next) {
+  92:   try {
+  93:     const training = await createAuthenticatedTraining({
+  94:       userId: request.auth.userId,
+  95:       training: request.body,
+  96:     });
+  97: 
+  98:     return sendSuccess(
+  99:       response,
+ 100:       201,
+ 101:       "Training created successfully.",
+ 102:       { training },
+ 103:     );
+ 104:   } catch (error) {
+ 105:     return next(error);
+ 106:   }
+ 107: }
+ 108: 
+ 109: export async function updateMyTraining(request, response, next) {
+ 110:   try {
+ 111:     const body = requireFields(request.body, [
+ 112:       "updates",
+ 113:       "rowVersion",
+ 114:     ]);
+ 115: 
+ 116:     const training = await updateAuthenticatedTraining({
+ 117:       userId: request.auth.userId,
+ 118:       trainingId: request.params.trainingId,
+ 119:       updates: body.updates,
+ 120:       rowVersion: body.rowVersion,
+ 121:     });
+ 122: 
+ 123:     return sendSuccess(
+ 124:       response,
+ 125:       200,
+ 126:       "Training updated successfully.",
+ 127:       { training },
+ 128:     );
+ 129:   } catch (error) {
+ 130:     return next(error);
+ 131:   }
+ 132: }
+===========================================================================
+FILE: src\services\Service\trainingService.js
+STATUS: FOUND
+SHA256: 55E9EDA708BE661A1C4418A163BC343FD333426282B765B4B2EC5046A2B2C34B
+
+   1: import { randomUUID } from "node:crypto";
+   2: 
+   3: import {
+   4:   completeTrainingSchema,
+   5:   updateTrainingSchema,
+   6:   formatTrainingSchemaErrors,
+   7: } from "../../schemas/trainingSchemas.js";
+   8: 
+   9: import {
+  10:   listTrainingsByUser,
+  11:   findTrainingById,
+  12:   createTrainingRecord,
+  13:   updateTrainingRecord,
+  14: } from "../../repositories/trainingRepository.js";
+  15: 
+  16: function trainingError(message, code, status, errors) {
+  17:   const error = new Error(message);
+  18:   error.name = "TrainingServiceError";
+  19:   error.code = code;
+  20:   error.status = status;
+  21:   error.publicMessage = message;
+  22: 
+  23:   if (errors) error.errors = errors;
+  24: 
+  25:   return error;
+  26: }
+  27: 
+  28: function requireUserId(userId) {
+  29:   if (typeof userId !== "string" || !userId.trim()) {
+  30:     throw trainingError(
+  31:       "Authentication is required.",
+  32:       "TRAINING_AUTH_REQUIRED",
+  33:       401,
+  34:     );
+  35:   }
+  36: 
+  37:   return userId.trim();
+  38: }
+  39: 
+  40: function requireTrainingId(trainingId) {
+  41:   if (
+  42:     typeof trainingId !== "string" ||
+  43:     !trainingId.trim() ||
+  44:     trainingId.length > 200
+  45:   ) {
+  46:     throw trainingError(
+  47:       "A valid Training identifier is required.",
+  48:       "TRAINING_ID_INVALID",
+  49:       400,
+  50:     );
+  51:   }
+  52: 
+  53:   return trainingId.trim();
+  54: }
+  55: 
+  56: function requireObject(value, field) {
+  57:   if (
+  58:     value === null ||
+  59:     typeof value !== "object" ||
+  60:     Array.isArray(value)
+  61:   ) {
+  62:     throw trainingError(
+  63:       `${field} must be a JSON object.`,
+  64:       "TRAINING_REQUEST_INVALID",
+  65:       400,
+  66:     );
+  67:   }
+  68: 
+  69:   return value;
+  70: }
+  71: 
+  72: function validateTraining(training) {
+  73:   requireObject(training, "Training");
+  74: 
+  75:   const result = completeTrainingSchema.safeParse(training);
+  76: 
+  77:   if (!result.success) {
+  78:     throw trainingError(
+  79:       "Training validation failed.",
+  80:       "TRAINING_VALIDATION_FAILED",
+  81:       400,
+  82:       formatTrainingSchemaErrors(result.error),
+  83:     );
+  84:   }
+  85: 
+  86:   return result.data;
+  87: }
+  88: 
+  89: function validateTrainingUpdates(updates) {
+  90:   const result = updateTrainingSchema.safeParse(updates);
+  91: 
+  92:   if (!result.success) {
+  93:     throw trainingError(
+  94:       "Training validation failed.",
+  95:       "TRAINING_VALIDATION_FAILED",
+  96:       400,
+  97:       formatTrainingSchemaErrors(result.error),
+  98:     );
+  99:   }
+ 100: 
+ 101:   return result.data;
+ 102: }
+ 103: 
+ 104: function mergeTrainingUpdates(existing, changes) {
+ 105:   const candidate = {
+ 106:     ...existing,
+ 107:     ...changes,
+ 108:   };
+ 109: 
+ 110:   if (changes.provider) {
+ 111:     candidate.provider = {
+ 112:       ...existing.provider,
+ 113:       ...changes.provider,
+ 114:     };
+ 115:   }
+ 116: 
+ 117:   if (changes.delivery) {
+ 118:     candidate.delivery = {
+ 119:       ...existing.delivery,
+ 120:       ...changes.delivery,
+ 121:       location: {
+ 122:         ...existing.delivery.location,
+ 123:         ...(changes.delivery.location || {}),
+ 124:       },
+ 125:     };
+ 126:   }
+ 127: 
+ 128:   for (const field of [
+ 129:     "dates",
+ 130:     "completion",
+ 131:     "visibility",
+ 132:     "privateInformation",
+ 133:   ]) {
+ 134:     if (changes[field]) {
+ 135:       candidate[field] = {
+ 136:         ...existing[field],
+ 137:         ...changes[field],
+ 138:       };
+ 139:     }
+ 140:   }
+ 141: 
+ 142:   return candidate;
+ 143: }
+ 144: 
+ 145: function requireValidRowVersion(value) {
+ 146:   if (
+ 147:     typeof value !== "string" ||
+ 148:     !/^[A-Za-z0-9+/]{11}=$/.test(value)
+ 149:   ) {
+ 150:     throw trainingError(
+ 151:       "A valid Training version is required.",
+ 152:       "TRAINING_VERSION_INVALID",
+ 153:       400,
+ 154:     );
+ 155:   }
+ 156: 
+ 157:   const bytes = Buffer.from(value, "base64");
+ 158: 
+ 159:   if (
+ 160:     bytes.length !== 8 ||
+ 161:     bytes.toString("base64") !== value
+ 162:   ) {
+ 163:     throw trainingError(
+ 164:       "A valid Training version is required.",
+ 165:       "TRAINING_VERSION_INVALID",
+ 166:       400,
+ 167:     );
+ 168:   }
+ 169: 
+ 170:   return value;
+ 171: }
+ 172: 
+ 173: function requireNoNewDocuments(documents) {
+ 174:   if (documents !== undefined) {
+ 175:     if (!Array.isArray(documents)) {
+ 176:       throw trainingError(
+ 177:         "Supporting documents must be an array.",
+ 178:         "TRAINING_DOCUMENTS_INVALID",
+ 179:         400,
+ 180:       );
+ 181:     }
+ 182: 
+ 183:     if (documents.length > 0) {
+ 184:       throw trainingError(
+ 185:         "Training document uploads are not available yet.",
+ 186:         "TRAINING_DOCUMENTS_NOT_READY",
+ 187:         400,
+ 188:       );
+ 189:     }
+ 190:   }
+ 191: }
+ 192: 
+ 193: function requireNoRelationshipUpdates(updates) {
+ 194:   const restricted = [
+ 195:     "skillRelationships",
+ 196:     "certificationRelationships",
+ 197:     "relatedCertificationIds",
+ 198:     "relatedEducationIds",
+ 199:     "relatedExperienceIds",
+ 200:     "relatedProjectIds",
+ 201:   ];
+ 202: 
+ 203:   for (const field of restricted) {
+ 204:     if (Object.hasOwn(updates, field)) {
+ 205:       throw trainingError(
+ 206:         `Updating ${field} is not available yet.`,
+ 207:         "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+ 208:         400,
+ 209:       );
+ 210:     }
+ 211:   }
+ 212: }
+ 213: 
+ 214: function normalizeRecord(record) {
+ 215:   if (!record) return null;
+ 216: 
+ 217:   return {
+ 218:     ...record,
+ 219:     createdAt: new Date(record.createdAt).toISOString(),
+ 220:     updatedAt: new Date(record.updatedAt).toISOString(),
+ 221:   };
+ 222: }
+ 223: 
+ 224: function notFound() {
+ 225:   return trainingError(
+ 226:     "Training not found.",
+ 227:     "TRAINING_NOT_FOUND",
+ 228:     404,
+ 229:   );
+ 230: }
+ 231: 
+ 232: function versionConflict() {
+ 233:   return trainingError(
+ 234:     "Training was modified by another operation. Reload before saving.",
+ 235:     "TRAINING_VERSION_CONFLICT",
+ 236:     409,
+ 237:   );
+ 238: }
+ 239: 
+ 240: export async function getAuthenticatedTrainings({ userId }) {
+ 241:   const authenticatedUserId = requireUserId(userId);
+ 242:   const records = await listTrainingsByUser(authenticatedUserId);
+ 243: 
+ 244:   return records.map(normalizeRecord);
+ 245: }
+ 246: 
+ 247: export async function getAuthenticatedTraining({
+ 248:   userId,
+ 249:   trainingId,
+ 250: }) {
+ 251:   const authenticatedUserId = requireUserId(userId);
+ 252:   const id = requireTrainingId(trainingId);
+ 253: 
+ 254:   const record = await findTrainingById(authenticatedUserId, id);
+ 255: 
+ 256:   if (!record) throw notFound();
+ 257: 
+ 258:   return normalizeRecord(record);
+ 259: }
+ 260: 
+ 261: export async function createAuthenticatedTraining({
+ 262:   userId,
+ 263:   training,
+ 264: }) {
+ 265:   const authenticatedUserId = requireUserId(userId);
+ 266:   const input = requireObject(training, "Training");
+ 267: 
+ 268:   requireNoNewDocuments(input.supportingDocuments);
+ 269: 
+ 270:   const now = new Date().toISOString();
+ 271: 
+ 272:   // Remove backend-managed metadata from the client payload.
+ 273:   const {
+ 274:     rowVersion: _clientRowVersion,
+ 275:     userId: _clientUserId,
+ 276:     user_id: _clientUserIdSql,
+ 277:     ...clientModel
+ 278:   } = input;
+ 279: 
+ 280:   const candidate = validateTraining({
+ 281:     ...clientModel,
+ 282:     id: randomUUID(),
+ 283:     createdAt: now,
+ 284:     updatedAt: now,
+ 285:   });
+ 286: 
+ 287:   try {
+ 288:     const created = await createTrainingRecord(
+ 289:       authenticatedUserId,
+ 290:       candidate,
+ 291:     );
+ 292: 
+ 293:     return normalizeRecord(created);
+ 294:   } catch (error) {
+ 295:     const number =
+ 296:       error.number ??
+ 297:       error.originalError?.number ??
+ 298:       error.cause?.number;
+ 299: 
+ 300:     if (number === 2601 || number === 2627) {
+ 301:       throw trainingError(
+ 302:         "A Training identifier already exists.",
+ 303:         "TRAINING_ID_CONFLICT",
+ 304:         409,
+ 305:       );
+ 306:     }
+ 307: 
+ 308:     throw error;
+ 309:   }
+ 310: }
+ 311: 
+ 312: export async function updateAuthenticatedTraining({
+ 313:   userId,
+ 314:   trainingId,
+ 315:   updates,
+ 316:   rowVersion,
+ 317: }) {
+ 318:   const authenticatedUserId = requireUserId(userId);
+ 319:   const id = requireTrainingId(trainingId);
+ 320:   const expectedVersion = requireValidRowVersion(rowVersion);
+ 321:   const changes = requireObject(updates, "Training updates");
+ 322: 
+ 323:   if (!Object.keys(changes).length) {
+ 324:     throw trainingError(
+ 325:       "Provide at least one Training field to update.",
+ 326:       "TRAINING_REQUEST_INVALID",
+ 327:       400,
+ 328:     );
+ 329:   }
+ 330: 
+ 331:   const forbidden = [
+ 332:     "id",
+ 333:     "userId",
+ 334:     "user_id",
+ 335:     "createdAt",
+ 336:     "updatedAt",
+ 337:     "rowVersion",
+ 338:     "modelVersion",
+ 339:   ];
+ 340: 
+ 341:   for (const field of forbidden) {
+ 342:     if (Object.hasOwn(changes, field)) {
+ 343:       throw trainingError(
+ 344:         `${field} cannot be updated.`,
+ 345:         "TRAINING_SERVER_FIELD_FORBIDDEN",
+ 346:         400,
+ 347:       );
+ 348:     }
+ 349:   }
+ 350: 
+ 351:   requireNoRelationshipUpdates(changes);
+ 352: 
+ 353:   if (Object.hasOwn(changes, "supportingDocuments")) {
+ 354:     throw trainingError(
+ 355:       "Updating Training documents is not available yet.",
+ 356:       "TRAINING_DOCUMENTS_NOT_READY",
+ 357:       400,
+ 358:     );
+ 359:   }
+ 360: 
+ 361:   // Reject unsupported top-level fields before database access.
+ 362:   const allowedFields = new Set([
+ 363:     "title",
+ 364:     "trainingType",
+ 365:     "provider",
+ 366:     "delivery",
+ 367:     "dates",
+ 368:     "completion",
+ 369:     "description",
+ 370:     "instructors",
+ 371:     "topics",
+ 372:     "learningOutcomes",
+ 373:     "visibility",
+ 374:     "privateInformation",
+ 375:     "source",
+ 376:     "sourceContext",
+ 377:     "status",
+ 378:   ]);
+ 379: 
+ 380:   for (const field of Object.keys(changes)) {
+ 381:     if (!allowedFields.has(field)) {
+ 382:       throw trainingError(
+ 383:         "Training validation failed.",
+ 384:         "TRAINING_VALIDATION_FAILED",
+ 385:         400,
+ 386:         [{
+ 387:           field,
+ 388:           code: "unrecognized_keys",
+ 389:           message: "Unsupported Training field.",
+ 390:         }],
+ 391:       );
+ 392:     }
+ 393:   }
+ 394: 
+ 395:   const existing = await findTrainingById(
+ 396:     authenticatedUserId,
+ 397:     id,
+ 398:   );
+ 399: 
+ 400:   if (!existing) throw notFound();
+ 401: 
+ 402:   if (existing.rowVersion !== expectedVersion) {
+ 403:     throw versionConflict();
+ 404:   }
+ 405: 
+ 406:   const {
+ 407:     rowVersion: _storedVersion,
+ 408:     ...storedModel
+ 409:   } = normalizeRecord(existing);
+ 410: 
+ 411:   const merged = mergeTrainingUpdates(storedModel, changes);
+ 412: 
+ 413:   // Validate PATCH fields after merging nested structures.
+ 414:   const validatedChanges = validateTrainingUpdates(
+ 415:     Object.fromEntries(
+ 416:       Object.keys(changes).map((field) => [
+ 417:         field,
+ 418:         merged[field],
+ 419:       ]),
+ 420:     ),
+ 421:   );
+ 422: 
+ 423:   const candidate = validateTraining({
+ 424:     ...mergeTrainingUpdates(storedModel, validatedChanges),
+ 425:     id: storedModel.id,
+ 426:     createdAt: storedModel.createdAt,
+ 427:     updatedAt: new Date().toISOString(),
+ 428:   });
+ 429: 
+ 430:   const updated = await updateTrainingRecord(
+ 431:     authenticatedUserId,
+ 432:     candidate,
+ 433:     expectedVersion,
+ 434:   );
+ 435: 
+ 436:   if (!updated) {
+ 437:     const current = await findTrainingById(
+ 438:       authenticatedUserId,
+ 439:       id,
+ 440:     );
+ 441: 
+ 442:     if (!current) throw notFound();
+ 443: 
+ 444:     throw versionConflict();
+ 445:   }
+ 446: 
+ 447:   return normalizeRecord(updated);
+ 448: }
+===========================================================================
+FILE: src\repositories\trainingRepository.js
+STATUS: FOUND
+SHA256: 7FE14F17B39A34800A19A4A9BD3DCA0C204AB1D7CF486D6BC28955AFC6EFD0BE
+
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: const TRAINING_COLUMNS = `
+   4:   id,
+   5:   user_id,
+   6:   title,
+   7:   training_type,
+   8:   provider_name,
+   9:   status,
+  10:   training_data,
+  11:   created_at,
+  12:   updated_at,
+  13:   row_version
+  14: `;
+  15: 
+  16: function mapTrainingRow(row) {
+  17:   if (!row) return null;
+  18: 
+  19:   const data = typeof row.training_data === "string"
+  20:     ? JSON.parse(row.training_data)
+  21:     : row.training_data;
+  22: 
+  23:   if (!data || typeof data !== "object" || Array.isArray(data)) {
+  24:     throw new Error("Stored Training data is invalid.");
+  25:   }
+  26: 
+  27:   return {
+  28:     ...data,
+  29:     id: row.id,
+  30:     title: row.title,
+  31:     trainingType: row.training_type,
+  32:     provider: {
+  33:       ...(data.provider || {}),
+  34:       name: row.provider_name,
+  35:     },
+  36:     status: row.status,
+  37:     createdAt: new Date(row.created_at).toISOString(),
+  38:     updatedAt: new Date(row.updated_at).toISOString(),
+  39:     rowVersion: Buffer.from(row.row_version).toString("base64"),
+  40:   };
+  41: }
+  42: 
+  43: function bindTraining(request, userId, training) {
+  44:   return request
+  45:     .input("id", sql.NVarChar(200), training.id)
+  46:     .input("userId", sql.UniqueIdentifier, userId)
+  47:     .input("title", sql.NVarChar(250), training.title)
+  48:     .input("trainingType", sql.NVarChar(100), training.trainingType)
+  49:     .input("providerName", sql.NVarChar(500), training.provider.name)
+  50:     .input("status", sql.NVarChar(20), training.status)
+  51:     .input(
+  52:       "trainingData",
+  53:       sql.NVarChar(sql.MAX),
+  54:       JSON.stringify(training),
+  55:     );
+  56: }
+  57: 
+  58: function decodeRowVersion(value) {
+  59:   if (
+  60:     typeof value !== "string" ||
+  61:     !/^[A-Za-z0-9+/]{11}=$/.test(value)
+  62:   ) {
+  63:     throw new TypeError("A valid rowVersion is required.");
+  64:   }
+  65: 
+  66:   const buffer = Buffer.from(value, "base64");
+  67: 
+  68:   if (
+  69:     buffer.length !== 8 ||
+  70:     buffer.toString("base64") !== value
+  71:   ) {
+  72:     throw new TypeError("Invalid rowVersion.");
+  73:   }
+  74: 
+  75:   return buffer;
+  76: }
+  77: 
+  78: export async function listTrainingsByUser(userId) {
+  79:   const pool = await getDatabasePool();
+  80: 
+  81:   const result = await pool.request()
+  82:     .input("userId", sql.UniqueIdentifier, userId)
+  83:     .query(`
+  84:       SELECT ${TRAINING_COLUMNS}
+  85:       FROM dbo.trainings
+  86:       WHERE user_id = @userId
+  87:       ORDER BY updated_at DESC, id ASC;
+  88:     `);
+  89: 
+  90:   return result.recordset.map(mapTrainingRow);
+  91: }
+  92: 
+  93: export async function findTrainingById(userId, trainingId) {
+  94:   const pool = await getDatabasePool();
+  95: 
+  96:   const result = await pool.request()
+  97:     .input("userId", sql.UniqueIdentifier, userId)
+  98:     .input("id", sql.NVarChar(200), trainingId)
+  99:     .query(`
+ 100:       SELECT ${TRAINING_COLUMNS}
+ 101:       FROM dbo.trainings
+ 102:       WHERE user_id = @userId
+ 103:         AND id = @id;
+ 104:     `);
+ 105: 
+ 106:   return mapTrainingRow(result.recordset[0]);
+ 107: }
+ 108: 
+ 109: export async function createTrainingRecord(userId, training) {
+ 110:   const pool = await getDatabasePool();
+ 111: 
+ 112:   const result = await bindTraining(
+ 113:     pool.request(),
+ 114:     userId,
+ 115:     training,
+ 116:   ).query(`
+ 117:     INSERT INTO dbo.trainings (
+ 118:       id,
+ 119:       user_id,
+ 120:       title,
+ 121:       training_type,
+ 122:       provider_name,
+ 123:       status,
+ 124:       training_data
+ 125:     )
+ 126:     OUTPUT
+ 127:       INSERTED.id,
+ 128:       INSERTED.user_id,
+ 129:       INSERTED.title,
+ 130:       INSERTED.training_type,
+ 131:       INSERTED.provider_name,
+ 132:       INSERTED.status,
+ 133:       INSERTED.training_data,
+ 134:       INSERTED.created_at,
+ 135:       INSERTED.updated_at,
+ 136:       INSERTED.row_version
+ 137:     VALUES (
+ 138:       @id,
+ 139:       @userId,
+ 140:       @title,
+ 141:       @trainingType,
+ 142:       @providerName,
+ 143:       @status,
+ 144:       @trainingData
+ 145:     );
+ 146:   `);
+ 147: 
+ 148:   return mapTrainingRow(result.recordset[0]);
+ 149: }
+ 150: 
+ 151: export async function updateTrainingRecord(
+ 152:   userId,
+ 153:   training,
+ 154:   expectedRowVersion,
+ 155: ) {
+ 156:   const pool = await getDatabasePool();
+ 157: 
+ 158:   const result = await bindTraining(
+ 159:     pool.request(),
+ 160:     userId,
+ 161:     training,
+ 162:   )
+ 163:     .input(
+ 164:       "expectedRowVersion",
+ 165:       sql.Binary(8),
+ 166:       decodeRowVersion(expectedRowVersion),
+ 167:     )
+ 168:     .query(`
+ 169:       UPDATE dbo.trainings
+ 170:       SET
+ 171:         title = @title,
+ 172:         training_type = @trainingType,
+ 173:         provider_name = @providerName,
+ 174:         status = @status,
+ 175:         training_data = @trainingData,
+ 176:         updated_at = SYSUTCDATETIME()
+ 177:       OUTPUT
+ 178:         INSERTED.id,
+ 179:         INSERTED.user_id,
+ 180:         INSERTED.title,
+ 181:         INSERTED.training_type,
+ 182:         INSERTED.provider_name,
+ 183:         INSERTED.status,
+ 184:         INSERTED.training_data,
+ 185:         INSERTED.created_at,
+ 186:         INSERTED.updated_at,
+ 187:         INSERTED.row_version
+ 188:       WHERE id = @id
+ 189:         AND user_id = @userId
+ 190:         AND row_version = @expectedRowVersion;
+ 191:     `);
+ 192: 
+ 193:   return mapTrainingRow(result.recordset[0]);
+ 194: }
+===========================================================================
+FILE: src\config\environment.js
+STATUS: FOUND
+SHA256: 8A94575B3F6396B61E5DC3AEDB2756AC4306F49E2C8D9D742FF483C39982875E
+
+   1: import { z } from "zod";
+   2: 
+   3: /*
+   4:  * =========================================
+   5:  * Boolean Environment Values
+   6:  * =========================================
+   7:  */
+   8: 
+   9: const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+  10: 
+  11: const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+  12: 
+  13: /*
+  14:  * =========================================
+  15:  * Optional Text Normalization
+  16:  * =========================================
+  17:  */
+  18: 
+  19: function normalizeOptionalText(value) {
+  20:   if (typeof value !== "string") {
+  21:     return value;
+  22:   }
+  23: 
+  24:   const normalizedValue = value.trim();
+  25: 
+  26:   return normalizedValue || undefined;
+  27: }
+  28: 
+  29: /*
+  30:  * =========================================
+  31:  * Boolean Normalization
+  32:  * =========================================
+  33:  */
+  34: 
+  35: function normalizeBooleanValue(value) {
+  36:   if (typeof value === "boolean") {
+  37:     return value;
+  38:   }
+  39: 
+  40:   const normalizedValue = String(value ?? "")
+  41:     .trim()
+  42:     .toLowerCase();
+  43: 
+  44:   if (TRUE_VALUES.has(normalizedValue)) {
+  45:     return true;
+  46:   }
+  47: 
+  48:   if (FALSE_VALUES.has(normalizedValue)) {
+  49:     return false;
+  50:   }
+  51: 
+  52:   return value;
+  53: }
+  54: 
+  55: /*
+  56:  * =========================================
+  57:  * Environment Schema
+  58:  * =========================================
+  59:  */
+  60: 
+  61: const environmentSchema = z
+  62:   .object({
+  63:     /*
+  64:      * =========================================
+  65:      * Application
+  66:      * =========================================
+  67:      */
+  68: 
+  69:     NODE_ENV: z
+  70:       .enum(["development", "test", "production"])
+  71:       .default("development"),
+  72: 
+  73:     PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+  74: 
+  75:     FRONTEND_URL: z.string().trim().min(1).default("http://localhost:5173"),
+  76: 
+  77:     PROFILE_PICTURE_STORAGE_PATH: z.preprocess(
+  78:       normalizeOptionalText,
+  79:       z.string().min(1).optional(),
+  80:     ),
+  81: 
+  82:     PROFILE_PICTURE_PUBLIC_BASE_URL: z.preprocess(
+  83:       normalizeOptionalText,
+  84:       z.string().url().optional(),
+  85:     ),
+  86: 
+  87:     PROJECT_MEDIA_STORAGE_PATH: z.preprocess(
+  88:       normalizeOptionalText,
+  89:       z.string().min(1).optional(),
+  90:     ),
+  91: 
+  92:     PROJECT_DOCUMENT_STORAGE_PATH: z.preprocess(
+  93:       normalizeOptionalText,
+  94:       z.string().min(1).optional(),
+  95:     ),
+  96: 
+  97:     CERTIFICATION_DOCUMENT_STORAGE_PATH: z.preprocess(
+  98:       normalizeOptionalText,
+  99:       z.string().min(1).optional(),
+ 100:     ),
+ 101: 
+ 102:     PROJECT_MEDIA_PUBLIC_BASE_URL: z.preprocess(
+ 103:       normalizeOptionalText,
+ 104:       z.string().url().optional(),
+ 105:     ),
+ 106: 
+ 107:     /*
+ 108:      * =========================================
+ 109:      * Database Connection
+ 110:      * =========================================
+ 111:      */
+ 112: 
+ 113:     DB_HOST: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+ 114: 
+ 115:     DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
+ 116: 
+ 117:     DB_NAME: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+ 118: 
+ 119:     DB_USER: z.preprocess(normalizeOptionalText, z.string().min(1).optional()),
+ 120: 
+ 121:     DB_PASSWORD: z.preprocess(
+ 122:       normalizeOptionalText,
+ 123:       z.string().min(1).optional(),
+ 124:     ),
+ 125: 
+ 126:     /*
+ 127:      * =========================================
+ 128:      * Database Security
+ 129:      * =========================================
+ 130:      */
+ 131: 
+ 132:     DB_ENCRYPT: z.preprocess(normalizeBooleanValue, z.boolean()).default(true),
+ 133: 
+ 134:     DB_TRUST_SERVER_CERTIFICATE: z
+ 135:       .preprocess(normalizeBooleanValue, z.boolean())
+ 136:       .default(false),
+ 137: 
+ 138:     /*
+ 139:      * =========================================
+ 140:      * Database Timeouts
+ 141:      * =========================================
+ 142:      */
+ 143: 
+ 144:     DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+ 145: 
+ 146:     DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+ 147: 
+ 148:     /*
+ 149:      * =========================================
+ 150:      * Database Pool
+ 151:      * =========================================
+ 152:      */
+ 153: 
+ 154:     DB_POOL_MIN: z.coerce.number().int().min(0).default(0),
+ 155: 
+ 156:     DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+ 157: 
+ 158:     DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+ 159: 
+ 160:     /*
+ 161:      * =========================================
+ 162:      * Authentication Security Secrets
+ 163:      * =========================================
+ 164:      *
+ 165:      * These secrets are optional while the
+ 166:      * authentication routes are not active.
+ 167:      *
+ 168:      * Authentication utilities will reject
+ 169:      * operations if the secrets are missing.
+ 170:      */
+ 171: 
+ 172:     AUTH_OTP_HMAC_SECRET: z.preprocess(
+ 173:       normalizeOptionalText,
+ 174:       z.string().min(32).optional(),
+ 175:     ),
+ 176: 
+ 177:     AUTH_TOKEN_HMAC_SECRET: z.preprocess(
+ 178:       normalizeOptionalText,
+ 179:       z.string().min(32).optional(),
+ 180:     ),
+ 181: 
+ 182:     AUTH_IP_HMAC_SECRET: z.preprocess(
+ 183:       normalizeOptionalText,
+ 184:       z.string().min(32).optional(),
+ 185:     ),
+ 186: 
+ 187:     /*
+ 188:      * =========================================
+ 189:      * Email Delivery
+ 190:      * =========================================
+ 191:      */
+ 192: 
+ 193:     EMAIL_PROVIDER: z.enum(["development", "resend"]).default("development"),
+ 194: 
+ 195:     EMAIL_FROM_NAME: z
+ 196:       .string()
+ 197:       .trim()
+ 198:       .min(1)
+ 199:       .max(100)
+ 200:       .default("PortAncest Portfolio Platform"),
+ 201: 
+ 202:     EMAIL_FROM_ADDRESS: z.preprocess(
+ 203:       normalizeOptionalText,
+ 204: 
+ 205:       z.string().email().optional(),
+ 206:     ),
+ 207: 
+ 208:     RESEND_API_KEY: z.preprocess(
+ 209:       normalizeOptionalText,
+ 210: 
+ 211:       z.string().min(20).optional(),
+ 212:     ),
+ 213: 
+ 214:     /*
+ 215:      * Authentication Sessions
+ 216:      */
+ 217: 
+ 218:     SESSION_REFRESH_TOKEN_DAYS: z.coerce
+ 219:       .number()
+ 220:       .int()
+ 221:       .min(1)
+ 222:       .max(365)
+ 223:       .default(30),
+ 224: 
+ 225:     SESSION_COOKIE_NAME: z
+ 226:       .string()
+ 227:       .trim()
+ 228:       .regex(
+ 229:         /^[A-Za-z0-9_-]+$/,
+ 230:         "SESSION_COOKIE_NAME contains unsupported characters.",
+ 231:       )
+ 232:       .default("portfolio_refresh_token"),
+ 233: 
+ 234:     SESSION_COOKIE_PATH: z.string().trim().startsWith("/").default("/api"),
+ 235: 
+ 236:     SESSION_COOKIE_DOMAIN: z.preprocess(
+ 237:       normalizeOptionalText,
+ 238:       z.string().min(1).optional(),
+ 239:     ),
+ 240: 
+ 241:     SESSION_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+ 242:   })
+ 243: 
+ 244:   /*
+ 245:    * =========================================
+ 246:    * Cross-Field Validation
+ 247:    * =========================================
+ 248:    */
+ 249: 
+ 250:   .superRefine((values, context) => {
+ 251:     /*
+ 252:      * =========================================
+ 253:      * Database Configuration Validation
+ 254:      * =========================================
+ 255:      */
+ 256: 
+ 257:     const databaseFields = [
+ 258:       ["DB_HOST", values.DB_HOST],
+ 259: 
+ 260:       ["DB_NAME", values.DB_NAME],
+ 261: 
+ 262:       ["DB_USER", values.DB_USER],
+ 263: 
+ 264:       ["DB_PASSWORD", values.DB_PASSWORD],
+ 265:     ];
+ 266: 
+ 267:     /*
+ 268:      * The API can temporarily run without a
+ 269:      * database.
+ 270:      *
+ 271:      * However, when any required database value
+ 272:      * is supplied, all required database values
+ 273:      * must be supplied.
+ 274:      */
+ 275: 
+ 276:     const hasAnyDatabaseValue = databaseFields.some(([, value]) =>
+ 277:       Boolean(value),
+ 278:     );
+ 279: 
+ 280:     if (hasAnyDatabaseValue) {
+ 281:       for (const [fieldName, value] of databaseFields) {
+ 282:         if (!value) {
+ 283:           context.addIssue({
+ 284:             code: "custom",
+ 285: 
+ 286:             path: [fieldName],
+ 287: 
+ 288:             message: `${fieldName} is required when database access is configured.`,
+ 289:           });
+ 290:         }
+ 291:       }
+ 292:     }
+ 293: 
+ 294:     /*
+ 295:      * =========================================
+ 296:      * Database Pool Validation
+ 297:      * =========================================
+ 298:      */
+ 299: 
+ 300:     if (values.DB_POOL_MIN > values.DB_POOL_MAX) {
+ 301:       context.addIssue({
+ 302:         code: "custom",
+ 303: 
+ 304:         path: ["DB_POOL_MIN"],
+ 305: 
+ 306:         message: "DB_POOL_MIN cannot be greater than DB_POOL_MAX.",
+ 307:       });
+ 308:     }
+ 309: 
+ 310:     /*
+ 311:      * =========================================
+ 312:      * Prevents OTPs from accidentally being printed in Azure production logs
+ 313:      * =========================================
+ 314:      */
+ 315: 
+ 316:     if (
+ 317:       values.NODE_ENV === "production" &&
+ 318:       values.EMAIL_PROVIDER === "development"
+ 319:     ) {
+ 320:       context.addIssue({
+ 321:         code: "custom",
+ 322: 
+ 323:         path: ["EMAIL_PROVIDER"],
+ 324: 
+ 325:         message: "The development email provider cannot be used in production.",
+ 326:       });
+ 327:     }
+ 328: 
+ 329:     if (
+ 330:       values.SESSION_COOKIE_SAME_SITE === "none" &&
+ 331:       values.NODE_ENV !== "production"
+ 332:     ) {
+ 333:       context.addIssue({
+ 334:         code: "custom",
+ 335: 
+ 336:         path: ["SESSION_COOKIE_SAME_SITE"],
+ 337: 
+ 338:         message:
+ 339:           'SameSite "none" requires a secure production HTTPS environment.',
+ 340:       });
+ 341:     }
+ 342: 
+ 343:     /*
+ 344:      * =========================================
+ 345:      * Resend Configuration
+ 346:      * =========================================
+ 347:      */
+ 348: 
+ 349:     if (values.EMAIL_PROVIDER === "resend") {
+ 350:       if (!values.RESEND_API_KEY) {
+ 351:         context.addIssue({
+ 352:           code: "custom",
+ 353: 
+ 354:           path: ["RESEND_API_KEY"],
+ 355: 
+ 356:           message: "RESEND_API_KEY is required when EMAIL_PROVIDER is resend.",
+ 357:         });
+ 358:       }
+ 359: 
+ 360:       if (!values.EMAIL_FROM_ADDRESS) {
+ 361:         context.addIssue({
+ 362:           code: "custom",
+ 363: 
+ 364:           path: ["EMAIL_FROM_ADDRESS"],
+ 365: 
+ 366:           message:
+ 367:             "EMAIL_FROM_ADDRESS is required when EMAIL_PROVIDER is resend.",
+ 368:         });
+ 369:       }
+ 370:     }
+ 371:   });
+ 372: 
+ 373: /*
+ 374:  * =========================================
+ 375:  * Cached Environment
+ 376:  * =========================================
+ 377:  */
+ 378: 
+ 379: let cachedEnvironment;
+ 380: 
+ 381: /*
+ 382:  * =========================================
+ 383:  * Read and Validate Environment
+ 384:  * =========================================
+ 385:  */
+ 386: 
+ 387: export function getEnvironment() {
+ 388:   if (cachedEnvironment) {
+ 389:     return cachedEnvironment;
+ 390:   }
+ 391: 
+ 392:   const result = environmentSchema.safeParse(process.env);
+ 393: 
+ 394:   if (!result.success) {
+ 395:     const details = result.error.issues
+ 396:       .map(
+ 397:         (issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`,
+ 398:       )
+ 399:       .join("\n");
+ 400: 
+ 401:     throw new Error(`Invalid environment configuration:\n${details}`);
+ 402:   }
+ 403: 
+ 404:   cachedEnvironment = Object.freeze(result.data);
+ 405: 
+ 406:   return cachedEnvironment;
+ 407: }
+ 408: 
+ 409: /*
+ 410:  * =========================================
+ 411:  * Database Configuration Status
+ 412:  * =========================================
+ 413:  */
+ 414: 
+ 415: export function isDatabaseConfigured(environment = getEnvironment()) {
+ 416:   return Boolean(
+ 417:     environment.DB_HOST &&
+ 418:     environment.DB_NAME &&
+ 419:     environment.DB_USER &&
+ 420:     environment.DB_PASSWORD,
+ 421:   );
+ 422: }
+ 423: 
+ 424: /*
+ 425:  * =========================================
+ 426:  * Authentication Secret Access
+ 427:  * =========================================
+ 428:  *
+ 429:  * This function prevents authentication
+ 430:  * operations from running without all three
+ 431:  * security secrets.
+ 432:  */
+ 433: 
+ 434: export function getAuthenticationSecrets(environment = getEnvironment()) {
+ 435:   const secrets = {
+ 436:     otp: environment.AUTH_OTP_HMAC_SECRET,
+ 437: 
+ 438:     token: environment.AUTH_TOKEN_HMAC_SECRET,
+ 439: 
+ 440:     ip: environment.AUTH_IP_HMAC_SECRET,
+ 441:   };
+ 442: 
+ 443:   const missingSecrets = Object.entries(secrets)
+ 444:     .filter(([, value]) => !value)
+ 445:     .map(([name]) => name);
+ 446: 
+ 447:   if (missingSecrets.length > 0) {
+ 448:     const error = new Error(
+ 449:       `Authentication security secrets are missing: ${missingSecrets.join(", ")}.`,
+ 450:     );
+ 451: 
+ 452:     error.name = "AuthenticationConfigurationError";
+ 453: 
+ 454:     error.code = "AUTHENTICATION_NOT_CONFIGURED";
+ 455: 
+ 456:     error.status = 503;
+ 457: 
+ 458:     error.publicMessage = "Authentication service is temporarily unavailable.";
+ 459: 
+ 460:     throw error;
+ 461:   }
+ 462: 
+ 463:   return Object.freeze(secrets);
+ 464: }
+===========================================================================
+FILE: src\services\Storage\certificationDocumentStorageService.js
+STATUS: FOUND
+SHA256: 2B289265652FFC96FD4A336681E11C0223F372B71E610CC7E7380A897EF15737
+
+   1: import crypto from "node:crypto";
+   2: import fs from "node:fs/promises";
+   3: import path from "node:path";
+   4: 
+   5: import { getEnvironment } from "../../config/environment.js";
+   6: 
+   7: function requireIdentifier(value, label) {
+   8:   const normalized = String(value ?? "").trim();
+   9: 
+  10:   if (!normalized) {
+  11:     throw new Error(`${label} is required for Certification document storage.`);
+  12:   }
+  13: 
+  14:   return normalized;
+  15: }
+  16: 
+  17: function hashIdentifier(value) {
+  18:   return crypto.createHash("sha256").update(value).digest("hex");
+  19: }
+  20: 
+  21: function validateFileName(fileName) {
+  22:   const normalized = String(fileName ?? "").trim();
+  23: 
+  24:   if (
+  25:     !normalized ||
+  26:     normalized === "." ||
+  27:     normalized === ".." ||
+  28:     normalized.includes("/") ||
+  29:     normalized.includes("\\") ||
+  30:     path.basename(normalized) !== normalized ||
+  31:     !/^[a-f0-9-]{36}\.(?:pdf|doc|docx|ppt|pptx|xls|xlsx|txt|md|csv|json|zip|jpg|jpeg|png|webp)$/i.test(
+  32:       normalized,
+  33:     )
+  34:   ) {
+  35:     throw new Error("Invalid Certification document filename.");
+  36:   }
+  37: 
+  38:   return normalized;
+  39: }
+  40: 
+  41: export function getCertificationDocumentStorageRoot() {
+  42:   const environment = getEnvironment();
+  43: 
+  44:   const configuredPath = String(
+  45:     environment.CERTIFICATION_DOCUMENT_STORAGE_PATH || "",
+  46:   ).trim();
+  47: 
+  48:   if (!configuredPath) {
+  49:     throw new Error("CERTIFICATION_DOCUMENT_STORAGE_PATH is not configured.");
+  50:   }
+  51: 
+  52:   return path.resolve(configuredPath);
+  53: }
+  54: 
+  55: export function getCertificationDocumentUserDirectory(userId) {
+  56:   return hashIdentifier(requireIdentifier(userId, "User ID"));
+  57: }
+  58: 
+  59: export function getCertificationDocumentCertificationDirectory(certificationId) {
+  60:   return hashIdentifier(requireIdentifier(certificationId, "Certification ID"));
+  61: }
+  62: 
+  63: export function getCertificationDocumentDirectory(userId, certificationId) {
+  64:   return path.join(
+  65:     getCertificationDocumentStorageRoot(),
+  66:     getCertificationDocumentUserDirectory(userId),
+  67:     getCertificationDocumentCertificationDirectory(certificationId),
+  68:   );
+  69: }
+  70: 
+  71: export function createCertificationDocumentStorageKey(userId, certificationId, fileName) {
+  72:   const safeFileName = validateFileName(fileName);
+  73: 
+  74:   return [
+  75:     getCertificationDocumentUserDirectory(userId),
+  76:     getCertificationDocumentCertificationDirectory(certificationId),
+  77:     safeFileName,
+  78:   ].join("/");
+  79: }
+  80: 
+  81: export function resolveOwnedCertificationDocumentPath(userId, certificationId, storageKey) {
+  82:   const normalizedKey = String(storageKey ?? "").trim();
+  83: 
+  84:   const expectedUserDirectory = getCertificationDocumentUserDirectory(userId);
+  85:   const expectedCertificationDirectory = getCertificationDocumentCertificationDirectory(certificationId);
+  86: 
+  87:   const parts = normalizedKey.split("/");
+  88: 
+  89:   if (
+  90:     parts.length !== 3 ||
+  91:     parts[0] !== expectedUserDirectory ||
+  92:     parts[1] !== expectedCertificationDirectory
+  93:   ) {
+  94:     throw new Error(
+  95:       "Certification document storage key does not belong to this user and Certification.",
+  96:     );
+  97:   }
+  98: 
+  99:   const safeFileName = validateFileName(parts[2]);
+ 100: 
+ 101:   const mediaDirectory = path.resolve(
+ 102:     getCertificationDocumentDirectory(userId, certificationId),
+ 103:   );
+ 104: 
+ 105:   const filePath = path.resolve(mediaDirectory, safeFileName);
+ 106: 
+ 107:   if (path.dirname(filePath) !== mediaDirectory) {
+ 108:     throw new Error("Certification document path is outside the expected directory.");
+ 109:   }
+ 110: 
+ 111:   return filePath;
+ 112: }
+ 113: 
+ 114: export async function assertSafeCertificationDocumentDirectory(userId, certificationId) {
+ 115:   const root = getCertificationDocumentStorageRoot();
+ 116:   const userDirectory = path.join(root, getCertificationDocumentUserDirectory(userId));
+ 117:   const certificationDirectory = path.join(
+ 118:     userDirectory,
+ 119:     getCertificationDocumentCertificationDirectory(certificationId),
+ 120:   );
+ 121: 
+ 122:   const directories = [root, userDirectory, certificationDirectory];
+ 123: 
+ 124:   for (const directory of directories) {
+ 125:     const stats = await fs.lstat(directory);
+ 126: 
+ 127:     if (stats.isSymbolicLink() || !stats.isDirectory()) {
+ 128:       throw new Error(
+ 129:         "Certification document storage directory is not a regular directory.",
+ 130:       );
+ 131:     }
+ 132:   }
+ 133: 
+ 134:   const canonicalRoot = await fs.realpath(root);
+ 135:   const canonicalCertificationDirectory = await fs.realpath(certificationDirectory);
+ 136: 
+ 137:   const relative = path.relative(
+ 138:     canonicalRoot,
+ 139:     canonicalCertificationDirectory,
+ 140:   );
+ 141: 
+ 142:   if (
+ 143:     relative === "" ||
+ 144:     relative === ".." ||
+ 145:     relative.startsWith(`..${path.sep}`) ||
+ 146:     path.isAbsolute(relative)
+ 147:   ) {
+ 148:     throw new Error("Certification document directory is outside the storage root.");
+ 149:   }
+ 150: }
+ 151: 
+ 152: export async function deleteOwnedCertificationDocument(userId, certificationId, storageKey) {
+ 153:   const filePath = resolveOwnedCertificationDocumentPath(userId, certificationId, storageKey);
+ 154: 
+ 155:   try {
+ 156:     await assertSafeCertificationDocumentDirectory(userId, certificationId);
+ 157: 
+ 158:     const stats = await fs.lstat(filePath);
+ 159: 
+ 160:     if (stats.isSymbolicLink() || !stats.isFile()) {
+ 161:       throw new Error("Certification document target is not a regular file.");
+ 162:     }
+ 163: 
+ 164:     await fs.unlink(filePath);
+ 165: 
+ 166:     return {
+ 167:       deleted: true,
+ 168:       storageKey,
+ 169:     };
+ 170:   } catch (error) {
+ 171:     if (error?.code === "ENOENT") {
+ 172:       return {
+ 173:         deleted: false,
+ 174:         storageKey,
+ 175:       };
+ 176:     }
+ 177: 
+ 178:     throw error;
+ 179:   }
+ 180: }
+ 181: 
+ 182: 
+===========================================================================
+FILE: src\controllers\certificationDocumentController.js
+STATUS: FOUND
+SHA256: EAAD1AABEB384339D577218FDA976853DE6BB0A6E15E4FFEBCAFD1B3147FC72C
+
+   1: import fs from "node:fs";
+   2: import { promises as fsPromises } from "node:fs";
+   3: 
+   4: import {
+   5:   registerCertificationDocument,
+   6:   listAuthenticatedCertificationDocuments,
+   7:   getAuthenticatedCertificationDocument,
+   8:   deleteAuthenticatedCertificationDocument,
+   9: } from "../services/Service/certificationDocumentService.js";
+  10: 
+  11: import {
+  12:   resolveOwnedCertificationDocumentPath,
+  13:   assertSafeCertificationDocumentDirectory,
+  14: } from "../services/Storage/certificationDocumentStorageService.js";
+  15: 
+  16: function setPrivateHeaders(response) {
+  17:   response.set({
+  18:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  19:     Pragma: "no-cache",
+  20:     Expires: "0",
+  21:     "X-Content-Type-Options": "nosniff",
+  22:   });
+  23: }
+  24: 
+  25: function createNotFoundError() {
+  26:   const error = new Error("Certification document not found.");
+  27:   error.status = 404;
+  28:   error.code = "CERTIFICATION_DOCUMENT_NOT_FOUND";
+  29:   error.publicMessage = error.message;
+  30:   return error;
+  31: }
+  32: 
+  33: export async function uploadMyCertificationDocument(
+  34:   request,
+  35:   response,
+  36:   next,
+  37: ) {
+  38:   try {
+  39:     const document = await registerCertificationDocument({
+  40:       userId: request.auth.userId,
+  41:       certificationId: request.params.certificationId,
+  42:       uploadedFile: request.certificationDocumentFile,
+  43:     });
+  44: 
+  45:     setPrivateHeaders(response);
+  46: 
+  47:     return response.status(201).json({
+  48:       status: "success",
+  49:       message: "Certification document uploaded successfully.",
+  50:       data: { document },
+  51:     });
+  52:   } catch (error) {
+  53:     return next(error);
+  54:   }
+  55: }
+  56: 
+  57: export async function listMyCertificationDocuments(
+  58:   request,
+  59:   response,
+  60:   next,
+  61: ) {
+  62:   try {
+  63:     const documents = await listAuthenticatedCertificationDocuments({
+  64:       userId: request.auth.userId,
+  65:       certificationId: request.params.certificationId,
+  66:     });
+  67: 
+  68:     setPrivateHeaders(response);
+  69: 
+  70:     return response.status(200).json({
+  71:       status: "success",
+  72:       message: "Certification documents retrieved successfully.",
+  73:       data: { documents },
+  74:     });
+  75:   } catch (error) {
+  76:     return next(error);
+  77:   }
+  78: }
+  79: 
+  80: export async function getMyCertificationDocument(
+  81:   request,
+  82:   response,
+  83:   next,
+  84: ) {
+  85:   let fileHandle;
+  86: 
+  87:   try {
+  88:     const userId = request.auth.userId;
+  89:     const certificationId = request.params.certificationId;
+  90:     const documentId = request.params.documentId;
+  91: 
+  92:     const document = await getAuthenticatedCertificationDocument({
+  93:       userId,
+  94:       certificationId,
+  95:       documentId,
+  96:     });
+  97: 
+  98:     const filePath = resolveOwnedCertificationDocumentPath(
+  99:       userId,
+ 100:       certificationId,
+ 101:       document.storageKey,
+ 102:     );
+ 103: 
+ 104:     await assertSafeCertificationDocumentDirectory(
+ 105:       userId,
+ 106:       certificationId,
+ 107:     );
+ 108: 
+ 109:     const pathStats = await fsPromises.lstat(filePath);
+ 110: 
+ 111:     if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+ 112:       throw createNotFoundError();
+ 113:     }
+ 114: 
+ 115:     const flags =
+ 116:       fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+ 117: 
+ 118:     fileHandle = await fsPromises.open(filePath, flags);
+ 119: 
+ 120:     const stats = await fileHandle.stat();
+ 121: 
+ 122:     if (!stats.isFile() || stats.size !== document.fileSize) {
+ 123:       throw createNotFoundError();
+ 124:     }
+ 125: 
+ 126:     const safeName = String(document.originalFileName || "document")
+ 127:       .replace(/[\r\n"\\]/g, "_")
+ 128:       .replace(/[\x00-\x1f\x7f]/g, "_")
+ 129:       .slice(0, 200);
+ 130: 
+ 131:     const encodedName = encodeURIComponent(
+ 132:       document.originalFileName || "document",
+ 133:     );
+ 134: 
+ 135:     setPrivateHeaders(response);
+ 136: 
+ 137:     response.set({
+ 138:       "Content-Type": document.mimeType,
+ 139:       "Content-Length": String(stats.size),
+ 140:       "Content-Disposition":
+ 141:         `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
+ 142:       "Accept-Ranges": "none",
+ 143:     });
+ 144: 
+ 145:     const stream = fileHandle.createReadStream({
+ 146:       autoClose: true,
+ 147:     });
+ 148: 
+ 149:     fileHandle = null;
+ 150: 
+ 151:     stream.on("error", (error) => {
+ 152:       if (!response.headersSent) {
+ 153:         next(error);
+ 154:       } else {
+ 155:         response.destroy(error);
+ 156:       }
+ 157:     });
+ 158: 
+ 159:     stream.pipe(response);
+ 160:   } catch (error) {
+ 161:     if (fileHandle) {
+ 162:       await fileHandle.close().catch(() => {});
+ 163:     }
+ 164: 
+ 165:     if (error.code === "ENOENT") {
+ 166:       return next(createNotFoundError());
+ 167:     }
+ 168: 
+ 169:     return next(error);
+ 170:   }
+ 171: }
+ 172: 
+ 173: export async function deleteMyCertificationDocument(
+ 174:   request,
+ 175:   response,
+ 176:   next,
+ 177: ) {
+ 178:   try {
+ 179:     await deleteAuthenticatedCertificationDocument({
+ 180:       userId: request.auth.userId,
+ 181:       certificationId: request.params.certificationId,
+ 182:       documentId: request.params.documentId,
+ 183:     });
+ 184: 
+ 185:     setPrivateHeaders(response);
+ 186: 
+ 187:     return response.status(204).end();
+ 188:   } catch (error) {
+ 189:     return next(error);
+ 190:   }
+ 191: }
+===========================================================================
+FILE: src\middleware\certification\certificationOwnershipMiddleware.js
+STATUS: FOUND
+SHA256: E22094465369A72CFD988A789926C7405F3E85FD27632B2FB2A629C834EE3E62
+
+   1: import { getAuthenticatedCertification } from "../../services/Service/certificationService.js";
+   2: 
+   3: /*
+   4:  * Certification Ownership Middleware
+   5:  *
+   6:  * Must execute after authentication and before
+   7:  * any Certification document upload middleware.
+   8:  */
+   9: 
+  10: export async function requireCertificationOwnership(
+  11:   request,
+  12:   response,
+  13:   next,
+  14: ) {
+  15:   try {
+  16:     const certification = await getAuthenticatedCertification({
+  17:       userId: request.auth?.userId,
+  18:       certificationId: request.params?.certificationId,
+  19:     });
+  20: 
+  21:     if (!certification) {
+  22:       const error = new Error("Certification not found.");
+  23:       error.status = 404;
+  24:       error.code = "CERTIFICATION_NOT_FOUND";
+  25:       error.publicMessage = "Certification not found.";
+  26:       return next(error);
+  27:     }
+  28: 
+  29:     request.authorizedCertification = certification;
+  30: 
+  31:     return next();
+  32:   } catch (error) {
+  33:     return next(error);
+  34:   }
+  35: }
+===========================================================================
+FILE: test\routes\trainingRoutes.test.js
+STATUS: FOUND
+SHA256: C4358C3F9959B7A848C38CAAA1E96061A4EBD5A4EEF8FE1EA23ABA1516B8E9C8
+
+   1: import test from "node:test";
+   2: import assert from "node:assert/strict";
+   3: 
+   4: import router from "../../src/routes/trainingRoutes.js";
+   5: 
+   6: import {
+   7:   requireAuthentication,
+   8: } from "../../src/middleware/authenticationMiddleware.js";
+   9: 
+  10: import {
+  11:   listMyTrainings,
+  12:   getMyTraining,
+  13:   createMyTraining,
+  14:   updateMyTraining,
+  15: } from "../../src/controllers/trainingController.js";
+  16: 
+  17: const expectedRoutes = [
+  18:   ["get", "/", listMyTrainings],
+  19:   ["post", "/", createMyTraining],
+  20:   ["get", "/:trainingId", getMyTraining],
+  21:   ["patch", "/:trainingId", updateMyTraining],
+  22: ];
+  23: 
+  24: function getRouteLayers() {
+  25:   return router.stack.filter((layer) => layer.route);
+  26: }
+  27: 
+  28: function findRoute(method, path) {
+  29:   return getRouteLayers().find(
+  30:     (layer) =>
+  31:       layer.route.path === path &&
+  32:       layer.route.methods[method] === true,
+  33:   );
+  34: }
+  35: 
+  36: test("Training router is an Express router", () => {
+  37:   assert.equal(typeof router, "function");
+  38:   assert.ok(Array.isArray(router.stack));
+  39: });
+  40: 
+  41: test("Authentication middleware is registered first", () => {
+  42:   const firstLayer = router.stack[0];
+  43: 
+  44:   assert.ok(firstLayer);
+  45:   assert.equal(firstLayer.handle, requireAuthentication);
+  46:   assert.equal(firstLayer.route, undefined);
+  47: });
+  48: 
+  49: test("Exactly four Training routes are registered", () => {
+  50:   assert.equal(getRouteLayers().length, 4);
+  51: });
+  52: 
+  53: for (const [method, path, handler] of expectedRoutes) {
+  54:   test(`${method.toUpperCase()} ${path} uses correct controller`, () => {
+  55:     const layer = findRoute(method, path);
+  56: 
+  57:     assert.ok(
+  58:       layer,
+  59:       `Missing route: ${method.toUpperCase()} ${path}`,
+  60:     );
+  61: 
+  62:     assert.equal(layer.route.stack.length, 1);
+  63:     assert.equal(layer.route.stack[0].handle, handler);
+  64:   });
+  65: }
+  66: 
+  67: test("No DELETE Training route is exposed", () => {
+  68:   const deleteRoutes = getRouteLayers().filter(
+  69:     (layer) => layer.route.methods.delete === true,
+  70:   );
+  71: 
+  72:   assert.equal(deleteRoutes.length, 0);
+  73: });
+  74: 
+  75: test("No PUT Training route is exposed", () => {
+  76:   const putRoutes = getRouteLayers().filter(
+  77:     (layer) => layer.route.methods.put === true,
+  78:   );
+  79: 
+  80:   assert.equal(putRoutes.length, 0);
+  81: });
+  82: 
+  83: test("No document upload routes are exposed", () => {
+  84:   const documentRoutes = getRouteLayers().filter(
+  85:     (layer) => String(layer.route.path).includes("documents"),
+  86:   );
+  87: 
+  88:   assert.equal(documentRoutes.length, 0);
+  89: });
+  90: 
+  91: test("All route handlers are functions", () => {
+  92:   for (const layer of getRouteLayers()) {
+  93:     for (const handler of layer.route.stack) {
+  94:       assert.equal(typeof handler.handle, "function");
+  95:     }
+  96:   }
+  97: });
+  98: 
+  99: test("Training router does not modify existing routers", async () => {
+ 100:   const certificationModule = await import(
+ 101:     "../../src/routes/certificationRoutes.js"
+ 102:   );
+ 103: 
+ 104:   assert.notEqual(router, certificationModule.default);
+ 105: });
+
+===========================================================================
+EXISTING TRAINING DOCUMENT MODULES
+
+STORAGE CONFIGURATION

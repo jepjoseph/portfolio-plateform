@@ -1,0 +1,242 @@
+TRAINING BACKEND VERIFICATION
+Generated: 11/05/2026 17:49:19
+Backend: D:\Documents\Project\Portfolio\portfolio-plateform\backend
+
+=== GIT STATUS ===
+ M src/app.js
+?? src/controllers/trainingController.js
+?? src/repositories/trainingRepository.js
+?? src/routes/trainingRoutes.js
+?? src/schemas/trainingSchemas.js
+?? src/schemas/trainingSchemas.js.backup-20261105-173608
+?? src/services/Service/trainingService.js
+?? src/services/Service/trainingService.js.backup-20261105-174553
+?? test/controllers/
+?? test/integration/
+?? test/repositories/trainingRepository.test.js
+?? test/routes/
+?? test/schemas/trainingSchemas.test.js
+?? test/services/trainingService.test.js
+?? test/services/trainingService.test.js.backup-20261105-173608
+
+=== NODE VERSION ===
+v24.22.0
+
+=== TRAINING TEST DISCOVERY ===
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\controllers\trainingController.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\integration\trainingRepository.integration.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\repositories\trainingRepository.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\routes\trainingRoutes.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\schemas\trainingSchemas.test.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\services\trainingService.test.js
+
+=== UNIT TEST EXECUTION ===
+
+====================================================
+TEST: D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\controllers\trainingController.test.js
+====================================================
+(node:20732) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ö LIST returns 200 and trainings array (2.4438ms)
+Γ£ö LIST forwards service errors (0.3732ms)
+Γ£ö GET returns 200 and requested Training (0.3676ms)
+Γ£ö GET forwards not-found errors (0.4217ms)
+Γ£ö CREATE returns 201 and created Training (0.4715ms)
+Γ£ö CREATE forwards validation errors (0.4083ms)
+Γ£ö UPDATE returns 200 and passes version (0.4373ms)
+Γ£ö UPDATE rejects non-object body (1.896ms)
+Γ£ö UPDATE rejects unexpected request fields (0.3991ms)
+Γ£ö UPDATE forwards concurrency conflicts (0.4236ms)
+Γ£ö Controller forwards missing authentication errors (0.1904ms)
+Γ£ö UPDATE forwards missing version to service validation (0.1941ms)
+Γ£ö UPDATE rejects array request bodies (0.1477ms)
+Γä╣ tests 13
+Γä╣ suites 0
+Γä╣ pass 13
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 122.4819
+EXIT CODE: 0
+
+====================================================
+TEST: D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\repositories\trainingRepository.test.js
+====================================================
+(node:24548) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24548) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+Γ£ö lists Training records scoped to the user (2.704ms)
+Γ£ö finds Training using both owner and record ID (0.434ms)
+Γ£ö returns null when Training is not found (0.2443ms)
+Γ£ö creates Training using parameterized SQL (1.4353ms)
+Γ£ö maps complete Training JSON and authoritative SQL columns (0.4458ms)
+Γ£ö updates Training with binary rowVersion and owner scope (0.7861ms)
+Γ£ö returns null for an update that affects no records (0.2865ms)
+Γ£ö rejects malformed rowVersion without executing SQL (1.8891ms)
+Γ£ö rejects invalid stored Training JSON (0.3412ms)
+Γ£ö keeps ownership parameters separate from SQL text (0.5ms)
+Γä╣ tests 10
+Γä╣ suites 0
+Γä╣ pass 10
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 122.1877
+EXIT CODE: 0
+
+====================================================
+TEST: D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\routes\trainingRoutes.test.js
+====================================================
+Γ£ö Training router is an Express router (1.1613ms)
+Γ£ö Authentication middleware is registered first (0.1358ms)
+Γ£ö Exactly four Training routes are registered (0.1628ms)
+Γ£ö GET / uses correct controller (0.221ms)
+Γ£ö POST / uses correct controller (0.1158ms)
+Γ£ö GET /:trainingId uses correct controller (0.1108ms)
+Γ£ö PATCH /:trainingId uses correct controller (0.0984ms)
+Γ£ö No DELETE Training route is exposed (0.1629ms)
+Γ£ö No PUT Training route is exposed (0.2181ms)
+Γ£ö No document upload routes are exposed (0.2358ms)
+Γ£ö All route handlers are functions (0.1667ms)
+Γ£ö Training router does not modify existing routers (110.7623ms)
+Γä╣ tests 12
+Γä╣ suites 0
+Γä╣ pass 12
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 1231.6293
+EXIT CODE: 0
+
+====================================================
+TEST: D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\schemas\trainingSchemas.test.js
+====================================================
+Γ£ö Accepts a complete Training v2 record (9.0009ms)
+Γ£ö Create schema accepts a complete record (0.3962ms)
+Γ£ö Rejects missing title (0.8851ms)
+Γ£ö Rejects title exceeding 250 characters (0.5168ms)
+Γ£ö Rejects missing provider name (0.4392ms)
+Γ£ö Rejects invalid training type (0.3745ms)
+Γ£ö Rejects invalid provider type (0.3029ms)
+Γ£ö Rejects invalid delivery format (0.4079ms)
+Γ£ö Rejects invalid completion status (0.5857ms)
+Γ£ö Rejects impossible calendar dates (0.8795ms)
+Γ£ö Rejects missing start date (0.3917ms)
+Γ£ö Rejects end date before start date (0.4031ms)
+Γ£ö Rejects end date for current training (0.3541ms)
+Γ£ö Rejects negative duration (0.4799ms)
+Γ£ö Rejects excessive duration (0.3418ms)
+Γ£ö Rejects invalid provider website (0.7462ms)
+Γ£ö Rejects too many instructors (2.9189ms)
+Γ£ö Rejects duplicate related Education IDs (0.277ms)
+Γ£ö Rejects mismatched Certification relationship IDs (0.2299ms)
+Γ£ö Rejects unknown top-level fields (0.2557ms)
+Γ£ö Rejects wrong model version (0.1842ms)
+Γ£ö Rejects updated timestamp before created timestamp (0.1688ms)
+Γ£ö Update schema accepts partial updates (1.8571ms)
+Γ£ö Update schema rejects empty updates (0.2172ms)
+Γ£ö Update schema rejects server-owned ID (0.1798ms)
+Γ£ö Validates SQL row versions (0.3203ms)
+Γ£ö Formats validation errors (0.5037ms)
+Γä╣ tests 27
+Γä╣ suites 0
+Γä╣ pass 27
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 322.9128
+EXIT CODE: 0
+
+====================================================
+TEST: D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\services\trainingService.test.js
+====================================================
+(node:16392) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16392) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+Γ£ö LIST rejects missing authentication (2.5831ms)
+Γ£ö LIST returns an empty array (1.6071ms)
+Γ£ö LIST returns normalized records (1.2944ms)
+Γ£ö GET rejects an invalid Training ID (0.4881ms)
+Γ£ö GET returns 404 when record is missing (0.4245ms)
+Γ£ö GET retrieves an authenticated user's Training (0.6264ms)
+Γ£ö GET passes the requesting user ID to repository (0.3209ms)
+Γ£ö CREATE rejects missing authentication (0.6143ms)
+Γ£ö CREATE rejects non-object input (0.2736ms)
+Γ£ö CREATE generates server-owned ID and timestamps (12.1083ms)
+Γ£ö CREATE rejects invalid title (2.1249ms)
+Γ£ö CREATE rejects invalid provider (1.0989ms)
+Γ£ö CREATE rejects unsupported model version (1.0264ms)
+Γ£ö CREATE rejects unsupported documents (0.3214ms)
+Γ£ö CREATE maps duplicate SQL ID errors to 409 (0.5377ms)
+Γ£ö CREATE propagates unexpected repository errors (0.5957ms)
+Γ£ö UPDATE rejects invalid rowVersion (0.5635ms)
+Γ£ö UPDATE rejects empty changes (0.355ms)
+Γ£ö UPDATE rejects server-owned fields (0.4925ms)
+Γ£ö UPDATE rejects restricted relationships (0.6477ms)
+Γ£ö UPDATE rejects document changes (0.3419ms)
+Γ£ö UPDATE returns 404 when record is missing (0.3553ms)
+Γ£ö UPDATE rejects stale rowVersion before writing (0.3868ms)
+Γ£ö UPDATE preserves existing fields (4.651ms)
+Γ£ö UPDATE returns 409 when concurrent write wins (1.0036ms)
+Γ£ö UPDATE returns 404 when record disappears (1.2612ms)
+Γä╣ tests 26
+Γä╣ suites 0
+Γä╣ pass 26
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 320.3972
+EXIT CODE: 0
+
+=== INTEGRATION TEST DISCOVERY ===
+NOT EXECUTED: D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\integration\trainingRepository.integration.test.js
+
+=== TRAINING API REFERENCES ===
+
+FILE: src\app.js
+Line 18: import trainingRoutes from "./routes/trainingRoutes.js";
+Line 218: app.use("/api/trainings", trainingRoutes);
+
+FILE: src\routes\trainingRoutes.js
+
+FILE: src\controllers\trainingController.js
+Line 113: "rowVersion",
+Line 120: rowVersion: body.rowVersion,
+
+FILE: src\services\Service\trainingService.js
+Line 4: completeTrainingSchema,
+Line 5: updateTrainingSchema,
+Line 72: function validateTraining(training) {
+Line 75: const result = completeTrainingSchema.safeParse(training);
+Line 89: function validateTrainingUpdates(updates) {
+Line 90: const result = updateTrainingSchema.safeParse(updates);
+Line 104: function mergeTrainingUpdates(existing, changes) {
+Line 145: function requireValidRowVersion(value) {
+Line 274: rowVersion: _clientRowVersion,
+Line 280: const candidate = validateTraining({
+Line 316: rowVersion,
+Line 320: const expectedVersion = requireValidRowVersion(rowVersion);
+Line 337: "rowVersion",
+Line 402: if (existing.rowVersion !== expectedVersion) {
+Line 407: rowVersion: _storedVersion,
+Line 411: const merged = mergeTrainingUpdates(storedModel, changes);
+Line 414: const validatedChanges = validateTrainingUpdates(
+Line 423: const candidate = validateTraining({
+Line 424: ...mergeTrainingUpdates(storedModel, validatedChanges),
+
+FILE: src\schemas\trainingSchemas.js
+Line 334: export const completeTrainingSchema =
+Line 337: export const createTrainingSchema = completeTrainingSchema;
+Line 339: export const updateTrainingSchema = baseSchema
+Line 356: export const trainingRowVersionSchema = z.string().refine(
+
+=== TEST SUMMARY ===
+Unit test files: 5
+Integration test files: 1
+Failed unit test files: 0
+UNIT TEST RESULT: PASS

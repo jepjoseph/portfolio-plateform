@@ -1,0 +1,112 @@
+[
+  {
+    "SchemaName": "dbo",
+    "TableName": "audit_logs",
+    "ColumnCount": 9
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "auth_challenges",
+    "ColumnCount": 15
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnCount": 8
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnCount": 10
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "experiences",
+    "ColumnCount": 10
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "login_audit_events",
+    "ColumnCount": 9
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "People",
+    "ColumnCount": 4
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnCount": 8
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_media",
+    "ColumnCount": 8
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "projects",
+    "ColumnCount": 11
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "roles",
+    "ColumnCount": 6
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "schema_migrations",
+    "ColumnCount": 3
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "sessions",
+    "ColumnCount": 11
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnCount": 11
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "support_contact_requests",
+    "ColumnCount": 16
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "user_profile_contacts",
+    "ColumnCount": 10
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "user_profile_pictures",
+    "ColumnCount": 16
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "user_profile_professional_titles",
+    "ColumnCount": 8
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "user_profiles",
+    "ColumnCount": 27
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "user_roles",
+    "ColumnCount": 4
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "user_settings",
+    "ColumnCount": 16
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "users",
+    "ColumnCount": 12
+  }
+]

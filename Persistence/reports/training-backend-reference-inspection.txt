@@ -1,0 +1,820 @@
+========================================
+src/repositories/certificationRepository.js
+========================================
+import { getDatabasePool, sql } from "../config/database.js";
+
+const CERTIFICATION_COLUMNS = `
+  id,
+  user_id,
+  name,
+  certification_type,
+  issuing_organization_name,
+  status,
+  certification_data,
+  created_at,
+  updated_at,
+  row_version
+`;
+
+function mapCertificationRow(row) {
+  if (!row) return null;
+
+  const data = typeof row.certification_data === "string"
+    ? JSON.parse(row.certification_data)
+    : row.certification_data;
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Stored Certification data is invalid.");
+  }
+
+  return {
+    ...data,
+    id: row.id,
+    name: row.name,
+    certificationType: row.certification_type,
+    issuingOrganization: {
+      ...(data.issuingOrganization || {}),
+      name: row.issuing_organization_name,
+    },
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    rowVersion: Buffer.from(row.row_version).toString("base64"),
+  };
+}
+
+function bindCertification(request, userId, certification) {
+  return request
+    .input("id", sql.NVarChar(200), certification.id)
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("name", sql.NVarChar(500), certification.name)
+    .input(
+      "certificationType",
+      sql.NVarChar(100),
+      certification.certificationType,
+    )
+    .input(
+      "issuerName",
+      sql.NVarChar(500),
+      certification.issuingOrganization.name,
+    )
+    .input("status", sql.NVarChar(100), certification.status)
+    .input(
+      "certificationData",
+      sql.NVarChar(sql.MAX),
+      JSON.stringify(certification),
+    );
+}
+
+function decodeRowVersion(value) {
+  if (typeof value !== "string" ||
+      !/^[A-Za-z0-9+/]{11}=$/.test(value)) {
+    throw new TypeError("A valid rowVersion is required.");
+  }
+
+  const buffer = Buffer.from(value, "base64");
+
+  if (buffer.length !== 8 ||
+      buffer.toString("base64") !== value) {
+    throw new TypeError("Invalid rowVersion.");
+  }
+
+  return buffer;
+}
+
+export async function listCertificationsByUser(userId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool.request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .query(`
+      SELECT ${CERTIFICATION_COLUMNS}
+      FROM dbo.certifications
+      WHERE user_id = @userId
+      ORDER BY updated_at DESC, id ASC;
+    `);
+
+  return result.recordset.map(mapCertificationRow);
+}
+
+export async function findCertificationById(userId, certificationId) {
+  const pool = await getDatabasePool();
+
+  const result = await pool.request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), certificationId)
+    .query(`
+      SELECT ${CERTIFICATION_COLUMNS}
+      FROM dbo.certifications
+      WHERE user_id = @userId AND id = @id;
+    `);
+
+  return mapCertificationRow(result.recordset[0]);
+}
+
+export async function createCertificationRecord(userId, certification) {
+  const pool = await getDatabasePool();
+
+  const result = await bindCertification(
+    pool.request(), userId, certification
+  ).query(`
+    INSERT INTO dbo.certifications (
+      id, user_id, name, certification_type,
+      issuing_organization_name, status, certification_data
+    )
+    OUTPUT
+      INSERTED.id,
+      INSERTED.user_id,
+      INSERTED.name,
+      INSERTED.certification_type,
+      INSERTED.issuing_organization_name,
+      INSERTED.status,
+      INSERTED.certification_data,
+      INSERTED.created_at,
+      INSERTED.updated_at,
+      INSERTED.row_version
+    VALUES (
+      @id, @userId, @name, @certificationType,
+      @issuerName, @status, @certificationData
+    );
+  `);
+
+  return mapCertificationRow(result.recordset[0]);
+}
+
+export async function updateCertificationRecord(
+  userId,
+  certification,
+  expectedRowVersion,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await bindCertification(
+    pool.request(), userId, certification
+  )
+    .input(
+      "expectedRowVersion",
+      sql.Binary(8),
+      decodeRowVersion(expectedRowVersion),
+    )
+    .query(`
+      UPDATE dbo.certifications
+      SET
+        name = @name,
+        certification_type = @certificationType,
+        issuing_organization_name = @issuerName,
+        status = @status,
+        certification_data = @certificationData,
+        updated_at = SYSUTCDATETIME()
+      OUTPUT
+        INSERTED.id,
+        INSERTED.user_id,
+        INSERTED.name,
+        INSERTED.certification_type,
+        INSERTED.issuing_organization_name,
+        INSERTED.status,
+        INSERTED.certification_data,
+        INSERTED.created_at,
+        INSERTED.updated_at,
+        INSERTED.row_version
+      WHERE id = @id
+        AND user_id = @userId
+        AND row_version = @expectedRowVersion;
+    `);
+
+  return mapCertificationRow(result.recordset[0]);
+}
+
+export async function deleteCertificationRecord(
+  userId,
+  certificationId,
+  expectedRowVersion,
+) {
+  const pool = await getDatabasePool();
+
+  const result = await pool.request()
+    .input("userId", sql.UniqueIdentifier, userId)
+    .input("id", sql.NVarChar(200), certificationId)
+    .input(
+      "expectedRowVersion",
+      sql.Binary(8),
+      decodeRowVersion(expectedRowVersion),
+    )
+    .query(`
+      DELETE FROM dbo.certifications
+      WHERE id = @id
+        AND user_id = @userId
+        AND row_version = @expectedRowVersion;
+    `);
+
+  return result.rowsAffected[0] > 0;
+}
+
+========================================
+src/services/Service/certificationService.js
+========================================
+import { randomUUID } from "node:crypto";
+
+import {
+  listCertificationsByUser,
+  findCertificationById,
+  createCertificationRecord,
+  updateCertificationRecord,
+} from "../../repositories/certificationRepository.js";
+
+import {
+  createCertificationSchema,
+  updateCertificationSchema,
+  completeCertificationSchema,
+  certificationIdParamsSchema,
+  certificationRowVersionSchema,
+  formatCertificationSchemaErrors,
+} from "../../schemas/certificationSchemas.js";
+
+function certificationError(message, code, status, errors) {
+  const error = new Error(message);
+  error.name = "CertificationServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  if (errors) error.errors = errors;
+
+  return error;
+}
+
+function validate(schema, value) {
+  const result = schema.safeParse(value);
+
+  if (!result.success) {
+    throw certificationError(
+      "Certification validation failed.",
+      "CERTIFICATION_VALIDATION_FAILED",
+      400,
+      formatCertificationSchemaErrors(result.error),
+    );
+  }
+
+  return result.data;
+}
+
+function requireUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw certificationError(
+      "Authentication is required.",
+      "CERTIFICATION_AUTH_REQUIRED",
+      401,
+    );
+  }
+
+  return userId;
+}
+
+function requireNoDocuments(certification) {
+  if (certification.supportingDocuments.length > 0) {
+    throw certificationError(
+      "Certification document uploads are not available yet.",
+      "CERTIFICATION_DOCUMENTS_NOT_READY",
+      400,
+    );
+  }
+}
+
+function normalizeRecord(record) {
+  if (!record) return null;
+
+  return {
+    ...record,
+    createdAt: new Date(record.createdAt).toISOString(),
+    updatedAt: new Date(record.updatedAt).toISOString(),
+  };
+}
+
+export async function getAuthenticatedCertifications({ userId }) {
+  requireUserId(userId);
+
+  const records = await listCertificationsByUser(userId);
+
+  return records.map(normalizeRecord);
+}
+
+export async function getAuthenticatedCertification({
+  userId,
+  certificationId,
+}) {
+  requireUserId(userId);
+
+  const params = validate(certificationIdParamsSchema, {
+    certificationId,
+  });
+
+  const record = await findCertificationById(
+    userId,
+    params.certificationId,
+  );
+
+  if (!record) {
+    throw certificationError(
+      "Certification not found.",
+      "CERTIFICATION_NOT_FOUND",
+      404,
+    );
+  }
+
+  return normalizeRecord(record);
+}
+
+export async function createAuthenticatedCertification({
+  userId,
+  certification,
+}) {
+  requireUserId(userId);
+
+  if (
+    certification === null ||
+    typeof certification !== "object" ||
+    Array.isArray(certification)
+  ) {
+    throw certificationError(
+      "Certification must be a JSON object.",
+      "CERTIFICATION_REQUEST_INVALID",
+      400,
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  const candidate = {
+    ...certification,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const validated = validate(
+    createCertificationSchema,
+    candidate,
+  );
+
+  requireNoDocuments(validated);
+
+  try {
+    const created = await createCertificationRecord(
+      userId,
+      validated,
+    );
+
+    return normalizeRecord(created);
+  } catch (error) {
+    const number =
+      error.number ??
+      error.originalError?.number ??
+      error.cause?.number;
+
+    if (number === 2601 || number === 2627) {
+      throw certificationError(
+        "A Certification identifier already exists.",
+        "CERTIFICATION_ID_CONFLICT",
+        409,
+      );
+    }
+
+    throw error;
+  }
+}
+
+function requireMetadataOnlyUpdates(updates) {
+  const restricted = [
+    "supportingDocuments",
+    "skillRelationships",
+    "relatedRecords",
+  ];
+
+  for (const field of restricted) {
+    if (Object.hasOwn(updates, field)) {
+      throw certificationError(
+        `Updating ${field} is not available yet.`,
+        "CERTIFICATION_RELATIONSHIP_UPDATE_NOT_READY",
+        400,
+      );
+    }
+  }
+}
+
+export async function updateAuthenticatedCertification({
+  userId,
+  certificationId,
+  updates,
+  rowVersion,
+}) {
+  requireUserId(userId);
+
+  const params = validate(certificationIdParamsSchema, {
+    certificationId,
+  });
+
+  const expectedVersion = validate(
+    certificationRowVersionSchema,
+    rowVersion,
+  );
+
+  const validatedUpdates = validate(
+    updateCertificationSchema,
+    updates,
+  );
+
+  requireMetadataOnlyUpdates(validatedUpdates);
+
+  const existing = await findCertificationById(
+    userId,
+    params.certificationId,
+  );
+
+  if (!existing) {
+    throw certificationError(
+      "Certification not found.",
+      "CERTIFICATION_NOT_FOUND",
+      404,
+    );
+  }
+
+  if (existing.rowVersion !== expectedVersion) {
+    throw certificationError(
+      "Certification was modified by another operation.",
+      "CERTIFICATION_VERSION_CONFLICT",
+      409,
+    );
+  }
+
+  const {
+    rowVersion: _storedRowVersion,
+    ...storedModel
+  } = normalizeRecord(existing);
+
+  const now = new Date().toISOString();
+
+  const merged = {
+    ...storedModel,
+    ...validatedUpdates,
+    id: storedModel.id,
+    createdAt: storedModel.createdAt,
+    updatedAt: now,
+  };
+
+
+
+  const complete = validate(
+    completeCertificationSchema,
+    merged,
+  );
+
+  const updated = await updateCertificationRecord(
+    userId,
+    complete,
+    expectedVersion,
+  );
+
+  if (!updated) {
+    const current = await findCertificationById(
+      userId,
+      params.certificationId,
+    );
+
+    if (!current) {
+      throw certificationError(
+        "Certification not found.",
+        "CERTIFICATION_NOT_FOUND",
+        404,
+      );
+    }
+
+    throw certificationError(
+      "Certification was modified by another operation.",
+      "CERTIFICATION_VERSION_CONFLICT",
+      409,
+    );
+  }
+
+  return normalizeRecord(updated);
+}
+
+========================================
+src/schemas/certificationSchemas.js
+========================================
+import { z } from "zod";
+
+export const CERTIFICATION_TYPE_VALUES = [
+  "professional", "technical", "license", "vendor",
+  "academic", "safety", "language", "other",
+];
+
+export const CERTIFICATION_ISSUER_TYPE_VALUES = [
+  "professional-association", "technology-vendor",
+  "government", "educational-institution",
+  "training-provider", "employer", "other",
+];
+
+export const CERTIFICATION_CREDENTIAL_STATE_VALUES = [
+  "active", "expired", "planned",
+];
+
+export const CERTIFICATION_STATUS_VALUES = [
+  "active", "archived",
+];
+
+export const CERTIFICATION_SOURCE_VALUES = [
+  "manual", "training", "education", "imported", "ai-suggested",
+];
+
+export const CERTIFICATION_DOCUMENT_TYPE_VALUES = [
+  "certificate", "credential", "verification",
+  "renewal", "supporting", "other",
+];
+
+export const CERTIFICATION_DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+export const CERTIFICATION_DOCUMENT_EXTENSIONS = [
+  ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".webp",
+];
+
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+const idSchema = z.string().trim().min(1).max(200);
+
+const text = (maximum) => z.string().trim().max(maximum);
+
+const requiredText = (maximum) =>
+  z.string().trim().min(1).max(maximum);
+
+const monthSchema = z.union([
+  z.literal(""),
+  z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+]);
+
+const urlSchema = (maximum) =>
+  text(maximum).refine(
+    (value) => {
+      if (!value) return true;
+      try {
+        const url = new URL(value);
+        return ["http:", "https:"].includes(url.protocol);
+      } catch {
+        return false;
+      }
+    },
+    "Enter a valid HTTP or HTTPS URL.",
+  );
+
+const timestampSchema = z.string().datetime({ offset: true });
+
+const issuingOrganizationSchema = z.object({
+  name: requiredText(160),
+  type: z.enum(CERTIFICATION_ISSUER_TYPE_VALUES),
+  website: urlSchema(500),
+}).strict();
+
+const datesSchema = z.object({
+  issueDate: monthSchema,
+  expirationDate: monthSchema,
+  lastRenewedDate: monthSchema,
+  nextRenewalDate: monthSchema,
+  doesNotExpire: z.boolean(),
+}).strict();
+
+const credentialSchema = z.object({
+  state: z.enum(CERTIFICATION_CREDENTIAL_STATE_VALUES),
+  credentialId: text(180),
+  verificationUrl: urlSchema(1000),
+}).strict();
+
+const skillRelationshipSchema = z.object({
+  id: idSchema,
+  skillId: idSchema,
+  order: z.number().int().nonnegative(),
+  snapshot: z.object({
+    name: text(120),
+    category: z.string(),
+    type: z.string(),
+    proficiency: z.string(),
+  }).strict(),
+}).strict();
+
+const trainingRelationshipSchema = z.object({
+  id: idSchema,
+  trainingId: idSchema,
+  order: z.number().int().nonnegative(),
+  snapshot: z.object({
+    title: z.string(),
+    providerName: z.string(),
+    completionStatus: z.string(),
+  }).strict(),
+}).strict();
+
+const supportingDocumentSchema = z.object({
+  id: idSchema,
+  documentType: z.enum(CERTIFICATION_DOCUMENT_TYPE_VALUES),
+  name: text(255),
+  description: text(500),
+  fileName: requiredText(255),
+  extension: z.enum(CERTIFICATION_DOCUMENT_EXTENSIONS),
+  mimeType: z.union([
+    z.literal(""),
+    z.enum(CERTIFICATION_DOCUMENT_MIME_TYPES),
+  ]),
+  size: z.number().int().positive().max(MAX_DOCUMENT_BYTES),
+  storageKey: z.string().trim(),
+  checksum: z.string(),
+  isPrimary: z.boolean(),
+  previewMode: z.enum(["image", "pdf", "word", "document"]),
+  order: z.number().int().nonnegative(),
+  status: z.enum(["active", "archived"]),
+  uploadedAt: timestampSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+}).strict();
+
+const visibilitySchema = z.object({
+  showIssuingOrganization: z.boolean(),
+  showIssuerWebsite: z.boolean(),
+  showDates: z.boolean(),
+  showExpirationDate: z.boolean(),
+  showCredentialId: z.boolean(),
+  showVerificationUrl: z.boolean(),
+  showDescription: z.boolean(),
+  showSkills: z.boolean(),
+  showSupportingDocuments: z.boolean(),
+}).strict();
+
+const certificationBaseSchema = z.object({
+  modelVersion: z.literal(1),
+  id: idSchema,
+  name: requiredText(160),
+  certificationType: z.enum(CERTIFICATION_TYPE_VALUES),
+  issuingOrganization: issuingOrganizationSchema,
+  dates: datesSchema,
+  credential: credentialSchema,
+  description: text(2000),
+  skillRelationships: z.array(skillRelationshipSchema).max(50),
+  relatedRecords: z.object({
+    trainingRelationships: z.array(trainingRelationshipSchema).max(50),
+    educationIds: z.array(idSchema).max(50),
+  }).strict(),
+  supportingDocuments: z.array(supportingDocumentSchema).max(20),
+  visibility: visibilitySchema,
+  privateInformation: z.object({
+    notes: text(3000),
+  }).strict(),
+  source: z.enum(CERTIFICATION_SOURCE_VALUES),
+  sourceContext: text(300),
+  status: z.enum(CERTIFICATION_STATUS_VALUES),
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+}).strict();
+
+function validateCertificationRules(value, context) {
+  const { dates, credential, supportingDocuments } = value;
+
+  function issue(path, message) {
+    context.addIssue({
+      code: "custom",
+      path,
+      message,
+    });
+  }
+
+  if (credential.state !== "planned" && !dates.issueDate) {
+    issue(["dates", "issueDate"], "Issue date is required.");
+  }
+
+  if (dates.issueDate && dates.expirationDate &&
+      dates.expirationDate < dates.issueDate) {
+    issue(["dates", "expirationDate"],
+      "Expiration date cannot precede issue date.");
+  }
+
+  if (dates.issueDate && dates.lastRenewedDate &&
+      dates.lastRenewedDate < dates.issueDate) {
+    issue(["dates", "lastRenewedDate"],
+      "Renewal date cannot precede issue date.");
+  }
+
+  if (dates.lastRenewedDate && dates.nextRenewalDate &&
+      dates.nextRenewalDate < dates.lastRenewedDate) {
+    issue(["dates", "nextRenewalDate"],
+      "Next renewal cannot precede last renewal.");
+  }
+
+  if (dates.doesNotExpire &&
+      (dates.expirationDate || dates.nextRenewalDate)) {
+    issue(["dates", "doesNotExpire"],
+      "Non-expiring certifications cannot have expiration or next-renewal dates.");
+  }
+
+  const active = supportingDocuments.filter(
+    (document) => document.status !== "archived",
+  );
+
+  const primary = active.filter(
+    (document) => document.isPrimary,
+  );
+
+  if (active.length && primary.length !== 1) {
+    issue(["supportingDocuments"],
+      "Exactly one active document must be primary.");
+  }
+
+  const seenDocuments = new Set();
+
+  supportingDocuments.forEach((document, index) => {
+    if (seenDocuments.has(document.id)) {
+      issue(["supportingDocuments", index, "id"],
+        "Duplicate document ID.");
+    }
+    seenDocuments.add(document.id);
+
+    if (document.status !== "archived" && !document.storageKey) {
+      issue(["supportingDocuments", index, "storageKey"],
+        "Active documents require a storage key.");
+    }
+
+    const extension = document.fileName.toLowerCase().slice(
+      document.fileName.lastIndexOf("."),
+    );
+
+    if (extension !== document.extension) {
+      issue(["supportingDocuments", index, "extension"],
+        "Document extension does not match the filename.");
+    }
+  });
+
+  for (const [records, field, key] of [
+    [value.skillRelationships, "skillRelationships", "skillId"],
+    [value.relatedRecords.trainingRelationships,
+      "relatedRecords.trainingRelationships", "trainingId"],
+  ]) {
+    const seen = new Set();
+
+    records.forEach((record, index) => {
+      if (seen.has(record[key])) {
+        issue([field, index, key], "Duplicate relationship.");
+      }
+      seen.add(record[key]);
+    });
+  }
+
+  const educationIds = value.relatedRecords.educationIds;
+  if (new Set(educationIds).size !== educationIds.length) {
+    issue(["relatedRecords", "educationIds"],
+      "Duplicate Education relationship.");
+  }
+
+  if (new Date(value.updatedAt) < new Date(value.createdAt)) {
+    issue(["updatedAt"],
+      "Updated timestamp cannot precede creation.");
+  }
+}
+
+export const completeCertificationSchema =
+  certificationBaseSchema.superRefine(validateCertificationRules);
+
+export const createCertificationSchema =
+  completeCertificationSchema;
+
+export const updateCertificationSchema =
+  certificationBaseSchema
+    .omit({ id: true, createdAt: true, updatedAt: true })
+    .partial()
+    .refine(
+      (value) => Object.keys(value).length > 0,
+      "Provide at least one Certification field to update.",
+    );
+
+export const certificationIdParamsSchema = z.object({
+  certificationId: idSchema,
+}).strict();
+
+export const certificationRowVersionSchema = z.string().refine(
+  (value) => {
+    if (!/^[A-Za-z0-9+/]{11}=$/.test(value)) return false;
+    const bytes = Buffer.from(value, "base64");
+    return bytes.length === 8 &&
+      bytes.toString("base64") === value;
+  },
+  "A valid SQL row version is required.",
+);
+
+export function formatCertificationSchemaErrors(error) {
+  return (error?.issues || []).map((issue) => ({
+    field: issue.path.join("."),
+    message: issue.message,
+    code: issue.code,
+  }));
+}
+

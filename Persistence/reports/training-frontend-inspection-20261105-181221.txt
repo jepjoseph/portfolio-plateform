@@ -1,0 +1,175 @@
+=== TRAINING FRONTEND INSPECTION ===
+Generated: 11/05/2026 18:12:21
+Frontend: D:\Documents\Project\Portfolio\portfolio-plateform\frontend
+
+=== TRAINING RELATED FILES ===
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\config\trainingConfig.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\models\trainingModel.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\Training.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\Training.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDashboard\TrainingDashboard.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDashboard\TrainingDashboard.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingDocumentEditor\TrainingDocumentEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingForm\TrainingForm.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingForm\TrainingForm.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingItem\TrainingItem.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingItem\TrainingItem.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingLibrary\TrainingLibrary.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingLibrary\TrainingLibrary.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingOrderedItemEditor\TrainingOrderedItemEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingOrderedItemEditor\TrainingOrderedItemEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingPageHeader\TrainingPageHeader.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingPageHeader\TrainingPageHeader.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.css
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\pages\Training\components\TrainingSkillsEditor\TrainingSkillsEditor.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingMigrationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingRelationshipService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingValidation.js
+
+=== API AND SERVICE FILES ===
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\AuthContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProfileDataContext.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\ProfileDataContext.localStorage.backup.jsx
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\apiClient.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\apiClient.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Account\sessionService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Auth\authService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationDocumentLoader.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationDocumentStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingMigrationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingRelationshipService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Documents\documentStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Documents\documentUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Education\educationValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceApiAdapter.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceContextCompatibility.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceDatabaseService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Experience\experienceValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\PersonalInformation\contactInformationConfig.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Portfolio\portfolioService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Portfolio\portfolioStyleUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Portfolio\profileSelectionUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileService.localStorage.backup.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Profile\profileValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiAdapter.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.bak-20261020-234542
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectApiService.js.before-restore-20261020-234859.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetResolver.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectAssetStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectBinaryApi.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectDocumentApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectFeaturedMedia.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectMediaApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.featured-media.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectService.js.helper-integration.bak
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Project\projectValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Resume\resumeSelectionUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Resume\resumeSummaryUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillApiService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillRemoteService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Skill\skillValidation.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Support\contactService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingStorage.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingUtils.js
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingValidation.js
+
+=== TRAINING STORAGE REFERENCES ===
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:11
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:12
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:13
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:17
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:18
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:20
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:278
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:349
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:404
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:457
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:510
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\context\TrainingDataContext.jsx:563
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingMigrationService.js:75
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Certification\certificationTrainingMigrationService.js:88
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:17
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:26
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:36
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:103
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:132
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:155
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:268
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingService.js:343
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingStorage.js:25
+D:\Documents\Project\Portfolio\portfolio-plateform\frontend\src\services\Training\trainingStorage.js:32
+
+=== FRONTEND PACKAGE INFORMATION ===
+Package name: frontend
+Script: dev
+Script: build
+Script: lint
+Script: preview
+
+=== GIT STATUS ===
+ M ../backend
+ M ../docs/04-database-design.md
+ M ../docs/10-development-log.md
+?? "../Full Stack Web Dev Structure.docx"
+?? ../Persistence/reports/training-api-integration-inspection.txt
+?? ../Persistence/reports/training-backend-architecture-inspection.txt
+?? ../Persistence/reports/training-backend-design-source-review.txt
+?? ../Persistence/reports/training-backend-reference-inspection.txt
+?? ../Persistence/reports/training-backend-verification-20261105-174919.txt
+?? ../Persistence/reports/training-controller-preimplementation-inspection.txt
+?? ../Persistence/reports/training-dependencies-inspection.txt
+?? ../Persistence/reports/training-document-contract-inspection.txt
+?? ../Persistence/reports/training-final-contract-inspection.txt
+?? ../Persistence/reports/training-migration-history-inspection.json
+?? ../Persistence/reports/training-migration-initial-scan.txt
+?? ../Persistence/reports/training-persistence-source-review.txt
+?? ../Persistence/reports/training-phase2-validation-20261105-175837.txt
+?? ../Persistence/reports/training-phase3-preflight-20261105-180331.txt
+?? ../Persistence/reports/training-repository-preimplementation-inspection.txt
+?? ../Persistence/reports/training-schema-config-inspection.txt
+?? ../Persistence/reports/training-schema-verification.json
+?? ../Persistence/reports/training-service-preimplementation-inspection.txt
+?? ../Persistence/reports/training-service-schema-compatibility.txt
+?? ../Persistence/reports/training-sql-columns.json
+?? ../Persistence/reports/training-sql-database-info.json
+?? ../Persistence/reports/training-sql-foreign-keys.json
+?? ../Persistence/reports/training-sql-tables.json
+?? ../Persistence/reports/training-storage-model-inspection.txt
+?? ../Persistence/reports/training-test-coverage-inspection-20261105-175311.txt
+?? ../Persistence/scripts/training-migration-history-inspection.mjs
+?? ../Persistence/scripts/training-schema-verification.mjs
+?? ../Persistence/scripts/training-schema-verification.sql
+?? ../Persistence/scripts/training-sql-schema-inspection.mjs
+?? ../Persistence/scripts/training-sql-schema-inspection.mjs.20261104-143612.bak
+?? "../~$ll Stack Web Dev Structure.docx"
+?? ../~WRL2559.tmp

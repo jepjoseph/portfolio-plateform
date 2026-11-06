@@ -1,0 +1,74 @@
+{
+  "inspectedAt": "2026-11-04T19:57:14.137Z",
+  "database": {
+    "database_name": "portfolio-platform-db",
+    "server_name": "portfolio-platform-sv",
+    "sql_login": "jepjoseph",
+    "inspected_at_utc": "2026-11-04T19:57:13.780Z"
+  },
+  "migrationTableExists": true,
+  "trainingTableExists": false,
+  "appliedMigrationCount": 12,
+  "migrations": [
+    {
+      "migration_id": "001_authentication_foundation.sql",
+      "checksum": "32924dab466c43b08ee1cedc4edbb5e0021ce464bcba56197bd06d373cd0dbf9",
+      "applied_at": "2026-09-15T19:43:28.543Z"
+    },
+    {
+      "migration_id": "002_user_profiles.sql",
+      "checksum": "4d93a79010f3e4f457b3ed6ac54172e1fd8b4b12aac6c3c7d29b34db40630ca0",
+      "applied_at": "2026-09-15T20:52:31.044Z"
+    },
+    {
+      "migration_id": "003_user_settings.sql",
+      "checksum": "c43f9a6c271d3fd0f1d94256885af0fbbd79e988820601d68f852c1fa00c4d94",
+      "applied_at": "2026-09-15T21:39:17.078Z"
+    },
+    {
+      "migration_id": "004_support_contact_requests.sql",
+      "checksum": "c6cc38a316468038d5230b5e3e53a3c583af595108e5f3276eca8cb9d54da08d",
+      "applied_at": "2026-09-19T02:58:05.264Z"
+    },
+    {
+      "migration_id": "005_profile_details.sql",
+      "checksum": "f436e5fcefd0bcbd0203f816bbaa30595b1fa59811ab58d84cf781b2687ec049",
+      "applied_at": "2026-09-25T04:52:37.410Z"
+    },
+    {
+      "migration_id": "006_projects.sql",
+      "checksum": "ca3620ea0abd438c47a146a3da11608d3926f280605018025a6468712b411a91",
+      "applied_at": "2026-10-13T03:06:05.823Z"
+    },
+    {
+      "migration_id": "007_project_media.sql",
+      "checksum": "ddbe1194d9b61c1767dafeceb7b3afb67bca917e58acce1e7f3473b1ab879c78",
+      "applied_at": "2026-10-14T03:34:28.856Z"
+    },
+    {
+      "migration_id": "008_project_documents.sql",
+      "checksum": "3a7e87ae443e06ecb7d89ca0662cde0ecb47a2f2578171b6db3c565025d7a905",
+      "applied_at": "2026-10-21T19:34:12.172Z"
+    },
+    {
+      "migration_id": "009_experiences.sql",
+      "checksum": "752d1536a4e7ac9960629b84e11be7e839365a090e8ee879fababd2474484dfb",
+      "applied_at": "2026-10-26T19:46:45.536Z"
+    },
+    {
+      "migration_id": "010_skills.sql",
+      "checksum": "deae0f76390f243d996953791cc5eca84566918c7988a21a80e4142b7e04dd2d",
+      "applied_at": "2026-10-27T03:44:24.795Z"
+    },
+    {
+      "migration_id": "011_certifications.sql",
+      "checksum": "dc6cc2b8f622538e227135fa6ea63a427f329574734c71b693d752fc1bbac22a",
+      "applied_at": "2026-11-03T17:44:52.852Z"
+    },
+    {
+      "migration_id": "012_certification_documents.sql",
+      "checksum": "77a7321c48234cc59425c63a9a49c05d1c05ed9be4bc9a60f233b40eba1e749d",
+      "applied_at": "2026-11-03T17:44:53.001Z"
+    }
+  ]
+}

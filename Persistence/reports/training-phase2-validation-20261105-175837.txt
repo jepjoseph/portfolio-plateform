@@ -1,0 +1,90 @@
+=== D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\schemas\trainingSchemas.test.js ===
+Γ£ö Accepts a complete Training v2 record (11.1024ms)
+Γ£ö Create schema accepts a complete record (0.6085ms)
+Γ£ö Rejects missing title (1.4724ms)
+Γ£ö Rejects title exceeding 250 characters (0.7625ms)
+Γ£ö Rejects missing provider name (0.5638ms)
+Γ£ö Rejects invalid training type (0.4931ms)
+Γ£ö Rejects invalid provider type (0.4912ms)
+Γ£ö Rejects invalid delivery format (0.7428ms)
+Γ£ö Rejects invalid completion status (0.8607ms)
+Γ£ö Rejects impossible calendar dates (0.7532ms)
+Γ£ö Rejects missing start date (0.6043ms)
+Γ£ö Rejects end date before start date (0.5317ms)
+Γ£ö Rejects end date for current training (0.4273ms)
+Γ£ö Rejects negative duration (0.7845ms)
+Γ£ö Rejects excessive duration (2.3443ms)
+Γ£ö Rejects invalid provider website (0.6433ms)
+Γ£ö Rejects too many instructors (1.7288ms)
+Γ£ö Rejects duplicate related Education IDs (0.3985ms)
+Γ£ö Rejects mismatched Certification relationship IDs (0.5173ms)
+Γ£ö Rejects unknown top-level fields (0.3337ms)
+Γ£ö Rejects wrong model version (0.2073ms)
+Γ£ö Rejects updated timestamp before created timestamp (0.2811ms)
+Γ£ö Update schema accepts partial updates (2.366ms)
+Γ£ö Update schema rejects empty updates (0.2121ms)
+Γ£ö Update schema rejects server-owned ID (0.1786ms)
+Γ£ö Validates SQL row versions (0.3622ms)
+Γ£ö Formats validation errors (0.6415ms)
+Γ£ö Schema rejects unknown nested provider properties (0.2583ms)
+Γ£ö Schema rejects unknown nested delivery properties (0.2767ms)
+Γ£ö Schema rejects invalid completion duration type (0.3528ms)
+Γ£ö Schema rejects duplicate topics (0.9059ms)
+Γ£ö Schema rejects in-progress training without current dates (0.2322ms)
+Γ£ö Schema rejects invalid nested PATCH object (0.2464ms)
+Γä╣ tests 33
+Γä╣ suites 0
+Γä╣ pass 33
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 412.7939
+EXIT CODE: 0
+
+=== D:\Documents\Project\Portfolio\portfolio-plateform\backend\test\services\trainingService.test.js ===
+(node:24784) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24784) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+Γ£ö LIST rejects missing authentication (6.7888ms)
+Γ£ö LIST returns an empty array (3.1488ms)
+Γ£ö LIST returns normalized records (2.4274ms)
+Γ£ö GET rejects an invalid Training ID (0.6939ms)
+Γ£ö GET returns 404 when record is missing (1.1259ms)
+Γ£ö GET retrieves an authenticated user's Training (1.3383ms)
+Γ£ö GET passes the requesting user ID to repository (0.6916ms)
+Γ£ö CREATE rejects missing authentication (0.7376ms)
+Γ£ö CREATE rejects non-object input (0.6606ms)
+Γ£ö CREATE generates server-owned ID and timestamps (30.015ms)
+Γ£ö CREATE rejects invalid title (3.0989ms)
+Γ£ö CREATE rejects invalid provider (1.3477ms)
+Γ£ö CREATE rejects unsupported model version (1.1733ms)
+Γ£ö CREATE rejects unsupported documents (0.6786ms)
+Γ£ö CREATE maps duplicate SQL ID errors to 409 (1.2794ms)
+Γ£ö CREATE propagates unexpected repository errors (1.3135ms)
+Γ£ö UPDATE rejects invalid rowVersion (0.9061ms)
+Γ£ö UPDATE rejects empty changes (0.4945ms)
+Γ£ö UPDATE rejects server-owned fields (0.9248ms)
+Γ£ö UPDATE rejects restricted relationships (1.0097ms)
+Γ£ö UPDATE rejects document changes (0.4003ms)
+Γ£ö UPDATE returns 404 when record is missing (0.5435ms)
+Γ£ö UPDATE rejects stale rowVersion before writing (0.5763ms)
+Γ£ö UPDATE preserves existing fields (6.2618ms)
+Γ£ö UPDATE returns 409 when concurrent write wins (1.5513ms)
+Γ£ö UPDATE returns 404 when record disappears (1.8539ms)
+Γ£ö CREATE rejects invalid delivery format (1.3858ms)
+Γ£ö CREATE rejects unknown nested provider property (0.8277ms)
+Γ£ö UPDATE preserves provider fields during nested PATCH (1.2854ms)
+Γ£ö UPDATE preserves delivery location during nested PATCH (1.0369ms)
+Γ£ö UPDATE rejects unknown nested provider property (0.772ms)
+Γ£ö UPDATE rejects invalid date combination (1.3336ms)
+Γä╣ tests 32
+Γä╣ suites 0
+Γä╣ pass 32
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 520.9544
+EXIT CODE: 0
+

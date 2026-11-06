@@ -1,0 +1,42 @@
+[
+  {
+    "ForeignKeyName": "FK_certification_documents_certification_owner",
+    "ParentSchema": "dbo",
+    "ParentTable": "certification_documents",
+    "ParentColumn": "certification_id",
+    "ReferencedSchema": "dbo",
+    "ReferencedTable": "certifications",
+    "ReferencedColumn": "id",
+    "OnDelete": "NO_ACTION"
+  },
+  {
+    "ForeignKeyName": "FK_certification_documents_certification_owner",
+    "ParentSchema": "dbo",
+    "ParentTable": "certification_documents",
+    "ParentColumn": "user_id",
+    "ReferencedSchema": "dbo",
+    "ReferencedTable": "certifications",
+    "ReferencedColumn": "user_id",
+    "OnDelete": "NO_ACTION"
+  },
+  {
+    "ForeignKeyName": "FK_certifications_user",
+    "ParentSchema": "dbo",
+    "ParentTable": "certifications",
+    "ParentColumn": "user_id",
+    "ReferencedSchema": "dbo",
+    "ReferencedTable": "users",
+    "ReferencedColumn": "id",
+    "OnDelete": "NO_ACTION"
+  },
+  {
+    "ForeignKeyName": "FK_skills_user",
+    "ParentSchema": "dbo",
+    "ParentTable": "skills",
+    "ParentColumn": "user_id",
+    "ReferencedSchema": "dbo",
+    "ReferencedTable": "users",
+    "ReferencedColumn": "id",
+    "OnDelete": "NO_ACTION"
+  }
+]

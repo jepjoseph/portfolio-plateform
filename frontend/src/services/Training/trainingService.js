@@ -12,6 +12,11 @@ import { assertValidTraining, validateTraining } from "./trainingValidation.js";
 
 import { readStoredTraining } from "./trainingStorage.js";
 
+import {
+  fetchTrainings,
+  fetchTrainingById,
+} from "./trainingApiService.js";
+
 import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
 
 function createTrainingServiceError({
@@ -89,7 +94,7 @@ function createTrainingCandidate(trainingData = {}) {
 }
 
 export async function getTrainingRecords({ includeArchived = false } = {}) {
-  const records = readStoredTraining();
+  const records = await fetchTrainings();
 
   return includeArchived
     ? records
@@ -108,18 +113,18 @@ export async function getTrainingById(trainingId) {
     });
   }
 
-  const training = readStoredTraining().find(
-    (record) => record.id === trainingId,
-  );
-
-  if (!training) {
-    throw createTrainingNotFoundError(trainingId);
-  }
-
-  return training;
+  return fetchTrainingById(trainingId);
 }
 
 export async function createTraining(trainingData) {
+  throw createTrainingServiceError({
+    message: "Training writes are temporarily disabled during backend migration.",
+    publicMessage:
+      "Training changes are temporarily unavailable while backend persistence is being connected.",
+    code: "TRAINING_BACKEND_WRITE_NOT_READY",
+    status: 503,
+  });
+
   const records = readStoredTraining();
 
   const candidate = createTrainingCandidate(trainingData);
@@ -151,6 +156,14 @@ export async function createTraining(trainingData) {
 }
 
 export async function updateTraining(trainingId, updates = {}) {
+  throw createTrainingServiceError({
+    message: "Training writes are temporarily disabled during backend migration.",
+    publicMessage:
+      "Training changes are temporarily unavailable while backend persistence is being connected.",
+    code: "TRAINING_BACKEND_WRITE_NOT_READY",
+    status: 503,
+  });
+
   if (!trainingId) {
     throw createTrainingServiceError({
       message: "A training ID is required.",
@@ -234,12 +247,28 @@ export async function updateTraining(trainingId, updates = {}) {
 }
 
 export async function archiveTraining(trainingId) {
+  throw createTrainingServiceError({
+    message: "Training writes are temporarily disabled during backend migration.",
+    publicMessage:
+      "Training changes are temporarily unavailable while backend persistence is being connected.",
+    code: "TRAINING_BACKEND_WRITE_NOT_READY",
+    status: 503,
+  });
+
   return updateTraining(trainingId, {
     status: "archived",
   });
 }
 
 export async function restoreTraining(trainingId) {
+  throw createTrainingServiceError({
+    message: "Training writes are temporarily disabled during backend migration.",
+    publicMessage:
+      "Training changes are temporarily unavailable while backend persistence is being connected.",
+    code: "TRAINING_BACKEND_WRITE_NOT_READY",
+    status: 503,
+  });
+
   return updateTraining(trainingId, {
     status: "active",
   });
@@ -264,6 +293,14 @@ function getTrainingDocumentStorageKeys(training) {
 }
 
 export async function deleteTraining(trainingId) {
+  throw createTrainingServiceError({
+    message: "Training writes are temporarily disabled during backend migration.",
+    publicMessage:
+      "Training changes are temporarily unavailable while backend persistence is being connected.",
+    code: "TRAINING_BACKEND_WRITE_NOT_READY",
+    status: 503,
+  });
+
   if (!trainingId) {
     throw createTrainingServiceError({
       message: "A training ID is required.",
@@ -339,6 +376,14 @@ export async function validateTrainingDraft(
 }
 
 export async function replaceTrainingRecords(trainingValues) {
+  throw createTrainingServiceError({
+    message: "Training writes are temporarily disabled during backend migration.",
+    publicMessage:
+      "Training changes are temporarily unavailable while backend persistence is being connected.",
+    code: "TRAINING_BACKEND_WRITE_NOT_READY",
+    status: 503,
+  });
+
   if (!Array.isArray(trainingValues)) {
     throw createTrainingServiceError({
       message: "The replacement Training Library must be an array.",

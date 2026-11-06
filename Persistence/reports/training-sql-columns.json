@@ -1,0 +1,372 @@
+[
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 1,
+    "ColumnName": "id",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 400,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 2,
+    "ColumnName": "certification_id",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 400,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 3,
+    "ColumnName": "user_id",
+    "DataType": "uniqueidentifier",
+    "MaxLengthBytes": 16,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 4,
+    "ColumnName": "storage_key",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 1000,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 5,
+    "ColumnName": "original_file_name",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 510,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 6,
+    "ColumnName": "mime_type",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 300,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 7,
+    "ColumnName": "file_size",
+    "DataType": "bigint",
+    "MaxLengthBytes": 8,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certification_documents",
+    "ColumnPosition": 8,
+    "ColumnName": "created_at",
+    "DataType": "datetime2",
+    "MaxLengthBytes": 7,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 1,
+    "ColumnName": "id",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 400,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 2,
+    "ColumnName": "user_id",
+    "DataType": "uniqueidentifier",
+    "MaxLengthBytes": 16,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 3,
+    "ColumnName": "name",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 1000,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 4,
+    "ColumnName": "certification_type",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 200,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 5,
+    "ColumnName": "issuing_organization_name",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 1000,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 6,
+    "ColumnName": "status",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 200,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 7,
+    "ColumnName": "certification_data",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": -1,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 8,
+    "ColumnName": "created_at",
+    "DataType": "datetime2",
+    "MaxLengthBytes": 7,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 9,
+    "ColumnName": "updated_at",
+    "DataType": "datetime2",
+    "MaxLengthBytes": 7,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "certifications",
+    "ColumnPosition": 10,
+    "ColumnName": "row_version",
+    "DataType": "timestamp",
+    "MaxLengthBytes": 8,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 1,
+    "ColumnName": "id",
+    "DataType": "uniqueidentifier",
+    "MaxLengthBytes": 16,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 2,
+    "ColumnName": "project_id",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 400,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 3,
+    "ColumnName": "user_id",
+    "DataType": "uniqueidentifier",
+    "MaxLengthBytes": 16,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 4,
+    "ColumnName": "storage_key",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 1000,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 5,
+    "ColumnName": "original_file_name",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 510,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 6,
+    "ColumnName": "mime_type",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 300,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 7,
+    "ColumnName": "file_size",
+    "DataType": "bigint",
+    "MaxLengthBytes": 8,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "project_documents",
+    "ColumnPosition": 8,
+    "ColumnName": "created_at",
+    "DataType": "datetime2",
+    "MaxLengthBytes": 7,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 1,
+    "ColumnName": "id",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 400,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 2,
+    "ColumnName": "user_id",
+    "DataType": "uniqueidentifier",
+    "MaxLengthBytes": 16,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 3,
+    "ColumnName": "name",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 300,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 4,
+    "ColumnName": "normalized_name",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 300,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 5,
+    "ColumnName": "category",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 200,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 6,
+    "ColumnName": "skill_type",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 200,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 7,
+    "ColumnName": "record_status",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": 40,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 8,
+    "ColumnName": "skill_data",
+    "DataType": "nvarchar",
+    "MaxLengthBytes": -1,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 9,
+    "ColumnName": "created_at",
+    "DataType": "datetime2",
+    "MaxLengthBytes": 7,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 10,
+    "ColumnName": "updated_at",
+    "DataType": "datetime2",
+    "MaxLengthBytes": 7,
+    "IsNullable": false,
+    "IsIdentity": false
+  },
+  {
+    "SchemaName": "dbo",
+    "TableName": "skills",
+    "ColumnPosition": 11,
+    "ColumnName": "row_version",
+    "DataType": "timestamp",
+    "MaxLengthBytes": 8,
+    "IsNullable": false,
+    "IsIdentity": false
+  }
+]

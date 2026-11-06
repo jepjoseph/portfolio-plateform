@@ -1,0 +1,984 @@
+﻿TRAINING DOCUMENT ROUTE INTEGRATION PREFLIGHT
+Mode: READ ONLY
+Generated: 2026-11-05 19:21:37
+
+===========================================================================
+FILE: src\routes\trainingRoutes.js
+SHA256: 3FB53DA60D79C675BB037A466ED1A6E91845BBA0BDF318F98EB00B0F93851FC5
+   1: import { Router } from "express";
+   2: 
+   3: import {
+   4:   requireAuthentication,
+   5: } from "../middleware/authenticationMiddleware.js";
+   6: 
+   7: import {
+   8:   listMyTrainings,
+   9:   getMyTraining,
+  10:   createMyTraining,
+  11:   updateMyTraining,
+  12: } from "../controllers/trainingController.js";
+  13: 
+  14: const router = Router();
+  15: 
+  16: // All Training endpoints require authentication.
+  17: router.use(requireAuthentication);
+  18: 
+  19: // Training collection.
+  20: router.get("/", listMyTrainings);
+  21: router.post("/", createMyTraining);
+  22: 
+  23: // Individual Training records.
+  24: router.get("/:trainingId", getMyTraining);
+  25: router.patch("/:trainingId", updateMyTraining);
+  26: 
+  27: // Training deletion and document endpoints are intentionally
+  28: // unavailable until their persistence and cleanup workflows
+  29: // are implemented and verified.
+  30: 
+  31: export default router;
+
+===========================================================================
+FILE: test\routes\trainingRoutes.test.js
+SHA256: C4358C3F9959B7A848C38CAAA1E96061A4EBD5A4EEF8FE1EA23ABA1516B8E9C8
+   1: import test from "node:test";
+   2: import assert from "node:assert/strict";
+   3: 
+   4: import router from "../../src/routes/trainingRoutes.js";
+   5: 
+   6: import {
+   7:   requireAuthentication,
+   8: } from "../../src/middleware/authenticationMiddleware.js";
+   9: 
+  10: import {
+  11:   listMyTrainings,
+  12:   getMyTraining,
+  13:   createMyTraining,
+  14:   updateMyTraining,
+  15: } from "../../src/controllers/trainingController.js";
+  16: 
+  17: const expectedRoutes = [
+  18:   ["get", "/", listMyTrainings],
+  19:   ["post", "/", createMyTraining],
+  20:   ["get", "/:trainingId", getMyTraining],
+  21:   ["patch", "/:trainingId", updateMyTraining],
+  22: ];
+  23: 
+  24: function getRouteLayers() {
+  25:   return router.stack.filter((layer) => layer.route);
+  26: }
+  27: 
+  28: function findRoute(method, path) {
+  29:   return getRouteLayers().find(
+  30:     (layer) =>
+  31:       layer.route.path === path &&
+  32:       layer.route.methods[method] === true,
+  33:   );
+  34: }
+  35: 
+  36: test("Training router is an Express router", () => {
+  37:   assert.equal(typeof router, "function");
+  38:   assert.ok(Array.isArray(router.stack));
+  39: });
+  40: 
+  41: test("Authentication middleware is registered first", () => {
+  42:   const firstLayer = router.stack[0];
+  43: 
+  44:   assert.ok(firstLayer);
+  45:   assert.equal(firstLayer.handle, requireAuthentication);
+  46:   assert.equal(firstLayer.route, undefined);
+  47: });
+  48: 
+  49: test("Exactly four Training routes are registered", () => {
+  50:   assert.equal(getRouteLayers().length, 4);
+  51: });
+  52: 
+  53: for (const [method, path, handler] of expectedRoutes) {
+  54:   test(`${method.toUpperCase()} ${path} uses correct controller`, () => {
+  55:     const layer = findRoute(method, path);
+  56: 
+  57:     assert.ok(
+  58:       layer,
+  59:       `Missing route: ${method.toUpperCase()} ${path}`,
+  60:     );
+  61: 
+  62:     assert.equal(layer.route.stack.length, 1);
+  63:     assert.equal(layer.route.stack[0].handle, handler);
+  64:   });
+  65: }
+  66: 
+  67: test("No DELETE Training route is exposed", () => {
+  68:   const deleteRoutes = getRouteLayers().filter(
+  69:     (layer) => layer.route.methods.delete === true,
+  70:   );
+  71: 
+  72:   assert.equal(deleteRoutes.length, 0);
+  73: });
+  74: 
+  75: test("No PUT Training route is exposed", () => {
+  76:   const putRoutes = getRouteLayers().filter(
+  77:     (layer) => layer.route.methods.put === true,
+  78:   );
+  79: 
+  80:   assert.equal(putRoutes.length, 0);
+  81: });
+  82: 
+  83: test("No document upload routes are exposed", () => {
+  84:   const documentRoutes = getRouteLayers().filter(
+  85:     (layer) => String(layer.route.path).includes("documents"),
+  86:   );
+  87: 
+  88:   assert.equal(documentRoutes.length, 0);
+  89: });
+  90: 
+  91: test("All route handlers are functions", () => {
+  92:   for (const layer of getRouteLayers()) {
+  93:     for (const handler of layer.route.stack) {
+  94:       assert.equal(typeof handler.handle, "function");
+  95:     }
+  96:   }
+  97: });
+  98: 
+  99: test("Training router does not modify existing routers", async () => {
+ 100:   const certificationModule = await import(
+ 101:     "../../src/routes/certificationRoutes.js"
+ 102:   );
+ 103: 
+ 104:   assert.notEqual(router, certificationModule.default);
+ 105: });
+
+===========================================================================
+FILE: src\controllers\certificationDocumentController.js
+SHA256: EAAD1AABEB384339D577218FDA976853DE6BB0A6E15E4FFEBCAFD1B3147FC72C
+   1: import fs from "node:fs";
+   2: import { promises as fsPromises } from "node:fs";
+   3: 
+   4: import {
+   5:   registerCertificationDocument,
+   6:   listAuthenticatedCertificationDocuments,
+   7:   getAuthenticatedCertificationDocument,
+   8:   deleteAuthenticatedCertificationDocument,
+   9: } from "../services/Service/certificationDocumentService.js";
+  10: 
+  11: import {
+  12:   resolveOwnedCertificationDocumentPath,
+  13:   assertSafeCertificationDocumentDirectory,
+  14: } from "../services/Storage/certificationDocumentStorageService.js";
+  15: 
+  16: function setPrivateHeaders(response) {
+  17:   response.set({
+  18:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  19:     Pragma: "no-cache",
+  20:     Expires: "0",
+  21:     "X-Content-Type-Options": "nosniff",
+  22:   });
+  23: }
+  24: 
+  25: function createNotFoundError() {
+  26:   const error = new Error("Certification document not found.");
+  27:   error.status = 404;
+  28:   error.code = "CERTIFICATION_DOCUMENT_NOT_FOUND";
+  29:   error.publicMessage = error.message;
+  30:   return error;
+  31: }
+  32: 
+  33: export async function uploadMyCertificationDocument(
+  34:   request,
+  35:   response,
+  36:   next,
+  37: ) {
+  38:   try {
+  39:     const document = await registerCertificationDocument({
+  40:       userId: request.auth.userId,
+  41:       certificationId: request.params.certificationId,
+  42:       uploadedFile: request.certificationDocumentFile,
+  43:     });
+  44: 
+  45:     setPrivateHeaders(response);
+  46: 
+  47:     return response.status(201).json({
+  48:       status: "success",
+  49:       message: "Certification document uploaded successfully.",
+  50:       data: { document },
+  51:     });
+  52:   } catch (error) {
+  53:     return next(error);
+  54:   }
+  55: }
+  56: 
+  57: export async function listMyCertificationDocuments(
+  58:   request,
+  59:   response,
+  60:   next,
+  61: ) {
+  62:   try {
+  63:     const documents = await listAuthenticatedCertificationDocuments({
+  64:       userId: request.auth.userId,
+  65:       certificationId: request.params.certificationId,
+  66:     });
+  67: 
+  68:     setPrivateHeaders(response);
+  69: 
+  70:     return response.status(200).json({
+  71:       status: "success",
+  72:       message: "Certification documents retrieved successfully.",
+  73:       data: { documents },
+  74:     });
+  75:   } catch (error) {
+  76:     return next(error);
+  77:   }
+  78: }
+  79: 
+  80: export async function getMyCertificationDocument(
+  81:   request,
+  82:   response,
+  83:   next,
+  84: ) {
+  85:   let fileHandle;
+  86: 
+  87:   try {
+  88:     const userId = request.auth.userId;
+  89:     const certificationId = request.params.certificationId;
+  90:     const documentId = request.params.documentId;
+  91: 
+  92:     const document = await getAuthenticatedCertificationDocument({
+  93:       userId,
+  94:       certificationId,
+  95:       documentId,
+  96:     });
+  97: 
+  98:     const filePath = resolveOwnedCertificationDocumentPath(
+  99:       userId,
+ 100:       certificationId,
+ 101:       document.storageKey,
+ 102:     );
+ 103: 
+ 104:     await assertSafeCertificationDocumentDirectory(
+ 105:       userId,
+ 106:       certificationId,
+ 107:     );
+ 108: 
+ 109:     const pathStats = await fsPromises.lstat(filePath);
+ 110: 
+ 111:     if (pathStats.isSymbolicLink() || !pathStats.isFile()) {
+ 112:       throw createNotFoundError();
+ 113:     }
+ 114: 
+ 115:     const flags =
+ 116:       fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+ 117: 
+ 118:     fileHandle = await fsPromises.open(filePath, flags);
+ 119: 
+ 120:     const stats = await fileHandle.stat();
+ 121: 
+ 122:     if (!stats.isFile() || stats.size !== document.fileSize) {
+ 123:       throw createNotFoundError();
+ 124:     }
+ 125: 
+ 126:     const safeName = String(document.originalFileName || "document")
+ 127:       .replace(/[\r\n"\\]/g, "_")
+ 128:       .replace(/[\x00-\x1f\x7f]/g, "_")
+ 129:       .slice(0, 200);
+ 130: 
+ 131:     const encodedName = encodeURIComponent(
+ 132:       document.originalFileName || "document",
+ 133:     );
+ 134: 
+ 135:     setPrivateHeaders(response);
+ 136: 
+ 137:     response.set({
+ 138:       "Content-Type": document.mimeType,
+ 139:       "Content-Length": String(stats.size),
+ 140:       "Content-Disposition":
+ 141:         `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
+ 142:       "Accept-Ranges": "none",
+ 143:     });
+ 144: 
+ 145:     const stream = fileHandle.createReadStream({
+ 146:       autoClose: true,
+ 147:     });
+ 148: 
+ 149:     fileHandle = null;
+ 150: 
+ 151:     stream.on("error", (error) => {
+ 152:       if (!response.headersSent) {
+ 153:         next(error);
+ 154:       } else {
+ 155:         response.destroy(error);
+ 156:       }
+ 157:     });
+ 158: 
+ 159:     stream.pipe(response);
+ 160:   } catch (error) {
+ 161:     if (fileHandle) {
+ 162:       await fileHandle.close().catch(() => {});
+ 163:     }
+ 164: 
+ 165:     if (error.code === "ENOENT") {
+ 166:       return next(createNotFoundError());
+ 167:     }
+ 168: 
+ 169:     return next(error);
+ 170:   }
+ 171: }
+ 172: 
+ 173: export async function deleteMyCertificationDocument(
+ 174:   request,
+ 175:   response,
+ 176:   next,
+ 177: ) {
+ 178:   try {
+ 179:     await deleteAuthenticatedCertificationDocument({
+ 180:       userId: request.auth.userId,
+ 181:       certificationId: request.params.certificationId,
+ 182:       documentId: request.params.documentId,
+ 183:     });
+ 184: 
+ 185:     setPrivateHeaders(response);
+ 186: 
+ 187:     return response.status(204).end();
+ 188:   } catch (error) {
+ 189:     return next(error);
+ 190:   }
+ 191: }
+
+===========================================================================
+FILE: src\middleware\certification\certificationOwnershipMiddleware.js
+SHA256: E22094465369A72CFD988A789926C7405F3E85FD27632B2FB2A629C834EE3E62
+   1: import { getAuthenticatedCertification } from "../../services/Service/certificationService.js";
+   2: 
+   3: /*
+   4:  * Certification Ownership Middleware
+   5:  *
+   6:  * Must execute after authentication and before
+   7:  * any Certification document upload middleware.
+   8:  */
+   9: 
+  10: export async function requireCertificationOwnership(
+  11:   request,
+  12:   response,
+  13:   next,
+  14: ) {
+  15:   try {
+  16:     const certification = await getAuthenticatedCertification({
+  17:       userId: request.auth?.userId,
+  18:       certificationId: request.params?.certificationId,
+  19:     });
+  20: 
+  21:     if (!certification) {
+  22:       const error = new Error("Certification not found.");
+  23:       error.status = 404;
+  24:       error.code = "CERTIFICATION_NOT_FOUND";
+  25:       error.publicMessage = "Certification not found.";
+  26:       return next(error);
+  27:     }
+  28: 
+  29:     request.authorizedCertification = certification;
+  30: 
+  31:     return next();
+  32:   } catch (error) {
+  33:     return next(error);
+  34:   }
+  35: }
+
+===========================================================================
+FILE: src\middleware\errorMiddleware.js
+SHA256: 76CE2055C6B36614372046A8E2EB699E1B569151B3E37594D10214C6937DE5D8
+   1: /*
+   2:  * =========================================
+   3:  * Route Not Found
+   4:  * =========================================
+   5:  */
+   6: 
+   7: export function notFoundHandler(request, response) {
+   8:   response.set({
+   9:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  10: 
+  11:     Pragma: "no-cache",
+  12: 
+  13:     Expires: "0",
+  14:   });
+  15: 
+  16:   return response.status(404).json({
+  17:     status: "error",
+  18: 
+  19:     code: "ROUTE_NOT_FOUND",
+  20: 
+  21:     message: `Route not found: ${request.method} ${request.originalUrl}`,
+  22:   });
+  23: }
+  24: 
+  25: /*
+  26:  * =========================================
+  27:  * Global Error Handler
+  28:  * =========================================
+  29:  */
+  30: 
+  31: export function globalErrorHandler(error, request, response, next) {
+  32:   /*
+  33:    * Express delegates to its default handler
+  34:    * if a response has already started.
+  35:    */
+  36: 
+  37:   if (response.headersSent) {
+  38:     return next(error);
+  39:   }
+  40: 
+  41:   const isMalformedJson =
+  42:     error?.type === "entity.parse.failed" && error instanceof SyntaxError;
+  43: 
+  44:   const status = isMalformedJson ? 400 : normalizeStatus(error?.status);
+  45: 
+  46:   const code = isMalformedJson
+  47:     ? "INVALID_JSON"
+  48:     : normalizePublicCode(error, status);
+  49: 
+  50:   const message = isMalformedJson
+  51:     ? "The request body contains invalid JSON."
+  52:     : getPublicMessage(error, status);
+  53: 
+  54:   /*
+  55:    * Log complete technical information only
+  56:    * on the server.
+  57:    */
+  58: 
+  59:   console.error("Unhandled API error:", {
+  60:     method: request.method,
+  61: 
+  62:     url: request.originalUrl,
+  63: 
+  64:     name: error?.name,
+  65: 
+  66:     code: error?.code,
+  67: 
+  68:     message: error?.message,
+  69: 
+  70:     status,
+  71: 
+  72:     provider: error?.provider,
+  73: 
+  74:     stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+  75:   });
+  76: 
+  77:   response.set({
+  78:     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  79: 
+  80:     Pragma: "no-cache",
+  81: 
+  82:     Expires: "0",
+  83:   });
+  84: 
+  85:   const fieldErrors = normalizeFieldErrors(error?.fieldErrors);
+  86: 
+  87:   const validationErrors = normalizeValidationErrors(
+  88:     error?.errors || error?.validationErrors,
+  89:   );
+  90: 
+  91:   return response.status(status).json({
+  92:     status: "error",
+  93: 
+  94:     code,
+  95: 
+  96:     message,
+  97: 
+  98:     ...(Object.keys(fieldErrors).length > 0
+  99:       ? {
+ 100:           fieldErrors,
+ 101:         }
+ 102:       : {}),
+ 103: 
+ 104:     ...(validationErrors.length > 0
+ 105:       ? {
+ 106:           errors: validationErrors,
+ 107:         }
+ 108:       : {}),
+ 109: 
+ 110:     /*
+ 111:      * Development details are useful while
+ 112:      * building the API but are excluded from
+ 113:      * production responses.
+ 114:      */
+ 115: 
+ 116:     ...(process.env.NODE_ENV === "development"
+ 117:       ? {
+ 118:           debug: {
+ 119:             name: error?.name || "Error",
+ 120: 
+ 121:             technicalMessage: error?.message || "Unknown error",
+ 122: 
+ 123:             provider: error?.provider || null,
+ 124:           },
+ 125:         }
+ 126:       : {}),
+ 127:   });
+ 128: }
+ 129: 
+ 130: /*
+ 131:  * =========================================
+ 132:  * Status Normalization
+ 133:  * =========================================
+ 134:  */
+ 135: 
+ 136: function normalizeStatus(status) {
+ 137:   const numericStatus = Number(status);
+ 138: 
+ 139:   if (
+ 140:     Number.isInteger(numericStatus) &&
+ 141:     numericStatus >= 400 &&
+ 142:     numericStatus <= 599
+ 143:   ) {
+ 144:     return numericStatus;
+ 145:   }
+ 146: 
+ 147:   return 500;
+ 148: }
+ 149: 
+ 150: /*
+ 151:  * =========================================
+ 152:  * Public Error Code
+ 153:  * =========================================
+ 154:  *
+ 155:  * Internal database and provider codes should
+ 156:  * not automatically be returned to clients.
+ 157:  * Application errors are public only when
+ 158:  * they also provide a publicMessage.
+ 159:  */
+ 160: 
+ 161: function normalizePublicCode(error, status) {
+ 162:   const code = typeof error?.code === "string" ? error.code.trim() : "";
+ 163: 
+ 164:   const isSafeCode = /^[A-Z][A-Z0-9_]{1,99}$/.test(code);
+ 165: 
+ 166:   if (error?.publicMessage && isSafeCode) {
+ 167:     return code;
+ 168:   }
+ 169: 
+ 170:   if (status === 400) {
+ 171:     return "BAD_REQUEST";
+ 172:   }
+ 173: 
+ 174:   if (status === 401) {
+ 175:     return "AUTHENTICATION_REQUIRED";
+ 176:   }
+ 177: 
+ 178:   if (status === 403) {
+ 179:     return "ACCESS_FORBIDDEN";
+ 180:   }
+ 181: 
+ 182:   if (status === 404) {
+ 183:     return "RESOURCE_NOT_FOUND";
+ 184:   }
+ 185: 
+ 186:   if (status === 409) {
+ 187:     return "RESOURCE_CONFLICT";
+ 188:   }
+ 189: 
+ 190:   if (status === 429) {
+ 191:     return "RATE_LIMIT_EXCEEDED";
+ 192:   }
+ 193: 
+ 194:   if (status === 503) {
+ 195:     return "SERVICE_UNAVAILABLE";
+ 196:   }
+ 197: 
+ 198:   return "INTERNAL_SERVER_ERROR";
+ 199: }
+ 200: 
+ 201: /*
+ 202:  * =========================================
+ 203:  * Public Error Message
+ 204:  * =========================================
+ 205:  */
+ 206: 
+ 207: function getPublicMessage(error, status) {
+ 208:   if (typeof error?.publicMessage === "string" && error.publicMessage.trim()) {
+ 209:     return error.publicMessage.trim();
+ 210:   }
+ 211: 
+ 212:   if (status === 400) {
+ 213:     return "The request could not be processed.";
+ 214:   }
+ 215: 
+ 216:   if (status === 401) {
+ 217:     return "Authentication is required.";
+ 218:   }
+ 219: 
+ 220:   if (status === 403) {
+ 221:     return "You do not have permission to perform this operation.";
+ 222:   }
+ 223: 
+ 224:   if (status === 404) {
+ 225:     return "The requested resource was not found.";
+ 226:   }
+ 227: 
+ 228:   if (status === 409) {
+ 229:     return "The request conflicts with the current resource state.";
+ 230:   }
+ 231: 
+ 232:   if (status === 429) {
+ 233:     return "Too many requests were submitted. Please try again later.";
+ 234:   }
+ 235: 
+ 236:   if (status === 503) {
+ 237:     return "The service is temporarily unavailable.";
+ 238:   }
+ 239: 
+ 240:   return "An unexpected server error occurred.";
+ 241: }
+ 242: 
+ 243: /*
+ 244:  * =========================================
+ 245:  * Field Error Normalization
+ 246:  * =========================================
+ 247:  */
+ 248: 
+ 249: function normalizeFieldErrors(fieldErrors) {
+ 250:   if (
+ 251:     !fieldErrors ||
+ 252:     typeof fieldErrors !== "object" ||
+ 253:     Array.isArray(fieldErrors)
+ 254:   ) {
+ 255:     return {};
+ 256:   }
+ 257: 
+ 258:   const normalized = {};
+ 259: 
+ 260:   for (const [fieldName, messages] of Object.entries(fieldErrors)) {
+ 261:     const safeFieldName = String(fieldName).slice(0, 100);
+ 262: 
+ 263:     const messageValues = Array.isArray(messages) ? messages : [messages];
+ 264: 
+ 265:     const safeMessages = messageValues
+ 266:       .filter((message) => typeof message === "string")
+ 267:       .map((message) => message.trim().slice(0, 500))
+ 268:       .filter(Boolean);
+ 269: 
+ 270:     if (safeMessages.length > 0) {
+ 271:       normalized[safeFieldName] = safeMessages;
+ 272:     }
+ 273:   }
+ 274: 
+ 275:   return normalized;
+ 276: }
+ 277: 
+ 278: /*
+ 279:  * =========================================
+ 280:  * Validation Error Normalization
+ 281:  * =========================================
+ 282:  */
+ 283: 
+ 284: function normalizeValidationErrors(errors) {
+ 285:   if (!Array.isArray(errors)) {
+ 286:     return [];
+ 287:   }
+ 288: 
+ 289:   return errors
+ 290:     .slice(0, 50)
+ 291:     .map((validationError) => {
+ 292:       if (typeof validationError === "string") {
+ 293:         return {
+ 294:           field: "",
+ 295: 
+ 296:           code: "VALIDATION_ERROR",
+ 297: 
+ 298:           message: validationError.trim().slice(0, 500),
+ 299:         };
+ 300:       }
+ 301: 
+ 302:       if (!validationError || typeof validationError !== "object") {
+ 303:         return null;
+ 304:       }
+ 305: 
+ 306:       const message =
+ 307:         typeof validationError.message === "string"
+ 308:           ? validationError.message.trim().slice(0, 500)
+ 309:           : "";
+ 310: 
+ 311:       if (!message) {
+ 312:         return null;
+ 313:       }
+ 314: 
+ 315:       return {
+ 316:         field:
+ 317:           typeof validationError.field === "string"
+ 318:             ? validationError.field.trim().slice(0, 100)
+ 319:             : "",
+ 320: 
+ 321:         code:
+ 322:           typeof validationError.code === "string"
+ 323:             ? validationError.code.trim().slice(0, 100)
+ 324:             : "VALIDATION_ERROR",
+ 325: 
+ 326:         message,
+ 327:       };
+ 328:     })
+ 329:     .filter(Boolean);
+ 330: }
+
+===========================================================================
+FILE: src\repositories\trainingDocumentRepository.js
+SHA256: FA126F14F0BB4A48D20570F62B981C12B2879CECC6548016B8C848CEFDF69839
+   1: import { getDatabasePool, sql } from "../config/database.js";
+   2: 
+   3: function mapTrainingDocumentRow(row) {
+   4:   if (!row) return null;
+   5: 
+   6:   return {
+   7:     id: row.id,
+   8:     trainingId: row.training_id,
+   9:     userId: row.user_id,
+  10:     storageKey: row.storage_key,
+  11:     originalFileName: row.original_file_name,
+  12:     mimeType: row.mime_type,
+  13:     fileSize: Number(row.file_size),
+  14:     createdAt: new Date(row.created_at).toISOString(),
+  15:   };
+  16: }
+  17: 
+  18: export async function listTrainingDocuments(userId, trainingId) {
+  19:   const pool = await getDatabasePool();
+  20: 
+  21:   const result = await pool.request()
+  22:     .input("userId", sql.UniqueIdentifier, userId)
+  23:     .input("trainingId", sql.NVarChar(200), trainingId)
+  24:     .query(`
+  25:       SELECT
+  26:         id,
+  27:         training_id,
+  28:         user_id,
+  29:         storage_key,
+  30:         original_file_name,
+  31:         mime_type,
+  32:         file_size,
+  33:         created_at
+  34:       FROM dbo.training_documents
+  35:       WHERE user_id = @userId
+  36:         AND training_id = @trainingId
+  37:       ORDER BY created_at DESC, id ASC;
+  38:     `);
+  39: 
+  40:   return result.recordset.map(mapTrainingDocumentRow);
+  41: }
+  42: 
+  43: export async function findTrainingDocumentById(
+  44:   userId,
+  45:   trainingId,
+  46:   documentId,
+  47: ) {
+  48:   const pool = await getDatabasePool();
+  49: 
+  50:   const result = await pool.request()
+  51:     .input("userId", sql.UniqueIdentifier, userId)
+  52:     .input("trainingId", sql.NVarChar(200), trainingId)
+  53:     .input("documentId", sql.NVarChar(200), documentId)
+  54:     .query(`
+  55:       SELECT
+  56:         id,
+  57:         training_id,
+  58:         user_id,
+  59:         storage_key,
+  60:         original_file_name,
+  61:         mime_type,
+  62:         file_size,
+  63:         created_at
+  64:       FROM dbo.training_documents
+  65:       WHERE user_id = @userId
+  66:         AND training_id = @trainingId
+  67:         AND id = @documentId;
+  68:     `);
+  69: 
+  70:   return mapTrainingDocumentRow(result.recordset[0]);
+  71: }
+
+===========================================================================
+FILE: src\services\Storage\trainingDocumentStorageService.js
+SHA256: D81043B4EA111707C15A04B401991B87C7E9110E44CAE2F27A68B8DC862CF1FE
+   1: import fs from "node:fs/promises";
+   2: import path from "node:path";
+   3: 
+   4: import { getEnvironment } from "../../config/environment.js";
+   5: 
+   6: const UUID_PATTERN =
+   7:   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+   8: 
+   9: const DOCUMENT_ID_PATTERN =
+  10:   /^training-document-[a-f0-9-]+$/i;
+  11: 
+  12: function requireIdentifier(value, label) {
+  13:   if (typeof value !== "string" || !value.trim()) {
+  14:     throw new Error(`${label} is required.`);
+  15:   }
+  16: 
+  17:   return value.trim();
+  18: }
+  19: 
+  20: export function getTrainingDocumentStorageRoot() {
+  21:   const configuredPath =
+  22:     getEnvironment().TRAINING_DOCUMENT_STORAGE_PATH;
+  23: 
+  24:   if (!configuredPath) {
+  25:     throw new Error(
+  26:       "TRAINING_DOCUMENT_STORAGE_PATH is not configured.",
+  27:     );
+  28:   }
+  29: 
+  30:   return path.resolve(configuredPath);
+  31: }
+  32: 
+  33: export function resolveOwnedTrainingDocumentPath(
+  34:   userId,
+  35:   trainingId,
+  36:   storageKey,
+  37: ) {
+  38:   const user = requireIdentifier(userId, "User ID");
+  39:   const training = requireIdentifier(trainingId, "Training ID");
+  40:   const key = requireIdentifier(storageKey, "Storage key");
+  41: 
+  42:   if (!UUID_PATTERN.test(user)) {
+  43:     throw new Error("Invalid Training document user ID.");
+  44:   }
+  45: 
+  46:   if (
+  47:     training.length > 200 ||
+  48:     !/^training-[a-f0-9-]+$/i.test(training)
+  49:   ) {
+  50:     throw new Error("Invalid Training document Training ID.");
+  51:   }
+  52: 
+  53:   const parts = key.split("/");
+  54: 
+  55:   if (parts.length !== 3) {
+  56:     throw new Error("Invalid Training document storage key.");
+  57:   }
+  58: 
+  59:   const [keyUser, keyTraining, fileName] = parts;
+  60: 
+  61:   if (
+  62:     keyUser !== user.toLowerCase() ||
+  63:     keyTraining !== training ||
+  64:     !/^training-document-[a-f0-9-]+\.pdf$/i.test(fileName)
+  65:   ) {
+  66:     throw new Error(
+  67:       "Training document storage key does not belong to this owner.",
+  68:     );
+  69:   }
+  70: 
+  71:   const documentId = fileName.slice(0, -4);
+  72: 
+  73:   if (!DOCUMENT_ID_PATTERN.test(documentId)) {
+  74:     throw new Error("Invalid Training document filename.");
+  75:   }
+  76: 
+  77:   const root = getTrainingDocumentStorageRoot();
+  78:   const filePath = path.resolve(root, ...parts);
+  79:   const relativePath = path.relative(root, filePath);
+  80: 
+  81:   if (
+  82:     !relativePath ||
+  83:     relativePath === ".." ||
+  84:     relativePath.startsWith(`..${path.sep}`) ||
+  85:     path.isAbsolute(relativePath)
+  86:   ) {
+  87:     throw new Error("Training document path escapes storage root.");
+  88:   }
+  89: 
+  90:   return filePath;
+  91: }
+  92: 
+  93: export async function verifyOwnedTrainingDocumentFile(
+  94:   userId,
+  95:   trainingId,
+  96:   storageKey,
+  97: ) {
+  98:   const root = getTrainingDocumentStorageRoot();
+  99: 
+ 100:   const filePath = resolveOwnedTrainingDocumentPath(
+ 101:     userId,
+ 102:     trainingId,
+ 103:     storageKey,
+ 104:   );
+ 105: 
+ 106:   const realRoot = await fs.realpath(root);
+ 107:   const realFile = await fs.realpath(filePath);
+ 108: 
+ 109:   const relativePath = path.relative(realRoot, realFile);
+ 110: 
+ 111:   if (
+ 112:     !relativePath ||
+ 113:     relativePath === ".." ||
+ 114:     relativePath.startsWith(`..${path.sep}`) ||
+ 115:     path.isAbsolute(relativePath)
+ 116:   ) {
+ 117:     throw new Error(
+ 118:       "Training document resolves outside private storage.",
+ 119:     );
+ 120:   }
+ 121: 
+ 122:   const stats = await fs.stat(realFile);
+ 123: 
+ 124:   if (!stats.isFile()) {
+ 125:     throw new Error("Training document is not a regular file.");
+ 126:   }
+ 127: 
+ 128:   return {
+ 129:     filePath: realFile,
+ 130:     size: stats.size,
+ 131:   };
+ 132: }
+
+===========================================================================
+FILE: package.json
+SHA256: 814EB4B5DC2CAEFF7746DD89F0A9E60DB1F7E65D5F2FF58CA5FEE481155FC0A5
+   1: {
+   2:   "name": "portfolio-platform-backend",
+   3:   "version": "1.0.0",
+   4:   "description": "Backend API for the portfolio and resume platform",
+   5:   "main": "src/server.js",
+   6:   "scripts": {
+   7:     "dev": "nodemon src/server.js",
+   8:     "start": "node src/server.js",
+   9:     "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+  10:     "db:migrate": "node src/database/runMigrations.js",
+  11:     "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+  12:     "test:local-sql": "node test-local-sql.mjs",
+  13:     "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+  14:     "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+  15:     "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+  16:     "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+  17:     "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+  18:     "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+  19:     "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+  20:     "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+  21:     "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+  22:     "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+  23:     "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+  24:     "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+  25:     "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+  26:     "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+  27:     "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+  28:     "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+  29:     "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+  30:     "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  31:   },
+  32:   "keywords": [],
+  33:   "type": "module",
+  34:   "dependencies": {
+  35:     "argon2": "^0.45.1",
+  36:     "cors": "^2.8.6",
+  37:     "dotenv": "^17.4.2",
+  38:     "express": "^5.2.1",
+  39:     "express-rate-limit": "^8.7.0",
+  40:     "file-type": "^22.1.1",
+  41:     "groq-sdk": "^1.6.0",
+  42:     "helmet": "^8.3.0",
+  43:     "mssql": "^12.7.2",
+  44:     "multer": "^2.4.0",
+  45:     "openai": "^7.9.0",
+  46:     "resend": "^6.28.1",
+  47:     "yauzl": "^3.4.0",
+  48:     "zod": "^4.5.4"
+  49:   },
+  50:   "devDependencies": {
+  51:     "nodemon": "^3.1.14",
+  52:     "supertest": "^7.2.2"
+  53:   }
+  54: }

@@ -1,0 +1,2078 @@
+TRAINING TEST COVERAGE INSPECTION
+Generated: 11/05/2026 17:53:11
+Read-only inspection
+
+================================================================================
+FILE: test\schemas\trainingSchemas.test.js
+================================================================================
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  completeTrainingSchema,
+  createTrainingSchema,
+  updateTrainingSchema,
+  trainingRowVersionSchema,
+  formatTrainingSchemaErrors,
+} from "../../src/schemas/trainingSchemas.js";
+
+function validTraining() {
+  const now = "2026-11-05T12:00:00.000Z";
+
+  return {
+    modelVersion: 2,
+    id: "training-1",
+    title: "Technical Training",
+    trainingType: "technical-training",
+    provider: {
+      name: "Training Provider",
+      type: "training-company",
+      website: "",
+    },
+    delivery: {
+      format: "online-live",
+      location: {
+        city: "",
+        stateRegion: "",
+        country: "",
+        displayValue: "",
+      },
+    },
+    dates: {
+      startDate: "2026-10-01",
+      endDate: "2026-10-31",
+      isCurrent: false,
+    },
+    completion: {
+      status: "completed",
+      durationHours: 20,
+      certificateEarned: false,
+      credentialId: "",
+      credentialUrl: "",
+    },
+    description: "",
+    instructors: [],
+    topics: [],
+    learningOutcomes: [],
+    skillRelationships: [],
+    supportingDocuments: [],
+    relatedEducationIds: [],
+    certificationRelationships: [],
+    relatedCertificationIds: [],
+    relatedExperienceIds: [],
+    relatedProjectIds: [],
+    visibility: Object.fromEntries([
+      "showProvider", "showProviderWebsite", "showDeliveryFormat",
+      "showLocation", "showDates", "showDuration", "showDescription",
+      "showInstructors", "showTopics", "showLearningOutcomes",
+      "showSkills", "showCredential", "showCertifications",
+      "showSupportingDocuments",
+    ].map((field) => [field, true])),
+    privateInformation: { notes: "" },
+    source: "manual",
+    sourceContext: "",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function invalid(modify) {
+  const record = validTraining();
+  modify(record);
+  return completeTrainingSchema.safeParse(record);
+}
+
+test("Accepts a complete Training v2 record", () => {
+  assert.equal(
+    completeTrainingSchema.safeParse(validTraining()).success,
+    true,
+  );
+});
+
+test("Create schema accepts a complete record", () => {
+  assert.equal(createTrainingSchema.safeParse(validTraining()).success, true);
+});
+
+test("Rejects missing title", () => {
+  assert.equal(invalid((r) => { r.title = ""; }).success, false);
+});
+
+test("Rejects title exceeding 250 characters", () => {
+  assert.equal(invalid((r) => { r.title = "x".repeat(251); }).success, false);
+});
+
+test("Rejects missing provider name", () => {
+  assert.equal(invalid((r) => { r.provider.name = ""; }).success, false);
+});
+
+test("Rejects invalid training type", () => {
+  assert.equal(invalid((r) => { r.trainingType = "unknown"; }).success, false);
+});
+
+test("Rejects invalid provider type", () => {
+  assert.equal(invalid((r) => { r.provider.type = "unknown"; }).success, false);
+});
+
+test("Rejects invalid delivery format", () => {
+  assert.equal(invalid((r) => { r.delivery.format = "unknown"; }).success, false);
+});
+
+test("Rejects invalid completion status", () => {
+  assert.equal(invalid((r) => { r.completion.status = "unknown"; }).success, false);
+});
+
+test("Rejects impossible calendar dates", () => {
+  assert.equal(invalid((r) => { r.dates.startDate = "2026-02-30"; }).success, false);
+});
+
+test("Rejects missing start date", () => {
+  assert.equal(invalid((r) => { r.dates.startDate = ""; }).success, false);
+});
+
+test("Rejects end date before start date", () => {
+  assert.equal(invalid((r) => { r.dates.endDate = "2026-09-01"; }).success, false);
+});
+
+test("Rejects end date for current training", () => {
+  assert.equal(invalid((r) => { r.dates.isCurrent = true; }).success, false);
+});
+
+test("Rejects negative duration", () => {
+  assert.equal(invalid((r) => { r.completion.durationHours = -1; }).success, false);
+});
+
+test("Rejects excessive duration", () => {
+  assert.equal(invalid((r) => { r.completion.durationHours = 100001; }).success, false);
+});
+
+test("Rejects invalid provider website", () => {
+  assert.equal(invalid((r) => { r.provider.website = "http://"; }).success, false);
+});
+
+test("Rejects too many instructors", () => {
+  const result = invalid((r) => {
+    r.instructors = Array.from({ length: 21 }, (_, i) => ({
+      id: `instructor-${i}`,
+      name: `Instructor ${i}`,
+      title: "",
+      organization: "",
+      order: i,
+    }));
+  });
+  assert.equal(result.success, false);
+});
+
+test("Rejects duplicate related Education IDs", () => {
+  const result = invalid((r) => {
+    r.relatedEducationIds = ["education-1", "education-1"];
+  });
+  assert.equal(result.success, false);
+});
+
+test("Rejects mismatched Certification relationship IDs", () => {
+  const result = invalid((r) => {
+    r.relatedCertificationIds = ["certification-1"];
+  });
+  assert.equal(result.success, false);
+});
+
+test("Rejects unknown top-level fields", () => {
+  assert.equal(invalid((r) => { r.unexpected = true; }).success, false);
+});
+
+test("Rejects wrong model version", () => {
+  assert.equal(invalid((r) => { r.modelVersion = 1; }).success, false);
+});
+
+test("Rejects updated timestamp before created timestamp", () => {
+  const result = invalid((r) => {
+    r.updatedAt = "2026-11-04T12:00:00.000Z";
+  });
+  assert.equal(result.success, false);
+});
+
+test("Update schema accepts partial updates", () => {
+  assert.equal(updateTrainingSchema.safeParse({
+    title: "Updated title",
+  }).success, true);
+});
+
+test("Update schema rejects empty updates", () => {
+  assert.equal(updateTrainingSchema.safeParse({}).success, false);
+});
+
+test("Update schema rejects server-owned ID", () => {
+  assert.equal(updateTrainingSchema.safeParse({
+    id: "another-id",
+  }).success, false);
+});
+
+test("Validates SQL row versions", () => {
+  const valid = Buffer.alloc(8, 1).toString("base64");
+  assert.equal(trainingRowVersionSchema.safeParse(valid).success, true);
+  assert.equal(trainingRowVersionSchema.safeParse("invalid").success, false);
+});
+
+test("Formats validation errors", () => {
+  const result = completeTrainingSchema.safeParse({
+    ...validTraining(),
+    title: "",
+  });
+
+  assert.equal(result.success, false);
+
+  const errors = formatTrainingSchemaErrors(result.error);
+
+  assert.ok(errors.some((item) => item.field === "title"));
+});
+
+================================================================================
+FILE: test\services\trainingService.test.js
+================================================================================
+import test, { mock } from "node:test";
+import assert from "node:assert/strict";
+
+const VERSION = Buffer.alloc(8, 1).toString("base64");
+const NEXT_VERSION = Buffer.alloc(8, 2).toString("base64");
+
+const USER_ID = "test-user-1";
+const OTHER_USER_ID = "test-user-2";
+
+const calls = [];
+
+const repository = {
+  listTrainingsByUser: mock.fn(async () => []),
+  findTrainingById: mock.fn(async () => null),
+  createTrainingRecord: mock.fn(async (_userId, record) => ({
+    ...record,
+    rowVersion: VERSION,
+  })),
+  updateTrainingRecord: mock.fn(async (_userId, record) => ({
+    ...record,
+    rowVersion: NEXT_VERSION,
+  })),
+};
+
+mock.module(
+  "../../src/repositories/trainingRepository.js",
+  {
+    namedExports: repository,
+  },
+);
+
+const {
+  getAuthenticatedTrainings,
+  getAuthenticatedTraining,
+  createAuthenticatedTraining,
+  updateAuthenticatedTraining,
+} = await import(
+  "../../src/services/Service/trainingService.js"
+);
+
+function training(overrides = {}) {
+  const now = "2026-11-05T12:00:00.000Z";
+
+  const record = {
+    modelVersion: 2,
+    id: "training-1",
+    title: "Network Administration",
+    trainingType: "technical-training",
+    provider: {
+      name: "Training Provider",
+      type: "training-company",
+      website: "",
+    },
+    delivery: {
+      format: "online-live",
+      location: {
+        city: "",
+        stateRegion: "",
+        country: "",
+        displayValue: "",
+      },
+    },
+    dates: {
+      startDate: "2026-10-01",
+      endDate: "2026-10-31",
+      isCurrent: false,
+    },
+    completion: {
+      status: "completed",
+      durationHours: 20,
+      certificateEarned: false,
+      credentialId: "",
+      credentialUrl: "",
+    },
+    description: "Network administration training.",
+    instructors: [],
+    topics: [],
+    learningOutcomes: [],
+    skillRelationships: [],
+    supportingDocuments: [],
+    relatedEducationIds: [],
+    certificationRelationships: [],
+    relatedCertificationIds: [],
+    relatedExperienceIds: [],
+    relatedProjectIds: [],
+    visibility: Object.fromEntries([
+      "showProvider", "showProviderWebsite", "showDeliveryFormat",
+      "showLocation", "showDates", "showDuration", "showDescription",
+      "showInstructors", "showTopics", "showLearningOutcomes",
+      "showSkills", "showCredential", "showCertifications",
+      "showSupportingDocuments",
+    ].map((field) => [field, true])),
+    privateInformation: { notes: "" },
+    source: "manual",
+    sourceContext: "",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  return {
+    ...record,
+    rowVersion: VERSION,
+    ...overrides,
+  };
+}
+
+function resetRepository() {
+  calls.length = 0;
+
+  for (const fn of Object.values(repository)) {
+    fn.mock.resetCalls();
+  }
+
+  repository.listTrainingsByUser.mock.mockImplementation(
+    async (userId) => {
+      calls.push(["list", userId]);
+      return [];
+    },
+  );
+
+  repository.findTrainingById.mock.mockImplementation(
+    async (userId, id) => {
+      calls.push(["find", userId, id]);
+      return null;
+    },
+  );
+
+  repository.createTrainingRecord.mock.mockImplementation(
+    async (userId, record) => {
+      calls.push(["create", userId, record]);
+      return { ...record, rowVersion: VERSION };
+    },
+  );
+
+  repository.updateTrainingRecord.mock.mockImplementation(
+    async (userId, record, version) => {
+      calls.push(["update", userId, record, version]);
+      return { ...record, rowVersion: NEXT_VERSION };
+    },
+  );
+}
+
+function expectError(code, status) {
+  return (error) => {
+    assert.equal(error.name, "TrainingServiceError");
+    assert.equal(error.code, code);
+    assert.equal(error.status, status);
+    assert.equal(typeof error.publicMessage, "string");
+    return true;
+  };
+}
+
+test.beforeEach(resetRepository);
+
+test("LIST rejects missing authentication", async () => {
+  await assert.rejects(
+    getAuthenticatedTrainings({ userId: "" }),
+    expectError("TRAINING_AUTH_REQUIRED", 401),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("LIST returns an empty array", async () => {
+  const result = await getAuthenticatedTrainings({
+    userId: USER_ID,
+  });
+
+  assert.deepEqual(result, []);
+  assert.deepEqual(calls, [["list", USER_ID]]);
+});
+
+test("LIST returns normalized records", async () => {
+  repository.listTrainingsByUser.mock.mockImplementation(
+    async () => [training()],
+  );
+
+  const result = await getAuthenticatedTrainings({
+    userId: USER_ID,
+  });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].title, "Network Administration");
+  assert.equal(result[0].rowVersion, VERSION);
+});
+
+test("GET rejects an invalid Training ID", async () => {
+  await assert.rejects(
+    getAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "",
+    }),
+    expectError("TRAINING_ID_INVALID", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("GET returns 404 when record is missing", async () => {
+  await assert.rejects(
+    getAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "missing",
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+
+  assert.deepEqual(calls, [
+    ["find", USER_ID, "missing"],
+  ]);
+});
+
+test("GET retrieves an authenticated user's Training", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  const result = await getAuthenticatedTraining({
+    userId: USER_ID,
+    trainingId: "training-1",
+  });
+
+  assert.equal(result.id, "training-1");
+  assert.equal(result.rowVersion, VERSION);
+});
+
+test("GET passes the requesting user ID to repository", async () => {
+  await assert.rejects(
+    getAuthenticatedTraining({
+      userId: OTHER_USER_ID,
+      trainingId: "training-1",
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+
+  assert.deepEqual(calls, [
+    ["find", OTHER_USER_ID, "training-1"],
+  ]);
+});
+
+test("CREATE rejects missing authentication", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: null,
+      training: training(),
+    }),
+    expectError("TRAINING_AUTH_REQUIRED", 401),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE rejects non-object input", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: [],
+    }),
+    expectError("TRAINING_REQUEST_INVALID", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE generates server-owned ID and timestamps", async () => {
+  const result = await createAuthenticatedTraining({
+    userId: USER_ID,
+    training: training({
+      id: "client-controlled-id",
+      rowVersion: VERSION,
+      userId: OTHER_USER_ID,
+      user_id: OTHER_USER_ID,
+    }),
+  });
+
+  assert.notEqual(result.id, "client-controlled-id");
+  assert.match(
+    result.id,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+
+  assert.equal(result.rowVersion, VERSION);
+
+  const [operation, userId, saved] = calls[0];
+
+  assert.equal(operation, "create");
+  assert.equal(userId, USER_ID);
+  assert.equal(saved.userId, undefined);
+  assert.equal(saved.user_id, undefined);
+  assert.equal(saved.rowVersion, undefined);
+  assert.ok(Number.isFinite(Date.parse(saved.createdAt)));
+  assert.ok(Number.isFinite(Date.parse(saved.updatedAt)));
+});
+
+test("CREATE rejects invalid title", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({ title: "" }),
+    }),
+    expectError("TRAINING_VALIDATION_FAILED", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE rejects invalid provider", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({ provider: null }),
+    }),
+    expectError("TRAINING_VALIDATION_FAILED", 400),
+  );
+});
+
+test("CREATE rejects unsupported model version", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({ modelVersion: 1 }),
+    }),
+    expectError("TRAINING_VALIDATION_FAILED", 400),
+  );
+});
+
+test("CREATE rejects unsupported documents", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({
+        supportingDocuments: [{ id: "document-1" }],
+      }),
+    }),
+    expectError("TRAINING_DOCUMENTS_NOT_READY", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE maps duplicate SQL ID errors to 409", async () => {
+  repository.createTrainingRecord.mock.mockImplementation(
+    async () => {
+      const error = new Error("Duplicate key");
+      error.number = 2627;
+      throw error;
+    },
+  );
+
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training(),
+    }),
+    expectError("TRAINING_ID_CONFLICT", 409),
+  );
+});
+
+test("CREATE propagates unexpected repository errors", async () => {
+  repository.createTrainingRecord.mock.mockImplementation(
+    async () => {
+      throw new Error("Database unavailable");
+    },
+  );
+
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training(),
+    }),
+    /Database unavailable/,
+  );
+});
+
+test("UPDATE rejects invalid rowVersion", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: "invalid",
+    }),
+    expectError("TRAINING_VERSION_INVALID", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("UPDATE rejects empty changes", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: {},
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_REQUEST_INVALID", 400),
+  );
+});
+
+test("UPDATE rejects server-owned fields", async () => {
+  for (const field of [
+    "id",
+    "userId",
+    "user_id",
+    "createdAt",
+    "updatedAt",
+    "rowVersion",
+    "modelVersion",
+  ]) {
+    await assert.rejects(
+      updateAuthenticatedTraining({
+        userId: USER_ID,
+        trainingId: "training-1",
+        updates: { [field]: "unauthorized" },
+        rowVersion: VERSION,
+      }),
+      expectError("TRAINING_SERVER_FIELD_FORBIDDEN", 400),
+    );
+  }
+
+  assert.equal(calls.length, 0);
+});
+
+test("UPDATE rejects restricted relationships", async () => {
+  for (const field of [
+    "skillRelationships",
+    "certificationRelationships",
+    "relatedCertificationIds",
+    "relatedEducationIds",
+    "relatedExperienceIds",
+    "relatedProjectIds",
+  ]) {
+    await assert.rejects(
+      updateAuthenticatedTraining({
+        userId: USER_ID,
+        trainingId: "training-1",
+        updates: { [field]: [] },
+        rowVersion: VERSION,
+      }),
+      expectError(
+        "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+        400,
+      ),
+    );
+  }
+
+  assert.equal(calls.length, 0);
+});
+
+test("UPDATE rejects document changes", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { supportingDocuments: [] },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_DOCUMENTS_NOT_READY", 400),
+  );
+});
+
+test("UPDATE returns 404 when record is missing", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "missing",
+      updates: { title: "Updated" },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+});
+
+test("UPDATE rejects stale rowVersion before writing", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: NEXT_VERSION,
+    }),
+    expectError("TRAINING_VERSION_CONFLICT", 409),
+  );
+
+  assert.equal(
+    repository.updateTrainingRecord.mock.callCount(),
+    0,
+  );
+});
+
+test("UPDATE preserves existing fields", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  const result = await updateAuthenticatedTraining({
+    userId: USER_ID,
+    trainingId: "training-1",
+    updates: { title: "Updated Training" },
+    rowVersion: VERSION,
+  });
+
+  assert.equal(result.title, "Updated Training");
+  assert.equal(result.description, "Network administration training.");
+  assert.equal(result.provider.name, "Training Provider");
+  assert.equal(result.rowVersion, NEXT_VERSION);
+
+  const updateCall = repository.updateTrainingRecord.mock.calls[0];
+
+  assert.equal(updateCall.arguments[0], USER_ID);
+  assert.equal(updateCall.arguments[1].id, "training-1");
+  assert.equal(updateCall.arguments[2], VERSION);
+});
+
+test("UPDATE returns 409 when concurrent write wins", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  repository.updateTrainingRecord.mock.mockImplementation(
+    async () => null,
+  );
+
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_VERSION_CONFLICT", 409),
+  );
+});
+
+test("UPDATE returns 404 when record disappears", async () => {
+  let reads = 0;
+
+  repository.findTrainingById.mock.mockImplementation(
+    async () => {
+      reads += 1;
+      return reads === 1 ? training() : null;
+    },
+  );
+
+  repository.updateTrainingRecord.mock.mockImplementation(
+    async () => null,
+  );
+
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+});
+
+================================================================================
+FILE: test\integration\trainingRepository.integration.test.js
+================================================================================
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { test } from "node:test";
+
+import { getDatabasePool, sql } from "../../src/config/database.js";
+
+import {
+  listTrainingsByUser,
+  findTrainingById,
+  createTrainingRecord,
+  updateTrainingRecord,
+} from "../../src/repositories/trainingRepository.js";
+
+const enabled = process.env.RUN_TRAINING_DB_TESTS === "1";
+
+const OWNER_ID = process.env.TRAINING_TEST_USER_ID;
+const OTHER_USER_ID = process.env.TRAINING_TEST_OTHER_USER_ID;
+
+const TEST_PREFIX = "integration-training-test-";
+const TEST_ID = `${TEST_PREFIX}${randomUUID()}`;
+
+function makeTraining() {
+  const now = new Date().toISOString();
+
+  return {
+    modelVersion: 2,
+    id: TEST_ID,
+    title: "Training Repository Integration Test",
+    trainingType: "technical-training",
+    provider: {
+      name: "Integration Test Provider",
+      type: "training-company",
+      website: "",
+    },
+    delivery: {
+      format: "online-live",
+      location: {
+        city: "",
+        stateRegion: "",
+        country: "",
+        displayValue: "",
+      },
+    },
+    dates: {
+      startDate: "2026-01-15",
+      endDate: "2026-02-15",
+      isCurrent: false,
+    },
+    completion: {
+      status: "completed",
+      durationHours: 2,
+      certificateEarned: false,
+      credentialId: "",
+      credentialUrl: "",
+    },
+    description: "Temporary database integration test",
+    instructors: [],
+    topics: [],
+    learningOutcomes: [],
+    skillRelationships: [],
+    supportingDocuments: [],
+    relatedEducationIds: [],
+    certificationRelationships: [],
+    relatedCertificationIds: [],
+    relatedExperienceIds: [],
+    relatedProjectIds: [],
+    visibility: {
+      showProvider: true,
+      showSupportingDocuments: false,
+    },
+    privateInformation: {
+      notes: "Temporary test data",
+    },
+    source: "manual",
+    sourceContext: "",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+async function getSnapshot(pool) {
+  const result = await pool.request().query(`
+    SELECT
+      id,
+      CONVERT(varchar(36), user_id) AS user_id,
+      CONVERT(varchar(18), row_version, 1) AS version
+    FROM dbo.trainings
+    ORDER BY id, user_id;
+  `);
+
+  return result.recordset;
+}
+
+async function cleanupTestRecord(pool) {
+  const result = await pool.request()
+    .input("id", sql.NVarChar(200), TEST_ID)
+    .input("userId", sql.UniqueIdentifier, OWNER_ID)
+    .query(`
+      DELETE FROM dbo.trainings
+      WHERE id = @id
+        AND user_id = @userId;
+    `);
+
+  assert.ok(
+    result.rowsAffected[0] === 0 ||
+    result.rowsAffected[0] === 1,
+    "Cleanup affected an unexpected number of records",
+  );
+}
+
+test(
+  "Azure SQL Training integration, ownership, concurrency and cleanup",
+  { skip: !enabled },
+  async (t) => {
+    assert.match(
+      OWNER_ID ?? "",
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      "TRAINING_TEST_USER_ID must be a valid UUID",
+    );
+
+    assert.match(
+      OTHER_USER_ID ?? "",
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      "TRAINING_TEST_OTHER_USER_ID must be a valid UUID",
+    );
+
+    assert.notEqual(
+      OWNER_ID.toLowerCase(),
+      OTHER_USER_ID.toLowerCase(),
+      "Owner and other user must differ",
+    );
+
+    const pool = await getDatabasePool();
+
+    const schema = await pool.request().query(`
+      SELECT
+        c.name
+      FROM sys.columns AS c
+      WHERE c.object_id = OBJECT_ID(N'dbo.trainings');
+    `);
+
+    const columns = new Set(
+      schema.recordset.map((row) => row.name),
+    );
+
+    for (const required of [
+      "id",
+      "user_id",
+      "title",
+      "training_type",
+      "provider_name",
+      "status",
+      "training_data",
+      "created_at",
+      "updated_at",
+      "row_version",
+    ]) {
+      assert.ok(
+        columns.has(required),
+        `Missing required database column: ${required}`,
+      );
+    }
+
+    const originalSnapshot = await getSnapshot(pool);
+
+    assert.equal(
+      originalSnapshot.some((row) => row.id === TEST_ID),
+      false,
+      "Generated test ID unexpectedly already exists",
+    );
+
+    let created = false;
+    let testFailure = null;
+
+    async function checkedTest(name, callback) {
+      let failure = null;
+
+      await t.test(name, async () => {
+        try {
+          await callback();
+        } catch (error) {
+          failure = error;
+          throw error;
+        }
+      });
+
+      if (failure) {
+        throw new Error(
+          `Integration subtest failed: ${name}`,
+          { cause: failure },
+        );
+      }
+    }
+
+    try {
+      await checkedTest("INSERT creates a Training record", async () => {
+        const training = makeTraining();
+
+        const result = await createTrainingRecord(
+          OWNER_ID,
+          training,
+        );
+
+        created = true;
+
+        assert.equal(result.id, TEST_ID);
+        assert.equal(result.title, training.title);
+        assert.equal(result.modelVersion, 2);
+        assert.ok(result.rowVersion);
+      });
+
+      if (!created) {
+        throw new Error(
+          "INSERT did not complete; stopping dependent tests.",
+        );
+      }
+
+      await checkedTest("SELECT retrieves the created Training", async () => {
+        const result = await findTrainingById(
+          OWNER_ID,
+          TEST_ID,
+        );
+
+        assert.ok(result);
+        assert.equal(result.id, TEST_ID);
+      });
+
+      await checkedTest("LIST includes the owner's Training", async () => {
+        const results = await listTrainingsByUser(OWNER_ID);
+
+        assert.ok(
+          results.some((item) => item.id === TEST_ID),
+        );
+      });
+
+      await checkedTest("Another user cannot read the Training", async () => {
+        const result = await findTrainingById(
+          OTHER_USER_ID,
+          TEST_ID,
+        );
+
+        assert.equal(result, null);
+
+        const list = await listTrainingsByUser(OTHER_USER_ID);
+
+        assert.equal(
+          list.some((item) => item.id === TEST_ID),
+          false,
+        );
+      });
+
+      await checkedTest("UPDATE changes Training and rowVersion", async () => {
+        const before = await findTrainingById(
+          OWNER_ID,
+          TEST_ID,
+        );
+
+        const changed = {
+          ...before,
+          title: "Updated Training Integration Test",
+        };
+
+        const result = await updateTrainingRecord(
+          OWNER_ID,
+          changed,
+          before.rowVersion,
+        );
+
+        assert.ok(result);
+        assert.equal(
+          result.title,
+          "Updated Training Integration Test",
+        );
+
+        assert.notEqual(
+          result.rowVersion,
+          before.rowVersion,
+        );
+      });
+
+      await checkedTest("Another user cannot update Training", async () => {
+        const current = await findTrainingById(
+          OWNER_ID,
+          TEST_ID,
+        );
+
+        const result = await updateTrainingRecord(
+          OTHER_USER_ID,
+          {
+            ...current,
+            title: "Unauthorized Update",
+          },
+          current.rowVersion,
+        );
+
+        assert.equal(result, null);
+
+        const after = await findTrainingById(
+          OWNER_ID,
+          TEST_ID,
+        );
+
+        assert.equal(after.title, current.title);
+        assert.equal(after.rowVersion, current.rowVersion);
+      });
+
+      await checkedTest("Stale rowVersion cannot overwrite newer data", async () => {
+        const original = await findTrainingById(
+          OWNER_ID,
+          TEST_ID,
+        );
+
+        const firstUpdate = await updateTrainingRecord(
+          OWNER_ID,
+          {
+            ...original,
+            title: "First Concurrency Update",
+          },
+          original.rowVersion,
+        );
+
+        assert.ok(firstUpdate);
+
+        const staleUpdate = await updateTrainingRecord(
+          OWNER_ID,
+          {
+            ...original,
+            title: "Stale Concurrency Update",
+          },
+          original.rowVersion,
+        );
+
+        assert.equal(staleUpdate, null);
+
+        const finalRecord = await findTrainingById(
+          OWNER_ID,
+          TEST_ID,
+        );
+
+        assert.equal(
+          finalRecord.title,
+          "First Concurrency Update",
+        );
+
+        assert.equal(
+          finalRecord.rowVersion,
+          firstUpdate.rowVersion,
+        );
+      });
+    } catch (error) {
+      testFailure = error;
+    } finally {
+      try {
+        await cleanupTestRecord(pool);
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [testFailure, cleanupError].filter(Boolean),
+          `Cleanup failed for Training test record ${TEST_ID}. Manual review required.`,
+        );
+      }
+    }
+
+    const remaining = await pool.request()
+      .input("id", sql.NVarChar(200), TEST_ID)
+      .query(`
+        SELECT COUNT_BIG(*) AS count
+        FROM dbo.trainings
+        WHERE id = @id;
+      `);
+
+    assert.equal(
+      Number(remaining.recordset[0].count),
+      0,
+      "Test Training record was not removed",
+    );
+
+    const finalSnapshot = await getSnapshot(pool);
+
+    assert.deepEqual(
+      finalSnapshot,
+      originalSnapshot,
+      "Pre-existing Training records changed during testing",
+    );
+
+    if (testFailure) {
+      throw testFailure;
+    }
+  },
+);
+
+
+================================================================================
+FILE: src\services\Service\trainingService.js
+================================================================================
+import { randomUUID } from "node:crypto";
+
+import {
+  completeTrainingSchema,
+  updateTrainingSchema,
+  formatTrainingSchemaErrors,
+} from "../../schemas/trainingSchemas.js";
+
+import {
+  listTrainingsByUser,
+  findTrainingById,
+  createTrainingRecord,
+  updateTrainingRecord,
+} from "../../repositories/trainingRepository.js";
+
+function trainingError(message, code, status, errors) {
+  const error = new Error(message);
+  error.name = "TrainingServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  if (errors) error.errors = errors;
+
+  return error;
+}
+
+function requireUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw trainingError(
+      "Authentication is required.",
+      "TRAINING_AUTH_REQUIRED",
+      401,
+    );
+  }
+
+  return userId.trim();
+}
+
+function requireTrainingId(trainingId) {
+  if (
+    typeof trainingId !== "string" ||
+    !trainingId.trim() ||
+    trainingId.length > 200
+  ) {
+    throw trainingError(
+      "A valid Training identifier is required.",
+      "TRAINING_ID_INVALID",
+      400,
+    );
+  }
+
+  return trainingId.trim();
+}
+
+function requireObject(value, field) {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw trainingError(
+      `${field} must be a JSON object.`,
+      "TRAINING_REQUEST_INVALID",
+      400,
+    );
+  }
+
+  return value;
+}
+
+function validateTraining(training) {
+  requireObject(training, "Training");
+
+  const result = completeTrainingSchema.safeParse(training);
+
+  if (!result.success) {
+    throw trainingError(
+      "Training validation failed.",
+      "TRAINING_VALIDATION_FAILED",
+      400,
+      formatTrainingSchemaErrors(result.error),
+    );
+  }
+
+  return result.data;
+}
+
+function validateTrainingUpdates(updates) {
+  const result = updateTrainingSchema.safeParse(updates);
+
+  if (!result.success) {
+    throw trainingError(
+      "Training validation failed.",
+      "TRAINING_VALIDATION_FAILED",
+      400,
+      formatTrainingSchemaErrors(result.error),
+    );
+  }
+
+  return result.data;
+}
+
+function mergeTrainingUpdates(existing, changes) {
+  const candidate = {
+    ...existing,
+    ...changes,
+  };
+
+  if (changes.provider) {
+    candidate.provider = {
+      ...existing.provider,
+      ...changes.provider,
+    };
+  }
+
+  if (changes.delivery) {
+    candidate.delivery = {
+      ...existing.delivery,
+      ...changes.delivery,
+      location: {
+        ...existing.delivery.location,
+        ...(changes.delivery.location || {}),
+      },
+    };
+  }
+
+  for (const field of [
+    "dates",
+    "completion",
+    "visibility",
+    "privateInformation",
+  ]) {
+    if (changes[field]) {
+      candidate[field] = {
+        ...existing[field],
+        ...changes[field],
+      };
+    }
+  }
+
+  return candidate;
+}
+
+function requireValidRowVersion(value) {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Za-z0-9+/]{11}=$/.test(value)
+  ) {
+    throw trainingError(
+      "A valid Training version is required.",
+      "TRAINING_VERSION_INVALID",
+      400,
+    );
+  }
+
+  const bytes = Buffer.from(value, "base64");
+
+  if (
+    bytes.length !== 8 ||
+    bytes.toString("base64") !== value
+  ) {
+    throw trainingError(
+      "A valid Training version is required.",
+      "TRAINING_VERSION_INVALID",
+      400,
+    );
+  }
+
+  return value;
+}
+
+function requireNoNewDocuments(documents) {
+  if (documents !== undefined) {
+    if (!Array.isArray(documents)) {
+      throw trainingError(
+        "Supporting documents must be an array.",
+        "TRAINING_DOCUMENTS_INVALID",
+        400,
+      );
+    }
+
+    if (documents.length > 0) {
+      throw trainingError(
+        "Training document uploads are not available yet.",
+        "TRAINING_DOCUMENTS_NOT_READY",
+        400,
+      );
+    }
+  }
+}
+
+function requireNoRelationshipUpdates(updates) {
+  const restricted = [
+    "skillRelationships",
+    "certificationRelationships",
+    "relatedCertificationIds",
+    "relatedEducationIds",
+    "relatedExperienceIds",
+    "relatedProjectIds",
+  ];
+
+  for (const field of restricted) {
+    if (Object.hasOwn(updates, field)) {
+      throw trainingError(
+        `Updating ${field} is not available yet.`,
+        "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+        400,
+      );
+    }
+  }
+}
+
+function normalizeRecord(record) {
+  if (!record) return null;
+
+  return {
+    ...record,
+    createdAt: new Date(record.createdAt).toISOString(),
+    updatedAt: new Date(record.updatedAt).toISOString(),
+  };
+}
+
+function notFound() {
+  return trainingError(
+    "Training not found.",
+    "TRAINING_NOT_FOUND",
+    404,
+  );
+}
+
+function versionConflict() {
+  return trainingError(
+    "Training was modified by another operation. Reload before saving.",
+    "TRAINING_VERSION_CONFLICT",
+    409,
+  );
+}
+
+export async function getAuthenticatedTrainings({ userId }) {
+  const authenticatedUserId = requireUserId(userId);
+  const records = await listTrainingsByUser(authenticatedUserId);
+
+  return records.map(normalizeRecord);
+}
+
+export async function getAuthenticatedTraining({
+  userId,
+  trainingId,
+}) {
+  const authenticatedUserId = requireUserId(userId);
+  const id = requireTrainingId(trainingId);
+
+  const record = await findTrainingById(authenticatedUserId, id);
+
+  if (!record) throw notFound();
+
+  return normalizeRecord(record);
+}
+
+export async function createAuthenticatedTraining({
+  userId,
+  training,
+}) {
+  const authenticatedUserId = requireUserId(userId);
+  const input = requireObject(training, "Training");
+
+  requireNoNewDocuments(input.supportingDocuments);
+
+  const now = new Date().toISOString();
+
+  // Remove backend-managed metadata from the client payload.
+  const {
+    rowVersion: _clientRowVersion,
+    userId: _clientUserId,
+    user_id: _clientUserIdSql,
+    ...clientModel
+  } = input;
+
+  const candidate = validateTraining({
+    ...clientModel,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  try {
+    const created = await createTrainingRecord(
+      authenticatedUserId,
+      candidate,
+    );
+
+    return normalizeRecord(created);
+  } catch (error) {
+    const number =
+      error.number ??
+      error.originalError?.number ??
+      error.cause?.number;
+
+    if (number === 2601 || number === 2627) {
+      throw trainingError(
+        "A Training identifier already exists.",
+        "TRAINING_ID_CONFLICT",
+        409,
+      );
+    }
+
+    throw error;
+  }
+}
+
+export async function updateAuthenticatedTraining({
+  userId,
+  trainingId,
+  updates,
+  rowVersion,
+}) {
+  const authenticatedUserId = requireUserId(userId);
+  const id = requireTrainingId(trainingId);
+  const expectedVersion = requireValidRowVersion(rowVersion);
+  const changes = requireObject(updates, "Training updates");
+
+  if (!Object.keys(changes).length) {
+    throw trainingError(
+      "Provide at least one Training field to update.",
+      "TRAINING_REQUEST_INVALID",
+      400,
+    );
+  }
+
+  const forbidden = [
+    "id",
+    "userId",
+    "user_id",
+    "createdAt",
+    "updatedAt",
+    "rowVersion",
+    "modelVersion",
+  ];
+
+  for (const field of forbidden) {
+    if (Object.hasOwn(changes, field)) {
+      throw trainingError(
+        `${field} cannot be updated.`,
+        "TRAINING_SERVER_FIELD_FORBIDDEN",
+        400,
+      );
+    }
+  }
+
+  requireNoRelationshipUpdates(changes);
+
+  if (Object.hasOwn(changes, "supportingDocuments")) {
+    throw trainingError(
+      "Updating Training documents is not available yet.",
+      "TRAINING_DOCUMENTS_NOT_READY",
+      400,
+    );
+  }
+
+  // Reject unsupported top-level fields before database access.
+  const allowedFields = new Set([
+    "title",
+    "trainingType",
+    "provider",
+    "delivery",
+    "dates",
+    "completion",
+    "description",
+    "instructors",
+    "topics",
+    "learningOutcomes",
+    "visibility",
+    "privateInformation",
+    "source",
+    "sourceContext",
+    "status",
+  ]);
+
+  for (const field of Object.keys(changes)) {
+    if (!allowedFields.has(field)) {
+      throw trainingError(
+        "Training validation failed.",
+        "TRAINING_VALIDATION_FAILED",
+        400,
+        [{
+          field,
+          code: "unrecognized_keys",
+          message: "Unsupported Training field.",
+        }],
+      );
+    }
+  }
+
+  const existing = await findTrainingById(
+    authenticatedUserId,
+    id,
+  );
+
+  if (!existing) throw notFound();
+
+  if (existing.rowVersion !== expectedVersion) {
+    throw versionConflict();
+  }
+
+  const {
+    rowVersion: _storedVersion,
+    ...storedModel
+  } = normalizeRecord(existing);
+
+  const merged = mergeTrainingUpdates(storedModel, changes);
+
+  // Validate PATCH fields after merging nested structures.
+  const validatedChanges = validateTrainingUpdates(
+    Object.fromEntries(
+      Object.keys(changes).map((field) => [
+        field,
+        merged[field],
+      ]),
+    ),
+  );
+
+  const candidate = validateTraining({
+    ...mergeTrainingUpdates(storedModel, validatedChanges),
+    id: storedModel.id,
+    createdAt: storedModel.createdAt,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const updated = await updateTrainingRecord(
+    authenticatedUserId,
+    candidate,
+    expectedVersion,
+  );
+
+  if (!updated) {
+    const current = await findTrainingById(
+      authenticatedUserId,
+      id,
+    );
+
+    if (!current) throw notFound();
+
+    throw versionConflict();
+  }
+
+  return normalizeRecord(updated);
+}
+
+================================================================================
+FILE: src\schemas\trainingSchemas.js
+================================================================================
+import { z } from "zod";
+
+export const TRAINING_MODEL_VERSION = 2;
+
+export const TRAINING_TYPE_VALUES = [
+  "professional-course", "technical-training", "workshop",
+  "bootcamp", "seminar", "webinar", "conference",
+  "employer-training", "vendor-training", "compliance-training",
+  "leadership-training", "self-paced-learning", "other",
+];
+
+export const TRAINING_PROVIDER_TYPE_VALUES = [
+  "", "education-institution", "employer", "technology-vendor",
+  "training-company", "professional-association", "government",
+  "nonprofit", "online-platform", "independent-instructor",
+  "self-directed", "other",
+];
+
+export const TRAINING_DELIVERY_FORMAT_VALUES = [
+  "in-person", "online-live", "online-self-paced",
+  "hybrid", "on-the-job", "other",
+];
+
+export const TRAINING_COMPLETION_STATUS_VALUES = [
+  "planned", "in-progress", "completed", "paused", "withdrawn",
+];
+
+export const TRAINING_DOCUMENT_TYPE_VALUES = [
+  "completion-certificate", "attendance-certificate",
+  "transcript", "course-outline", "syllabus", "assessment",
+  "badge", "receipt", "supporting-evidence", "other",
+];
+
+export const TRAINING_SOURCE_VALUES = [
+  "manual", "imported", "ai-suggested",
+];
+
+export const TRAINING_STATUS_VALUES = ["active", "archived"];
+
+const text = (max) => z.string().trim().max(max);
+const requiredText = (max) => text(max).min(1);
+const id = requiredText(200);
+const order = z.number().int().nonnegative();
+
+const timestamp = z.string().datetime({ offset: true });
+
+function validDate(value) {
+  if (value === "") return true;
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(value)) {
+    return false;
+  }
+
+  if (value.length === 7) return true;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const actual = new Date(Date.UTC(year, month - 1, day));
+
+  return actual.getUTCFullYear() === year &&
+    actual.getUTCMonth() === month - 1 &&
+    actual.getUTCDate() === day;
+}
+
+const date = z.string().refine(validDate, "Invalid calendar date.");
+const requiredDate = date.refine(Boolean, "A date is required.");
+
+function dateBounds(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  const start = Date.UTC(year, month - 1, day || 1);
+  const end = value.length === 7
+    ? Date.UTC(year, month, 0)
+    : start;
+
+  return { start, end };
+}
+
+const url = (max) => text(max).refine((value) => {
+  if (!value) return true;
+
+  try {
+    const candidate = /^https?:\/\//i.test(value)
+      ? value
+      : `https://${value}`;
+
+    const parsed = new URL(candidate);
+    return ["http:", "https:"].includes(parsed.protocol) &&
+      Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+}, "Enter a valid HTTP or HTTPS URL.");
+
+const provider = z.object({
+  name: requiredText(200),
+  type: z.enum(TRAINING_PROVIDER_TYPE_VALUES),
+  website: url(500),
+}).strict();
+
+const delivery = z.object({
+  format: z.enum(TRAINING_DELIVERY_FORMAT_VALUES),
+  location: z.object({
+    city: text(120),
+    stateRegion: text(120),
+    country: text(120),
+    displayValue: text(300),
+  }).strict(),
+}).strict();
+
+const dates = z.object({
+  startDate: requiredDate,
+  endDate: date,
+  isCurrent: z.boolean(),
+}).strict();
+
+const completion = z.object({
+  status: z.enum(TRAINING_COMPLETION_STATUS_VALUES),
+  durationHours: z.number().finite().min(0).max(100000).nullable(),
+  certificateEarned: z.boolean(),
+  credentialId: text(250),
+  credentialUrl: url(1000),
+}).strict();
+
+const instructor = z.object({
+  id,
+  name: requiredText(200),
+  title: text(200),
+  organization: text(200),
+  order,
+}).strict();
+
+const topic = z.object({
+  id,
+  name: requiredText(250),
+  description: text(1500),
+  order,
+}).strict();
+
+const learningOutcome = z.object({
+  id,
+  text: requiredText(1500),
+  order,
+}).strict();
+
+const skillRelationship = z.object({
+  id,
+  skillId: text(200),
+  nameSnapshot: text(150),
+  categorySnapshot: text(100),
+  typeSnapshot: text(100),
+  order,
+}).strict().refine(
+  (value) => Boolean(value.skillId || value.nameSnapshot),
+  "A skill identifier or name is required.",
+);
+
+const certificationRelationship = z.object({
+  id,
+  certificationId: id,
+  order,
+  snapshot: z.object({
+    name: text(160),
+    issuingOrganizationName: text(160),
+    certificationType: text(100),
+    credentialState: text(100),
+    issueDate: date,
+    expirationDate: date,
+    doesNotExpire: z.boolean(),
+  }).strict(),
+}).strict();
+
+const document = z.object({
+  id,
+  documentType: z.enum(TRAINING_DOCUMENT_TYPE_VALUES),
+  name: text(250),
+  description: text(1000),
+  fileName: text(500),
+  mimeType: text(200),
+  fileSize: z.number().finite().nonnegative().nullable(),
+  storageProvider: text(100),
+  storageKey: text(500),
+  fileUrl: text(2000),
+  uploadedAt: text(100),
+  visibility: z.enum(["private", "public"]),
+  order,
+}).strict();
+
+const visibilityFields = [
+  "showProvider",
+  "showProviderWebsite",
+  "showDeliveryFormat",
+  "showLocation",
+  "showDates",
+  "showDuration",
+  "showDescription",
+  "showInstructors",
+  "showTopics",
+  "showLearningOutcomes",
+  "showSkills",
+  "showCredential",
+  "showCertifications",
+  "showSupportingDocuments",
+];
+
+const visibility = z.object(
+  Object.fromEntries(
+    visibilityFields.map((field) => [field, z.boolean()]),
+  ),
+).strict();
+
+const baseSchema = z.object({
+  modelVersion: z.literal(TRAINING_MODEL_VERSION),
+  id,
+  title: requiredText(250),
+  trainingType: z.enum(TRAINING_TYPE_VALUES),
+  provider,
+  delivery,
+  dates,
+  completion,
+  description: text(3000),
+  instructors: z.array(instructor).max(20),
+  topics: z.array(topic).max(50),
+  learningOutcomes: z.array(learningOutcome).max(30),
+  skillRelationships: z.array(skillRelationship).max(50),
+  supportingDocuments: z.array(document).max(20),
+  relatedEducationIds: z.array(id).max(20),
+  certificationRelationships: z.array(certificationRelationship).max(20),
+  relatedCertificationIds: z.array(id).max(20),
+  relatedExperienceIds: z.array(id).max(30),
+  relatedProjectIds: z.array(id).max(30),
+  visibility,
+  privateInformation: z.object({
+    notes: text(3000),
+  }).strict(),
+  source: z.enum(TRAINING_SOURCE_VALUES),
+  sourceContext: text(500),
+  status: z.enum(TRAINING_STATUS_VALUES),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}).strict();
+
+function validateRules(value, context) {
+  const issue = (path, message) => context.addIssue({
+    code: "custom",
+    path,
+    message,
+  });
+
+  if (value.dates.isCurrent && value.dates.endDate) {
+    issue(["dates", "endDate"], "Current training cannot have an end date.");
+  }
+
+  if (
+    value.dates.endDate &&
+    dateBounds(value.dates.endDate).end <
+      dateBounds(value.dates.startDate).start
+  ) {
+    issue(["dates", "endDate"], "End date precedes start date.");
+  }
+
+  if (
+    value.completion.status === "in-progress" &&
+    !value.dates.isCurrent
+  ) {
+    issue(["dates", "isCurrent"], "In-progress training must be current.");
+  }
+
+  if (
+    new Date(value.updatedAt).getTime() <
+    new Date(value.createdAt).getTime()
+  ) {
+    issue(["updatedAt"], "Updated timestamp precedes creation.");
+  }
+
+  function unique(items, path, getKey) {
+    const seen = new Set();
+
+    items.forEach((item, index) => {
+      const key = getKey(item);
+
+      if (!key) return;
+
+      const normalized = String(key).normalize("NFKC").toLowerCase();
+
+      if (seen.has(normalized)) {
+        issue([...path, index], "Duplicate item.");
+      }
+
+      seen.add(normalized);
+    });
+  }
+
+  for (const field of [
+    "instructors", "topics", "learningOutcomes",
+    "skillRelationships", "certificationRelationships",
+    "supportingDocuments",
+  ]) {
+    unique(value[field], [field], (item) => item.id);
+  }
+
+  unique(
+    value.skillRelationships,
+    ["skillRelationships"],
+    (item) => item.skillId || item.nameSnapshot,
+  );
+
+  unique(
+    value.certificationRelationships,
+    ["certificationRelationships"],
+    (item) => item.certificationId,
+  );
+
+  for (const field of [
+    "relatedEducationIds", "relatedCertificationIds",
+    "relatedExperienceIds", "relatedProjectIds",
+  ]) {
+    unique(value[field], [field], (item) => item);
+  }
+
+  const canonicalIds = value.certificationRelationships.map(
+    (item) => item.certificationId,
+  );
+
+  if (
+    JSON.stringify(canonicalIds) !==
+    JSON.stringify(value.relatedCertificationIds)
+  ) {
+    issue(
+      ["relatedCertificationIds"],
+      "Certification IDs must match canonical relationships.",
+    );
+  }
+}
+
+export const completeTrainingSchema =
+  baseSchema.superRefine(validateRules);
+
+export const createTrainingSchema = completeTrainingSchema;
+
+export const updateTrainingSchema = baseSchema
+  .omit({
+    id: true,
+    modelVersion: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .partial()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "Provide at least one Training field to update.",
+  );
+
+export const trainingIdParamsSchema = z.object({
+  trainingId: id,
+}).strict();
+
+export const trainingRowVersionSchema = z.string().refine(
+  (value) => {
+    if (!/^[A-Za-z0-9+/]{11}=$/.test(value)) return false;
+    const bytes = Buffer.from(value, "base64");
+    return bytes.length === 8 &&
+      bytes.toString("base64") === value;
+  },
+  "A valid SQL row version is required.",
+);
+
+export function formatTrainingSchemaErrors(error) {
+  return (error?.issues || []).map((item) => ({
+    field: item.path.join("."),
+    code: item.code,
+    message: item.message,
+  }));
+}
+
+================================================================================
+FILE: package.json
+================================================================================
+{
+  "name": "portfolio-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend API for the portfolio and resume platform",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/config/environment.js && node --check src/config/database.js && node --check src/database/runMigrations.js && node --check src/repositories/authRepository.js && node --check src/repositories/sessionRepository.js && node --check src/services/Service/registrationService.js && node --check src/email/emailService.js && node --check src/email/providers/developmentEmailProvider.js && node --check src/email/providers/resendEmailProvider.js && node --check src/security/emailSecurity.js && node --check src/security/otpSecurity.js && node --check src/security/passwordSecurity.js && node --check src/security/tokenSecurity.js && node --check src/security/requestSecurity.js && node --check src/security/sessionCookieSecurity.js && node --check src/services/Service/sessionService.js && node --check src/server.js && node --check src/app.js && node --check src/schemas/registrationSchemas.js && node --check src/controllers/registrationController.js && node --check src/routes/authRoutes.js && node --check src/repositories/loginRepository.js && node --check src/services/Service/loginService.js && node --check src/schemas/loginSchemas.js && node --check src/controllers/loginController.js && node --check src/controllers/sessionController.js && node --check src/middleware/authenticationMiddleware.js && node --check src/middleware/errorMiddleware.js && node --check src/controllers/userController.js && node --check src/routes/userRoutes.js && node --check src/schemas/contactSchemas.js && node --check src/repositories/contactRepository.js && node --check src/services/Service/contactService.js && node --check src/controllers/contactController.js && node --check src/routes/supportRoutes.js && node --check src/schemas/sessionManagementSchemas.js  && node --check src/middleware/profile/profilePictureUploadMiddleware.js  && node --check src/middleware/profile/profilePictureValidationMiddleware.js  && node --check src/controllers/profileController.js  && node --check src/routes/profileRoutes.js && node --check src/schemas/projectNestedValidation.js && node --check src/schemas/projectSchemas.js && node --check src/repositories/projectRepository.js && node --check src/services/Service/projectService.js && node --check src/controllers/projectController.js && node --check src/routes/projectRoutes.js",
+    "db:migrate": "node src/database/runMigrations.js",
+    "test": "node --experimental-test-module-mocks --test --test-concurrency=1",
+    "test:local-sql": "node test-local-sql.mjs",
+    "test:security": "node --test --test-concurrency=1 test/security/securityUtilities.test.js",
+    "test:registration": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/registrationService.test.js",
+    "test:email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/emailService.test.js",
+    "test:api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/registrationApi.test.js",
+    "test:session-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/sessionRepository.test.js",
+    "test:session-cookie": "node --experimental-test-module-mocks --test --test-concurrency=1 test/security/sessionCookieSecurity.test.js",
+    "test:session-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/sessionService.test.js",
+    "test:login-repository": "node --experimental-test-module-mocks --test --test-concurrency=1 test/repositories/loginRepository.test.js",
+    "test:login-service": "node --experimental-test-module-mocks --test --test-concurrency=1 test/services/loginService.test.js",
+    "test:login-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/loginApi.test.js",
+    "test:session-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/sessionApi.test.js",
+    "test:authentication-middleware": "node --experimental-test-module-mocks --test --test-concurrency=1 test/middleware/authenticationMiddleware.test.js",
+    "test:user-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/userApi.test.js",
+    "test:contact-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/contactApi.test.js",
+    "test:resend-email": "node --experimental-test-module-mocks --test --test-concurrency=1 test/email/resendEmailProvider.test.js",
+    "test:profile-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/profileApi.test.js",
+    "test:profile-picture-static": "node --test --test-concurrency=1 test/api/profilePictureStatic.test.js",
+    "test:project-api": "node --experimental-test-module-mocks --test --test-concurrency=1 test/api/projectApi.test.js"
+  },
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "file-type": "^22.1.1",
+    "groq-sdk": "^1.6.0",
+    "helmet": "^8.3.0",
+    "mssql": "^12.7.2",
+    "multer": "^2.4.0",
+    "openai": "^7.9.0",
+    "resend": "^6.28.1",
+    "yauzl": "^3.4.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
+  }
+}
+
+

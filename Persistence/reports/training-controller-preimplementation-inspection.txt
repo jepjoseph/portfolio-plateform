@@ -1,0 +1,617 @@
+TRAINING CONTROLLER PREIMPLEMENTATION INSPECTION
+Generated: 2026-11-05 16:38:34
+
+================================================================================
+DIRECTORY: src\controllers
+================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationDocumentController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectDocumentController.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectMediaController.js
+
+================================================================================
+DIRECTORY: src\controller
+================================================================================
+NOT FOUND
+
+================================================================================
+DIRECTORY: src\routes
+================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\authRoutes.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\certificationRoutes.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\projectRoutes.js
+
+================================================================================
+DIRECTORY: src\middleware
+================================================================================
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\authenticationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\certification\certificationDocumentUploadMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\certification\certificationDocumentValidationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\certification\certificationOwnershipMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\profile\authorizationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectDocumentUploadMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectDocumentValidationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectDocumentValidationMiddleware.js.backup-20261021-170329
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectMediaUploadMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectMediaValidationMiddleware.js
+D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\middleware\project\projectOwnershipMiddleware.js
+
+================================================================================
+DIRECTORY: test\controllers
+================================================================================
+NOT FOUND
+
+================================================================================
+DIRECTORY: test\controller
+================================================================================
+NOT FOUND
+
+================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\certificationController.js
+================================================================================
+import {
+  getAuthenticatedCertifications,
+  getAuthenticatedCertification,
+  createAuthenticatedCertification,
+  updateAuthenticatedCertification,
+} from "../services/Service/certificationService.js";
+
+function certificationRequestError(message) {
+  const error = new Error(message);
+  error.name = "CertificationRequestError";
+  error.code = "CERTIFICATION_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireFields(value, allowedFields) {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw certificationRequestError(
+      "Request body must be a JSON object.",
+    );
+  }
+
+  const unexpected = Object.keys(value).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw certificationRequestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return value;
+}
+
+function sendSuccess(response, status, message, data) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+    "X-Content-Type-Options": "nosniff",
+  });
+
+  return response.status(status).json({
+    status: "success",
+    message,
+    data,
+  });
+}
+
+export async function listMyCertifications(request, response, next) {
+  try {
+    const certifications = await getAuthenticatedCertifications({
+      userId: request.auth.userId,
+    });
+
+    return sendSuccess(
+      response,
+      200,
+      "Certifications retrieved successfully.",
+      { certifications },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyCertification(request, response, next) {
+  try {
+    const certification = await getAuthenticatedCertification({
+      userId: request.auth.userId,
+      certificationId: request.params.certificationId,
+    });
+
+    return sendSuccess(
+      response,
+      200,
+      "Certification retrieved successfully.",
+      { certification },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMyCertification(request, response, next) {
+  try {
+    const certification = await createAuthenticatedCertification({
+      userId: request.auth.userId,
+      certification: request.body,
+    });
+
+    return sendSuccess(
+      response,
+      201,
+      "Certification created successfully.",
+      { certification },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyCertification(request, response, next) {
+  try {
+    const body = requireFields(request.body, [
+      "updates",
+      "rowVersion",
+    ]);
+
+    const certification = await updateAuthenticatedCertification({
+      userId: request.auth.userId,
+      certificationId: request.params.certificationId,
+      updates: body.updates,
+      rowVersion: body.rowVersion,
+    });
+
+    return sendSuccess(
+      response,
+      200,
+      "Certification updated successfully.",
+      { certification },
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\controllers\projectController.js
+================================================================================
+import {
+  getAuthenticatedProjects,
+  getAuthenticatedProject,
+  createAuthenticatedProject,
+  updateAuthenticatedProject,
+  setAuthenticatedProjectArchiveStatus,
+  deleteAuthenticatedProject,
+} from "../services/Service/projectService.js";
+
+function setPrivateHeaders(response) {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
+function projectRequestError(message) {
+  const error = new Error(message);
+  error.name = "ProjectRequestError";
+  error.code = "PROJECT_REQUEST_INVALID";
+  error.status = 400;
+  error.publicMessage = message;
+  return error;
+}
+
+function requireObject(value, name) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw projectRequestError(`${name} must be a JSON object.`);
+  }
+
+  return value;
+}
+
+function requireFields(body, allowedFields) {
+  const input = requireObject(body, "Request body");
+
+  const unexpected = Object.keys(input).filter(
+    (field) => !allowedFields.includes(field),
+  );
+
+  if (unexpected.length > 0) {
+    throw projectRequestError(
+      `Unexpected request fields: ${unexpected.join(", ")}.`,
+    );
+  }
+
+  return input;
+}
+
+export async function listMyProjects(request, response, next) {
+  try {
+    const projects = await getAuthenticatedProjects({
+      userId: request.auth.userId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Projects retrieved successfully.",
+      data: { projects },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getMyProject(request, response, next) {
+  try {
+    const project = await getAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project retrieved successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMyProject(request, response, next) {
+  try {
+    const project = await createAuthenticatedProject({
+      userId: request.auth.userId,
+      project: request.body,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(201).json({
+      status: "success",
+      message: "Project created successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["project", "rowVersion"]);
+
+    const project = await updateAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      project: body.project,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project updated successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function setMyProjectArchiveStatus(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["archived", "rowVersion"]);
+
+    const project = await setAuthenticatedProjectArchiveStatus({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      archived: body.archived,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: body.archived
+        ? "Project archived successfully."
+        : "Project restored successfully.",
+      data: { project },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMyProject(request, response, next) {
+  try {
+    const body = requireFields(request.body, ["rowVersion"]);
+
+    const result = await deleteAuthenticatedProject({
+      userId: request.auth.userId,
+      projectId: request.params.projectId,
+      rowVersion: body.rowVersion,
+    });
+
+    setPrivateHeaders(response);
+
+    return response.status(200).json({
+      status: "success",
+      message: "Project deleted successfully.",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\certificationRoutes.js
+================================================================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyCertifications,
+  getMyCertification,
+  createMyCertification,
+  updateMyCertification,
+} from "../controllers/certificationController.js";
+
+import {
+  uploadMyCertificationDocument,
+  listMyCertificationDocuments,
+  getMyCertificationDocument,
+  deleteMyCertificationDocument,
+} from "../controllers/certificationDocumentController.js";
+
+import {
+  requireCertificationOwnership,
+} from "../middleware/certification/certificationOwnershipMiddleware.js";
+
+import {
+  uploadCertificationDocument,
+} from "../middleware/certification/certificationDocumentUploadMiddleware.js";
+
+import {
+  validateCertificationDocument,
+} from "../middleware/certification/certificationDocumentValidationMiddleware.js";
+
+const router = Router();
+
+// All Certification endpoints require a valid authenticated session.
+router.use(requireAuthentication);
+
+// Certification CRUD.
+router.get("/", listMyCertifications);
+
+router.post("/", createMyCertification);
+
+router.get("/:certificationId", getMyCertification);
+
+router.patch("/:certificationId", updateMyCertification);
+
+// List documents belonging to an owned Certification.
+router.get(
+  "/:certificationId/documents",
+  requireCertificationOwnership,
+  listMyCertificationDocuments,
+);
+
+// Verify ownership before writing uploaded files.
+router.post(
+  "/:certificationId/documents",
+  requireCertificationOwnership,
+  uploadCertificationDocument,
+  validateCertificationDocument,
+  uploadMyCertificationDocument,
+);
+
+// Download only documents belonging to an owned Certification.
+router.get(
+  "/:certificationId/documents/:documentId",
+  requireCertificationOwnership,
+  getMyCertificationDocument,
+);
+
+// Delete only documents belonging to an owned Certification.
+router.delete(
+  "/:certificationId/documents/:documentId",
+  requireCertificationOwnership,
+  deleteMyCertificationDocument,
+);
+
+// Certification deletion is intentionally not exposed.
+// It requires coordinated SQL and private-file cleanup.
+
+export default router;
+
+================================================================================
+FILE: D:\Documents\Project\Portfolio\portfolio-plateform\backend\src\routes\projectRoutes.js
+================================================================================
+import { Router } from "express";
+
+import { requireAuthentication } from "../middleware/authenticationMiddleware.js";
+
+import {
+  listMyProjects,
+  getMyProject,
+  createMyProject,
+  updateMyProject,
+  setMyProjectArchiveStatus,
+  deleteMyProject,
+} from "../controllers/projectController.js";
+
+import { requireProjectOwnership } from "../middleware/project/projectOwnershipMiddleware.js";
+
+import { uploadProjectMedia } from "../middleware/project/projectMediaUploadMiddleware.js";
+
+import { validateProjectMedia } from "../middleware/project/projectMediaValidationMiddleware.js";
+
+import {
+  uploadMyProjectMedia,
+  listMyProjectMedia,
+  getMyProjectMedia,
+  deleteMyProjectMedia,
+} from "../controllers/projectMediaController.js";
+
+import { uploadProjectDocument } from "../middleware/project/projectDocumentUploadMiddleware.js";
+import { validateProjectDocument } from "../middleware/project/projectDocumentValidationMiddleware.js";
+
+import {
+  uploadMyProjectDocument,
+  listMyProjectDocuments,
+  getMyProjectDocument,
+  deleteMyProjectDocument,
+} from "../controllers/projectDocumentController.js";
+const router = Router();
+
+/*
+ * All Project API endpoints require an
+ * authenticated user session.
+ */
+router.use(requireAuthentication);
+
+/*
+ * GET /api/projects
+ * POST /api/projects
+ */
+router.get("/", listMyProjects);
+router.post("/", createMyProject);
+
+/*
+ * GET /api/projects/:projectId
+ * PUT /api/projects/:projectId
+ */
+router.get("/:projectId", getMyProject);
+router.put("/:projectId", updateMyProject);
+
+/*
+ * PATCH /api/projects/:projectId/archive
+ */
+router.patch("/:projectId/archive", setMyProjectArchiveStatus);
+
+/*
+ * =========================================
+ * Project Media Listing
+ * =========================================
+ *
+ * GET /api/projects/:projectId/media
+ *
+ * Authentication is applied globally.
+ * Project ownership is verified before
+ * returning media metadata.
+ */
+
+router.get("/:projectId/media", requireProjectOwnership, listMyProjectMedia);
+
+/*
+ * =========================================
+ * Project Media Retrieval
+ * =========================================
+ */
+
+router.get(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  getMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Media Upload
+ * =========================================
+ *
+ * Authentication is applied globally.
+ *
+ * Ownership must be verified before Multer
+ * writes the uploaded file.
+ */
+
+router.post(
+  "/:projectId/media",
+  requireProjectOwnership,
+  uploadProjectMedia,
+  validateProjectMedia,
+  uploadMyProjectMedia,
+);
+
+/*
+ * DELETE /api/projects/:projectId
+ */
+router.delete("/:projectId", deleteMyProject);
+
+router.delete(
+  "/:projectId/media/:mediaId",
+  requireProjectOwnership,
+  deleteMyProjectMedia,
+);
+
+/*
+ * =========================================
+ * Project Document API
+ * =========================================
+ *
+ * Authentication is applied globally.
+ * Ownership is checked before file access
+ * or Multer writes uploaded documents.
+ */
+
+router.get(
+  "/:projectId/documents",
+  requireProjectOwnership,
+  listMyProjectDocuments,
+);
+
+router.get(
+  "/:projectId/documents/:documentId",
+  requireProjectOwnership,
+  getMyProjectDocument,
+);
+
+router.post(
+  "/:projectId/documents",
+  requireProjectOwnership,
+  uploadProjectDocument,
+  validateProjectDocument,
+  uploadMyProjectDocument,
+);
+
+router.delete(
+  "/:projectId/documents/:documentId",
+  requireProjectOwnership,
+  deleteMyProjectDocument,
+);
+export default router;
+
+================================================================================
+TRAINING CONTROLLER STATUS
+================================================================================
+NOT FOUND
+
+================================================================================
+GIT STATUS
+================================================================================
+?? src/repositories/trainingRepository.js
+?? src/services/Service/trainingService.js
+?? test/integration/
+?? test/repositories/trainingRepository.test.js
+?? test/services/trainingService.test.js

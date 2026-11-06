@@ -1,0 +1,2422 @@
+============================================================
+backend\src\database\migrations\013_trainings.sql
+============================================================
+/*
+ * Portfolio Platform
+ * Training Persistence Foundation
+ * Migration 013
+ *
+ * Stores searchable Training metadata and
+ * the complete versioned Training JSON model.
+ *
+ * Preserves existing Training identifiers.
+ *
+ * Document binaries are not stored here.
+ *
+ * Do not add GO statements.
+ */
+
+CREATE TABLE dbo.trainings
+(
+    id NVARCHAR(200) NOT NULL,
+
+    user_id UNIQUEIDENTIFIER NOT NULL,
+
+    title NVARCHAR(250) NOT NULL,
+
+    training_type NVARCHAR(100) NOT NULL,
+
+    provider_name NVARCHAR(500) NOT NULL,
+
+    status NVARCHAR(20) NOT NULL
+        CONSTRAINT DF_trainings_status
+        DEFAULT N'active',
+
+    training_data NVARCHAR(MAX) NOT NULL,
+
+    created_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_trainings_created_at
+        DEFAULT SYSUTCDATETIME(),
+
+    updated_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_trainings_updated_at
+        DEFAULT SYSUTCDATETIME(),
+
+    row_version ROWVERSION NOT NULL,
+
+    CONSTRAINT PK_trainings
+        PRIMARY KEY CLUSTERED (id),
+
+    CONSTRAINT FK_trainings_user
+        FOREIGN KEY (user_id)
+        REFERENCES dbo.users(id),
+
+    CONSTRAINT UQ_trainings_id_user
+        UNIQUE (id, user_id),
+
+    CONSTRAINT CK_trainings_id_not_blank
+        CHECK (LEN(LTRIM(RTRIM(id))) > 0),
+
+    CONSTRAINT CK_trainings_title_not_blank
+        CHECK (LEN(LTRIM(RTRIM(title))) > 0),
+
+    CONSTRAINT CK_trainings_type_not_blank
+        CHECK (LEN(LTRIM(RTRIM(training_type))) > 0),
+
+    CONSTRAINT CK_trainings_status
+        CHECK (
+            status IN (
+                N'active',
+                N'archived'
+            )
+        ),
+
+    CONSTRAINT CK_trainings_data_json
+        CHECK (ISJSON(training_data) = 1),
+
+    CONSTRAINT CK_trainings_dates
+        CHECK (updated_at >= created_at)
+);
+
+/*
+ * Owner-scoped Training listing.
+ */
+
+CREATE INDEX IX_trainings_user_status_updated
+    ON dbo.trainings (
+        user_id,
+        status,
+        updated_at DESC
+    )
+    INCLUDE (
+        title,
+        training_type,
+        provider_name
+    );
+
+/*
+ * Owner-scoped Training type filtering.
+ */
+
+CREATE INDEX IX_trainings_user_type
+    ON dbo.trainings (
+        user_id,
+        training_type
+    )
+    INCLUDE (
+        title,
+        status,
+        provider_name
+    );
+
+/*
+ * Owner-scoped Training provider filtering.
+ */
+
+CREATE INDEX IX_trainings_user_provider
+    ON dbo.trainings (
+        user_id,
+        provider_name
+    )
+    INCLUDE (
+        title,
+        training_type,
+        status
+    );
+
+============================================================
+frontend\src\models\trainingModel.js
+============================================================
+import {
+  TRAINING_FIELD_LIMITS,
+  isValidTrainingCompletionStatus,
+  isValidTrainingDeliveryFormat,
+  isValidTrainingDocumentType,
+  isValidTrainingProviderType,
+  isValidTrainingSource,
+  isValidTrainingStatus,
+  isValidTrainingType,
+} from "../config/trainingConfig.js";
+
+import { isValidDocumentVisibility } from "../config/documentConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const TRAINING_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createTrainingId(prefix = "training") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, defaultValue = false) {
+  return typeof value === "boolean" ? value : defaultValue;
+}
+
+function normalizeNullableNumber(value, maximumValue = Infinity) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.min(maximumValue, Math.max(0, numberValue));
+}
+
+function normalizeDate(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const text = value.trim();
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(text)) {
+    return "";
+  }
+
+  return text;
+}
+
+function normalizeIdentifierList(values, maximumItems) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      values
+        .map((value) =>
+          typeof value === "string"
+            ? value.trim()
+            : String(value?.id || "").trim(),
+        )
+        .filter(Boolean),
+    ),
+  ].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Instructor
+ * =========================================
+ */
+
+export function createTrainingInstructor(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id:
+      normalizeText(source.id, 200) || createTrainingId("training-instructor"),
+
+    name: normalizeText(source.name, TRAINING_FIELD_LIMITS.instructorName),
+
+    title: normalizeText(source.title, TRAINING_FIELD_LIMITS.instructorTitle),
+
+    organization: normalizeText(
+      source.organization,
+      TRAINING_FIELD_LIMITS.instructorOrganization,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingInstructors(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createTrainingInstructor)
+    .filter((instructor) => instructor.name)
+    .slice(0, TRAINING_FIELD_LIMITS.maximumInstructors)
+    .map((instructor, index) => ({
+      ...instructor,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Topic
+ * =========================================
+ */
+
+export function createTrainingTopic(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-topic"),
+
+    name: normalizeText(
+      source.name || source.title,
+      TRAINING_FIELD_LIMITS.topicName,
+    ),
+
+    description: normalizeText(
+      source.description,
+      TRAINING_FIELD_LIMITS.topicDescription,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingTopics(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createTrainingTopic)
+    .filter((topic) => topic.name)
+    .slice(0, TRAINING_FIELD_LIMITS.maximumTopics)
+    .map((topic, index) => ({
+      ...topic,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Learning Outcome
+ * =========================================
+ */
+
+export function createTrainingOutcome(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          text: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-outcome"),
+
+    text: normalizeText(
+      source.text || source.description || source.value,
+      TRAINING_FIELD_LIMITS.outcomeText,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingOutcomes(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createTrainingOutcome)
+    .filter((outcome) => outcome.text)
+    .slice(0, TRAINING_FIELD_LIMITS.maximumLearningOutcomes)
+    .map((outcome, index) => ({
+      ...outcome,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Skill Relationship
+ * =========================================
+ */
+
+export function createTrainingSkillRelationship(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-skill"),
+
+    skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label,
+      TRAINING_FIELD_LIMITS.skillName,
+    ),
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      TRAINING_FIELD_LIMITS.skillCategory,
+    ),
+
+    typeSnapshot: normalizeText(
+      source.typeSnapshot || source.type,
+      TRAINING_FIELD_LIMITS.skillType,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingSkillRelationships(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedRelationships = values
+    .map(createTrainingSkillRelationship)
+    .filter(
+      (relationship) => relationship.skillId || relationship.nameSnapshot,
+    );
+
+  const uniqueRelationships = normalizedRelationships.filter(
+    (relationship, index, collection) => {
+      const identity = (
+        relationship.skillId || relationship.nameSnapshot
+      ).toLocaleLowerCase();
+
+      return (
+        collection.findIndex((candidate) => {
+          const candidateIdentity = (
+            candidate.skillId || candidate.nameSnapshot
+          ).toLocaleLowerCase();
+
+          return candidateIdentity === identity;
+        }) === index
+      );
+    },
+  );
+
+  return uniqueRelationships
+    .slice(0, TRAINING_FIELD_LIMITS.maximumSkills)
+    .map((relationship, index) => ({
+      ...relationship,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Certification Relationship
+ * =========================================
+ */
+
+export function createTrainingCertificationRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          certificationId: value,
+        }
+      : value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
+
+  const snapshot =
+    source.snapshot &&
+    typeof source.snapshot === "object" &&
+    !Array.isArray(source.snapshot)
+      ? source.snapshot
+      : {};
+
+  /*
+   * When a complete Certification record is supplied,
+   * its id is the Certification id.
+   *
+   * When an existing relationship is supplied,
+   * source.id is the relationship id and
+   * source.certificationId identifies the Certification.
+   */
+
+  const certificationId = normalizeText(
+    source.certificationId ||
+      source.credentialId ||
+      source.certificationRecordId ||
+      source.id,
+    200,
+  );
+
+  const relationshipId =
+    normalizeText(
+      source.relationshipId || (source.certificationId ? source.id : ""),
+      200,
+    ) || createTrainingId("training-certification");
+
+  return {
+    id: relationshipId,
+
+    certificationId,
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0
+        ? source.order
+        : order,
+
+    snapshot: {
+      name: normalizeText(
+        snapshot.name ||
+          snapshot.title ||
+          source.certificationName ||
+          source.name ||
+          source.title,
+        160,
+      ),
+
+      issuingOrganizationName: normalizeText(
+        snapshot.issuingOrganizationName ||
+          snapshot.issuerName ||
+          source.issuingOrganizationName ||
+          source.issuerName ||
+          source.issuingOrganization?.name,
+        160,
+      ),
+
+      certificationType: normalizeText(
+        snapshot.certificationType || snapshot.type || source.certificationType,
+        100,
+      ),
+
+      credentialState: normalizeText(
+        snapshot.credentialState ||
+          snapshot.state ||
+          source.credentialState ||
+          source.credential?.state,
+        100,
+      ),
+
+      issueDate: normalizeDate(
+        snapshot.issueDate || source.issueDate || source.dates?.issueDate,
+      ),
+
+      expirationDate: normalizeDate(
+        snapshot.expirationDate ||
+          source.expirationDate ||
+          source.dates?.expirationDate,
+      ),
+
+      doesNotExpire: normalizeBoolean(
+        snapshot.doesNotExpire ??
+          source.doesNotExpire ??
+          source.dates?.doesNotExpire,
+        false,
+      ),
+    },
+  };
+}
+
+function normalizeTrainingCertificationRelationships(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const usedCertificationIds = new Set();
+
+  return values.reduce((relationships, value) => {
+    const relationship = createTrainingCertificationRelationship(
+      value,
+      relationships.length,
+    );
+
+    if (!relationship.certificationId) {
+      return relationships;
+    }
+
+    const comparisonId = relationship.certificationId.toLocaleLowerCase();
+
+    if (usedCertificationIds.has(comparisonId)) {
+      return relationships;
+    }
+
+    if (
+      relationships.length >= TRAINING_FIELD_LIMITS.maximumRelatedCertifications
+    ) {
+      return relationships;
+    }
+
+    usedCertificationIds.add(comparisonId);
+
+    relationships.push({
+      ...relationship,
+      order: relationships.length,
+    });
+
+    return relationships;
+  }, []);
+}
+
+export function getTrainingCertificationRelationships(training) {
+  return normalizeTrainingCertificationRelationships(
+    training?.certificationRelationships || training?.relatedCertificationIds,
+  );
+}
+
+export function getTrainingCertificationIds(training) {
+  return getTrainingCertificationRelationships(training).map(
+    (relationship) => relationship.certificationId,
+  );
+}
+
+export function isCertificationLinkedToTraining(training, certificationId) {
+  const normalizedCertificationId = normalizeText(certificationId, 200);
+
+  if (!normalizedCertificationId) {
+    return false;
+  }
+
+  return getTrainingCertificationRelationships(training).some(
+    (relationship) =>
+      relationship.certificationId === normalizedCertificationId,
+  );
+}
+
+/*
+ * =========================================
+ * Supporting Document
+ * =========================================
+ */
+
+export function createTrainingDocument(value = {}) {
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-document"),
+
+    documentType: isValidTrainingDocumentType(source.documentType)
+      ? source.documentType
+      : "supporting-evidence",
+
+    name: normalizeText(source.name || source.title, 250),
+
+    description: normalizeText(source.description, 1000),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableNumber(source.fileSize),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    fileUrl: normalizeText(source.fileUrl || source.url, 2000),
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    visibility: isValidDocumentVisibility(source.visibility)
+      ? source.visibility
+      : "private",
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingDocuments(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedDocuments = values
+    .map(createTrainingDocument)
+    .filter(
+      (document) =>
+        document.name ||
+        document.fileName ||
+        document.storageKey ||
+        document.fileUrl,
+    );
+
+  const uniqueDocuments = normalizedDocuments.filter(
+    (document, index, collection) => {
+      const identity =
+        document.storageKey ||
+        document.fileUrl ||
+        document.id ||
+        document.fileName;
+
+      return (
+        collection.findIndex((candidate) => {
+          const candidateIdentity =
+            candidate.storageKey ||
+            candidate.fileUrl ||
+            candidate.id ||
+            candidate.fileName;
+
+          return candidateIdentity === identity;
+        }) === index
+      );
+    },
+  );
+
+  return uniqueDocuments
+    .slice(0, TRAINING_FIELD_LIMITS.maximumDocuments)
+    .map((document, index) => ({
+      ...document,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Empty Training
+ * =========================================
+ */
+
+export function createEmptyTraining() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: TRAINING_MODEL_VERSION,
+
+    id: createTrainingId(),
+
+    title: "",
+
+    trainingType: "professional-course",
+
+    provider: {
+      name: "",
+      type: "",
+      website: "",
+    },
+
+    delivery: {
+      format: "in-person",
+
+      location: {
+        city: "",
+        stateRegion: "",
+        country: "",
+        displayValue: "",
+      },
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    completion: {
+      status: "completed",
+      durationHours: null,
+
+      certificateEarned: false,
+
+      credentialId: "",
+      credentialUrl: "",
+    },
+
+    description: "",
+
+    instructors: [],
+
+    topics: [],
+
+    learningOutcomes: [],
+
+    skillRelationships: [],
+
+    supportingDocuments: [],
+
+    relatedEducationIds: [],
+
+    /*
+     * Canonical Certification relationships.
+     *
+     * Each relationship includes the Certification ID
+     * and a readable snapshot so Training can still show
+     * useful information if the Certification record is
+     * temporarily unavailable.
+     */
+
+    certificationRelationships: [],
+
+    /*
+     * Legacy compatibility field.
+     *
+     * This is derived from certificationRelationships
+     * during normalization and should not be edited
+     * independently by new components.
+     */
+
+    relatedCertificationIds: [],
+
+    relatedExperienceIds: [],
+
+    relatedProjectIds: [],
+
+    visibility: {
+      showProvider: true,
+      showProviderWebsite: true,
+      showDeliveryFormat: true,
+      showLocation: true,
+      showDates: true,
+      showDuration: true,
+      showDescription: true,
+      showInstructors: true,
+      showTopics: true,
+      showLearningOutcomes: true,
+      showSkills: true,
+      showCredential: true,
+      showCertifications: true,
+      showSupportingDocuments: false,
+    },
+
+    privateInformation: {
+      notes: "",
+    },
+
+    source: "manual",
+
+    sourceContext: "",
+
+    status: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Normalize Training
+ * =========================================
+ */
+
+export function normalizeTraining(value = {}) {
+  const defaults = createEmptyTraining();
+
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  const provider =
+    source.provider &&
+    typeof source.provider === "object" &&
+    !Array.isArray(source.provider)
+      ? source.provider
+      : {};
+
+  const delivery =
+    source.delivery &&
+    typeof source.delivery === "object" &&
+    !Array.isArray(source.delivery)
+      ? source.delivery
+      : {};
+
+  const location =
+    delivery.location &&
+    typeof delivery.location === "object" &&
+    !Array.isArray(delivery.location)
+      ? delivery.location
+      : source.location &&
+          typeof source.location === "object" &&
+          !Array.isArray(source.location)
+        ? source.location
+        : {};
+
+  const dates =
+    source.dates &&
+    typeof source.dates === "object" &&
+    !Array.isArray(source.dates)
+      ? source.dates
+      : {};
+
+  const completion =
+    source.completion &&
+    typeof source.completion === "object" &&
+    !Array.isArray(source.completion)
+      ? source.completion
+      : {};
+
+  const visibility =
+    source.visibility &&
+    typeof source.visibility === "object" &&
+    !Array.isArray(source.visibility)
+      ? source.visibility
+      : {};
+
+  const privateInformation =
+    source.privateInformation &&
+    typeof source.privateInformation === "object" &&
+    !Array.isArray(source.privateInformation)
+      ? source.privateInformation
+      : {};
+
+  const trainingType = isValidTrainingType(source.trainingType)
+    ? source.trainingType
+    : defaults.trainingType;
+
+  const providerType = isValidTrainingProviderType(provider.type ?? "")
+    ? (provider.type ?? "")
+    : defaults.provider.type;
+
+  const deliveryFormat = isValidTrainingDeliveryFormat(delivery.format)
+    ? delivery.format
+    : defaults.delivery.format;
+
+  const completionStatus = isValidTrainingCompletionStatus(completion.status)
+    ? completion.status
+    : defaults.completion.status;
+
+  const trainingStatus = isValidTrainingStatus(source.status)
+    ? source.status
+    : defaults.status;
+
+  const trainingSource = isValidTrainingSource(source.source)
+    ? source.source
+    : defaults.source;
+
+  const isCurrent =
+    completionStatus === "in-progress" ||
+    normalizeBoolean(dates.isCurrent, false);
+
+  /*
+   * Version 1 records stored only Certification IDs.
+   * Version 2 stores complete relationship objects.
+   */
+
+  const certificationRelationshipSource = Array.isArray(
+    source.certificationRelationships,
+  )
+    ? source.certificationRelationships
+    : source.relatedCertificationIds;
+
+  const certificationRelationships =
+    normalizeTrainingCertificationRelationships(
+      certificationRelationshipSource,
+    );
+
+  return {
+    modelVersion: TRAINING_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    title: normalizeText(
+      source.title || source.name,
+      TRAINING_FIELD_LIMITS.title,
+    ),
+
+    trainingType,
+
+    provider: {
+      name: normalizeText(
+        provider.name || source.providerName || source.organizationName,
+        TRAINING_FIELD_LIMITS.providerName,
+      ),
+
+      type: providerType,
+
+      website: normalizeText(
+        provider.website || source.providerWebsite,
+        TRAINING_FIELD_LIMITS.providerWebsite,
+      ),
+    },
+
+    delivery: {
+      format: deliveryFormat,
+
+      location: {
+        city: normalizeText(location.city, TRAINING_FIELD_LIMITS.city),
+
+        stateRegion: normalizeText(
+          location.stateRegion || location.state,
+          TRAINING_FIELD_LIMITS.stateRegion,
+        ),
+
+        country: normalizeText(location.country, TRAINING_FIELD_LIMITS.country),
+
+        displayValue: normalizeText(
+          location.displayValue ||
+            source.locationValue ||
+            (typeof source.location === "string" ? source.location : ""),
+          TRAINING_FIELD_LIMITS.locationDisplayValue,
+        ),
+      },
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    completion: {
+      status: completionStatus,
+
+      durationHours: normalizeNullableNumber(
+        completion.durationHours ?? source.durationHours,
+        TRAINING_FIELD_LIMITS.maximumDurationHours,
+      ),
+
+      certificateEarned: normalizeBoolean(completion.certificateEarned, false),
+
+      credentialId: normalizeText(
+        completion.credentialId || source.credentialId,
+        TRAINING_FIELD_LIMITS.credentialId,
+      ),
+
+      credentialUrl: normalizeText(
+        completion.credentialUrl || source.credentialUrl,
+        TRAINING_FIELD_LIMITS.credentialUrl,
+      ),
+    },
+
+    description: normalizeText(
+      source.description || source.overview,
+      TRAINING_FIELD_LIMITS.description,
+    ),
+
+    instructors: normalizeTrainingInstructors(source.instructors),
+
+    topics: normalizeTrainingTopics(source.topics || source.curriculum),
+
+    learningOutcomes: normalizeTrainingOutcomes(
+      source.learningOutcomes || source.outcomes,
+    ),
+
+    skillRelationships: normalizeTrainingSkillRelationships(
+      source.skillRelationships || source.skills,
+    ),
+
+    supportingDocuments: normalizeTrainingDocuments(
+      source.supportingDocuments || source.documents || source.attachments,
+    ),
+
+    relatedEducationIds: normalizeIdentifierList(
+      source.relatedEducationIds,
+      TRAINING_FIELD_LIMITS.maximumRelatedEducation,
+    ),
+
+    certificationRelationships,
+
+    /*
+     * Keep the previous ID list synchronized for
+     * services or saved records still using model v1.
+     */
+
+    relatedCertificationIds: certificationRelationships.map(
+      (relationship) => relationship.certificationId,
+    ),
+
+    relatedExperienceIds: normalizeIdentifierList(
+      source.relatedExperienceIds,
+      TRAINING_FIELD_LIMITS.maximumRelatedExperiences,
+    ),
+
+    relatedProjectIds: normalizeIdentifierList(
+      source.relatedProjectIds,
+      TRAINING_FIELD_LIMITS.maximumRelatedProjects,
+    ),
+
+    visibility: {
+      showProvider: normalizeBoolean(
+        visibility.showProvider,
+        defaults.visibility.showProvider,
+      ),
+
+      showProviderWebsite: normalizeBoolean(
+        visibility.showProviderWebsite,
+        defaults.visibility.showProviderWebsite,
+      ),
+
+      showDeliveryFormat: normalizeBoolean(
+        visibility.showDeliveryFormat,
+        defaults.visibility.showDeliveryFormat,
+      ),
+
+      showLocation: normalizeBoolean(
+        visibility.showLocation,
+        defaults.visibility.showLocation,
+      ),
+
+      showDates: normalizeBoolean(
+        visibility.showDates,
+        defaults.visibility.showDates,
+      ),
+
+      showDuration: normalizeBoolean(
+        visibility.showDuration,
+        defaults.visibility.showDuration,
+      ),
+
+      showDescription: normalizeBoolean(
+        visibility.showDescription,
+        defaults.visibility.showDescription,
+      ),
+
+      showInstructors: normalizeBoolean(
+        visibility.showInstructors,
+        defaults.visibility.showInstructors,
+      ),
+
+      showTopics: normalizeBoolean(
+        visibility.showTopics,
+        defaults.visibility.showTopics,
+      ),
+
+      showLearningOutcomes: normalizeBoolean(
+        visibility.showLearningOutcomes,
+        defaults.visibility.showLearningOutcomes,
+      ),
+
+      showSkills: normalizeBoolean(
+        visibility.showSkills,
+        defaults.visibility.showSkills,
+      ),
+
+      showCredential: normalizeBoolean(
+        visibility.showCredential,
+        defaults.visibility.showCredential,
+      ),
+
+      showCertifications: normalizeBoolean(
+        visibility.showCertifications,
+        defaults.visibility.showCertifications,
+      ),
+
+      showSupportingDocuments: normalizeBoolean(
+        visibility.showSupportingDocuments,
+        defaults.visibility.showSupportingDocuments,
+      ),
+    },
+
+    privateInformation: {
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        TRAINING_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    source: trainingSource,
+
+    sourceContext: normalizeText(
+      source.sourceContext,
+      TRAINING_FIELD_LIMITS.sourceContext,
+    ),
+
+    status: trainingStatus,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Training
+ * =========================================
+ */
+
+export function createTraining(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeTraining({
+    ...values,
+
+    id: normalizeText(values?.id, 200) || createTrainingId(),
+
+    createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Training
+ * =========================================
+ */
+
+export function updateTrainingModel(currentTraining, updates = {}) {
+  const safeUpdates = updates && typeof updates === "object" ? updates : {};
+
+  return normalizeTraining({
+    ...currentTraining,
+    ...safeUpdates,
+
+    provider: {
+      ...currentTraining?.provider,
+      ...safeUpdates.provider,
+    },
+
+    delivery: {
+      ...currentTraining?.delivery,
+      ...safeUpdates.delivery,
+
+      location: {
+        ...currentTraining?.delivery?.location,
+        ...safeUpdates.delivery?.location,
+      },
+    },
+
+    dates: {
+      ...currentTraining?.dates,
+      ...safeUpdates.dates,
+    },
+
+    completion: {
+      ...currentTraining?.completion,
+      ...safeUpdates.completion,
+    },
+
+    certificationRelationships:
+      safeUpdates.certificationRelationships ??
+      currentTraining?.certificationRelationships ??
+      currentTraining?.relatedCertificationIds ??
+      [],
+
+    visibility: {
+      ...currentTraining?.visibility,
+      ...safeUpdates.visibility,
+    },
+
+    privateInformation: {
+      ...currentTraining?.privateInformation,
+      ...safeUpdates.privateInformation,
+    },
+
+    id: currentTraining?.id,
+
+    createdAt: currentTraining?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Collection
+ * =========================================
+ */
+
+export function normalizeTrainingCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedTraining = values.map(normalizeTraining);
+
+  return normalizedTraining.filter(
+    (training, index, collection) =>
+      collection.findIndex((candidate) => candidate.id === training.id) ===
+      index,
+  );
+}
+
+/*
+ * =========================================
+ * Public Training
+ * =========================================
+ */
+
+export function createPublicTraining(value) {
+  const training = normalizeTraining(value);
+
+  const {
+    privateInformation,
+    sourceContext,
+    relatedCertificationIds,
+    ...publicTraining
+  } = training;
+
+  return {
+    ...publicTraining,
+
+    certificationRelationships: publicTraining.visibility.showCertifications
+      ? publicTraining.certificationRelationships.map((relationship) => ({
+          id: relationship.id,
+          certificationId: relationship.certificationId,
+          order: relationship.order,
+
+          snapshot: {
+            name: relationship.snapshot.name,
+
+            issuingOrganizationName:
+              relationship.snapshot.issuingOrganizationName,
+
+            certificationType: relationship.snapshot.certificationType,
+
+            credentialState: relationship.snapshot.credentialState,
+
+            issueDate: relationship.snapshot.issueDate,
+
+            expirationDate: relationship.snapshot.expirationDate,
+
+            doesNotExpire: relationship.snapshot.doesNotExpire,
+          },
+        }))
+      : [],
+
+    supportingDocuments: publicTraining.visibility.showSupportingDocuments
+      ? publicTraining.supportingDocuments.filter(
+          (document) => document.visibility === "public",
+        )
+      : [],
+  };
+}
+
+
+============================================================
+frontend\src\services\Training\trainingService.js
+============================================================
+import {
+  createEmptyTraining,
+  createTraining as createTrainingModel,
+  normalizeTraining,
+  normalizeTrainingCollection,
+  updateTrainingModel,
+} from "../../models/trainingModel.js";
+
+import { deleteStoredDocuments } from "../Documents/documentStorage.js";
+
+import { assertValidTraining, validateTraining } from "./trainingValidation.js";
+
+import { readStoredTraining } from "./trainingStorage.js";
+
+import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
+
+function createTrainingServiceError({
+  message,
+  publicMessage,
+  code,
+  status = 500,
+  details = null,
+}) {
+  const error = new Error(message);
+
+  error.name = "TrainingServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = publicMessage;
+  error.details = details;
+
+  return error;
+}
+
+function createTrainingNotFoundError(trainingId) {
+  return createTrainingServiceError({
+    message: `Training record "${trainingId}" was not found.`,
+    publicMessage: "The requested training record could not be found.",
+    code: "TRAINING_NOT_FOUND",
+    status: 404,
+  });
+}
+
+function createTrainingCandidate(trainingData = {}) {
+  const defaults = createEmptyTraining();
+
+  const source =
+    trainingData && typeof trainingData === "object" ? trainingData : {};
+
+  return {
+    ...defaults,
+    ...source,
+
+    provider: {
+      ...defaults.provider,
+      ...source.provider,
+    },
+
+    delivery: {
+      ...defaults.delivery,
+      ...source.delivery,
+
+      location: {
+        ...defaults.delivery.location,
+        ...source.delivery?.location,
+      },
+    },
+
+    dates: {
+      ...defaults.dates,
+      ...source.dates,
+    },
+
+    completion: {
+      ...defaults.completion,
+      ...source.completion,
+    },
+
+    visibility: {
+      ...defaults.visibility,
+      ...source.visibility,
+    },
+
+    privateInformation: {
+      ...defaults.privateInformation,
+      ...source.privateInformation,
+    },
+  };
+}
+
+export async function getTrainingRecords({ includeArchived = false } = {}) {
+  const records = readStoredTraining();
+
+  return includeArchived
+    ? records
+    : records.filter((training) => training.status !== "archived");
+}
+
+export const getTraining = getTrainingRecords;
+
+export async function getTrainingById(trainingId) {
+  if (!trainingId) {
+    throw createTrainingServiceError({
+      message: "A training ID is required.",
+      publicMessage: "The training record could not be identified.",
+      code: "TRAINING_ID_REQUIRED",
+      status: 400,
+    });
+  }
+
+  const training = readStoredTraining().find(
+    (record) => record.id === trainingId,
+  );
+
+  if (!training) {
+    throw createTrainingNotFoundError(trainingId);
+  }
+
+  return training;
+}
+
+export async function createTraining(trainingData) {
+  const records = readStoredTraining();
+
+  const candidate = createTrainingCandidate(trainingData);
+
+  assertValidTraining(candidate);
+
+  const training = createTrainingModel(candidate);
+
+  if (records.some((record) => record.id === training.id)) {
+    throw createTrainingServiceError({
+      message: `Training ID "${training.id}" already exists.`,
+      publicMessage:
+        "This training record could not be created because its identifier already exists.",
+      code: "TRAINING_ID_CONFLICT",
+      status: 409,
+    });
+  }
+
+  const transaction = saveTrainingWithCertificationSync({
+    trainingRecords: [training, ...records],
+
+    changedTrainingIds: [training.id],
+  });
+
+  return (
+    transaction.trainingRecords.find((record) => record.id === training.id) ||
+    training
+  );
+}
+
+export async function updateTraining(trainingId, updates = {}) {
+  if (!trainingId) {
+    throw createTrainingServiceError({
+      message: "A training ID is required.",
+      publicMessage: "The training record could not be identified.",
+      code: "TRAINING_ID_REQUIRED",
+      status: 400,
+    });
+  }
+
+  const records = readStoredTraining();
+
+  const recordIndex = records.findIndex(
+    (training) => training.id === trainingId,
+  );
+
+  if (recordIndex === -1) {
+    throw createTrainingNotFoundError(trainingId);
+  }
+
+  const currentTraining = records[recordIndex];
+
+  const candidate = createTrainingCandidate({
+    ...currentTraining,
+    ...updates,
+
+    provider: {
+      ...currentTraining.provider,
+      ...updates.provider,
+    },
+
+    delivery: {
+      ...currentTraining.delivery,
+      ...updates.delivery,
+
+      location: {
+        ...currentTraining.delivery?.location,
+        ...updates.delivery?.location,
+      },
+    },
+
+    dates: {
+      ...currentTraining.dates,
+      ...updates.dates,
+    },
+
+    completion: {
+      ...currentTraining.completion,
+      ...updates.completion,
+    },
+
+    visibility: {
+      ...currentTraining.visibility,
+      ...updates.visibility,
+    },
+
+    privateInformation: {
+      ...currentTraining.privateInformation,
+      ...updates.privateInformation,
+    },
+  });
+
+  assertValidTraining(candidate);
+
+  const updatedTraining = updateTrainingModel(currentTraining, updates);
+
+  const nextRecords = [...records];
+
+  nextRecords[recordIndex] = updatedTraining;
+
+  const transaction = saveTrainingWithCertificationSync({
+    trainingRecords: nextRecords,
+
+    changedTrainingIds: [updatedTraining.id],
+  });
+
+  return (
+    transaction.trainingRecords.find(
+      (record) => record.id === updatedTraining.id,
+    ) || updatedTraining
+  );
+}
+
+export async function archiveTraining(trainingId) {
+  return updateTraining(trainingId, {
+    status: "archived",
+  });
+}
+
+export async function restoreTraining(trainingId) {
+  return updateTraining(trainingId, {
+    status: "active",
+  });
+}
+
+function getTrainingDocumentStorageKeys(training) {
+  const documents = Array.isArray(training?.supportingDocuments)
+    ? training.supportingDocuments
+    : [];
+
+  return [
+    ...new Set(
+      documents
+        .map((document) =>
+          typeof document?.storageKey === "string"
+            ? document.storageKey.trim()
+            : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+}
+
+export async function deleteTraining(trainingId) {
+  if (!trainingId) {
+    throw createTrainingServiceError({
+      message: "A training ID is required.",
+      publicMessage: "The training record could not be identified.",
+      code: "TRAINING_ID_REQUIRED",
+      status: 400,
+    });
+  }
+
+  const records = readStoredTraining();
+
+  const recordToDelete = records.find((training) => training.id === trainingId);
+
+  if (!recordToDelete) {
+    throw createTrainingNotFoundError(trainingId);
+  }
+
+  const storageKeys = getTrainingDocumentStorageKeys(recordToDelete);
+
+  const remainingRecords = records.filter(
+    (training) => training.id !== trainingId,
+  );
+
+  /*
+   * Remove Training metadata and reciprocal
+   * Certification links first.
+   */
+
+  saveTrainingWithCertificationSync({
+    trainingRecords: remainingRecords,
+
+    deletedTrainingIds: [trainingId],
+  });
+
+  let documentCleanup = null;
+
+  try {
+    documentCleanup = await deleteStoredDocuments(storageKeys);
+  } catch (cleanupError) {
+    /*
+     * Metadata and relationships are already
+     * consistently deleted. Failed binary cleanup
+     * can be handled later as orphan maintenance.
+     */
+
+    documentCleanup = {
+      completed: false,
+      storageKeys,
+      error:
+        cleanupError?.publicMessage ||
+        cleanupError?.message ||
+        "Document cleanup failed.",
+    };
+  }
+
+  return {
+    id: trainingId,
+    title: recordToDelete.title,
+    providerName: recordToDelete.provider?.name || "",
+    deleted: true,
+    documents: documentCleanup,
+  };
+}
+
+export async function validateTrainingDraft(
+  trainingData,
+  validationOptions = {},
+) {
+  return validateTraining(
+    createTrainingCandidate(trainingData),
+    validationOptions,
+  );
+}
+
+export async function replaceTrainingRecords(trainingValues) {
+  if (!Array.isArray(trainingValues)) {
+    throw createTrainingServiceError({
+      message: "The replacement Training Library must be an array.",
+
+      publicMessage: "The Training Library has an invalid format.",
+
+      code: "INVALID_TRAINING_COLLECTION",
+
+      status: 400,
+    });
+  }
+
+  const currentRecords = readStoredTraining();
+
+  const validatedRecords = trainingValues.map((value) => {
+    const candidate = createTrainingCandidate(value);
+
+    assertValidTraining(candidate);
+
+    return normalizeTraining(candidate);
+  });
+
+  const normalizedRecords = normalizeTrainingCollection(validatedRecords);
+
+  const nextTrainingIds = new Set(
+    normalizedRecords.map((training) => training.id),
+  );
+
+  const deletedTrainingIds = currentRecords
+    .map((training) => training.id)
+    .filter((trainingId) => !nextTrainingIds.has(trainingId));
+
+  const transaction = saveTrainingWithCertificationSync({
+    trainingRecords: normalizedRecords,
+
+    changedTrainingIds: normalizedRecords.map((training) => training.id),
+
+    deletedTrainingIds,
+  });
+
+  return transaction.trainingRecords;
+}
+
+
+============================================================
+frontend\src\services\Training\trainingStorage.js
+============================================================
+import {
+  normalizeTrainingCollection,
+  TRAINING_MODEL_VERSION,
+} from "../../models/trainingModel.js";
+
+export const TRAINING_STORAGE_KEY = "portfolio-platform:training";
+
+const TRAINING_STORAGE_VERSION = 1;
+
+function createTrainingStorageError(message, publicMessage, cause = null) {
+  const error = new Error(message);
+
+  error.name = "TrainingStorageError";
+  error.code = "TRAINING_STORAGE_ERROR";
+  error.publicMessage = publicMessage;
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+function getBrowserStorage() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    throw createTrainingStorageError(
+      "Training storage is unavailable.",
+      "Training storage is not supported in this environment.",
+    );
+  }
+
+  return window.localStorage;
+}
+
+function createEmptyTrainingStorageDocument() {
+  return {
+    storageVersion: TRAINING_STORAGE_VERSION,
+    trainingModelVersion: TRAINING_MODEL_VERSION,
+    trainingRecords: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function parseTrainingStorageDocument(value) {
+  if (!value) {
+    return createEmptyTrainingStorageDocument();
+  }
+
+  let parsedValue;
+
+  try {
+    parsedValue = JSON.parse(value);
+  } catch (cause) {
+    throw createTrainingStorageError(
+      "Unable to parse stored training data.",
+      "The saved Training Library could not be read.",
+      cause,
+    );
+  }
+
+  if (Array.isArray(parsedValue)) {
+    return {
+      ...createEmptyTrainingStorageDocument(),
+      trainingRecords: normalizeTrainingCollection(parsedValue),
+    };
+  }
+
+  if (!parsedValue || typeof parsedValue !== "object") {
+    throw createTrainingStorageError(
+      "Stored training data has an invalid structure.",
+      "The saved Training Library has an invalid format.",
+    );
+  }
+
+  return {
+    storageVersion:
+      Number(parsedValue.storageVersion) || TRAINING_STORAGE_VERSION,
+
+    trainingModelVersion:
+      Number(parsedValue.trainingModelVersion) || TRAINING_MODEL_VERSION,
+
+    trainingRecords: normalizeTrainingCollection(
+      parsedValue.trainingRecords ||
+        parsedValue.training ||
+        parsedValue.records,
+    ),
+
+    updatedAt:
+      typeof parsedValue.updatedAt === "string"
+        ? parsedValue.updatedAt
+        : new Date().toISOString(),
+  };
+}
+
+export function readTrainingStorage() {
+  const storage = getBrowserStorage();
+
+  try {
+    return parseTrainingStorageDocument(storage.getItem(TRAINING_STORAGE_KEY));
+  } catch (error) {
+    if (error?.name === "TrainingStorageError") {
+      throw error;
+    }
+
+    throw createTrainingStorageError(
+      "Unable to read Training Library storage.",
+      "Your saved training records could not be loaded.",
+      error,
+    );
+  }
+}
+
+export function writeTrainingStorage(trainingRecords) {
+  const storage = getBrowserStorage();
+
+  const document = {
+    storageVersion: TRAINING_STORAGE_VERSION,
+    trainingModelVersion: TRAINING_MODEL_VERSION,
+    trainingRecords: normalizeTrainingCollection(trainingRecords),
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    storage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(document));
+
+    return document;
+  } catch (error) {
+    throw createTrainingStorageError(
+      "Unable to write Training Library storage.",
+      "Your training records could not be saved.",
+      error,
+    );
+  }
+}
+
+export function readStoredTraining() {
+  return readTrainingStorage().trainingRecords;
+}
+
+export function replaceStoredTraining(trainingRecords) {
+  return writeTrainingStorage(trainingRecords).trainingRecords;
+}
+
+export function updateStoredTraining(updater) {
+  if (typeof updater !== "function") {
+    throw createTrainingStorageError(
+      "The training updater must be a function.",
+      "The Training Library could not be updated.",
+    );
+  }
+
+  const nextRecords = updater([...readStoredTraining()]);
+
+  if (!Array.isArray(nextRecords)) {
+    throw createTrainingStorageError(
+      "The training updater did not return an array.",
+      "The Training Library could not be updated.",
+    );
+  }
+
+  return replaceStoredTraining(nextRecords);
+}
+
+export function clearTrainingStorage() {
+  try {
+    getBrowserStorage().removeItem(TRAINING_STORAGE_KEY);
+  } catch (error) {
+    throw createTrainingStorageError(
+      "Unable to clear Training Library storage.",
+      "The saved Training Library could not be cleared.",
+      error,
+    );
+  }
+}
+
+export function getTrainingStorageInformation() {
+  const document = readTrainingStorage();
+
+  return {
+    storageKey: TRAINING_STORAGE_KEY,
+    storageVersion: document.storageVersion,
+    trainingModelVersion: document.trainingModelVersion,
+    trainingCount: document.trainingRecords.length,
+    updatedAt: document.updatedAt,
+  };
+}
+
+
+============================================================
+frontend\src\config\trainingConfig.js
+============================================================
+/*
+ * =========================================
+ * Training Types
+ * =========================================
+ */
+
+export const TRAINING_TYPE_OPTIONS = [
+  {
+    value: "professional-course",
+    label: "Professional Course",
+    description: "A structured professional-development course.",
+  },
+  {
+    value: "technical-training",
+    label: "Technical Training",
+    description: "Hands-on technical or technology-focused training.",
+  },
+  {
+    value: "workshop",
+    label: "Workshop",
+    description: "A practical, interactive learning session.",
+  },
+  {
+    value: "bootcamp",
+    label: "Bootcamp",
+    description: "An intensive skills-development program.",
+  },
+  {
+    value: "seminar",
+    label: "Seminar",
+    description: "A focused educational or professional seminar.",
+  },
+  {
+    value: "webinar",
+    label: "Webinar",
+    description: "An online educational presentation or session.",
+  },
+  {
+    value: "conference",
+    label: "Conference",
+    description: "A professional or academic conference program.",
+  },
+  {
+    value: "employer-training",
+    label: "Employer Training",
+    description: "Training provided through an employer.",
+  },
+  {
+    value: "vendor-training",
+    label: "Vendor Training",
+    description: "Product or technology training provided by a vendor.",
+  },
+  {
+    value: "compliance-training",
+    label: "Compliance Training",
+    description: "Required policy, safety, regulatory, or compliance training.",
+  },
+  {
+    value: "leadership-training",
+    label: "Leadership Training",
+    description: "Training focused on leadership or management.",
+  },
+  {
+    value: "self-paced-learning",
+    label: "Self-Paced Learning",
+    description: "Independent training completed at the learner's own pace.",
+  },
+  {
+    value: "other",
+    label: "Other Training",
+    description: "Another type of structured learning or training.",
+  },
+];
+
+/*
+ * =========================================
+ * Providers
+ * =========================================
+ */
+
+export const TRAINING_PROVIDER_TYPE_OPTIONS = [
+  {
+    value: "",
+    label: "Not specified",
+  },
+  {
+    value: "education-institution",
+    label: "Education Institution",
+  },
+  {
+    value: "employer",
+    label: "Employer",
+  },
+  {
+    value: "technology-vendor",
+    label: "Technology Vendor",
+  },
+  {
+    value: "training-company",
+    label: "Training Company",
+  },
+  {
+    value: "professional-association",
+    label: "Professional Association",
+  },
+  {
+    value: "government",
+    label: "Government Organization",
+  },
+  {
+    value: "nonprofit",
+    label: "Nonprofit Organization",
+  },
+  {
+    value: "online-platform",
+    label: "Online Learning Platform",
+  },
+  {
+    value: "independent-instructor",
+    label: "Independent Instructor",
+  },
+  {
+    value: "self-directed",
+    label: "Self-Directed",
+  },
+  {
+    value: "other",
+    label: "Other Provider",
+  },
+];
+
+/*
+ * =========================================
+ * Delivery Formats
+ * =========================================
+ */
+
+export const TRAINING_DELIVERY_FORMAT_OPTIONS = [
+  {
+    value: "in-person",
+    label: "In Person",
+  },
+  {
+    value: "online-live",
+    label: "Online — Live",
+  },
+  {
+    value: "online-self-paced",
+    label: "Online — Self-Paced",
+  },
+  {
+    value: "hybrid",
+    label: "Hybrid",
+  },
+  {
+    value: "on-the-job",
+    label: "On the Job",
+  },
+  {
+    value: "other",
+    label: "Other Format",
+  },
+];
+
+/*
+ * =========================================
+ * Completion Status
+ * =========================================
+ */
+
+export const TRAINING_COMPLETION_STATUS_OPTIONS = [
+  {
+    value: "planned",
+    label: "Planned",
+  },
+  {
+    value: "in-progress",
+    label: "In Progress",
+  },
+  {
+    value: "completed",
+    label: "Completed",
+  },
+  {
+    value: "paused",
+    label: "Paused",
+  },
+  {
+    value: "withdrawn",
+    label: "Withdrawn",
+  },
+];
+
+/*
+ * =========================================
+ * Supporting Document Types
+ * =========================================
+ */
+
+export const TRAINING_DOCUMENT_TYPE_OPTIONS = [
+  {
+    value: "completion-certificate",
+    label: "Completion Certificate",
+  },
+  {
+    value: "attendance-certificate",
+    label: "Attendance Certificate",
+  },
+  {
+    value: "transcript",
+    label: "Training Transcript",
+  },
+  {
+    value: "course-outline",
+    label: "Course Outline",
+  },
+  {
+    value: "syllabus",
+    label: "Syllabus",
+  },
+  {
+    value: "assessment",
+    label: "Assessment or Evaluation",
+  },
+  {
+    value: "badge",
+    label: "Digital Badge",
+  },
+  {
+    value: "receipt",
+    label: "Receipt",
+  },
+  {
+    value: "supporting-evidence",
+    label: "Supporting Evidence",
+  },
+  {
+    value: "other",
+    label: "Other Document",
+  },
+];
+
+/*
+ * =========================================
+ * Sources
+ * =========================================
+ */
+
+export const TRAINING_SOURCE_OPTIONS = [
+  {
+    value: "manual",
+    label: "Manually Added",
+  },
+  {
+    value: "imported",
+    label: "Imported",
+  },
+  {
+    value: "ai-suggested",
+    label: "AI Suggested",
+  },
+];
+
+/*
+ * =========================================
+ * Record Status
+ * =========================================
+ */
+
+export const TRAINING_STATUS_OPTIONS = [
+  {
+    value: "active",
+    label: "Active",
+    description: "Available for résumés, portfolios, and related records.",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+    description: "Preserved but hidden from normal selection.",
+  },
+];
+
+/*
+ * =========================================
+ * Field Limits
+ * =========================================
+ */
+
+export const TRAINING_FIELD_LIMITS = {
+  title: 250,
+
+  providerName: 200,
+  providerWebsite: 500,
+
+  description: 3000,
+
+  city: 120,
+  stateRegion: 120,
+  country: 120,
+  locationDisplayValue: 300,
+
+  instructorName: 200,
+  instructorTitle: 200,
+  instructorOrganization: 200,
+
+  topicName: 250,
+  topicDescription: 1500,
+
+  outcomeText: 1500,
+
+  skillName: 150,
+  skillCategory: 100,
+  skillType: 100,
+
+  credentialId: 250,
+  credentialUrl: 1000,
+
+  privateNotes: 3000,
+  sourceContext: 500,
+
+  maximumInstructors: 20,
+  maximumTopics: 50,
+  maximumLearningOutcomes: 30,
+  maximumSkills: 50,
+  maximumDocuments: 20,
+
+  maximumRelatedEducation: 20,
+  maximumRelatedCertifications: 20,
+  maximumRelatedExperiences: 30,
+  maximumRelatedProjects: 30,
+
+  maximumDurationHours: 100000,
+};
+
+/*
+ * =========================================
+ * Required Fields
+ * =========================================
+ */
+
+export const TRAINING_REQUIRED_FIELDS = [
+  "title",
+  "provider.name",
+  "trainingType",
+  "dates.startDate",
+  "completion.status",
+];
+
+/*
+ * =========================================
+ * Form Sections
+ * =========================================
+ */
+
+export const TRAINING_FORM_SECTIONS = [
+  {
+    id: "program",
+    number: "01",
+    label: "Program",
+    title: "Training Program",
+    description: "Enter the training title, type, and provider.",
+  },
+  {
+    id: "timeline-delivery",
+    number: "02",
+    label: "Timeline",
+    title: "Dates and Delivery",
+    description: "Describe when, where, and how the training was delivered.",
+  },
+  {
+    id: "completion",
+    number: "03",
+    label: "Completion",
+    title: "Completion and Credential",
+    description:
+      "Record completion status, duration, credential, and verification details.",
+  },
+  {
+    id: "description",
+    number: "04",
+    label: "Overview",
+    title: "Training Description",
+    description: "Explain the purpose and scope of the training.",
+  },
+  {
+    id: "topics",
+    number: "05",
+    label: "Topics",
+    title: "Topics and Curriculum",
+    description: "Record the subjects and curriculum covered.",
+  },
+  {
+    id: "outcomes",
+    number: "06",
+    label: "Outcomes",
+    title: "Learning Outcomes",
+    description: "Describe the knowledge and capabilities developed.",
+  },
+  {
+    id: "skills",
+    number: "07",
+    label: "Skills",
+    title: "Related Skills",
+    description: "Connect the training to the central Skill Library.",
+  },
+  {
+    id: "documents",
+    number: "08",
+    label: "Documents",
+    title: "Supporting Documents",
+    description: "Attach certificates, outlines, assessments, and evidence.",
+  },
+  {
+    id: "settings",
+    number: "09",
+    label: "Management",
+    title: "Record Settings",
+    description: "Manage visibility, relationships, source, and private notes.",
+  },
+];
+
+/*
+ * =========================================
+ * Option Helpers
+ * =========================================
+ */
+
+function findOption(options, value) {
+  return options.find((option) => option.value === value) || null;
+}
+
+export function getTrainingTypeOption(value) {
+  return findOption(TRAINING_TYPE_OPTIONS, value);
+}
+
+export function getTrainingTypeLabel(value) {
+  return getTrainingTypeOption(value)?.label || "";
+}
+
+export function getTrainingProviderTypeOption(value) {
+  return findOption(TRAINING_PROVIDER_TYPE_OPTIONS, value);
+}
+
+export function getTrainingProviderTypeLabel(value) {
+  return getTrainingProviderTypeOption(value)?.label || "";
+}
+
+export function getTrainingDeliveryFormatOption(value) {
+  return findOption(TRAINING_DELIVERY_FORMAT_OPTIONS, value);
+}
+
+export function getTrainingDeliveryFormatLabel(value) {
+  return getTrainingDeliveryFormatOption(value)?.label || "";
+}
+
+export function getTrainingCompletionStatusOption(value) {
+  return findOption(TRAINING_COMPLETION_STATUS_OPTIONS, value);
+}
+
+export function getTrainingCompletionStatusLabel(value) {
+  return getTrainingCompletionStatusOption(value)?.label || "";
+}
+
+export function getTrainingDocumentTypeOption(value) {
+  return findOption(TRAINING_DOCUMENT_TYPE_OPTIONS, value);
+}
+
+export function getTrainingDocumentTypeLabel(value) {
+  return getTrainingDocumentTypeOption(value)?.label || "";
+}
+
+export function getTrainingSourceOption(value) {
+  return findOption(TRAINING_SOURCE_OPTIONS, value);
+}
+
+export function getTrainingSourceLabel(value) {
+  return getTrainingSourceOption(value)?.label || "";
+}
+
+export function getTrainingStatusOption(value) {
+  return findOption(TRAINING_STATUS_OPTIONS, value);
+}
+
+export function getTrainingStatusLabel(value) {
+  return getTrainingStatusOption(value)?.label || "";
+}
+
+/*
+ * =========================================
+ * Option Validation
+ * =========================================
+ */
+
+export function isValidTrainingType(value) {
+  return Boolean(getTrainingTypeOption(value));
+}
+
+export function isValidTrainingProviderType(value) {
+  return Boolean(getTrainingProviderTypeOption(value));
+}
+
+export function isValidTrainingDeliveryFormat(value) {
+  return Boolean(getTrainingDeliveryFormatOption(value));
+}
+
+export function isValidTrainingCompletionStatus(value) {
+  return Boolean(getTrainingCompletionStatusOption(value));
+}
+
+export function isValidTrainingDocumentType(value) {
+  return Boolean(getTrainingDocumentTypeOption(value));
+}
+
+export function isValidTrainingSource(value) {
+  return Boolean(getTrainingSourceOption(value));
+}
+
+export function isValidTrainingStatus(value) {
+  return Boolean(getTrainingStatusOption(value));
+}
+

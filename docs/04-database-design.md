@@ -153,5 +153,20 @@ Connected to SQL Server database "portfolio-platform-db" on portfolio-platform-s
 │ 14      │ 'certifications'          │ 'PK_certifications'                              │ 'PRIMARY_KEY_CONSTRAINT' │
 │ 15      │ 'certifications'          │ 'UQ_certifications_id_user'                      │ 'UNIQUE_CONSTRAINT'      │
 └─────────┴───────────────────────────┴──────────────────────────────────────────────────┴──────────────────────────┘
-SQL Server connection pool closed.
-PS D:\Documents\Project\Portfolio\portfolio-plateform\backend> 
+
+
+flowchart TD
+    U["dbo.users"]
+    T["dbo.trainings"]
+    D["dbo.training_documents"]
+    C["dbo.certifications"]
+    S["dbo.skills"]
+    R["Training relationships"]
+    F["Backend document storage"]
+
+    U --> T
+    T --> D
+    D --> F
+    T --> R
+    R --> C
+    R --> S

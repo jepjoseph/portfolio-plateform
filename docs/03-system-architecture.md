@@ -277,3 +277,26 @@ Component structure:
 ProfileHeader/
 ├── ProfileHeader.jsx
 └── ProfileHeader.css
+
+TrainingDataContext.jsx
+        |
+        v
+trainingService.js
+        |
+        v
+trainingApiService.js
+        |
+        v
+apiClient.js
+        |
+        v
+Express Training API
+        |
+        v
+trainingService.js (backend)
+        |
+        v
+trainingRepository.js
+        |
+        v
+Azure SQL

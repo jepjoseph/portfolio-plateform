@@ -1,0 +1,140 @@
+{
+  "verifiedAt": "2026-11-04T20:07:27.584Z",
+  "database": [
+    {
+      "database_name": "portfolio-platform-db",
+      "training_table_id": 1483152329
+    }
+  ],
+  "columns": [
+    {
+      "column_id": 1,
+      "column_name": "id",
+      "data_type": "nvarchar",
+      "max_length": 400,
+      "is_nullable": false
+    },
+    {
+      "column_id": 2,
+      "column_name": "user_id",
+      "data_type": "uniqueidentifier",
+      "max_length": 16,
+      "is_nullable": false
+    },
+    {
+      "column_id": 3,
+      "column_name": "title",
+      "data_type": "nvarchar",
+      "max_length": 500,
+      "is_nullable": false
+    },
+    {
+      "column_id": 4,
+      "column_name": "training_type",
+      "data_type": "nvarchar",
+      "max_length": 200,
+      "is_nullable": false
+    },
+    {
+      "column_id": 5,
+      "column_name": "provider_name",
+      "data_type": "nvarchar",
+      "max_length": 1000,
+      "is_nullable": false
+    },
+    {
+      "column_id": 6,
+      "column_name": "status",
+      "data_type": "nvarchar",
+      "max_length": 40,
+      "is_nullable": false
+    },
+    {
+      "column_id": 7,
+      "column_name": "training_data",
+      "data_type": "nvarchar",
+      "max_length": -1,
+      "is_nullable": false
+    },
+    {
+      "column_id": 8,
+      "column_name": "created_at",
+      "data_type": "datetime2",
+      "max_length": 7,
+      "is_nullable": false
+    },
+    {
+      "column_id": 9,
+      "column_name": "updated_at",
+      "data_type": "datetime2",
+      "max_length": 7,
+      "is_nullable": false
+    },
+    {
+      "column_id": 10,
+      "column_name": "row_version",
+      "data_type": "timestamp",
+      "max_length": 8,
+      "is_nullable": false
+    }
+  ],
+  "indexes": [
+    {
+      "index_name": "PK_trainings",
+      "type_desc": "CLUSTERED",
+      "is_unique": true
+    },
+    {
+      "index_name": "UQ_trainings_id_user",
+      "type_desc": "NONCLUSTERED",
+      "is_unique": true
+    },
+    {
+      "index_name": "IX_trainings_user_status_updated",
+      "type_desc": "NONCLUSTERED",
+      "is_unique": false
+    },
+    {
+      "index_name": "IX_trainings_user_type",
+      "type_desc": "NONCLUSTERED",
+      "is_unique": false
+    },
+    {
+      "index_name": "IX_trainings_user_provider",
+      "type_desc": "NONCLUSTERED",
+      "is_unique": false
+    }
+  ],
+  "checkConstraints": [
+    {
+      "constraint_name": "CK_trainings_id_not_blank",
+      "definition": "(len(ltrim(rtrim([id])))>(0))"
+    },
+    {
+      "constraint_name": "CK_trainings_title_not_blank",
+      "definition": "(len(ltrim(rtrim([title])))>(0))"
+    },
+    {
+      "constraint_name": "CK_trainings_type_not_blank",
+      "definition": "(len(ltrim(rtrim([training_type])))>(0))"
+    },
+    {
+      "constraint_name": "CK_trainings_status",
+      "definition": "([status]=N'archived' OR [status]=N'active')"
+    },
+    {
+      "constraint_name": "CK_trainings_data_json",
+      "definition": "(isjson([training_data])=(1))"
+    },
+    {
+      "constraint_name": "CK_trainings_dates",
+      "definition": "([updated_at]>=[created_at])"
+    }
+  ],
+  "migrationHistory": [
+    {
+      "migration_id": "013_trainings.sql",
+      "applied_at": "2026-11-04T19:58:19.419Z"
+    }
+  ]
+}

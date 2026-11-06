@@ -1,0 +1,3697 @@
+TRAINING SERVICE SCHEMA COMPATIBILITY
+Generated: 2026-11-05 17:22:38
+Read-only inspection
+
+================================================================================
+FILE: backend\src\services\Service\trainingService.js
+================================================================================
+import { randomUUID } from "node:crypto";
+
+import {
+  listTrainingsByUser,
+  findTrainingById,
+  createTrainingRecord,
+  updateTrainingRecord,
+} from "../../repositories/trainingRepository.js";
+
+function trainingError(message, code, status, errors) {
+  const error = new Error(message);
+  error.name = "TrainingServiceError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+
+  if (errors) error.errors = errors;
+
+  return error;
+}
+
+function requireUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw trainingError(
+      "Authentication is required.",
+      "TRAINING_AUTH_REQUIRED",
+      401,
+    );
+  }
+
+  return userId.trim();
+}
+
+function requireTrainingId(trainingId) {
+  if (
+    typeof trainingId !== "string" ||
+    !trainingId.trim() ||
+    trainingId.length > 200
+  ) {
+    throw trainingError(
+      "A valid Training identifier is required.",
+      "TRAINING_ID_INVALID",
+      400,
+    );
+  }
+
+  return trainingId.trim();
+}
+
+function requireObject(value, field) {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw trainingError(
+      `${field} must be a JSON object.`,
+      "TRAINING_REQUEST_INVALID",
+      400,
+    );
+  }
+
+  return value;
+}
+
+function validateTraining(training) {
+  requireObject(training, "Training");
+
+  const errors = [];
+
+  function checkText(field, value, maximum) {
+    if (
+      typeof value !== "string" ||
+      !value.trim() ||
+      value.trim().length > maximum
+    ) {
+      errors.push({
+        field,
+        code: "TRAINING_FIELD_INVALID",
+        message: `${field} must contain 1 to ${maximum} characters.`,
+      });
+    }
+  }
+
+  checkText("id", training.id, 200);
+  checkText("title", training.title, 250);
+  checkText("trainingType", training.trainingType, 100);
+
+  if (
+    !training.provider ||
+    typeof training.provider !== "object" ||
+    Array.isArray(training.provider)
+  ) {
+    errors.push({
+      field: "provider",
+      code: "TRAINING_PROVIDER_INVALID",
+      message: "Training provider must be an object.",
+    });
+  } else {
+    checkText("provider.name", training.provider.name, 500);
+  }
+
+  if (!["active", "archived"].includes(training.status)) {
+    errors.push({
+      field: "status",
+      code: "TRAINING_STATUS_INVALID",
+      message: "Training status must be active or archived.",
+    });
+  }
+
+  if (training.modelVersion !== 2) {
+    errors.push({
+      field: "modelVersion",
+      code: "TRAINING_MODEL_VERSION_INVALID",
+      message: "Training model version 2 is required.",
+    });
+  }
+
+  if (
+    typeof training.createdAt !== "string" ||
+    !Number.isFinite(Date.parse(training.createdAt)) ||
+    typeof training.updatedAt !== "string" ||
+    !Number.isFinite(Date.parse(training.updatedAt))
+  ) {
+    errors.push({
+      field: "timestamps",
+      code: "TRAINING_TIMESTAMPS_INVALID",
+      message: "Valid Training timestamps are required.",
+    });
+  }
+
+  if (errors.length) {
+    throw trainingError(
+      "Training validation failed.",
+      "TRAINING_VALIDATION_FAILED",
+      400,
+      errors,
+    );
+  }
+
+  return structuredClone(training);
+}
+
+function requireValidRowVersion(value) {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Za-z0-9+/]{11}=$/.test(value)
+  ) {
+    throw trainingError(
+      "A valid Training version is required.",
+      "TRAINING_VERSION_INVALID",
+      400,
+    );
+  }
+
+  const bytes = Buffer.from(value, "base64");
+
+  if (
+    bytes.length !== 8 ||
+    bytes.toString("base64") !== value
+  ) {
+    throw trainingError(
+      "A valid Training version is required.",
+      "TRAINING_VERSION_INVALID",
+      400,
+    );
+  }
+
+  return value;
+}
+
+function requireNoNewDocuments(documents) {
+  if (documents !== undefined) {
+    if (!Array.isArray(documents)) {
+      throw trainingError(
+        "Supporting documents must be an array.",
+        "TRAINING_DOCUMENTS_INVALID",
+        400,
+      );
+    }
+
+    if (documents.length > 0) {
+      throw trainingError(
+        "Training document uploads are not available yet.",
+        "TRAINING_DOCUMENTS_NOT_READY",
+        400,
+      );
+    }
+  }
+}
+
+function requireNoRelationshipUpdates(updates) {
+  const restricted = [
+    "skillRelationships",
+    "certificationRelationships",
+    "relatedCertificationIds",
+    "relatedEducationIds",
+    "relatedExperienceIds",
+    "relatedProjectIds",
+  ];
+
+  for (const field of restricted) {
+    if (Object.hasOwn(updates, field)) {
+      throw trainingError(
+        `Updating ${field} is not available yet.`,
+        "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+        400,
+      );
+    }
+  }
+}
+
+function normalizeRecord(record) {
+  if (!record) return null;
+
+  return {
+    ...record,
+    createdAt: new Date(record.createdAt).toISOString(),
+    updatedAt: new Date(record.updatedAt).toISOString(),
+  };
+}
+
+function notFound() {
+  return trainingError(
+    "Training not found.",
+    "TRAINING_NOT_FOUND",
+    404,
+  );
+}
+
+function versionConflict() {
+  return trainingError(
+    "Training was modified by another operation. Reload before saving.",
+    "TRAINING_VERSION_CONFLICT",
+    409,
+  );
+}
+
+export async function getAuthenticatedTrainings({ userId }) {
+  const authenticatedUserId = requireUserId(userId);
+  const records = await listTrainingsByUser(authenticatedUserId);
+
+  return records.map(normalizeRecord);
+}
+
+export async function getAuthenticatedTraining({
+  userId,
+  trainingId,
+}) {
+  const authenticatedUserId = requireUserId(userId);
+  const id = requireTrainingId(trainingId);
+
+  const record = await findTrainingById(authenticatedUserId, id);
+
+  if (!record) throw notFound();
+
+  return normalizeRecord(record);
+}
+
+export async function createAuthenticatedTraining({
+  userId,
+  training,
+}) {
+  const authenticatedUserId = requireUserId(userId);
+  const input = requireObject(training, "Training");
+
+  requireNoNewDocuments(input.supportingDocuments);
+
+  const now = new Date().toISOString();
+
+  const candidate = validateTraining({
+    ...input,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  // These fields are controlled by the backend.
+  delete candidate.rowVersion;
+  delete candidate.userId;
+  delete candidate.user_id;
+
+  try {
+    const created = await createTrainingRecord(
+      authenticatedUserId,
+      candidate,
+    );
+
+    return normalizeRecord(created);
+  } catch (error) {
+    const number =
+      error.number ??
+      error.originalError?.number ??
+      error.cause?.number;
+
+    if (number === 2601 || number === 2627) {
+      throw trainingError(
+        "A Training identifier already exists.",
+        "TRAINING_ID_CONFLICT",
+        409,
+      );
+    }
+
+    throw error;
+  }
+}
+
+export async function updateAuthenticatedTraining({
+  userId,
+  trainingId,
+  updates,
+  rowVersion,
+}) {
+  const authenticatedUserId = requireUserId(userId);
+  const id = requireTrainingId(trainingId);
+  const expectedVersion = requireValidRowVersion(rowVersion);
+  const changes = requireObject(updates, "Training updates");
+
+  if (!Object.keys(changes).length) {
+    throw trainingError(
+      "Provide at least one Training field to update.",
+      "TRAINING_REQUEST_INVALID",
+      400,
+    );
+  }
+
+  const forbidden = [
+    "id",
+    "userId",
+    "user_id",
+    "createdAt",
+    "updatedAt",
+    "rowVersion",
+    "modelVersion",
+  ];
+
+  for (const field of forbidden) {
+    if (Object.hasOwn(changes, field)) {
+      throw trainingError(
+        `${field} cannot be updated.`,
+        "TRAINING_SERVER_FIELD_FORBIDDEN",
+        400,
+      );
+    }
+  }
+
+  requireNoRelationshipUpdates(changes);
+
+  if (Object.hasOwn(changes, "supportingDocuments")) {
+    throw trainingError(
+      "Updating Training documents is not available yet.",
+      "TRAINING_DOCUMENTS_NOT_READY",
+      400,
+    );
+  }
+
+  const existing = await findTrainingById(
+    authenticatedUserId,
+    id,
+  );
+
+  if (!existing) throw notFound();
+
+  if (existing.rowVersion !== expectedVersion) {
+    throw versionConflict();
+  }
+
+  const {
+    rowVersion: _storedVersion,
+    ...storedModel
+  } = normalizeRecord(existing);
+
+  const candidate = validateTraining({
+    ...storedModel,
+    ...changes,
+    id: storedModel.id,
+    createdAt: storedModel.createdAt,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const updated = await updateTrainingRecord(
+    authenticatedUserId,
+    candidate,
+    expectedVersion,
+  );
+
+  if (!updated) {
+    const current = await findTrainingById(
+      authenticatedUserId,
+      id,
+    );
+
+    if (!current) throw notFound();
+
+    throw versionConflict();
+  }
+
+  return normalizeRecord(updated);
+}
+
+================================================================================
+FILE: backend\src\schemas\trainingSchemas.js
+================================================================================
+import { z } from "zod";
+
+export const TRAINING_MODEL_VERSION = 2;
+
+export const TRAINING_TYPE_VALUES = [
+  "professional-course", "technical-training", "workshop",
+  "bootcamp", "seminar", "webinar", "conference",
+  "employer-training", "vendor-training", "compliance-training",
+  "leadership-training", "self-paced-learning", "other",
+];
+
+export const TRAINING_PROVIDER_TYPE_VALUES = [
+  "", "education-institution", "employer", "technology-vendor",
+  "training-company", "professional-association", "government",
+  "nonprofit", "online-platform", "independent-instructor",
+  "self-directed", "other",
+];
+
+export const TRAINING_DELIVERY_FORMAT_VALUES = [
+  "in-person", "online-live", "online-self-paced",
+  "hybrid", "on-the-job", "other",
+];
+
+export const TRAINING_COMPLETION_STATUS_VALUES = [
+  "planned", "in-progress", "completed", "paused", "withdrawn",
+];
+
+export const TRAINING_DOCUMENT_TYPE_VALUES = [
+  "completion-certificate", "attendance-certificate",
+  "transcript", "course-outline", "syllabus", "assessment",
+  "badge", "receipt", "supporting-evidence", "other",
+];
+
+export const TRAINING_SOURCE_VALUES = [
+  "manual", "imported", "ai-suggested",
+];
+
+export const TRAINING_STATUS_VALUES = ["active", "archived"];
+
+const text = (max) => z.string().trim().max(max);
+const requiredText = (max) => text(max).min(1);
+const id = requiredText(200);
+const order = z.number().int().nonnegative();
+
+const timestamp = z.string().datetime({ offset: true });
+
+function validDate(value) {
+  if (value === "") return true;
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(value)) {
+    return false;
+  }
+
+  if (value.length === 7) return true;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const actual = new Date(Date.UTC(year, month - 1, day));
+
+  return actual.getUTCFullYear() === year &&
+    actual.getUTCMonth() === month - 1 &&
+    actual.getUTCDate() === day;
+}
+
+const date = z.string().refine(validDate, "Invalid calendar date.");
+const requiredDate = date.refine(Boolean, "A date is required.");
+
+function dateBounds(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  const start = Date.UTC(year, month - 1, day || 1);
+  const end = value.length === 7
+    ? Date.UTC(year, month, 0)
+    : start;
+
+  return { start, end };
+}
+
+const url = (max) => text(max).refine((value) => {
+  if (!value) return true;
+
+  try {
+    const candidate = /^https?:\/\//i.test(value)
+      ? value
+      : `https://${value}`;
+
+    const parsed = new URL(candidate);
+    return ["http:", "https:"].includes(parsed.protocol) &&
+      Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+}, "Enter a valid HTTP or HTTPS URL.");
+
+const provider = z.object({
+  name: requiredText(200),
+  type: z.enum(TRAINING_PROVIDER_TYPE_VALUES),
+  website: url(500),
+}).strict();
+
+const delivery = z.object({
+  format: z.enum(TRAINING_DELIVERY_FORMAT_VALUES),
+  location: z.object({
+    city: text(120),
+    stateRegion: text(120),
+    country: text(120),
+    displayValue: text(300),
+  }).strict(),
+}).strict();
+
+const dates = z.object({
+  startDate: requiredDate,
+  endDate: date,
+  isCurrent: z.boolean(),
+}).strict();
+
+const completion = z.object({
+  status: z.enum(TRAINING_COMPLETION_STATUS_VALUES),
+  durationHours: z.number().finite().min(0).max(100000).nullable(),
+  certificateEarned: z.boolean(),
+  credentialId: text(250),
+  credentialUrl: url(1000),
+}).strict();
+
+const instructor = z.object({
+  id,
+  name: requiredText(200),
+  title: text(200),
+  organization: text(200),
+  order,
+}).strict();
+
+const topic = z.object({
+  id,
+  name: requiredText(250),
+  description: text(1500),
+  order,
+}).strict();
+
+const learningOutcome = z.object({
+  id,
+  text: requiredText(1500),
+  order,
+}).strict();
+
+const skillRelationship = z.object({
+  id,
+  skillId: text(200),
+  nameSnapshot: text(150),
+  categorySnapshot: text(100),
+  typeSnapshot: text(100),
+  order,
+}).strict().refine(
+  (value) => Boolean(value.skillId || value.nameSnapshot),
+  "A skill identifier or name is required.",
+);
+
+const certificationRelationship = z.object({
+  id,
+  certificationId: id,
+  order,
+  snapshot: z.object({
+    name: text(160),
+    credentialState: text(100),
+    issueDate: date,
+    expirationDate: date,
+    doesNotExpire: z.boolean(),
+  }).strict(),
+}).strict();
+
+const document = z.object({
+  id,
+  documentType: z.enum(TRAINING_DOCUMENT_TYPE_VALUES),
+  name: text(250),
+  description: text(1000),
+  fileName: text(500),
+  mimeType: text(200),
+  fileSize: z.number().finite().nonnegative().nullable(),
+  storageProvider: text(100),
+  storageKey: text(500),
+  fileUrl: text(2000),
+  uploadedAt: text(100),
+  visibility: z.enum(["private", "public"]),
+  order,
+}).strict();
+
+const visibilityFields = [
+  "showProvider",
+  "showProviderWebsite",
+  "showDeliveryFormat",
+  "showLocation",
+  "showDates",
+  "showDuration",
+  "showDescription",
+  "showInstructors",
+  "showTopics",
+  "showLearningOutcomes",
+  "showSkills",
+  "showCredential",
+  "showCertifications",
+  "showSupportingDocuments",
+];
+
+const visibility = z.object(
+  Object.fromEntries(
+    visibilityFields.map((field) => [field, z.boolean()]),
+  ),
+).strict();
+
+const baseSchema = z.object({
+  modelVersion: z.literal(TRAINING_MODEL_VERSION),
+  id,
+  title: requiredText(250),
+  trainingType: z.enum(TRAINING_TYPE_VALUES),
+  provider,
+  delivery,
+  dates,
+  completion,
+  description: text(3000),
+  instructors: z.array(instructor).max(20),
+  topics: z.array(topic).max(50),
+  learningOutcomes: z.array(learningOutcome).max(30),
+  skillRelationships: z.array(skillRelationship).max(50),
+  supportingDocuments: z.array(document).max(20),
+  relatedEducationIds: z.array(id).max(20),
+  certificationRelationships: z.array(certificationRelationship).max(20),
+  relatedCertificationIds: z.array(id).max(20),
+  relatedExperienceIds: z.array(id).max(30),
+  relatedProjectIds: z.array(id).max(30),
+  visibility,
+  privateInformation: z.object({
+    notes: text(3000),
+  }).strict(),
+  source: z.enum(TRAINING_SOURCE_VALUES),
+  sourceContext: text(500),
+  status: z.enum(TRAINING_STATUS_VALUES),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}).strict();
+
+function validateRules(value, context) {
+  const issue = (path, message) => context.addIssue({
+    code: "custom",
+    path,
+    message,
+  });
+
+  if (value.dates.isCurrent && value.dates.endDate) {
+    issue(["dates", "endDate"], "Current training cannot have an end date.");
+  }
+
+  if (
+    value.dates.endDate &&
+    dateBounds(value.dates.endDate).end <
+      dateBounds(value.dates.startDate).start
+  ) {
+    issue(["dates", "endDate"], "End date precedes start date.");
+  }
+
+  if (
+    value.completion.status === "in-progress" &&
+    !value.dates.isCurrent
+  ) {
+    issue(["dates", "isCurrent"], "In-progress training must be current.");
+  }
+
+  if (
+    new Date(value.updatedAt).getTime() <
+    new Date(value.createdAt).getTime()
+  ) {
+    issue(["updatedAt"], "Updated timestamp precedes creation.");
+  }
+
+  function unique(items, path, getKey) {
+    const seen = new Set();
+
+    items.forEach((item, index) => {
+      const key = getKey(item);
+
+      if (!key) return;
+
+      const normalized = String(key).normalize("NFKC").toLowerCase();
+
+      if (seen.has(normalized)) {
+        issue([...path, index], "Duplicate item.");
+      }
+
+      seen.add(normalized);
+    });
+  }
+
+  for (const field of [
+    "instructors", "topics", "learningOutcomes",
+    "skillRelationships", "certificationRelationships",
+    "supportingDocuments",
+  ]) {
+    unique(value[field], [field], (item) => item.id);
+  }
+
+  unique(
+    value.skillRelationships,
+    ["skillRelationships"],
+    (item) => item.skillId || item.nameSnapshot,
+  );
+
+  unique(
+    value.certificationRelationships,
+    ["certificationRelationships"],
+    (item) => item.certificationId,
+  );
+
+  for (const field of [
+    "relatedEducationIds", "relatedCertificationIds",
+    "relatedExperienceIds", "relatedProjectIds",
+  ]) {
+    unique(value[field], [field], (item) => item);
+  }
+
+  const canonicalIds = value.certificationRelationships.map(
+    (item) => item.certificationId,
+  );
+
+  if (
+    JSON.stringify(canonicalIds) !==
+    JSON.stringify(value.relatedCertificationIds)
+  ) {
+    issue(
+      ["relatedCertificationIds"],
+      "Certification IDs must match canonical relationships.",
+    );
+  }
+}
+
+export const completeTrainingSchema =
+  baseSchema.superRefine(validateRules);
+
+export const createTrainingSchema = completeTrainingSchema;
+
+export const updateTrainingSchema = baseSchema
+  .omit({
+    id: true,
+    modelVersion: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .partial()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "Provide at least one Training field to update.",
+  );
+
+export const trainingIdParamsSchema = z.object({
+  trainingId: id,
+}).strict();
+
+export const trainingRowVersionSchema = z.string().refine(
+  (value) => {
+    if (!/^[A-Za-z0-9+/]{11}=$/.test(value)) return false;
+    const bytes = Buffer.from(value, "base64");
+    return bytes.length === 8 &&
+      bytes.toString("base64") === value;
+  },
+  "A valid SQL row version is required.",
+);
+
+export function formatTrainingSchemaErrors(error) {
+  return (error?.issues || []).map((item) => ({
+    field: item.path.join("."),
+    code: item.code,
+    message: item.message,
+  }));
+}
+
+================================================================================
+FILE: backend\test\services\trainingService.test.js
+================================================================================
+import test, { mock } from "node:test";
+import assert from "node:assert/strict";
+
+const VERSION = Buffer.alloc(8, 1).toString("base64");
+const NEXT_VERSION = Buffer.alloc(8, 2).toString("base64");
+
+const USER_ID = "test-user-1";
+const OTHER_USER_ID = "test-user-2";
+
+const calls = [];
+
+const repository = {
+  listTrainingsByUser: mock.fn(async () => []),
+  findTrainingById: mock.fn(async () => null),
+  createTrainingRecord: mock.fn(async (_userId, record) => ({
+    ...record,
+    rowVersion: VERSION,
+  })),
+  updateTrainingRecord: mock.fn(async (_userId, record) => ({
+    ...record,
+    rowVersion: NEXT_VERSION,
+  })),
+};
+
+mock.module(
+  "../../src/repositories/trainingRepository.js",
+  {
+    namedExports: repository,
+  },
+);
+
+const {
+  getAuthenticatedTrainings,
+  getAuthenticatedTraining,
+  createAuthenticatedTraining,
+  updateAuthenticatedTraining,
+} = await import(
+  "../../src/services/Service/trainingService.js"
+);
+
+function training(overrides = {}) {
+  return {
+    modelVersion: 2,
+    id: "training-1",
+    title: "Network Administration",
+    trainingType: "technical",
+    provider: {
+      name: "Training Provider",
+      website: "",
+    },
+    status: "active",
+    description: "Network administration training.",
+    supportingDocuments: [],
+    skillRelationships: [],
+    certificationRelationships: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    rowVersion: VERSION,
+    ...overrides,
+  };
+}
+
+function resetRepository() {
+  calls.length = 0;
+
+  for (const fn of Object.values(repository)) {
+    fn.mock.resetCalls();
+  }
+
+  repository.listTrainingsByUser.mock.mockImplementation(
+    async (userId) => {
+      calls.push(["list", userId]);
+      return [];
+    },
+  );
+
+  repository.findTrainingById.mock.mockImplementation(
+    async (userId, id) => {
+      calls.push(["find", userId, id]);
+      return null;
+    },
+  );
+
+  repository.createTrainingRecord.mock.mockImplementation(
+    async (userId, record) => {
+      calls.push(["create", userId, record]);
+      return { ...record, rowVersion: VERSION };
+    },
+  );
+
+  repository.updateTrainingRecord.mock.mockImplementation(
+    async (userId, record, version) => {
+      calls.push(["update", userId, record, version]);
+      return { ...record, rowVersion: NEXT_VERSION };
+    },
+  );
+}
+
+function expectError(code, status) {
+  return (error) => {
+    assert.equal(error.name, "TrainingServiceError");
+    assert.equal(error.code, code);
+    assert.equal(error.status, status);
+    assert.equal(typeof error.publicMessage, "string");
+    return true;
+  };
+}
+
+test.beforeEach(resetRepository);
+
+test("LIST rejects missing authentication", async () => {
+  await assert.rejects(
+    getAuthenticatedTrainings({ userId: "" }),
+    expectError("TRAINING_AUTH_REQUIRED", 401),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("LIST returns an empty array", async () => {
+  const result = await getAuthenticatedTrainings({
+    userId: USER_ID,
+  });
+
+  assert.deepEqual(result, []);
+  assert.deepEqual(calls, [["list", USER_ID]]);
+});
+
+test("LIST returns normalized records", async () => {
+  repository.listTrainingsByUser.mock.mockImplementation(
+    async () => [training()],
+  );
+
+  const result = await getAuthenticatedTrainings({
+    userId: USER_ID,
+  });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].title, "Network Administration");
+  assert.equal(result[0].rowVersion, VERSION);
+});
+
+test("GET rejects an invalid Training ID", async () => {
+  await assert.rejects(
+    getAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "",
+    }),
+    expectError("TRAINING_ID_INVALID", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("GET returns 404 when record is missing", async () => {
+  await assert.rejects(
+    getAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "missing",
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+
+  assert.deepEqual(calls, [
+    ["find", USER_ID, "missing"],
+  ]);
+});
+
+test("GET retrieves an authenticated user's Training", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  const result = await getAuthenticatedTraining({
+    userId: USER_ID,
+    trainingId: "training-1",
+  });
+
+  assert.equal(result.id, "training-1");
+  assert.equal(result.rowVersion, VERSION);
+});
+
+test("GET passes the requesting user ID to repository", async () => {
+  await assert.rejects(
+    getAuthenticatedTraining({
+      userId: OTHER_USER_ID,
+      trainingId: "training-1",
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+
+  assert.deepEqual(calls, [
+    ["find", OTHER_USER_ID, "training-1"],
+  ]);
+});
+
+test("CREATE rejects missing authentication", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: null,
+      training: training(),
+    }),
+    expectError("TRAINING_AUTH_REQUIRED", 401),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE rejects non-object input", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: [],
+    }),
+    expectError("TRAINING_REQUEST_INVALID", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE generates server-owned ID and timestamps", async () => {
+  const result = await createAuthenticatedTraining({
+    userId: USER_ID,
+    training: training({
+      id: "client-controlled-id",
+      rowVersion: VERSION,
+      userId: OTHER_USER_ID,
+      user_id: OTHER_USER_ID,
+    }),
+  });
+
+  assert.notEqual(result.id, "client-controlled-id");
+  assert.match(
+    result.id,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+
+  assert.equal(result.rowVersion, VERSION);
+
+  const [operation, userId, saved] = calls[0];
+
+  assert.equal(operation, "create");
+  assert.equal(userId, USER_ID);
+  assert.equal(saved.userId, undefined);
+  assert.equal(saved.user_id, undefined);
+  assert.equal(saved.rowVersion, undefined);
+  assert.ok(Number.isFinite(Date.parse(saved.createdAt)));
+  assert.ok(Number.isFinite(Date.parse(saved.updatedAt)));
+});
+
+test("CREATE rejects invalid title", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({ title: "" }),
+    }),
+    expectError("TRAINING_VALIDATION_FAILED", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE rejects invalid provider", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({ provider: null }),
+    }),
+    expectError("TRAINING_VALIDATION_FAILED", 400),
+  );
+});
+
+test("CREATE rejects unsupported model version", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({ modelVersion: 1 }),
+    }),
+    expectError("TRAINING_VALIDATION_FAILED", 400),
+  );
+});
+
+test("CREATE rejects unsupported documents", async () => {
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training({
+        supportingDocuments: [{ id: "document-1" }],
+      }),
+    }),
+    expectError("TRAINING_DOCUMENTS_NOT_READY", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("CREATE maps duplicate SQL ID errors to 409", async () => {
+  repository.createTrainingRecord.mock.mockImplementation(
+    async () => {
+      const error = new Error("Duplicate key");
+      error.number = 2627;
+      throw error;
+    },
+  );
+
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training(),
+    }),
+    expectError("TRAINING_ID_CONFLICT", 409),
+  );
+});
+
+test("CREATE propagates unexpected repository errors", async () => {
+  repository.createTrainingRecord.mock.mockImplementation(
+    async () => {
+      throw new Error("Database unavailable");
+    },
+  );
+
+  await assert.rejects(
+    createAuthenticatedTraining({
+      userId: USER_ID,
+      training: training(),
+    }),
+    /Database unavailable/,
+  );
+});
+
+test("UPDATE rejects invalid rowVersion", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: "invalid",
+    }),
+    expectError("TRAINING_VERSION_INVALID", 400),
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("UPDATE rejects empty changes", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: {},
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_REQUEST_INVALID", 400),
+  );
+});
+
+test("UPDATE rejects server-owned fields", async () => {
+  for (const field of [
+    "id",
+    "userId",
+    "user_id",
+    "createdAt",
+    "updatedAt",
+    "rowVersion",
+    "modelVersion",
+  ]) {
+    await assert.rejects(
+      updateAuthenticatedTraining({
+        userId: USER_ID,
+        trainingId: "training-1",
+        updates: { [field]: "unauthorized" },
+        rowVersion: VERSION,
+      }),
+      expectError("TRAINING_SERVER_FIELD_FORBIDDEN", 400),
+    );
+  }
+
+  assert.equal(calls.length, 0);
+});
+
+test("UPDATE rejects restricted relationships", async () => {
+  for (const field of [
+    "skillRelationships",
+    "certificationRelationships",
+    "relatedCertificationIds",
+    "relatedEducationIds",
+    "relatedExperienceIds",
+    "relatedProjectIds",
+  ]) {
+    await assert.rejects(
+      updateAuthenticatedTraining({
+        userId: USER_ID,
+        trainingId: "training-1",
+        updates: { [field]: [] },
+        rowVersion: VERSION,
+      }),
+      expectError(
+        "TRAINING_RELATIONSHIP_UPDATE_NOT_READY",
+        400,
+      ),
+    );
+  }
+
+  assert.equal(calls.length, 0);
+});
+
+test("UPDATE rejects document changes", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { supportingDocuments: [] },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_DOCUMENTS_NOT_READY", 400),
+  );
+});
+
+test("UPDATE returns 404 when record is missing", async () => {
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "missing",
+      updates: { title: "Updated" },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+});
+
+test("UPDATE rejects stale rowVersion before writing", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: NEXT_VERSION,
+    }),
+    expectError("TRAINING_VERSION_CONFLICT", 409),
+  );
+
+  assert.equal(
+    repository.updateTrainingRecord.mock.callCount(),
+    0,
+  );
+});
+
+test("UPDATE preserves existing fields", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  const result = await updateAuthenticatedTraining({
+    userId: USER_ID,
+    trainingId: "training-1",
+    updates: { title: "Updated Training" },
+    rowVersion: VERSION,
+  });
+
+  assert.equal(result.title, "Updated Training");
+  assert.equal(result.description, "Network administration training.");
+  assert.equal(result.provider.name, "Training Provider");
+  assert.equal(result.rowVersion, NEXT_VERSION);
+
+  const updateCall = repository.updateTrainingRecord.mock.calls[0];
+
+  assert.equal(updateCall.arguments[0], USER_ID);
+  assert.equal(updateCall.arguments[1].id, "training-1");
+  assert.equal(updateCall.arguments[2], VERSION);
+});
+
+test("UPDATE returns 409 when concurrent write wins", async () => {
+  repository.findTrainingById.mock.mockImplementation(
+    async () => training(),
+  );
+
+  repository.updateTrainingRecord.mock.mockImplementation(
+    async () => null,
+  );
+
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_VERSION_CONFLICT", 409),
+  );
+});
+
+test("UPDATE returns 404 when record disappears", async () => {
+  let reads = 0;
+
+  repository.findTrainingById.mock.mockImplementation(
+    async () => {
+      reads += 1;
+      return reads === 1 ? training() : null;
+    },
+  );
+
+  repository.updateTrainingRecord.mock.mockImplementation(
+    async () => null,
+  );
+
+  await assert.rejects(
+    updateAuthenticatedTraining({
+      userId: USER_ID,
+      trainingId: "training-1",
+      updates: { title: "Updated" },
+      rowVersion: VERSION,
+    }),
+    expectError("TRAINING_NOT_FOUND", 404),
+  );
+});
+
+================================================================================
+FILE: frontend\src\models\trainingModel.js
+================================================================================
+import {
+  TRAINING_FIELD_LIMITS,
+  isValidTrainingCompletionStatus,
+  isValidTrainingDeliveryFormat,
+  isValidTrainingDocumentType,
+  isValidTrainingProviderType,
+  isValidTrainingSource,
+  isValidTrainingStatus,
+  isValidTrainingType,
+} from "../config/trainingConfig.js";
+
+import { isValidDocumentVisibility } from "../config/documentConfig.js";
+
+/*
+ * =========================================
+ * Model Version
+ * =========================================
+ */
+
+export const TRAINING_MODEL_VERSION = 2;
+
+/*
+ * =========================================
+ * ID Creation
+ * =========================================
+ */
+
+export function createTrainingId(prefix = "training") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/*
+ * =========================================
+ * Primitive Normalization
+ * =========================================
+ */
+
+function normalizeText(value, maximumLength = Infinity) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, maximumLength);
+}
+
+function normalizeBoolean(value, defaultValue = false) {
+  return typeof value === "boolean" ? value : defaultValue;
+}
+
+function normalizeNullableNumber(value, maximumValue = Infinity) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Math.min(maximumValue, Math.max(0, numberValue));
+}
+
+function normalizeDate(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const text = value.trim();
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.test(text)) {
+    return "";
+  }
+
+  return text;
+}
+
+function normalizeIdentifierList(values, maximumItems) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      values
+        .map((value) =>
+          typeof value === "string"
+            ? value.trim()
+            : String(value?.id || "").trim(),
+        )
+        .filter(Boolean),
+    ),
+  ].slice(0, maximumItems);
+}
+
+/*
+ * =========================================
+ * Instructor
+ * =========================================
+ */
+
+export function createTrainingInstructor(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id:
+      normalizeText(source.id, 200) || createTrainingId("training-instructor"),
+
+    name: normalizeText(source.name, TRAINING_FIELD_LIMITS.instructorName),
+
+    title: normalizeText(source.title, TRAINING_FIELD_LIMITS.instructorTitle),
+
+    organization: normalizeText(
+      source.organization,
+      TRAINING_FIELD_LIMITS.instructorOrganization,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingInstructors(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createTrainingInstructor)
+    .filter((instructor) => instructor.name)
+    .slice(0, TRAINING_FIELD_LIMITS.maximumInstructors)
+    .map((instructor, index) => ({
+      ...instructor,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Topic
+ * =========================================
+ */
+
+export function createTrainingTopic(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          name: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-topic"),
+
+    name: normalizeText(
+      source.name || source.title,
+      TRAINING_FIELD_LIMITS.topicName,
+    ),
+
+    description: normalizeText(
+      source.description,
+      TRAINING_FIELD_LIMITS.topicDescription,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingTopics(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createTrainingTopic)
+    .filter((topic) => topic.name)
+    .slice(0, TRAINING_FIELD_LIMITS.maximumTopics)
+    .map((topic, index) => ({
+      ...topic,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Learning Outcome
+ * =========================================
+ */
+
+export function createTrainingOutcome(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          text: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-outcome"),
+
+    text: normalizeText(
+      source.text || source.description || source.value,
+      TRAINING_FIELD_LIMITS.outcomeText,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingOutcomes(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(createTrainingOutcome)
+    .filter((outcome) => outcome.text)
+    .slice(0, TRAINING_FIELD_LIMITS.maximumLearningOutcomes)
+    .map((outcome, index) => ({
+      ...outcome,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Skill Relationship
+ * =========================================
+ */
+
+export function createTrainingSkillRelationship(value = {}) {
+  const source =
+    typeof value === "string"
+      ? {
+          nameSnapshot: value,
+        }
+      : value && typeof value === "object"
+        ? value
+        : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-skill"),
+
+    skillId: normalizeText(source.skillId || source.profileSkillId, 200),
+
+    nameSnapshot: normalizeText(
+      source.nameSnapshot || source.name || source.label,
+      TRAINING_FIELD_LIMITS.skillName,
+    ),
+
+    categorySnapshot: normalizeText(
+      source.categorySnapshot || source.category,
+      TRAINING_FIELD_LIMITS.skillCategory,
+    ),
+
+    typeSnapshot: normalizeText(
+      source.typeSnapshot || source.type,
+      TRAINING_FIELD_LIMITS.skillType,
+    ),
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingSkillRelationships(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedRelationships = values
+    .map(createTrainingSkillRelationship)
+    .filter(
+      (relationship) => relationship.skillId || relationship.nameSnapshot,
+    );
+
+  const uniqueRelationships = normalizedRelationships.filter(
+    (relationship, index, collection) => {
+      const identity = (
+        relationship.skillId || relationship.nameSnapshot
+      ).toLocaleLowerCase();
+
+      return (
+        collection.findIndex((candidate) => {
+          const candidateIdentity = (
+            candidate.skillId || candidate.nameSnapshot
+          ).toLocaleLowerCase();
+
+          return candidateIdentity === identity;
+        }) === index
+      );
+    },
+  );
+
+  return uniqueRelationships
+    .slice(0, TRAINING_FIELD_LIMITS.maximumSkills)
+    .map((relationship, index) => ({
+      ...relationship,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Certification Relationship
+ * =========================================
+ */
+
+export function createTrainingCertificationRelationship(value = {}, order = 0) {
+  const source =
+    typeof value === "string"
+      ? {
+          certificationId: value,
+        }
+      : value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
+
+  const snapshot =
+    source.snapshot &&
+    typeof source.snapshot === "object" &&
+    !Array.isArray(source.snapshot)
+      ? source.snapshot
+      : {};
+
+  /*
+   * When a complete Certification record is supplied,
+   * its id is the Certification id.
+   *
+   * When an existing relationship is supplied,
+   * source.id is the relationship id and
+   * source.certificationId identifies the Certification.
+   */
+
+  const certificationId = normalizeText(
+    source.certificationId ||
+      source.credentialId ||
+      source.certificationRecordId ||
+      source.id,
+    200,
+  );
+
+  const relationshipId =
+    normalizeText(
+      source.relationshipId || (source.certificationId ? source.id : ""),
+      200,
+    ) || createTrainingId("training-certification");
+
+  return {
+    id: relationshipId,
+
+    certificationId,
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0
+        ? source.order
+        : order,
+
+    snapshot: {
+      name: normalizeText(
+        snapshot.name ||
+          snapshot.title ||
+          source.certificationName ||
+          source.name ||
+          source.title,
+        160,
+      ),
+
+      issuingOrganizationName: normalizeText(
+        snapshot.issuingOrganizationName ||
+          snapshot.issuerName ||
+          source.issuingOrganizationName ||
+          source.issuerName ||
+          source.issuingOrganization?.name,
+        160,
+      ),
+
+      certificationType: normalizeText(
+        snapshot.certificationType || snapshot.type || source.certificationType,
+        100,
+      ),
+
+      credentialState: normalizeText(
+        snapshot.credentialState ||
+          snapshot.state ||
+          source.credentialState ||
+          source.credential?.state,
+        100,
+      ),
+
+      issueDate: normalizeDate(
+        snapshot.issueDate || source.issueDate || source.dates?.issueDate,
+      ),
+
+      expirationDate: normalizeDate(
+        snapshot.expirationDate ||
+          source.expirationDate ||
+          source.dates?.expirationDate,
+      ),
+
+      doesNotExpire: normalizeBoolean(
+        snapshot.doesNotExpire ??
+          source.doesNotExpire ??
+          source.dates?.doesNotExpire,
+        false,
+      ),
+    },
+  };
+}
+
+function normalizeTrainingCertificationRelationships(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const usedCertificationIds = new Set();
+
+  return values.reduce((relationships, value) => {
+    const relationship = createTrainingCertificationRelationship(
+      value,
+      relationships.length,
+    );
+
+    if (!relationship.certificationId) {
+      return relationships;
+    }
+
+    const comparisonId = relationship.certificationId.toLocaleLowerCase();
+
+    if (usedCertificationIds.has(comparisonId)) {
+      return relationships;
+    }
+
+    if (
+      relationships.length >= TRAINING_FIELD_LIMITS.maximumRelatedCertifications
+    ) {
+      return relationships;
+    }
+
+    usedCertificationIds.add(comparisonId);
+
+    relationships.push({
+      ...relationship,
+      order: relationships.length,
+    });
+
+    return relationships;
+  }, []);
+}
+
+export function getTrainingCertificationRelationships(training) {
+  return normalizeTrainingCertificationRelationships(
+    training?.certificationRelationships || training?.relatedCertificationIds,
+  );
+}
+
+export function getTrainingCertificationIds(training) {
+  return getTrainingCertificationRelationships(training).map(
+    (relationship) => relationship.certificationId,
+  );
+}
+
+export function isCertificationLinkedToTraining(training, certificationId) {
+  const normalizedCertificationId = normalizeText(certificationId, 200);
+
+  if (!normalizedCertificationId) {
+    return false;
+  }
+
+  return getTrainingCertificationRelationships(training).some(
+    (relationship) =>
+      relationship.certificationId === normalizedCertificationId,
+  );
+}
+
+/*
+ * =========================================
+ * Supporting Document
+ * =========================================
+ */
+
+export function createTrainingDocument(value = {}) {
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    id: normalizeText(source.id, 200) || createTrainingId("training-document"),
+
+    documentType: isValidTrainingDocumentType(source.documentType)
+      ? source.documentType
+      : "supporting-evidence",
+
+    name: normalizeText(source.name || source.title, 250),
+
+    description: normalizeText(source.description, 1000),
+
+    fileName: normalizeText(source.fileName, 500),
+
+    mimeType: normalizeText(source.mimeType || source.fileType, 200),
+
+    fileSize: normalizeNullableNumber(source.fileSize),
+
+    storageProvider:
+      normalizeText(source.storageProvider, 100) ||
+      (source.storageKey ? "indexed-db" : ""),
+
+    storageKey: normalizeText(source.storageKey, 500),
+
+    fileUrl: normalizeText(source.fileUrl || source.url, 2000),
+
+    uploadedAt: normalizeText(source.uploadedAt, 100),
+
+    visibility: isValidDocumentVisibility(source.visibility)
+      ? source.visibility
+      : "private",
+
+    order:
+      Number.isInteger(source.order) && source.order >= 0 ? source.order : 0,
+  };
+}
+
+function normalizeTrainingDocuments(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedDocuments = values
+    .map(createTrainingDocument)
+    .filter(
+      (document) =>
+        document.name ||
+        document.fileName ||
+        document.storageKey ||
+        document.fileUrl,
+    );
+
+  const uniqueDocuments = normalizedDocuments.filter(
+    (document, index, collection) => {
+      const identity =
+        document.storageKey ||
+        document.fileUrl ||
+        document.id ||
+        document.fileName;
+
+      return (
+        collection.findIndex((candidate) => {
+          const candidateIdentity =
+            candidate.storageKey ||
+            candidate.fileUrl ||
+            candidate.id ||
+            candidate.fileName;
+
+          return candidateIdentity === identity;
+        }) === index
+      );
+    },
+  );
+
+  return uniqueDocuments
+    .slice(0, TRAINING_FIELD_LIMITS.maximumDocuments)
+    .map((document, index) => ({
+      ...document,
+      order: index,
+    }));
+}
+
+/*
+ * =========================================
+ * Empty Training
+ * =========================================
+ */
+
+export function createEmptyTraining() {
+  const timestamp = new Date().toISOString();
+
+  return {
+    modelVersion: TRAINING_MODEL_VERSION,
+
+    id: createTrainingId(),
+
+    title: "",
+
+    trainingType: "professional-course",
+
+    provider: {
+      name: "",
+      type: "",
+      website: "",
+    },
+
+    delivery: {
+      format: "in-person",
+
+      location: {
+        city: "",
+        stateRegion: "",
+        country: "",
+        displayValue: "",
+      },
+    },
+
+    dates: {
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+    },
+
+    completion: {
+      status: "completed",
+      durationHours: null,
+
+      certificateEarned: false,
+
+      credentialId: "",
+      credentialUrl: "",
+    },
+
+    description: "",
+
+    instructors: [],
+
+    topics: [],
+
+    learningOutcomes: [],
+
+    skillRelationships: [],
+
+    supportingDocuments: [],
+
+    relatedEducationIds: [],
+
+    /*
+     * Canonical Certification relationships.
+     *
+     * Each relationship includes the Certification ID
+     * and a readable snapshot so Training can still show
+     * useful information if the Certification record is
+     * temporarily unavailable.
+     */
+
+    certificationRelationships: [],
+
+    /*
+     * Legacy compatibility field.
+     *
+     * This is derived from certificationRelationships
+     * during normalization and should not be edited
+     * independently by new components.
+     */
+
+    relatedCertificationIds: [],
+
+    relatedExperienceIds: [],
+
+    relatedProjectIds: [],
+
+    visibility: {
+      showProvider: true,
+      showProviderWebsite: true,
+      showDeliveryFormat: true,
+      showLocation: true,
+      showDates: true,
+      showDuration: true,
+      showDescription: true,
+      showInstructors: true,
+      showTopics: true,
+      showLearningOutcomes: true,
+      showSkills: true,
+      showCredential: true,
+      showCertifications: true,
+      showSupportingDocuments: false,
+    },
+
+    privateInformation: {
+      notes: "",
+    },
+
+    source: "manual",
+
+    sourceContext: "",
+
+    status: "active",
+
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/*
+ * =========================================
+ * Normalize Training
+ * =========================================
+ */
+
+export function normalizeTraining(value = {}) {
+  const defaults = createEmptyTraining();
+
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  const provider =
+    source.provider &&
+    typeof source.provider === "object" &&
+    !Array.isArray(source.provider)
+      ? source.provider
+      : {};
+
+  const delivery =
+    source.delivery &&
+    typeof source.delivery === "object" &&
+    !Array.isArray(source.delivery)
+      ? source.delivery
+      : {};
+
+  const location =
+    delivery.location &&
+    typeof delivery.location === "object" &&
+    !Array.isArray(delivery.location)
+      ? delivery.location
+      : source.location &&
+          typeof source.location === "object" &&
+          !Array.isArray(source.location)
+        ? source.location
+        : {};
+
+  const dates =
+    source.dates &&
+    typeof source.dates === "object" &&
+    !Array.isArray(source.dates)
+      ? source.dates
+      : {};
+
+  const completion =
+    source.completion &&
+    typeof source.completion === "object" &&
+    !Array.isArray(source.completion)
+      ? source.completion
+      : {};
+
+  const visibility =
+    source.visibility &&
+    typeof source.visibility === "object" &&
+    !Array.isArray(source.visibility)
+      ? source.visibility
+      : {};
+
+  const privateInformation =
+    source.privateInformation &&
+    typeof source.privateInformation === "object" &&
+    !Array.isArray(source.privateInformation)
+      ? source.privateInformation
+      : {};
+
+  const trainingType = isValidTrainingType(source.trainingType)
+    ? source.trainingType
+    : defaults.trainingType;
+
+  const providerType = isValidTrainingProviderType(provider.type ?? "")
+    ? (provider.type ?? "")
+    : defaults.provider.type;
+
+  const deliveryFormat = isValidTrainingDeliveryFormat(delivery.format)
+    ? delivery.format
+    : defaults.delivery.format;
+
+  const completionStatus = isValidTrainingCompletionStatus(completion.status)
+    ? completion.status
+    : defaults.completion.status;
+
+  const trainingStatus = isValidTrainingStatus(source.status)
+    ? source.status
+    : defaults.status;
+
+  const trainingSource = isValidTrainingSource(source.source)
+    ? source.source
+    : defaults.source;
+
+  const isCurrent =
+    completionStatus === "in-progress" ||
+    normalizeBoolean(dates.isCurrent, false);
+
+  /*
+   * Version 1 records stored only Certification IDs.
+   * Version 2 stores complete relationship objects.
+   */
+
+  const certificationRelationshipSource = Array.isArray(
+    source.certificationRelationships,
+  )
+    ? source.certificationRelationships
+    : source.relatedCertificationIds;
+
+  const certificationRelationships =
+    normalizeTrainingCertificationRelationships(
+      certificationRelationshipSource,
+    );
+
+  return {
+    modelVersion: TRAINING_MODEL_VERSION,
+
+    id: normalizeText(source.id, 200) || defaults.id,
+
+    title: normalizeText(
+      source.title || source.name,
+      TRAINING_FIELD_LIMITS.title,
+    ),
+
+    trainingType,
+
+    provider: {
+      name: normalizeText(
+        provider.name || source.providerName || source.organizationName,
+        TRAINING_FIELD_LIMITS.providerName,
+      ),
+
+      type: providerType,
+
+      website: normalizeText(
+        provider.website || source.providerWebsite,
+        TRAINING_FIELD_LIMITS.providerWebsite,
+      ),
+    },
+
+    delivery: {
+      format: deliveryFormat,
+
+      location: {
+        city: normalizeText(location.city, TRAINING_FIELD_LIMITS.city),
+
+        stateRegion: normalizeText(
+          location.stateRegion || location.state,
+          TRAINING_FIELD_LIMITS.stateRegion,
+        ),
+
+        country: normalizeText(location.country, TRAINING_FIELD_LIMITS.country),
+
+        displayValue: normalizeText(
+          location.displayValue ||
+            source.locationValue ||
+            (typeof source.location === "string" ? source.location : ""),
+          TRAINING_FIELD_LIMITS.locationDisplayValue,
+        ),
+      },
+    },
+
+    dates: {
+      startDate: normalizeDate(dates.startDate || source.startDate),
+
+      endDate: isCurrent ? "" : normalizeDate(dates.endDate || source.endDate),
+
+      isCurrent,
+    },
+
+    completion: {
+      status: completionStatus,
+
+      durationHours: normalizeNullableNumber(
+        completion.durationHours ?? source.durationHours,
+        TRAINING_FIELD_LIMITS.maximumDurationHours,
+      ),
+
+      certificateEarned: normalizeBoolean(completion.certificateEarned, false),
+
+      credentialId: normalizeText(
+        completion.credentialId || source.credentialId,
+        TRAINING_FIELD_LIMITS.credentialId,
+      ),
+
+      credentialUrl: normalizeText(
+        completion.credentialUrl || source.credentialUrl,
+        TRAINING_FIELD_LIMITS.credentialUrl,
+      ),
+    },
+
+    description: normalizeText(
+      source.description || source.overview,
+      TRAINING_FIELD_LIMITS.description,
+    ),
+
+    instructors: normalizeTrainingInstructors(source.instructors),
+
+    topics: normalizeTrainingTopics(source.topics || source.curriculum),
+
+    learningOutcomes: normalizeTrainingOutcomes(
+      source.learningOutcomes || source.outcomes,
+    ),
+
+    skillRelationships: normalizeTrainingSkillRelationships(
+      source.skillRelationships || source.skills,
+    ),
+
+    supportingDocuments: normalizeTrainingDocuments(
+      source.supportingDocuments || source.documents || source.attachments,
+    ),
+
+    relatedEducationIds: normalizeIdentifierList(
+      source.relatedEducationIds,
+      TRAINING_FIELD_LIMITS.maximumRelatedEducation,
+    ),
+
+    certificationRelationships,
+
+    /*
+     * Keep the previous ID list synchronized for
+     * services or saved records still using model v1.
+     */
+
+    relatedCertificationIds: certificationRelationships.map(
+      (relationship) => relationship.certificationId,
+    ),
+
+    relatedExperienceIds: normalizeIdentifierList(
+      source.relatedExperienceIds,
+      TRAINING_FIELD_LIMITS.maximumRelatedExperiences,
+    ),
+
+    relatedProjectIds: normalizeIdentifierList(
+      source.relatedProjectIds,
+      TRAINING_FIELD_LIMITS.maximumRelatedProjects,
+    ),
+
+    visibility: {
+      showProvider: normalizeBoolean(
+        visibility.showProvider,
+        defaults.visibility.showProvider,
+      ),
+
+      showProviderWebsite: normalizeBoolean(
+        visibility.showProviderWebsite,
+        defaults.visibility.showProviderWebsite,
+      ),
+
+      showDeliveryFormat: normalizeBoolean(
+        visibility.showDeliveryFormat,
+        defaults.visibility.showDeliveryFormat,
+      ),
+
+      showLocation: normalizeBoolean(
+        visibility.showLocation,
+        defaults.visibility.showLocation,
+      ),
+
+      showDates: normalizeBoolean(
+        visibility.showDates,
+        defaults.visibility.showDates,
+      ),
+
+      showDuration: normalizeBoolean(
+        visibility.showDuration,
+        defaults.visibility.showDuration,
+      ),
+
+      showDescription: normalizeBoolean(
+        visibility.showDescription,
+        defaults.visibility.showDescription,
+      ),
+
+      showInstructors: normalizeBoolean(
+        visibility.showInstructors,
+        defaults.visibility.showInstructors,
+      ),
+
+      showTopics: normalizeBoolean(
+        visibility.showTopics,
+        defaults.visibility.showTopics,
+      ),
+
+      showLearningOutcomes: normalizeBoolean(
+        visibility.showLearningOutcomes,
+        defaults.visibility.showLearningOutcomes,
+      ),
+
+      showSkills: normalizeBoolean(
+        visibility.showSkills,
+        defaults.visibility.showSkills,
+      ),
+
+      showCredential: normalizeBoolean(
+        visibility.showCredential,
+        defaults.visibility.showCredential,
+      ),
+
+      showCertifications: normalizeBoolean(
+        visibility.showCertifications,
+        defaults.visibility.showCertifications,
+      ),
+
+      showSupportingDocuments: normalizeBoolean(
+        visibility.showSupportingDocuments,
+        defaults.visibility.showSupportingDocuments,
+      ),
+    },
+
+    privateInformation: {
+      notes: normalizeText(
+        privateInformation.notes || source.privateNotes,
+        TRAINING_FIELD_LIMITS.privateNotes,
+      ),
+    },
+
+    source: trainingSource,
+
+    sourceContext: normalizeText(
+      source.sourceContext,
+      TRAINING_FIELD_LIMITS.sourceContext,
+    ),
+
+    status: trainingStatus,
+
+    createdAt: normalizeText(source.createdAt, 100) || defaults.createdAt,
+
+    updatedAt: normalizeText(source.updatedAt, 100) || defaults.updatedAt,
+  };
+}
+
+/*
+ * =========================================
+ * Create Training
+ * =========================================
+ */
+
+export function createTraining(values = {}) {
+  const timestamp = new Date().toISOString();
+
+  return normalizeTraining({
+    ...values,
+
+    id: normalizeText(values?.id, 200) || createTrainingId(),
+
+    createdAt: normalizeText(values?.createdAt, 100) || timestamp,
+
+    updatedAt: timestamp,
+  });
+}
+
+/*
+ * =========================================
+ * Update Training
+ * =========================================
+ */
+
+export function updateTrainingModel(currentTraining, updates = {}) {
+  const safeUpdates = updates && typeof updates === "object" ? updates : {};
+
+  return normalizeTraining({
+    ...currentTraining,
+    ...safeUpdates,
+
+    provider: {
+      ...currentTraining?.provider,
+      ...safeUpdates.provider,
+    },
+
+    delivery: {
+      ...currentTraining?.delivery,
+      ...safeUpdates.delivery,
+
+      location: {
+        ...currentTraining?.delivery?.location,
+        ...safeUpdates.delivery?.location,
+      },
+    },
+
+    dates: {
+      ...currentTraining?.dates,
+      ...safeUpdates.dates,
+    },
+
+    completion: {
+      ...currentTraining?.completion,
+      ...safeUpdates.completion,
+    },
+
+    certificationRelationships:
+      safeUpdates.certificationRelationships ??
+      currentTraining?.certificationRelationships ??
+      currentTraining?.relatedCertificationIds ??
+      [],
+
+    visibility: {
+      ...currentTraining?.visibility,
+      ...safeUpdates.visibility,
+    },
+
+    privateInformation: {
+      ...currentTraining?.privateInformation,
+      ...safeUpdates.privateInformation,
+    },
+
+    id: currentTraining?.id,
+
+    createdAt: currentTraining?.createdAt,
+
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/*
+ * =========================================
+ * Normalize Collection
+ * =========================================
+ */
+
+export function normalizeTrainingCollection(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedTraining = values.map(normalizeTraining);
+
+  return normalizedTraining.filter(
+    (training, index, collection) =>
+      collection.findIndex((candidate) => candidate.id === training.id) ===
+      index,
+  );
+}
+
+/*
+ * =========================================
+ * Public Training
+ * =========================================
+ */
+
+export function createPublicTraining(value) {
+  const training = normalizeTraining(value);
+
+  const {
+    privateInformation,
+    sourceContext,
+    relatedCertificationIds,
+    ...publicTraining
+  } = training;
+
+  return {
+    ...publicTraining,
+
+    certificationRelationships: publicTraining.visibility.showCertifications
+      ? publicTraining.certificationRelationships.map((relationship) => ({
+          id: relationship.id,
+          certificationId: relationship.certificationId,
+          order: relationship.order,
+
+          snapshot: {
+            name: relationship.snapshot.name,
+
+            issuingOrganizationName:
+              relationship.snapshot.issuingOrganizationName,
+
+            certificationType: relationship.snapshot.certificationType,
+
+            credentialState: relationship.snapshot.credentialState,
+
+            issueDate: relationship.snapshot.issueDate,
+
+            expirationDate: relationship.snapshot.expirationDate,
+
+            doesNotExpire: relationship.snapshot.doesNotExpire,
+          },
+        }))
+      : [],
+
+    supportingDocuments: publicTraining.visibility.showSupportingDocuments
+      ? publicTraining.supportingDocuments.filter(
+          (document) => document.visibility === "public",
+        )
+      : [],
+  };
+}
+
+
+================================================================================
+FILE: frontend\src\services\Training\trainingValidation.js
+================================================================================
+import {
+  TRAINING_FIELD_LIMITS,
+  isValidTrainingCompletionStatus,
+  isValidTrainingDeliveryFormat,
+  isValidTrainingDocumentType,
+  isValidTrainingProviderType,
+  isValidTrainingSource,
+  isValidTrainingStatus,
+  isValidTrainingType,
+} from "../../config/trainingConfig.js";
+
+import {
+  DOCUMENT_FILE_LIMITS,
+  isValidDocumentVisibility,
+} from "../../config/documentConfig.js";
+
+function getText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function createIssue(field, message, code = "invalid") {
+  return { field, message, code };
+}
+
+function createCollector() {
+  const errors = [];
+  const warnings = [];
+
+  return {
+    errors,
+    warnings,
+
+    addError(field, message, code) {
+      errors.push(createIssue(field, message, code));
+    },
+
+    addWarning(field, message, code = "warning") {
+      warnings.push(createIssue(field, message, code));
+    },
+  };
+}
+
+function validateTextLength(collector, field, value, limit, label) {
+  if (typeof value === "string" && value.trim().length > limit) {
+    collector.addError(
+      field,
+      `${label} cannot exceed ${limit} characters.`,
+      "too_long",
+    );
+  }
+}
+
+function validateOrder(collector, field, value) {
+  if (
+    value !== undefined &&
+    value !== null &&
+    (!Number.isInteger(value) || value < 0)
+  ) {
+    collector.addError(
+      field,
+      "Item order must be a whole number of zero or greater.",
+      "invalid_order",
+    );
+  }
+}
+
+const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
+
+const CERTIFICATION_SNAPSHOT_LIMITS = Object.freeze({
+  name: 160,
+  issuingOrganizationName: 160,
+  certificationType: 100,
+  credentialState: 100,
+});
+
+const VALID_CERTIFICATION_STATES = new Set(["active", "expired", "planned"]);
+
+function isValidDate(value) {
+  const text = getText(value);
+
+  if (!DATE_PATTERN.test(text)) {
+    return false;
+  }
+
+  if (text.length === 7) {
+    return true;
+  }
+
+  const [year, month, day] = text.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function getComparableDate(value, endOfMonth = false) {
+  if (!isValidDate(value)) {
+    return null;
+  }
+
+  const [year, month, suppliedDay] = value.split("-").map(Number);
+
+  const day =
+    suppliedDay ||
+    (endOfMonth ? new Date(Date.UTC(year, month, 0)).getUTCDate() : 1);
+
+  return Date.UTC(year, month - 1, day);
+}
+
+function isValidUrl(value) {
+  const text = getText(value);
+
+  if (!text) {
+    return true;
+  }
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+
+    return ["http:", "https:"].includes(url.protocol) && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * =========================================
+ * Certification Helpers
+ * =========================================
+ */
+
+function getCertificationRelationships(training) {
+  if (Array.isArray(training?.certificationRelationships)) {
+    return training.certificationRelationships;
+  }
+
+  /*
+   * Support Training model version 1, which stored
+   * only related Certification IDs.
+   */
+
+  return getArray(training?.relatedCertificationIds).map(
+    (certificationId, index) => ({
+      certificationId:
+        typeof certificationId === "string"
+          ? certificationId
+          : certificationId?.id || "",
+
+      order: index,
+
+      snapshot: {},
+    }),
+  );
+}
+
+function getCertificationIdSet(certifications) {
+  return new Set(
+    getArray(certifications)
+      .map((certification) => getText(certification?.id))
+      .filter(Boolean),
+  );
+}
+
+function findCertificationById(certifications, certificationId) {
+  return getArray(certifications).find(
+    (certification) => getText(certification?.id) === certificationId,
+  );
+}
+
+function getCertificationState(certification) {
+  return getText(
+    certification?.credential?.state || certification?.credentialState,
+  );
+}
+
+function normalizeComparisonText(value) {
+  return getText(value).normalize("NFKC").toLocaleLowerCase();
+}
+
+function validateRequiredInformation(collector, training) {
+  if (!getText(training.title)) {
+    collector.addError("title", "Enter a training title.", "required");
+  }
+
+  if (!getText(training.provider?.name)) {
+    collector.addError(
+      "provider.name",
+      "Enter the training provider name.",
+      "required",
+    );
+  }
+
+  if (!getText(training.trainingType)) {
+    collector.addError("trainingType", "Select a training type.", "required");
+  }
+
+  if (!getText(training.dates?.startDate)) {
+    collector.addError(
+      "dates.startDate",
+      "Enter the training start date.",
+      "required",
+    );
+  }
+
+  if (!getText(training.completion?.status)) {
+    collector.addError(
+      "completion.status",
+      "Select a completion status.",
+      "required",
+    );
+  }
+}
+
+function validateOptions(collector, training) {
+  if (!isValidTrainingType(training.trainingType)) {
+    collector.addError(
+      "trainingType",
+      "Select a valid training type.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidTrainingProviderType(training.provider?.type ?? "")) {
+    collector.addError(
+      "provider.type",
+      "Select a valid provider type.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidTrainingDeliveryFormat(training.delivery?.format)) {
+    collector.addError(
+      "delivery.format",
+      "Select a valid delivery format.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidTrainingCompletionStatus(training.completion?.status)) {
+    collector.addError(
+      "completion.status",
+      "Select a valid completion status.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidTrainingSource(training.source)) {
+    collector.addError(
+      "source",
+      "Select a valid training source.",
+      "invalid_option",
+    );
+  }
+
+  if (!isValidTrainingStatus(training.status)) {
+    collector.addError(
+      "status",
+      "Select a valid record status.",
+      "invalid_option",
+    );
+  }
+}
+
+function validatePrimaryFields(collector, training) {
+  validateTextLength(
+    collector,
+    "title",
+    training.title,
+    TRAINING_FIELD_LIMITS.title,
+    "Training title",
+  );
+
+  validateTextLength(
+    collector,
+    "provider.name",
+    training.provider?.name,
+    TRAINING_FIELD_LIMITS.providerName,
+    "Provider name",
+  );
+
+  validateTextLength(
+    collector,
+    "provider.website",
+    training.provider?.website,
+    TRAINING_FIELD_LIMITS.providerWebsite,
+    "Provider website",
+  );
+
+  if (!isValidUrl(training.provider?.website)) {
+    collector.addError(
+      "provider.website",
+      "Enter a valid provider website.",
+      "invalid_url",
+    );
+  }
+
+  validateTextLength(
+    collector,
+    "description",
+    training.description,
+    TRAINING_FIELD_LIMITS.description,
+    "Training description",
+  );
+}
+
+function validateDates(collector, training) {
+  const startDate = getText(training.dates?.startDate);
+  const endDate = getText(training.dates?.endDate);
+  const isCurrent = training.dates?.isCurrent === true;
+
+  if (startDate && !isValidDate(startDate)) {
+    collector.addError(
+      "dates.startDate",
+      "Enter a valid start date.",
+      "invalid_date",
+    );
+  }
+
+  if (isCurrent && endDate) {
+    collector.addError(
+      "dates.endDate",
+      "Current training cannot have an end date.",
+      "current_training_has_end_date",
+    );
+  }
+
+  if (!isCurrent && !endDate) {
+    collector.addError(
+      "dates.endDate",
+      "Enter an end date or mark the training as current.",
+      "required",
+    );
+  }
+
+  if (endDate && !isValidDate(endDate)) {
+    collector.addError(
+      "dates.endDate",
+      "Enter a valid end date.",
+      "invalid_date",
+    );
+  }
+
+  if (
+    isValidDate(startDate) &&
+    isValidDate(endDate) &&
+    getComparableDate(endDate, true) < getComparableDate(startDate)
+  ) {
+    collector.addError(
+      "dates.endDate",
+      "The end date cannot be earlier than the start date.",
+      "invalid_date_order",
+    );
+  }
+}
+
+function validateCompletion(collector, training) {
+  const completion = getObject(training.completion);
+  const duration = completion.durationHours;
+
+  if (duration !== null && duration !== undefined && duration !== "") {
+    const numericDuration = Number(duration);
+
+    if (!Number.isFinite(numericDuration) || numericDuration < 0) {
+      collector.addError(
+        "completion.durationHours",
+        "Duration must be zero or greater.",
+        "invalid_number",
+      );
+    } else if (numericDuration > TRAINING_FIELD_LIMITS.maximumDurationHours) {
+      collector.addError(
+        "completion.durationHours",
+        `Duration cannot exceed ${TRAINING_FIELD_LIMITS.maximumDurationHours} hours.`,
+        "invalid_number",
+      );
+    }
+  }
+
+  validateTextLength(
+    collector,
+    "completion.credentialId",
+    completion.credentialId,
+    TRAINING_FIELD_LIMITS.credentialId,
+    "Credential ID",
+  );
+
+  validateTextLength(
+    collector,
+    "completion.credentialUrl",
+    completion.credentialUrl,
+    TRAINING_FIELD_LIMITS.credentialUrl,
+    "Credential URL",
+  );
+
+  if (!isValidUrl(completion.credentialUrl)) {
+    collector.addError(
+      "completion.credentialUrl",
+      "Enter a valid credential URL.",
+      "invalid_url",
+    );
+  }
+
+  if (
+    completion.certificateEarned === true &&
+    getCertificationRelationships(training).length === 0 &&
+    !getText(completion.credentialId) &&
+    !getText(completion.credentialUrl) &&
+    getArray(training.supportingDocuments).length === 0
+  ) {
+    collector.addWarning(
+      "completion.certificateEarned",
+      "Consider adding a credential ID, verification URL, or certificate document.",
+      "missing_credential_evidence",
+    );
+  }
+}
+
+function validateLocation(collector, training) {
+  const location = getObject(training.delivery?.location);
+
+  [
+    ["city", TRAINING_FIELD_LIMITS.city, "City"],
+    ["stateRegion", TRAINING_FIELD_LIMITS.stateRegion, "State or region"],
+    ["country", TRAINING_FIELD_LIMITS.country, "Country"],
+    [
+      "displayValue",
+      TRAINING_FIELD_LIMITS.locationDisplayValue,
+      "Display location",
+    ],
+  ].forEach(([field, limit, label]) => {
+    validateTextLength(
+      collector,
+      `delivery.location.${field}`,
+      location[field],
+      limit,
+      label,
+    );
+  });
+}
+
+function validateOrderedItems(
+  collector,
+  values,
+  { field, maximumItems, textField, textLimit, label },
+) {
+  const items = getArray(values);
+
+  if (items.length > maximumItems) {
+    collector.addError(
+      field,
+      `Add no more than ${maximumItems} ${label.toLowerCase()} records.`,
+      "too_many_items",
+    );
+  }
+
+  const identities = new Set();
+
+  items.forEach((item, index) => {
+    const object = getObject(item);
+
+    const text = getText(typeof item === "string" ? item : object[textField]);
+
+    if (!text) {
+      collector.addError(
+        `${field}.${index}.${textField}`,
+        `${label} cannot be empty.`,
+        "required",
+      );
+    }
+
+    validateTextLength(
+      collector,
+      `${field}.${index}.${textField}`,
+      text,
+      textLimit,
+      label,
+    );
+
+    validateOrder(collector, `${field}.${index}.order`, object.order);
+
+    const identity = text.toLocaleLowerCase();
+
+    if (identity && identities.has(identity)) {
+      collector.addError(
+        `${field}.${index}.${textField}`,
+        `This ${label.toLowerCase()} has already been added.`,
+        "duplicate",
+      );
+    }
+
+    identities.add(identity);
+  });
+}
+
+function validateTrainingDetails(collector, training) {
+  validateOrderedItems(collector, training.instructors, {
+    field: "instructors",
+    maximumItems: TRAINING_FIELD_LIMITS.maximumInstructors,
+    textField: "name",
+    textLimit: TRAINING_FIELD_LIMITS.instructorName,
+    label: "Instructor",
+  });
+
+  validateOrderedItems(collector, training.topics, {
+    field: "topics",
+    maximumItems: TRAINING_FIELD_LIMITS.maximumTopics,
+    textField: "name",
+    textLimit: TRAINING_FIELD_LIMITS.topicName,
+    label: "Topic",
+  });
+
+  validateOrderedItems(collector, training.learningOutcomes, {
+    field: "learningOutcomes",
+    maximumItems: TRAINING_FIELD_LIMITS.maximumLearningOutcomes,
+    textField: "text",
+    textLimit: TRAINING_FIELD_LIMITS.outcomeText,
+    label: "Learning outcome",
+  });
+}
+
+function validateSkillRelationships(collector, training) {
+  const relationships = getArray(training.skillRelationships);
+  const identities = new Set();
+
+  if (relationships.length > TRAINING_FIELD_LIMITS.maximumSkills) {
+    collector.addError(
+      "skillRelationships",
+      `Add no more than ${TRAINING_FIELD_LIMITS.maximumSkills} skills.`,
+      "too_many_items",
+    );
+  }
+
+  relationships.forEach((relationship, index) => {
+    const item = getObject(relationship);
+    const skillId = getText(item.skillId || item.profileSkillId);
+    const name = getText(item.nameSnapshot || item.name);
+
+    if (!skillId && !name) {
+      collector.addError(
+        `skillRelationships.${index}.skillId`,
+        "Select a saved skill or provide a skill name.",
+        "required",
+      );
+    }
+
+    if (skillId && !name) {
+      collector.addError(
+        `skillRelationships.${index}.nameSnapshot`,
+        "Store the skill name snapshot with this relationship.",
+        "required_snapshot",
+      );
+    }
+
+    if (!skillId && name) {
+      collector.addWarning(
+        `skillRelationships.${index}.skillId`,
+        `"${name}" is not connected to the central Skill Library.`,
+        "missing_skill_relationship",
+      );
+    }
+
+    const identity = (
+      skillId ? `id:${skillId}` : `name:${name}`
+    ).toLocaleLowerCase();
+
+    if (identities.has(identity)) {
+      collector.addError(
+        `skillRelationships.${index}.skillId`,
+        "This skill has already been added.",
+        "duplicate",
+      );
+    }
+
+    identities.add(identity);
+
+    validateOrder(collector, `skillRelationships.${index}.order`, item.order);
+  });
+}
+
+/*
+ * =========================================
+ * Certification Relationships
+ * =========================================
+ */
+
+function validateCertificationRelationships(
+  collector,
+  training,
+  certifications,
+  shouldCheckCertifications,
+) {
+  const relationships = getCertificationRelationships(training);
+
+  const availableCertificationIds = getCertificationIdSet(certifications);
+
+  const usedCertificationIds = new Set();
+
+  if (
+    relationships.length > TRAINING_FIELD_LIMITS.maximumRelatedCertifications
+  ) {
+    collector.addError(
+      "certificationRelationships",
+      `Link no more than ${TRAINING_FIELD_LIMITS.maximumRelatedCertifications} Certifications.`,
+      "too_many_certification_relationships",
+    );
+  }
+
+  relationships.forEach((relationship, index) => {
+    const item = getObject(relationship);
+
+    const certificationId = getText(
+      item.certificationId || item.certificationRecordId || item.credentialId,
+    );
+
+    const snapshot = getObject(item.snapshot);
+
+    const certificationIdField = `certificationRelationships.${index}.certificationId`;
+
+    const snapshotField = `certificationRelationships.${index}.snapshot`;
+
+    if (!certificationId) {
+      collector.addError(
+        certificationIdField,
+        "Select a valid Certification Library record.",
+        "certification_id_required",
+      );
+
+      return;
+    }
+
+    const comparisonId = certificationId.toLocaleLowerCase();
+
+    if (usedCertificationIds.has(comparisonId)) {
+      collector.addError(
+        certificationIdField,
+        "This Certification has already been linked.",
+        "duplicate_certification_relationship",
+      );
+    } else {
+      usedCertificationIds.add(comparisonId);
+    }
+
+    validateOrder(
+      collector,
+      `certificationRelationships.${index}.order`,
+      item.order,
+    );
+
+    /*
+     * Readable snapshot validation
+     */
+
+    const snapshotName = getText(
+      snapshot.name ||
+        snapshot.title ||
+        item.nameSnapshot ||
+        item.certificationName,
+    );
+
+    const snapshotIssuer = getText(
+      snapshot.issuingOrganizationName ||
+        snapshot.issuerName ||
+        item.issuingOrganizationName,
+    );
+
+    const snapshotType = getText(
+      snapshot.certificationType || snapshot.type || item.certificationType,
+    );
+
+    const snapshotState = getText(
+      snapshot.credentialState || snapshot.state || item.credentialState,
+    );
+
+    if (!snapshotName) {
+      collector.addError(
+        `${snapshotField}.name`,
+        "Store the Certification name snapshot with this relationship.",
+        "certification_snapshot_required",
+      );
+    }
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.name`,
+      snapshotName,
+      CERTIFICATION_SNAPSHOT_LIMITS.name,
+      "Certification snapshot name",
+    );
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.issuingOrganizationName`,
+      snapshotIssuer,
+      CERTIFICATION_SNAPSHOT_LIMITS.issuingOrganizationName,
+      "Certification issuer snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.certificationType`,
+      snapshotType,
+      CERTIFICATION_SNAPSHOT_LIMITS.certificationType,
+      "Certification type snapshot",
+    );
+
+    validateTextLength(
+      collector,
+      `${snapshotField}.credentialState`,
+      snapshotState,
+      CERTIFICATION_SNAPSHOT_LIMITS.credentialState,
+      "Certification state snapshot",
+    );
+
+    if (snapshotState && !VALID_CERTIFICATION_STATES.has(snapshotState)) {
+      collector.addError(
+        `${snapshotField}.credentialState`,
+        "The Certification snapshot must use an active, expired, or planned credential state.",
+        "invalid_certification_snapshot_state",
+      );
+    }
+
+    const snapshotIssueDate = getText(snapshot.issueDate);
+
+    const snapshotExpirationDate = getText(snapshot.expirationDate);
+
+    if (snapshotIssueDate && !isValidDate(snapshotIssueDate)) {
+      collector.addError(
+        `${snapshotField}.issueDate`,
+        "The Certification snapshot has an invalid issue date.",
+        "invalid_certification_snapshot_date",
+      );
+    }
+
+    if (snapshotExpirationDate && !isValidDate(snapshotExpirationDate)) {
+      collector.addError(
+        `${snapshotField}.expirationDate`,
+        "The Certification snapshot has an invalid expiration date.",
+        "invalid_certification_snapshot_date",
+      );
+    }
+
+    /*
+     * Central Certification Library validation only
+     * runs when the caller supplies the collection.
+     */
+
+    if (
+      shouldCheckCertifications &&
+      !availableCertificationIds.has(certificationId)
+    ) {
+      collector.addError(
+        certificationIdField,
+        "This linked Certification no longer exists in the Certification Library.",
+        "certification_not_found",
+      );
+    }
+
+    const savedCertification = shouldCheckCertifications
+      ? findCertificationById(certifications, certificationId)
+      : null;
+
+    if (
+      savedCertification &&
+      snapshotName &&
+      normalizeComparisonText(snapshotName) !==
+        normalizeComparisonText(savedCertification.name)
+    ) {
+      collector.addWarning(
+        `${snapshotField}.name`,
+        `The saved snapshot does not match the current Certification name "${savedCertification.name}". It will be refreshed when the relationship is synchronized.`,
+        "stale_certification_snapshot",
+      );
+    }
+
+    if (savedCertification?.status === "archived") {
+      collector.addWarning(
+        certificationIdField,
+        `"${savedCertification.name || snapshotName}" is archived in the Certification Library.`,
+        "linked_certification_archived",
+      );
+    }
+  });
+
+  validateCertificateEarnedConsistency(
+    collector,
+    training,
+    relationships,
+    certifications,
+    shouldCheckCertifications,
+  );
+}
+
+/*
+ * =========================================
+ * Certificate-Earned Consistency
+ * =========================================
+ */
+
+function validateCertificateEarnedConsistency(
+  collector,
+  training,
+  relationships,
+  certifications,
+  shouldCheckCertifications,
+) {
+  const completion = getObject(training.completion);
+
+  const certificateEarned = completion.certificateEarned === true;
+
+  const credentialId = getText(completion.credentialId);
+
+  const credentialUrl = getText(completion.credentialUrl);
+
+  const linkedCertifications = relationships
+    .map((relationship) => {
+      const item = getObject(relationship);
+
+      const certificationId = getText(
+        item.certificationId || item.certificationRecordId || item.credentialId,
+      );
+
+      const savedCertification = shouldCheckCertifications
+        ? findCertificationById(certifications, certificationId)
+        : null;
+
+      const snapshot = getObject(item.snapshot);
+
+      return {
+        certificationId,
+
+        certification: savedCertification,
+
+        state: getText(
+          getCertificationState(savedCertification) ||
+            snapshot.credentialState ||
+            snapshot.state ||
+            item.credentialState,
+        ),
+      };
+    })
+    .filter((entry) => entry.certificationId);
+
+  const linkedIssuedCertifications = linkedCertifications.filter(
+    (entry) => entry.state === "active" || entry.state === "expired",
+  );
+
+  const linkedPlannedCertifications = linkedCertifications.filter(
+    (entry) => entry.state === "planned",
+  );
+
+  /*
+   * An active or expired Certification represents
+   * an issued credential, so Training should indicate
+   * that a certificate was earned.
+   */
+
+  if (linkedIssuedCertifications.length > 0 && !certificateEarned) {
+    collector.addError(
+      "completion.certificateEarned",
+      "Mark the certificate as earned because this Training is linked to an active or expired Certification.",
+      "linked_certification_not_marked_earned",
+    );
+  }
+
+  /*
+   * A Training linked only to planned credentials
+   * should not claim the certificate was earned.
+   */
+
+  if (
+    certificateEarned &&
+    linkedCertifications.length > 0 &&
+    linkedIssuedCertifications.length === 0 &&
+    linkedPlannedCertifications.length > 0
+  ) {
+    collector.addError(
+      "completion.certificateEarned",
+      "A planned Certification has not been earned yet.",
+      "planned_certification_marked_earned",
+    );
+  }
+
+  /*
+   * Existing Training records may already contain
+   * credential details without a central relationship.
+   * Keep this as a warning so those records can still
+   * be opened and migrated.
+   */
+
+  if (certificateEarned && linkedCertifications.length === 0) {
+    collector.addWarning(
+      "certificationRelationships",
+      "This Training indicates that a certificate was earned, but it is not linked to the Certification Library.",
+      "earned_certificate_not_linked",
+    );
+  }
+
+  /*
+   * Credential information should not be entered when
+   * Training explicitly says that no certificate was
+   * earned, unless the linked credential is planned.
+   */
+
+  if (
+    !certificateEarned &&
+    (credentialId || credentialUrl) &&
+    linkedPlannedCertifications.length === 0
+  ) {
+    collector.addError(
+      "completion.certificateEarned",
+      "Mark the certificate as earned or remove the credential information.",
+      "credential_without_earned_certificate",
+    );
+  }
+
+  /*
+   * When linked Certification records are available,
+   * compare legacy Training credential fields with the
+   * central Certification Library values.
+   */
+
+  if (shouldCheckCertifications && linkedCertifications.length > 0) {
+    const savedCredentialIds = linkedCertifications
+      .map((entry) => getText(entry.certification?.credential?.credentialId))
+      .filter(Boolean);
+
+    const savedVerificationUrls = linkedCertifications
+      .map((entry) => getText(entry.certification?.credential?.verificationUrl))
+      .filter(Boolean);
+
+    if (
+      credentialId &&
+      savedCredentialIds.length > 0 &&
+      !savedCredentialIds.some(
+        (savedCredentialId) =>
+          normalizeComparisonText(savedCredentialId) ===
+          normalizeComparisonText(credentialId),
+      )
+    ) {
+      collector.addWarning(
+        "completion.credentialId",
+        "The Training credential ID does not match any linked Certification record.",
+        "credential_id_relationship_mismatch",
+      );
+    }
+
+    if (
+      credentialUrl &&
+      savedVerificationUrls.length > 0 &&
+      !savedVerificationUrls.some(
+        (savedUrl) =>
+          normalizeComparisonText(savedUrl) ===
+          normalizeComparisonText(credentialUrl),
+      )
+    ) {
+      collector.addWarning(
+        "completion.credentialUrl",
+        "The Training credential URL does not match any linked Certification record.",
+        "credential_url_relationship_mismatch",
+      );
+    }
+
+    if (
+      certificateEarned &&
+      !credentialId &&
+      !credentialUrl &&
+      savedCredentialIds.length === 0 &&
+      savedVerificationUrls.length === 0 &&
+      getArray(training.supportingDocuments).length === 0
+    ) {
+      collector.addWarning(
+        "completion.certificateEarned",
+        "Consider adding a credential ID, verification URL, or certificate document to the linked Certification.",
+        "missing_linked_credential_evidence",
+      );
+    }
+  }
+}
+
+function validateDocuments(collector, training) {
+  const documents = getArray(training.supportingDocuments);
+  const identities = new Set();
+
+  if (documents.length > TRAINING_FIELD_LIMITS.maximumDocuments) {
+    collector.addError(
+      "supportingDocuments",
+      `Add no more than ${TRAINING_FIELD_LIMITS.maximumDocuments} documents.`,
+      "too_many_items",
+    );
+  }
+
+  documents.forEach((document, index) => {
+    const item = getObject(document);
+
+    if (!getText(item.name)) {
+      collector.addError(
+        `supportingDocuments.${index}.name`,
+        "Enter a document name.",
+        "required",
+      );
+    }
+
+    if (!getText(item.storageKey) && !getText(item.fileUrl)) {
+      collector.addError(
+        `supportingDocuments.${index}.storageKey`,
+        "The document does not have a storage location.",
+        "required",
+      );
+    }
+
+    if (!isValidTrainingDocumentType(item.documentType)) {
+      collector.addError(
+        `supportingDocuments.${index}.documentType`,
+        "Select a valid training document type.",
+        "invalid_option",
+      );
+    }
+
+    if (!isValidDocumentVisibility(item.visibility)) {
+      collector.addError(
+        `supportingDocuments.${index}.visibility`,
+        "Select a valid document visibility.",
+        "invalid_option",
+      );
+    }
+
+    if (Number(item.fileSize) > DOCUMENT_FILE_LIMITS.maximumFileSizeBytes) {
+      collector.addError(
+        `supportingDocuments.${index}.fileSize`,
+        "The document exceeds the maximum file size.",
+        "file_too_large",
+      );
+    }
+
+    const identity =
+      getText(item.storageKey) ||
+      getText(item.fileUrl) ||
+      getText(item.fileName);
+
+    if (identity && identities.has(identity)) {
+      collector.addError(
+        `supportingDocuments.${index}.fileName`,
+        "This document has already been added.",
+        "duplicate",
+      );
+    }
+
+    identities.add(identity);
+
+    validateOrder(collector, `supportingDocuments.${index}.order`, item.order);
+  });
+}
+
+function validateSupportingInformation(collector, training) {
+  validateTextLength(
+    collector,
+    "privateInformation.notes",
+    training.privateInformation?.notes,
+    TRAINING_FIELD_LIMITS.privateNotes,
+    "Private notes",
+  );
+
+  validateTextLength(
+    collector,
+    "sourceContext",
+    training.sourceContext,
+    TRAINING_FIELD_LIMITS.sourceContext,
+    "Source context",
+  );
+
+  if (
+    !getText(training.description) &&
+    getArray(training.topics).length === 0 &&
+    getArray(training.learningOutcomes).length === 0
+  ) {
+    collector.addWarning(
+      "description",
+      "Consider adding a description, topic, or learning outcome.",
+      "limited_supporting_information",
+    );
+  }
+}
+
+export function createTrainingFieldErrorMap(errors = []) {
+  return errors.reduce((fieldErrors, error) => {
+    if (!fieldErrors[error.field]) {
+      fieldErrors[error.field] = error.message;
+    }
+
+    return fieldErrors;
+  }, {});
+}
+
+export function validateTraining(
+  trainingValue,
+  { certifications = null } = {},
+) {
+  const training = getObject(trainingValue);
+
+  const collector = createCollector();
+
+  validateRequiredInformation(collector, training);
+  validateOptions(collector, training);
+  validatePrimaryFields(collector, training);
+  validateDates(collector, training);
+  validateCompletion(collector, training);
+  validateLocation(collector, training);
+  validateTrainingDetails(collector, training);
+  validateSkillRelationships(collector, training);
+
+  validateCertificationRelationships(
+    collector,
+    training,
+    getArray(certifications),
+    Array.isArray(certifications),
+  );
+
+  validateDocuments(collector, training);
+  validateSupportingInformation(collector, training);
+
+  return {
+    isValid: collector.errors.length === 0,
+    errors: collector.errors,
+    warnings: collector.warnings,
+    fieldErrors: createTrainingFieldErrorMap(collector.errors),
+  };
+}
+
+export function assertValidTraining(training, options = {}) {
+  const validation = validateTraining(training, options);
+
+  if (validation.isValid) {
+    return validation;
+  }
+
+  const error = new Error(
+    "The training record contains invalid or incomplete information.",
+  );
+
+  error.name = "TrainingValidationError";
+  error.code = "TRAINING_VALIDATION_FAILED";
+  error.status = 400;
+  error.publicMessage =
+    "Correct the highlighted training information before saving.";
+  error.validation = validation;
+  error.errors = validation.errors;
+  error.warnings = validation.warnings;
+  error.fieldErrors = validation.fieldErrors;
+
+  throw error;
+}
+
+export function getTrainingValidationSummary(training, options = {}) {
+  const validation = validateTraining(training, options);
+
+  if (!validation.isValid) {
+    return `${validation.errors.length} ${
+      validation.errors.length === 1 ? "problem must" : "problems must"
+    } be corrected before saving.`;
+  }
+
+  if (validation.warnings.length > 0) {
+    return `Ready to save with ${validation.warnings.length} ${
+      validation.warnings.length === 1 ? "suggestion" : "suggestions"
+    } for improvement.`;
+  }
+
+  return "This training record is complete and ready to save.";
+}
+
+
+GIT STATUS
+ M src/app.js
+?? src/controllers/trainingController.js
+?? src/repositories/trainingRepository.js
+?? src/routes/trainingRoutes.js
+?? src/schemas/trainingSchemas.js
+?? src/services/Service/trainingService.js
+?? test/controllers/
+?? test/integration/
+?? test/repositories/trainingRepository.test.js
+?? test/routes/
+?? test/schemas/trainingSchemas.test.js
+?? test/services/trainingService.test.js
+
