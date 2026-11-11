@@ -4,4 +4,4 @@
 
 /data-storage/
 # Local backups - never commit
-/Persistence/backups/
+/Persistence/

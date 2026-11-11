@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   createCertificationDocumentUrl,
@@ -120,7 +121,7 @@ function CertificationDocumentViewer({
 
   const requiresDownload = previewMode === "word" || previewMode === "document";
 
-  return (
+  return createPortal(
     <div
       className="certification-document-viewer-backdrop"
       role="presentation"
@@ -249,7 +250,8 @@ function CertificationDocumentViewer({
           </div>
         </footer>
       </section>
-    </div>
+    </div>,
+    window.document.body,
   );
 }
 

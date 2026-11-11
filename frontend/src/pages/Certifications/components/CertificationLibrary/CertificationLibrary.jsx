@@ -9,6 +9,7 @@ import "./CertificationLibrary.css";
 function CertificationLibrary({
   certifications = [],
   showArchived = false,
+  trainingLinksStatus = "success",
   isLoading = false,
   loadStatus = "idle",
   operation = null,
@@ -38,7 +39,7 @@ function CertificationLibrary({
         filters: {
           credentialState,
           document: documentFilter,
-          training: trainingFilter,
+          training: trainingLinksStatus === "success" ? trainingFilter : "all",
         },
 
         sortOption,
@@ -49,6 +50,7 @@ function CertificationLibrary({
       credentialState,
       documentFilter,
       trainingFilter,
+      trainingLinksStatus,
       sortOption,
     ],
   );
@@ -126,6 +128,7 @@ function CertificationLibrary({
 
           <select
             value={trainingFilter}
+            disabled={trainingLinksStatus !== "success"}
             onChange={(event) => setTrainingFilter(event.target.value)}
           >
             <option value="all">All records</option>
@@ -221,6 +224,7 @@ function CertificationLibrary({
               <CertificationItem
                 key={certification.id}
                 certification={certification}
+                trainingLinksStatus={trainingLinksStatus}
                 operation={operation}
                 onEdit={onEdit}
                 onArchive={onArchive}

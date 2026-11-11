@@ -141,7 +141,7 @@ function CertificationDocumentPreview({
       )}
 
       <span className="certification-document-preview-overlay">
-        View Certificate
+        {certificationDocument?.documentType === "certificate" ? "View Certificate" : "View Document"}
       </span>
     </button>
   );

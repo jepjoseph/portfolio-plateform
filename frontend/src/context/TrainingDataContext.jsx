@@ -16,6 +16,8 @@ import {
   replaceTrainingRecords as replaceTrainingRecordsService,
   restoreTraining as restoreTrainingService,
   updateTraining as updateTrainingService,
+  unlinkTrainingCertification as unlinkTrainingCertificationService,
+  linkTrainingCertification as linkTrainingCertificationService,
   validateTrainingDraft as validateTrainingDraftService,
 } from "../services/Training/trainingService.js";
 
@@ -155,6 +157,14 @@ export function TrainingDataProvider({ children }) {
    * Status Management
    * =========================================
    */
+
+  // Accept a complete, versioned result from a dedicated document endpoint.
+  const receiveDocumentTraining = useCallback((training) => {
+    if (!training?.id || !training.rowVersion || !Array.isArray(training.supportingDocuments)) {
+      throw new TypeError("Invalid Training document save response.");
+    }
+    setTrainingRecords(current => sortTrainingLibrary(current.map(record => record.id === training.id ? training : record)));
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -390,7 +400,7 @@ export function TrainingDataProvider({ children }) {
    * =========================================
    */
 
-  const updateTraining = useCallback(async (trainingId, updates) => {
+  const updateTraining = useCallback(async (trainingId, updates, editMetadata = {}) => {
     try {
       setSaveStatus("saving");
       setError(null);
@@ -401,7 +411,11 @@ export function TrainingDataProvider({ children }) {
         status: "loading",
       });
 
-      const updatedTraining = await updateTrainingService(trainingId, updates);
+      const updatedTraining = await updateTrainingService(
+        trainingId,
+        updates,
+        editMetadata,
+      );
 
       setTrainingRecords((currentRecords) =>
         sortTrainingLibrary(
@@ -437,6 +451,45 @@ export function TrainingDataProvider({ children }) {
     }
   }, []);
 
+
+  const unlinkTrainingCertification = useCallback(async (trainingId, certificationId, rowVersion) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+      setOperation({ type: "unlink-certification", trainingId, status: "loading" });
+      const saved = await unlinkTrainingCertificationService(trainingId, certificationId, rowVersion);
+      setTrainingRecords((records) => sortTrainingLibrary(records.map((record) =>
+        record.id === trainingId ? saved : record,
+      )));
+      setSaveStatus("success");
+      setOperation({ type: "unlink-certification", trainingId, status: "success" });
+      return saved;
+    } catch (failure) {
+      setSaveStatus("error");
+      setOperation({ type: "unlink-certification", trainingId, status: "error" });
+      setError(normalizeTrainingContextError(failure));
+      throw failure;
+    }
+  }, []);
+  const linkTrainingCertification = useCallback(async (trainingId, certificationId, rowVersion) => {
+    try {
+      setSaveStatus("saving");
+      setError(null);
+      setOperation({ type: "link-certification", trainingId, status: "loading" });
+      const saved = await linkTrainingCertificationService(trainingId, certificationId, rowVersion);
+      setTrainingRecords((records) => sortTrainingLibrary(records.map((record) =>
+        record.id === trainingId ? saved : record,
+      )));
+      setSaveStatus("success");
+      setOperation({ type: "link-certification", trainingId, status: "success" });
+      return saved;
+    } catch (failure) {
+      setSaveStatus("error");
+      setOperation({ type: "link-certification", trainingId, status: "error" });
+      setError(normalizeTrainingContextError(failure));
+      throw failure;
+    }
+  }, []);
   /*
    * =========================================
    * Archive Training
@@ -839,6 +892,7 @@ export function TrainingDataProvider({ children }) {
        */
 
       refreshTraining,
+      receiveDocumentTraining,
       getTrainingById,
 
       /*
@@ -847,6 +901,8 @@ export function TrainingDataProvider({ children }) {
 
       createTraining,
       updateTraining,
+      unlinkTrainingCertification,
+      linkTrainingCertification,
       archiveTraining,
       restoreTraining,
       deleteTraining,
@@ -884,9 +940,12 @@ export function TrainingDataProvider({ children }) {
       operation,
       error,
       refreshTraining,
+      receiveDocumentTraining,
       getTrainingById,
       createTraining,
       updateTraining,
+      unlinkTrainingCertification,
+      linkTrainingCertification,
       archiveTraining,
       restoreTraining,
       deleteTraining,

@@ -22,11 +22,16 @@ import {
 
 import {
   fetchCertifications,
+  fetchCertificationById,
   patchCertification,
+  postCertification,
+  postCertificationDocument,
 } from "../services/Certification/certificationApiService.js";
 import { CERTIFICATION_STORAGE_KEY } from "../services/Certification/certificationStorage.js";
 
 import { migrateLegacyTrainingCertifications } from "../services/Certification/certificationTrainingMigrationService.js";
+
+import { saveCertificationEdit } from "../services/Certification/saveCertificationEdit.js";
 
 const CERTIFICATIONS_BACKEND_READ_MODE = true;
 
@@ -285,16 +290,64 @@ export function CertificationDataProvider({ children }) {
    */
 
   const createCertification = useCallback(
-    (certificationData, options = {}) =>
-      runMutation(
-        {
-          type: "create",
+    async (certificationData, options = {}) => {
+      if (!CERTIFICATIONS_BACKEND_READ_MODE) {
+        return runMutation(
+          { type: "create", certificationId: certificationData?.id || "" },
+          () => createService(certificationData, options),
+        );
+      }
 
-          certificationId: certificationData?.id || "",
-        },
-        () => createService(certificationData, options),
-      ),
-    [runMutation],
+      setOperation({ type: "create", certificationId: "" });
+      setSaveStatus("saving");
+      setError(null);
+      setWarnings([]);
+
+      let created = null;
+
+      try {
+        const uploads = Array.isArray(options.documentUploads)
+          ? options.documentUploads
+          : [];
+
+        created = await postCertification({
+          ...certificationData,
+          supportingDocuments: [],
+        });
+
+        if (!created?.id) {
+          throw new Error("Backend did not return a Certification ID.");
+        }
+
+        for (let index = 0; index < uploads.length; index += 1) {
+          await postCertificationDocument(created.id, {
+            ...uploads[index],
+            displayOrder: index,
+          });
+        }
+
+        await refreshCertifications({ includeArchived: true });
+
+        setSaveStatus("success");
+        return created;
+      } catch (caughtError) {
+        if (created?.id) {
+          caughtError.certificationId = created.id;
+          caughtError.message =
+            `Certification ${created.id} was created, but the operation ` +
+            `could not be completed. Do not create it again. ` +
+            (caughtError.message || "");
+        }
+
+        const normalizedError = normalizeContextError(caughtError);
+        setError(normalizedError);
+        setSaveStatus("error");
+        throw caughtError;
+      } finally {
+        setOperation(null);
+      }
+    },
+    [runMutation, refreshCertifications],
   );
 
   /*
@@ -302,7 +355,6 @@ export function CertificationDataProvider({ children }) {
    * Update Certification
    * =========================================
    */
-
   const updateCertification = useCallback(
     async (certificationId, certificationData, options = {}) => {
       if (!CERTIFICATIONS_BACKEND_READ_MODE) {
@@ -380,20 +432,13 @@ export function CertificationDataProvider({ children }) {
           }
         }
 
-        if (Object.keys(updates).length === 0) {
-          setSaveStatus("success");
-          return existing;
-        }
-
-        const updated = await patchCertification(
-          certificationId,
-          updates,
-          existing.rowVersion,
-        );
-
-        if (!updated || updated.id !== certificationId) {
-          throw new Error("Invalid certification response from backend.");
-        }
+        const updated = await saveCertificationEdit({
+          existing, updates, uploads: options.documentUploads ?? [],
+        }, {
+          patch: patchCertification,
+          upload: postCertificationDocument,
+          reload: fetchCertificationById,
+        });
 
         setCertifications((current) =>
           current.map((item) =>
@@ -404,6 +449,11 @@ export function CertificationDataProvider({ children }) {
         setSaveStatus("success");
         return updated;
       } catch (caughtError) {
+        if (caughtError.savedCertification?.id === certificationId) {
+          setCertifications((current) => current.map((item) =>
+            item.id === certificationId ? caughtError.savedCertification : item,
+          ));
+        }
         const normalizedError = normalizeContextError(caughtError);
         setError(normalizedError);
         setWarnings(normalizedError.warnings);

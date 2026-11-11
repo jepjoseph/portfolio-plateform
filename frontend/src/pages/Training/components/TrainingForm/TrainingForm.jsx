@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { uploadTrainingDocument, deleteTrainingDocument, mergeTrainingDocumentResult } from "../../../../services/Training/trainingDocumentApiService.js";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   TRAINING_COMPLETION_STATUS_OPTIONS,
@@ -12,7 +13,6 @@ import {
 
 import {
   createEmptyTraining,
-  createTrainingCertificationRelationship,
   createTrainingInstructor,
   createTrainingOutcome,
   createTrainingTopic,
@@ -25,6 +25,7 @@ import {
 } from "../../../../services/Training/trainingValidation.js";
 
 import TrainingDocumentEditor from "../TrainingDocumentEditor/TrainingDocumentEditor.jsx";
+
 import TrainingOrderedItemEditor from "../TrainingOrderedItemEditor/TrainingOrderedItemEditor.jsx";
 import TrainingSkillsEditor from "../TrainingSkillsEditor/TrainingSkillsEditor.jsx";
 
@@ -101,7 +102,11 @@ function TrainingForm({
   initialTraining = null,
   certifications = [],
   isCertificationDataLoading = false,
-  isSaving = false,
+  isSaving: isTrainingSaving = false,
+  onDocumentsSaved,
+  onUnlinkCertification,
+  onLinkCertification,
+  onDocumentBusyChange,
   onSubmit,
   onCancel,
   onCreateCertification,
@@ -111,6 +116,28 @@ function TrainingForm({
       ? normalizeTraining(initialTraining)
       : createEmptyTraining(),
   );
+
+  const documentBaseline = useRef(initialTraining);
+  const documentLock = useRef(false);
+  const [documentWorking, setDocumentWorking] = useState(false);
+  const [documentNotice, setDocumentNotice] = useState("");
+  const isSaving = isTrainingSaving || documentWorking;
+  async function persistDocument(operation, fileOrDocument, details) {
+    if (documentLock.current || isTrainingSaving) throw new Error("Wait for the current save to finish.");
+    documentLock.current = true;
+    setDocumentWorking(true); onDocumentBusyChange?.(true);
+    setDocumentNotice("");
+    try {
+      const result = operation === "upload"
+        ? await uploadTrainingDocument(documentBaseline.current, fileOrDocument, details)
+        : await deleteTrainingDocument(documentBaseline.current, fileOrDocument.id);
+      documentBaseline.current = result.training;
+      setFormData(current => mergeTrainingDocumentResult(current, result.training));
+      onDocumentsSaved?.(result.training);
+      setDocumentNotice(result.cleanupPending ? "Document removed from Training. Physical file cleanup is pending on the server." : operation === "upload" ? "PDF uploaded and saved." : "PDF removed from Training.");
+      return result;
+    } finally { documentLock.current = false; setDocumentWorking(false); onDocumentBusyChange?.(false); }
+  }
 
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -125,6 +152,8 @@ function TrainingForm({
    */
 
   useEffect(() => {
+    documentBaseline.current = initialTraining;
+    setDocumentNotice("");
     setFormData(
       initialTraining
         ? normalizeTraining(initialTraining)
@@ -268,176 +297,85 @@ function TrainingForm({
    * =========================================
    */
 
+
+  const handlePersistedCertificationUnlink = async (certification) => {
+    if (!initialTraining?.id || typeof onUnlinkCertification !== "function") {
+      throw new Error("Saved Training Certification unlink is unavailable.");
+    }
+    if (documentLock.current || isTrainingSaving) {
+      throw new Error("Wait for the current Training operation to finish.");
+    }
+    const certificationId = certification?.id;
+    const baseline = documentBaseline.current;
+    if (!baseline?.rowVersion || !certificationId) {
+      throw new Error("The Training version or Certification ID is missing. Refresh the Training Library.");
+    }
+    documentLock.current = true;
+    setDocumentWorking(true);
+    onDocumentBusyChange?.(true);
+    setDocumentNotice("");
+    try {
+      const saved = await onUnlinkCertification(baseline.id, certificationId, baseline.rowVersion);
+      if (!saved?.rowVersion || !Array.isArray(saved.certificationRelationships) ||
+          !Array.isArray(saved.relatedCertificationIds)) {
+        throw new Error("The server returned an invalid Training unlink result.");
+      }
+      documentBaseline.current = saved;
+      setFormData((draft) => ({
+        ...draft,
+        rowVersion: saved.rowVersion,
+        certificationRelationships: saved.certificationRelationships,
+        relatedCertificationIds: saved.relatedCertificationIds,
+      }));
+      setDocumentNotice("Certification relationship removed. The Certification and its files were preserved.");
+      return saved;
+    } finally {
+      documentLock.current = false;
+      setDocumentWorking(false);
+      onDocumentBusyChange?.(false);
+    }
+  };
   const handleCertificationToggle = async (certification, shouldBeLinked) => {
-    const certificationId =
-      typeof certification?.id === "string" ? certification.id.trim() : "";
-
-    if (!certificationId) {
-      const error = new Error(
-        "The selected Certification does not have a valid identifier.",
-      );
-
-      error.publicMessage =
-        "The selected Certification could not be identified.";
-
-      throw error;
+    if (!shouldBeLinked) return handlePersistedCertificationUnlink(certification);
+    const baseline = documentBaseline.current;
+    if (!initialTraining?.id || !baseline?.rowVersion) {
+      throw new Error("Save this Training first, then reopen Edit to link a Certification. The Certification remains available in your Library.");
     }
-
-    const currentRelationships = Array.isArray(
-      formData.certificationRelationships,
-    )
-      ? formData.certificationRelationships
-      : [];
-
-    const relationshipAlreadyExists = currentRelationships.some(
-      (relationship) =>
-        relationship?.certificationId === certificationId ||
-        relationship?.certificationRecordId === certificationId,
-    );
-
-    if (shouldBeLinked && relationshipAlreadyExists) {
-      const error = new Error(
-        `Certification "${certificationId}" is already linked.`,
-      );
-
-      error.publicMessage =
-        "This Certification is already linked to the Training.";
-
-      throw error;
+    if (typeof onLinkCertification !== "function") {
+      throw new Error("Certification linking is unavailable. Refresh the Training Library.");
     }
-
-    const maximumCertifications =
-      TRAINING_FIELD_LIMITS.maximumRelatedCertifications ?? Infinity;
-
-    if (
-      shouldBeLinked &&
-      currentRelationships.length >= maximumCertifications
-    ) {
-      const error = new Error(
-        `The Training cannot have more than ${maximumCertifications} linked Certifications.`,
-      );
-
-      error.publicMessage = `Link no more than ${maximumCertifications} Certifications.`;
-
-      throw error;
+    if (documentLock.current || isTrainingSaving) {
+      throw new Error("Wait for the current Training operation to finish.");
     }
-
-    setFormData((currentData) => {
-      const relationships = Array.isArray(
-        currentData.certificationRelationships,
-      )
-        ? currentData.certificationRelationships
-        : [];
-
-      const remainingRelationships = relationships.filter(
-        (relationship) =>
-          relationship?.certificationId !== certificationId &&
-          relationship?.certificationRecordId !== certificationId,
-      );
-
-      const nextRelationships = shouldBeLinked
-        ? [
-            ...remainingRelationships,
-
-            createTrainingCertificationRelationship(
-              certification,
-              remainingRelationships.length,
-            ),
-          ]
-        : remainingRelationships;
-
-      const orderedRelationships = nextRelationships.map(
-        (relationship, index) => ({
-          ...relationship,
-          order: index,
-        }),
-      );
-
-      const credentialId =
-        typeof certification?.credential?.credentialId === "string"
-          ? certification.credential.credentialId.trim()
-          : typeof certification?.credential?.id === "string"
-            ? certification.credential.id.trim()
-            : "";
-
-      const credentialUrl =
-        typeof certification?.credential?.verificationUrl === "string"
-          ? certification.credential.verificationUrl.trim()
-          : typeof certification?.credential?.url === "string"
-            ? certification.credential.url.trim()
-            : "";
-
-      return {
-        ...currentData,
-
-        certificationRelationships: orderedRelationships,
-
-        /*
-         * Preserve this legacy collection until every
-         * consumer uses certificationRelationships.
-         */
-
-        relatedCertificationIds: orderedRelationships
-          .map(
-            (relationship) =>
-              relationship?.certificationId ||
-              relationship?.certificationRecordId,
-          )
-          .filter(Boolean),
-
-        completion: {
-          ...currentData.completion,
-
-          /*
-           * Any linked Certification is evidence that
-           * this Training has a Certification relationship.
-           */
-
-          certificateEarned: shouldBeLinked
-            ? true
-            : currentData.completion?.certificateEarned === true,
-
-          /*
-           * Fill empty Training credential fields from
-           * the linked Certification without overwriting
-           * manually entered information.
-           */
-
-          credentialId:
-            shouldBeLinked && !currentData.completion?.credentialId
-              ? credentialId
-              : currentData.completion?.credentialId || "",
-
-          credentialUrl:
-            shouldBeLinked && !currentData.completion?.credentialUrl
-              ? credentialUrl
-              : currentData.completion?.credentialUrl || "",
-        },
-      };
-    });
-
-    setFieldErrors((currentErrors) => {
-      const nextErrors = {
-        ...currentErrors,
-      };
-
-      Object.keys(nextErrors).forEach((field) => {
-        if (
-          field === "certificationRelationships" ||
-          field === "relatedCertificationIds" ||
-          field === "completion.certificateEarned" ||
-          field === "completion.credentialId" ||
-          field === "completion.credentialUrl" ||
-          field.startsWith("certificationRelationships.")
-        ) {
-          delete nextErrors[field];
-        }
-      });
-
-      return nextErrors;
-    });
-
-    setSubmitError("");
+    const certificationId = certification?.id;
+    if (typeof certificationId !== "string" || !certificationId.trim()) {
+      throw new Error("The selected Certification could not be identified.");
+    }
+    documentLock.current = true;
+    setDocumentWorking(true);
+    onDocumentBusyChange?.(true);
+    setDocumentNotice("");
+    try {
+      const saved = await onLinkCertification(baseline.id, certificationId, baseline.rowVersion);
+      if (saved?.id !== baseline.id || !saved?.rowVersion ||
+          !Array.isArray(saved.certificationRelationships) || !Array.isArray(saved.relatedCertificationIds)) {
+        throw new Error("The server returned an invalid Training link result. Refresh before retrying.");
+      }
+      documentBaseline.current = saved;
+      setFormData((draft) => ({
+        ...draft,
+        rowVersion: saved.rowVersion,
+        certificationRelationships: saved.certificationRelationships,
+        relatedCertificationIds: saved.relatedCertificationIds,
+      }));
+      setDocumentNotice("Certification linked and saved. Your other Training edits are retained.");
+      setSubmitError("");
+      return saved;
+    } finally {
+      documentLock.current = false;
+      setDocumentWorking(false);
+      onDocumentBusyChange?.(false);
+    }
   };
 
   /*
@@ -448,6 +386,7 @@ function TrainingForm({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (documentLock.current || isSaving) return;
 
     const validation = validateTraining(formData, {
       certifications,
@@ -482,7 +421,7 @@ function TrainingForm({
     try {
       setSubmitError("");
 
-      await onSubmit?.(formData);
+      await onSubmit?.(formData, documentBaseline.current);
     } catch (error) {
       setFieldErrors(error?.fieldErrors || {});
 
@@ -959,7 +898,7 @@ function TrainingForm({
       <TrainingSkillsEditor
         skillRelationships={formData.skillRelationships}
         fieldErrors={fieldErrors}
-        disabled={isSaving}
+        disabled={true}
         onChange={(skillRelationships) =>
           updateTopLevel("skillRelationships", skillRelationships)
         }
@@ -967,6 +906,8 @@ function TrainingForm({
 
       {/* Documents */}
 
+      {initialTraining?.id ? <p>PDF uploads, removals and Certification links/unlinks save immediately. Other Training edits use Save.</p> : <p>Save this Training first, then reopen Edit to upload a PDF or link a Certification.</p>}
+      {documentNotice && <p role="status">{documentNotice}</p>}
       <TrainingDocumentEditor
         trainingId={formData.id}
         documents={formData.supportingDocuments}
@@ -975,12 +916,17 @@ function TrainingForm({
         isCertificationDataLoading={isCertificationDataLoading}
         fieldErrors={fieldErrors}
         disabled={isSaving}
+            readOnly={false}
         onChange={(supportingDocuments) =>
           updateTopLevel("supportingDocuments", supportingDocuments)
         }
+        onUploadDocument={initialTraining?.id ? (file, details) => persistDocument("upload", file, details) : undefined}
+        onRemoveDocument={initialTraining?.id ? document => persistDocument("delete", document) : undefined}
         onCertificationChange={handleCertificationToggle}
+        onUnlinkCertification={initialTraining?.id ? handlePersistedCertificationUnlink : undefined}
         onCreateCertification={onCreateCertification}
       />
+
 
       {/* Record Management */}
 

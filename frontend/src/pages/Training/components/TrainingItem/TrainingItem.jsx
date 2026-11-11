@@ -1,4 +1,7 @@
-import { useMemo, useState } from "react";
+import { useTrainingData } from "../../../../context/TrainingDataContext.jsx";
+import { deleteTrainingDocument } from "../../../../services/Training/trainingDocumentApiService.js";
+import TrainingPdfCard from "../TrainingDocumentEditor/TrainingPdfCard.jsx";
+import { useMemo, useRef, useState } from "react";
 
 import { getSkillCategoryLabel } from "../../../../config/skillConfig.js";
 import { getDocumentVisibilityLabel } from "../../../../config/documentConfig.js";
@@ -26,6 +29,7 @@ import {
   getTrainingTitle,
   getTrainingTypeDisplay,
 } from "../../../../services/Training/trainingUtils.js";
+
 
 import "./TrainingItem.css";
 
@@ -92,6 +96,18 @@ function TrainingItem({
   onRestore,
   onDelete,
 }) {
+  const { receiveDocumentTraining } = useTrainingData();
+  const removeLock = useRef(false);
+  async function removePdf(document) {
+    if (removeLock.current) throw new Error("Wait for the current removal to finish.");
+    removeLock.current = true;
+    try {
+      const result = await deleteTrainingDocument(training, document.id);
+      receiveDocumentTraining(result.training);
+      if (result.cleanupPending) setDocumentError("Document removed from Training. Physical file cleanup is pending on the server.");
+      return result;
+    } finally { removeLock.current = false; }
+  }
   const [isExpanded, setIsExpanded] = useState(false);
   const [workingDocumentId, setWorkingDocumentId] = useState("");
   const [documentError, setDocumentError] = useState("");
@@ -679,6 +695,7 @@ function TrainingItem({
             {supportingDocuments.length > 0 ? (
               <div className="training-item-documents">
                 {supportingDocuments.map((trainingDocument) => {
+                  if (training.rowVersion) return <TrainingPdfCard key={trainingDocument.id} trainingId={training.id} document={trainingDocument} disabled={isWorking} onRemove={removePdf} />;
                   const isDocumentWorking =
                     workingDocumentId === trainingDocument.id;
 
@@ -757,6 +774,7 @@ function TrainingItem({
               </p>
             )}
           </section>
+
 
           {training.privateInformation?.notes && (
             <section className="training-item-private-notes">

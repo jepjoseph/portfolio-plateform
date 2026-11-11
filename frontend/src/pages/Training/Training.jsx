@@ -28,8 +28,11 @@ function Training() {
     operation,
     error,
     refreshTraining,
+    receiveDocumentTraining,
     createTraining,
     updateTraining,
+    unlinkTrainingCertification,
+    linkTrainingCertification,
     archiveTraining,
     restoreTraining,
     deleteTraining,
@@ -44,9 +47,11 @@ function Training() {
     synchronizeCertifications,
   } = useCertificationData();
 
+  const [documentBusy, setDocumentBusy] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const [editingTrainingId, setEditingTrainingId] = useState(null);
+  const [editingTrainingSnapshot, setEditingTrainingSnapshot] = useState(null);
 
   const [showArchived, setShowArchived] = useState(false);
 
@@ -65,15 +70,7 @@ function Training() {
     ? archivedTrainingRecords
     : activeTrainingRecords;
 
-  const editingTraining = useMemo(
-    () =>
-      editingTrainingId
-        ? trainingRecords.find(
-            (training) => training.id === editingTrainingId,
-          ) || null
-        : null,
-    [trainingRecords, editingTrainingId],
-  );
+  const editingTraining = editingTrainingSnapshot;
 
   /*
    * =========================================
@@ -91,6 +88,7 @@ function Training() {
   };
 
   const handleAddTraining = () => {
+    setEditingTrainingSnapshot(null);
     setEditingTrainingId(null);
     setIsFormOpen(true);
 
@@ -101,6 +99,7 @@ function Training() {
   };
 
   const handleEditTraining = (training) => {
+    setEditingTrainingSnapshot(structuredClone(training));
     setEditingTrainingId(training.id);
     setIsFormOpen(true);
 
@@ -111,6 +110,8 @@ function Training() {
   };
 
   const handleCloseForm = () => {
+    if (documentBusy || saveStatus === "saving") return;
+    setEditingTrainingSnapshot(null);
     setEditingTrainingId(null);
     setIsFormOpen(false);
 
@@ -126,9 +127,12 @@ function Training() {
 
   const handleCreateCertificationFromTraining = async ({
     certificationData,
+    documentUploads: stagedUploads = [],
     file = null,
   }) => {
-    const documentUploads = file
+    const documentUploads = Array.isArray(stagedUploads) && stagedUploads.length
+      ? stagedUploads
+      : file
       ? [
           {
             file,
@@ -198,15 +202,18 @@ function Training() {
    * =========================================
    */
 
-  const handleSaveTraining = async (trainingData) => {
+  const handleSaveTraining = async (trainingData, documentBaseline) => {
     if (editingTrainingId) {
-      await updateTraining(editingTrainingId, trainingData);
+      await updateTraining(editingTrainingId, trainingData, {
+        rowVersion: (documentBaseline || editingTrainingSnapshot)?.rowVersion,
+        originalTraining: documentBaseline || editingTrainingSnapshot,
+      });
     } else {
       await createTraining(trainingData);
     }
 
-    await Promise.resolve(synchronizeCertifications());
-
+    // Do not trigger legacy Certification synchronization after SQL saves.
+    setEditingTrainingSnapshot(null);
     setEditingTrainingId(null);
     setIsFormOpen(false);
   };
@@ -295,6 +302,7 @@ function Training() {
   const handleToggleArchived = () => {
     setShowArchived((currentValue) => !currentValue);
 
+    setEditingTrainingSnapshot(null);
     setEditingTrainingId(null);
     setIsFormOpen(false);
 
@@ -416,6 +424,7 @@ function Training() {
             <button
               type="button"
               onClick={handleCloseForm}
+              disabled={documentBusy || saveStatus === "saving"}
               aria-label="Close training form"
             >
               ×
@@ -427,6 +436,10 @@ function Training() {
             certifications={certifications}
             isCertificationDataLoading={areCertificationsLoading}
             isSaving={saveStatus === "saving"}
+            onDocumentsSaved={receiveDocumentTraining}
+            onUnlinkCertification={unlinkTrainingCertification}
+            onLinkCertification={linkTrainingCertification}
+            onDocumentBusyChange={setDocumentBusy}
             onSubmit={handleSaveTraining}
             onCancel={handleCloseForm}
             onCreateCertification={handleCreateCertificationFromTraining}

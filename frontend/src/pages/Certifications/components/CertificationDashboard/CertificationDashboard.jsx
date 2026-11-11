@@ -1,6 +1,6 @@
 import "./CertificationDashboard.css";
 
-function CertificationDashboard({ statistics = {}, isLoading = false }) {
+function CertificationDashboard({ statistics = {}, isLoading = false, trainingLinksStatus = "success" }) {
   const cards = [
     {
       id: "active",
@@ -29,7 +29,7 @@ function CertificationDashboard({ statistics = {}, isLoading = false }) {
     {
       id: "training",
       label: "Training Links",
-      value: statistics.linkedToTraining || 0,
+      value: trainingLinksStatus === "success" ? statistics.linkedToTraining || 0 : "—",
       description: "Connected to Training",
     },
     {

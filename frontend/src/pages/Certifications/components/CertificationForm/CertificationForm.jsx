@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CERTIFICATION_CREDENTIAL_STATE_OPTIONS,
-  CERTIFICATION_DOCUMENT_ACCEPT,
   CERTIFICATION_FIELD_LIMITS,
   CERTIFICATION_ISSUER_TYPE_OPTIONS,
   CERTIFICATION_SOURCE_OPTIONS,
   CERTIFICATION_STATUS_OPTIONS,
   CERTIFICATION_TYPE_OPTIONS,
-  isCertificationDocumentWithinSizeLimit,
-  isSupportedCertificationDocument,
 } from "../../../../config/certificationConfig.js";
 
 import {
@@ -24,6 +21,8 @@ import {
   validateCertification,
 } from "../../../../services/Certification/certificationValidation.js";
 
+import CertificationDocumentManager from "../CertificationDocumentManager/CertificationDocumentManager.jsx";
+
 import "./CertificationForm.css";
 
 function CertificationForm({
@@ -31,8 +30,10 @@ function CertificationForm({
   existingCertifications = [],
   skills = [],
   trainingRecords = [],
+  resolvedTrainingRelationships = null,
+  trainingLinksStatus = "success",
   educationRecords = [],
-  isSaving = false,
+  isSaving: isContextSaving = false,
   isRelationshipDataLoading = false,
   onSubmit,
   onCancel,
@@ -44,6 +45,12 @@ function CertificationForm({
   );
 
   const [documentUploads, setDocumentUploads] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const [requiresDocumentReview, setRequiresDocumentReview] = useState(false);
+  const initialRecord = useRef(null);
+  const isSaving = isContextSaving || isSubmitting;
+
 
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -51,11 +58,21 @@ function CertificationForm({
 
   const [submitError, setSubmitError] = useState("");
 
-  const [documentError, setDocumentError] = useState("");
 
   const isEditing = Boolean(initialCertification?.id);
 
   useEffect(() => {
+    const id = initialCertification?.id || "";
+    if (initialRecord.current?.id === id) {
+      // Refresh acknowledged metadata without clearing dirty fields or pending files.
+      setFormData((draft) => ({ ...draft,
+        rowVersion: initialCertification?.rowVersion,
+        supportingDocuments: initialCertification ? normalizeCertification(initialCertification).supportingDocuments : [],
+      }));
+      return;
+    }
+    initialRecord.current = { id };
+    setRequiresDocumentReview(false);
     setFormData(
       initialCertification
         ? normalizeCertification(initialCertification)
@@ -66,7 +83,6 @@ function CertificationForm({
     setFieldErrors({});
     setWarnings([]);
     setSubmitError("");
-    setDocumentError("");
   }, [initialCertification]);
 
   const validationSummary = useMemo(
@@ -235,175 +251,6 @@ function CertificationForm({
    * =========================================
    */
 
-  const handleDocumentSelection = (event) => {
-    const selectedFiles = Array.from(event.target.files || []);
-
-    const availableDocumentSlots =
-      CERTIFICATION_FIELD_LIMITS.maximumSupportingDocuments -
-      formData.supportingDocuments.length -
-      documentUploads.length;
-
-    setDocumentError("");
-
-    if (availableDocumentSlots <= 0) {
-      setDocumentError(
-        `Add no more than ${CERTIFICATION_FIELD_LIMITS.maximumSupportingDocuments} documents.`,
-      );
-
-      event.target.value = "";
-
-      return;
-    }
-
-    const acceptedUploads = [];
-
-    let latestError = "";
-
-    selectedFiles.slice(0, availableDocumentSlots).forEach((file) => {
-      if (!isSupportedCertificationDocument(file)) {
-        latestError = "Upload only PDF, Word, JPG, JPEG, PNG, or WebP files.";
-
-        return;
-      }
-
-      if (!isCertificationDocumentWithinSizeLimit(file)) {
-        latestError = "Each certificate document must be 10 MB or smaller.";
-
-        return;
-      }
-
-      const duplicateDocument = [
-        ...formData.supportingDocuments.map((document) => document.fileName),
-        ...documentUploads.map((upload) => upload.file.name),
-        ...acceptedUploads.map((upload) => upload.file.name),
-      ].some(
-        (fileName) =>
-          fileName?.trim().toLocaleLowerCase() ===
-          file.name.trim().toLocaleLowerCase(),
-      );
-
-      if (duplicateDocument) {
-        latestError = `"${file.name}" has already been added.`;
-
-        return;
-      }
-
-      const hasPrimaryDocument =
-        formData.supportingDocuments.some(
-          (document) => document.status !== "archived" && document.isPrimary,
-        ) ||
-        documentUploads.some((upload) => upload.isPrimary) ||
-        acceptedUploads.some((upload) => upload.isPrimary);
-
-      acceptedUploads.push({
-        file,
-        name: file.name,
-        documentType: "certificate",
-        description: "",
-        isPrimary: !hasPrimaryDocument,
-      });
-    });
-
-    if (selectedFiles.length > availableDocumentSlots) {
-      latestError = `Only ${availableDocumentSlots} additional ${
-        availableDocumentSlots === 1 ? "document" : "documents"
-      } can be added.`;
-    }
-
-    if (latestError) {
-      setDocumentError(latestError);
-    }
-
-    if (acceptedUploads.length > 0) {
-      setDocumentUploads((currentUploads) => [
-        ...currentUploads,
-        ...acceptedUploads,
-      ]);
-    }
-
-    event.target.value = "";
-  };
-
-  const removeStagedDocument = (selectedIndex) => {
-    setDocumentUploads((currentUploads) => {
-      const removedUpload = currentUploads[selectedIndex];
-
-      const nextUploads = currentUploads.filter(
-        (_, index) => index !== selectedIndex,
-      );
-
-      const existingPrimaryExists = formData.supportingDocuments.some(
-        (document) => document.status !== "archived" && document.isPrimary,
-      );
-
-      if (
-        removedUpload?.isPrimary &&
-        !existingPrimaryExists &&
-        nextUploads.length > 0
-      ) {
-        return nextUploads.map((upload, index) => ({
-          ...upload,
-          isPrimary: index === 0,
-        }));
-      }
-
-      return nextUploads;
-    });
-
-    setDocumentError("");
-  };
-
-  const removeExistingDocument = (documentId) => {
-    setFormData((currentData) =>
-      normalizeCertification({
-        ...currentData,
-
-        supportingDocuments: currentData.supportingDocuments.filter(
-          (document) => document.id !== documentId,
-        ),
-      }),
-    );
-
-    setDocumentError("");
-  };
-
-  const setExistingPrimaryDocument = (documentId) => {
-    setFormData((currentData) => ({
-      ...currentData,
-
-      supportingDocuments: currentData.supportingDocuments.map((document) => ({
-        ...document,
-
-        isPrimary: document.id === documentId && document.status !== "archived",
-      })),
-    }));
-
-    setDocumentUploads((currentUploads) =>
-      currentUploads.map((upload) => ({
-        ...upload,
-        isPrimary: false,
-      })),
-    );
-  };
-
-  const setStagedPrimaryDocument = (selectedIndex) => {
-    setDocumentUploads((currentUploads) =>
-      currentUploads.map((upload, index) => ({
-        ...upload,
-        isPrimary: index === selectedIndex,
-      })),
-    );
-
-    setFormData((currentData) => ({
-      ...currentData,
-
-      supportingDocuments: currentData.supportingDocuments.map((document) => ({
-        ...document,
-        isPrimary: false,
-      })),
-    }));
-  };
-
   /*
    * =========================================
    * Submission
@@ -412,6 +259,7 @@ function CertificationForm({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submitLock.current || isSaving || requiresDocumentReview) return;
 
     setSubmitError("");
 
@@ -495,8 +343,15 @@ function CertificationForm({
     }
 
     try {
-      await onSubmit?.(formData, documentUploads);
+      if (typeof onSubmit !== "function") throw new Error("Certification Save is unavailable. Refresh the page.");
+      submitLock.current = true;
+      setIsSubmitting(true);
+      await onSubmit(formData, documentUploads);
     } catch (error) {
+      if (Array.isArray(error?.completedUploads)) {
+        setDocumentUploads((pending) => pending.filter((upload) => !error.completedUploads.includes(upload)));
+      }
+      setRequiresDocumentReview(error?.requiresDocumentReview === true);
       setFieldErrors(
         error?.fieldErrors || error?.validation?.fieldErrors || {},
       );
@@ -508,6 +363,9 @@ function CertificationForm({
           error?.message ||
           "The certification could not be saved.",
       );
+    } finally {
+      submitLock.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -787,6 +645,26 @@ function CertificationForm({
         </div>
       </FormSection>
 
+      {Array.isArray(resolvedTrainingRelationships) ? (
+        <FormSection label="Training" title="Related Training"
+          description="These connections are saved on the Training records. Link or unlink from Training Edit.">
+          {trainingLinksStatus === "success" ? (
+            resolvedTrainingRelationships.length > 0 ? (
+              <ul aria-label="Linked Training records">
+                {resolvedTrainingRelationships.map((relationship) => (
+                  <li key={relationship.trainingId}>
+                    <strong>{relationship.snapshot.title}</strong>
+                    {relationship.snapshot.providerName && <span> — {relationship.snapshot.providerName}</span>}
+                    {relationship.trainingStatus === "archived" && <span> (Archived)</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : <p>No linked Training records.</p>
+          ) : <p role="status">{trainingLinksStatus === "error"
+            ? "Training links could not be loaded. Retry from the Certification Library."
+            : "Loading Training links…"}</p>}
+        </FormSection>
+      ) : (
       <RelationshipSection
         label="Training"
         title="Related Training"
@@ -821,6 +699,8 @@ function CertificationForm({
           );
         })}
       </RelationshipSection>
+
+      )}
 
       <RelationshipSection
         label="Skills"
@@ -892,114 +772,7 @@ function CertificationForm({
         })}
       </RelationshipSection>
 
-      <FormSection
-        label="Documents"
-        title="Certificate Documents"
-        description="Upload PDF, Word, JPG, JPEG, PNG, or WebP files. The primary document appears on the Certification item."
-      >
-        <label className="certification-form-upload">
-          <input
-            type="file"
-            multiple
-            accept={CERTIFICATION_DOCUMENT_ACCEPT}
-            onChange={handleDocumentSelection}
-            disabled={isSaving}
-          />
-
-          <span>
-            <strong>Select certificate documents</strong>
-
-            <small>
-              Maximum 10 MB per file and{" "}
-              {CERTIFICATION_FIELD_LIMITS.maximumSupportingDocuments} documents
-              per Certification
-            </small>
-          </span>
-        </label>
-
-        {documentError && (
-          <p className="certification-form-document-error" role="alert">
-            {documentError}
-          </p>
-        )}
-
-        {(formData.supportingDocuments.length > 0 ||
-          documentUploads.length > 0) && (
-          <div className="certification-form-document-list">
-            {formData.supportingDocuments.map((certificationDocument) => (
-              <div key={certificationDocument.id}>
-                <label>
-                  <input
-                    type="radio"
-                    name="primary-certificate-document"
-                    checked={certificationDocument.isPrimary}
-                    onChange={() =>
-                      setExistingPrimaryDocument(certificationDocument.id)
-                    }
-                    disabled={
-                      isSaving || certificationDocument.status === "archived"
-                    }
-                  />
-
-                  <span>
-                    <strong>
-                      {certificationDocument.name ||
-                        certificationDocument.fileName}
-                    </strong>
-
-                    <small>
-                      Saved document · {certificationDocument.previewMode}
-                    </small>
-                  </span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    removeExistingDocument(certificationDocument.id)
-                  }
-                  disabled={isSaving}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            {documentUploads.map((upload, index) => (
-              <div
-                key={`${upload.file.name}-${upload.file.lastModified}-${index}`}
-              >
-                <label>
-                  <input
-                    type="radio"
-                    name="primary-certificate-document"
-                    checked={upload.isPrimary}
-                    onChange={() => setStagedPrimaryDocument(index)}
-                    disabled={isSaving}
-                  />
-
-                  <span>
-                    <strong>{upload.file.name}</strong>
-
-                    <small>
-                      Ready to upload ·{" "}
-                      {(upload.file.size / 1024 / 1024).toFixed(2)} MB
-                    </small>
-                  </span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => removeStagedDocument(index)}
-                  disabled={isSaving}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </FormSection>
+      <CertificationDocumentManager certificationId={initialCertification?.id} uploads={documentUploads} setUploads={setDocumentUploads} disabled={isSaving}/>
 
       <FormSection
         label="Management"
@@ -1118,6 +891,8 @@ function CertificationForm({
         </div>
       )}
 
+      {isSubmitting && <p role="status" aria-live="polite">Saving Certification{documentUploads.length ? ` and uploading ${documentUploads.length} selected document(s)` : ""}…</p>}
+
       {submitError && (
         <p className="certification-form-submit-error" role="alert">
           {submitError}
@@ -1139,7 +914,7 @@ function CertificationForm({
           <button
             type="submit"
             className="certification-form-submit"
-            disabled={isSaving}
+            disabled={isSaving || requiresDocumentReview}
           >
             {isSaving
               ? "Saving..."

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch } from "../apiClient.js";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../apiClient.js";
 
 const TRAININGS_ENDPOINT = "/trainings";
 
@@ -103,4 +103,41 @@ export async function updateTrainingApi(
   }
 
   return response.data.training;
+}
+
+export async function unlinkTrainingCertificationApi(trainingId, certificationId, rowVersion, options = {}) {
+  if (typeof certificationId !== "string" || !certificationId.trim()) {
+    throw new TypeError("A valid Certification ID is required.");
+  }
+  if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+    throw new TypeError("A Training rowVersion is required.");
+  }
+  const response = await apiDelete(
+    `${trainingPath(trainingId)}/certification-links/${encodeURIComponent(certificationId.trim())}`,
+    { ...options, body: { rowVersion: rowVersion.trim() } },
+  );
+  if (!response?.data?.training || typeof response.data.training !== "object" ||
+      Array.isArray(response.data.training) || !response.data.training.rowVersion) {
+    throw new TypeError("Invalid Training Certification unlink response.");
+  }
+  return response.data.training;
+}
+
+export async function linkTrainingCertificationApi(trainingId, certificationId, rowVersion, options = {}) {
+  if (typeof certificationId !== "string" || !certificationId.trim() || certificationId.length > 200) {
+    throw new TypeError("A valid Certification ID is required.");
+  }
+  if (typeof rowVersion !== "string" || !rowVersion.trim()) {
+    throw new TypeError("A Training rowVersion is required.");
+  }
+  const response = await apiPost(`${trainingPath(trainingId)}/certification-links`, {
+    certificationId: certificationId.trim(), rowVersion: rowVersion.trim(),
+  }, options);
+  const training = response?.data?.training;
+  if (!training || typeof training !== "object" || Array.isArray(training) ||
+      training.id !== trainingId.trim() || !training.rowVersion ||
+      !Array.isArray(training.certificationRelationships) || !Array.isArray(training.relatedCertificationIds)) {
+    throw new TypeError("Invalid Training Certification link response.");
+  }
+  return training;
 }

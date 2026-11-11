@@ -1,4 +1,7 @@
+import TrainingPdfCard from "./TrainingPdfCard.jsx";
 import { useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import CertificationForm from "../../../Certifications/components/CertificationForm/CertificationForm.jsx";
 
 import {
   DOCUMENT_ACCEPT_VALUE,
@@ -72,8 +75,12 @@ function TrainingDocumentEditor({
   isCertificationDataLoading = false,
   fieldErrors = {},
   disabled = false,
+  readOnly = false,
   onChange,
+  onUploadDocument,
+  onRemoveDocument,
   onCertificationChange,
+  onUnlinkCertification,
   onCreateCertification,
 }) {
   const sectionTitleId = useId();
@@ -270,7 +277,8 @@ function TrainingDocumentEditor({
   const hasReachedCertificationMaximum =
     linkedCertifications.length >= maximumCertifications;
 
-  const isDisabled = disabled || isUploading || isCreatingCertification;
+  const isDisabled = disabled || readOnly || isUploading || isCreatingCertification;
+  const manualDisabled = disabled || (!onUploadDocument && readOnly) || isUploading || isCreatingCertification;
 
   const certificationRelationshipError = useMemo(() => {
     if (fieldErrors.certificationRelationships) {
@@ -345,6 +353,9 @@ function TrainingDocumentEditor({
       return;
     }
 
+    if (onUploadDocument && (!/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf") || file.size > 15 * 1024 * 1024)) {
+      setSelectedFile(null); setEditorError("Select a PDF no larger than 15 MiB."); event.target.value = ""; return;
+    }
     const validation = validateDocumentFile(file);
 
     if (!validation.isValid) {
@@ -494,6 +505,10 @@ function TrainingDocumentEditor({
     try {
       setIsUploading(true);
 
+      if (onUploadDocument) {
+        await onUploadDocument(selectedFile, {documentType, name:normalizedName, description:normalizedDescription, visibility});
+        resetEditor(); return;
+      }
       storedFile = await saveDocumentFile(selectedFile, {
         recordId: trainingId || "",
         category: "training",
@@ -603,158 +618,42 @@ function TrainingDocumentEditor({
    * =========================================
    */
 
-  const handleCreateCertification = async () => {
-    setEditorError("");
+  const [isFullCertificationOpen, setIsFullCertificationOpen] = useState(false);
+  const [createdCertificationAfterFailure, setCreatedCertificationAfterFailure] = useState("");
 
-    if (typeof onCreateCertification !== "function") {
-      setEditorError(
-        "Creating a Certification is not available in this Training form.",
-      );
-      return;
+  const handleFullCertificationSubmit = async (certificationData, documentUploads) => {
+    if (createdCertificationAfterFailure) {
+      throw new Error("Certification already created. Close this dialog and use the existing Library record to finish its documents or retry linking.");
     }
-
-    if (typeof onCertificationChange !== "function") {
-      setEditorError(
-        "The new Certification cannot be linked to this Training.",
-      );
-      return;
-    }
-
-    const normalizedName = certificationName.trim();
-    const normalizedIssuerName = certificationIssuerName.trim();
-    const normalizedCredentialId = certificationCredentialId.trim();
-    const normalizedVerificationUrl = certificationVerificationUrl.trim();
-
-    if (!normalizedName) {
-      setEditorError("Enter the Certification name.");
-      return;
-    }
-
-    if (!normalizedIssuerName) {
-      setEditorError("Enter the issuing organization.");
-      return;
-    }
-
-    if (!certificationIssueDate) {
-      setEditorError("Enter the Certification issue date.");
-      return;
-    }
-
-    if (
-      !certificationDoesNotExpire &&
-      certificationExpirationDate &&
-      certificationExpirationDate < certificationIssueDate
-    ) {
-      setEditorError(
-        "The expiration date cannot be earlier than the issue date.",
-      );
-      return;
-    }
-
-    if (normalizedVerificationUrl) {
-      try {
-        const url = new URL(normalizedVerificationUrl);
-
-        if (!["http:", "https:"].includes(url.protocol)) {
-          throw new Error("Unsupported URL protocol.");
-        }
-      } catch {
-        setEditorError(
-          "Enter a valid verification URL beginning with http:// or https://.",
-        );
-        return;
-      }
-    }
-
     if (hasReachedCertificationMaximum) {
-      setEditorError(
-        `Link no more than ${maximumCertifications} Certifications.`,
-      );
-      return;
+      throw new Error("Maximum linked Certifications reached.");
     }
-
+    if (typeof onCreateCertification !== "function" || typeof onCertificationChange !== "function") {
+      throw new Error("Certification creation or linking is unavailable.");
+    }
+    setEditorError("");
+    setIsCreatingCertification(true);
+    let created;
     try {
-      setIsCreatingCertification(true);
-
-      const createdCertification = await onCreateCertification({
-        certificationData: {
-          name: normalizedName,
-
-          certificationType: "professional",
-
-          issuingOrganization: {
-            name: normalizedIssuerName,
-            type: "other",
-            website: "",
-          },
-
-          dates: {
-            issueDate: certificationIssueDate,
-
-            expirationDate: certificationDoesNotExpire
-              ? ""
-              : certificationExpirationDate,
-
-            lastRenewedDate: "",
-            nextRenewalDate: "",
-
-            doesNotExpire: certificationDoesNotExpire,
-          },
-
-          credential: {
-            state: "active",
-            credentialId: normalizedCredentialId,
-            verificationUrl: normalizedVerificationUrl,
-          },
-
-          description: "Certification created from the Training editor.",
-
-          relatedRecords: {
-            trainingRelationships: [],
-            educationIds: [],
-          },
-
-          visibility: {
-            showIssuingOrganization: true,
-            showIssuerWebsite: false,
-            showDates: true,
-            showExpirationDate: true,
-            showCredentialId: Boolean(normalizedCredentialId),
-            showVerificationUrl: Boolean(normalizedVerificationUrl),
-            showDescription: true,
-            showSkills: true,
-            showSupportingDocuments: Boolean(certificationFile),
-          },
-
-          source: "training",
-
-          sourceContext: trainingId
-            ? `Created from Training draft ${trainingId}.`
-            : "Created from the Training editor.",
-
-          status: "active",
-        },
-
-        file: certificationFile,
-      });
-
-      await onCertificationChange(createdCertification, true);
-
-      resetCertificationCreator();
-
-      /*
-       * Return to the existing-Certification selector.
-       * The newly created Certification is already
-       * linked and will appear in the linked list.
-       */
-
+      created = await onCreateCertification({ certificationData, documentUploads });
+      await onCertificationChange(created, true);
+      setIsFullCertificationOpen(false);
       setDocumentSource("certification");
     } catch (error) {
-      setEditorError(
-        error?.publicMessage ||
-          error?.message ||
-          "The Certification could not be created.",
-      );
+      if (created?.id || error?.certificationId) {
+        setCreatedCertificationAfterFailure(created?.id || error.certificationId);
+      }
+      const message = error?.publicMessage || error?.message || "Certification creation failed.";
+      const detail = created?.id
+        ? "The Certification was saved in your Library, but linking failed. Close this dialog and select that existing Certification to retry. " + message
+        : message;
+      setEditorError(detail);
+      if (created?.id) {
+        const linkError = new Error(detail, { cause: error });
+        linkError.certificationId = created.id;
+        throw linkError;
+      }
+      throw error;
     } finally {
       setIsCreatingCertification(false);
     }
@@ -767,7 +666,7 @@ function TrainingDocumentEditor({
    */
 
   const handleUnlinkCertification = async (linkedCertification) => {
-    if (typeof onCertificationChange !== "function") {
+    if (typeof onUnlinkCertification !== "function" && typeof onCertificationChange !== "function") {
       setEditorError(
         "Certification unlinking is not available in this Training form.",
       );
@@ -787,12 +686,12 @@ function TrainingDocumentEditor({
       setEditorError("");
       setWorkingCertificationId(linkedCertification.id);
 
-      await onCertificationChange(
-        linkedCertification.certification || {
-          id: linkedCertification.id,
-        },
-        false,
-      );
+      const certification = linkedCertification.certification || { id: linkedCertification.id };
+      if (typeof onUnlinkCertification === "function") {
+        await onUnlinkCertification(certification);
+      } else {
+        await onCertificationChange(certification, false);
+      }
     } catch (error) {
       setEditorError(
         error?.publicMessage ||
@@ -1052,15 +951,13 @@ function TrainingDocumentEditor({
               ref={fileInputRef}
               id={fileInputId}
               type="file"
-              accept={DOCUMENT_ACCEPT_VALUE}
+              accept={onUploadDocument ? ".pdf,application/pdf" : DOCUMENT_ACCEPT_VALUE}
               onChange={handleFileChange}
-              disabled={isDisabled || hasReachedDocumentMaximum}
+              disabled={manualDisabled || hasReachedDocumentMaximum}
             />
 
             <small>
-              PDF, Word, OpenDocument, text, JPG, PNG, WebP, GIF, BMP, or HEIC.
-              Maximum{" "}
-              {formatFileSize(DOCUMENT_FILE_LIMITS.maximumFileSizeBytes)}.
+              {onUploadDocument ? "PDF only. Maximum 15 MiB." : <>PDF, Word, OpenDocument, text, JPG, PNG, WebP, GIF, BMP, or HEIC. Maximum {formatFileSize(DOCUMENT_FILE_LIMITS.maximumFileSizeBytes)}.</>}
             </small>
           </div>
 
@@ -1095,7 +992,7 @@ function TrainingDocumentEditor({
               }}
               maxLength={DOCUMENT_FILE_LIMITS.documentName}
               placeholder="Training Completion Certificate"
-              disabled={isDisabled}
+              disabled={manualDisabled}
             />
           </div>
 
@@ -1109,7 +1006,7 @@ function TrainingDocumentEditor({
                 setDocumentType(event.target.value);
                 setEditorError("");
               }}
-              disabled={isDisabled}
+              disabled={manualDisabled}
             >
               {TRAINING_DOCUMENT_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -1129,7 +1026,7 @@ function TrainingDocumentEditor({
                 setVisibility(event.target.value);
                 setEditorError("");
               }}
-              disabled={isDisabled}
+              disabled={manualDisabled}
             >
               {DOCUMENT_VISIBILITY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -1155,7 +1052,7 @@ function TrainingDocumentEditor({
               }}
               maxLength={DOCUMENT_FILE_LIMITS.description}
               placeholder="Describe what this document verifies."
-              disabled={isDisabled}
+              disabled={manualDisabled}
             />
 
             <small className="training-document-editor-character-count">
@@ -1173,7 +1070,7 @@ function TrainingDocumentEditor({
                 <button
                   type="button"
                   onClick={resetEditor}
-                  disabled={isDisabled}
+                  disabled={manualDisabled}
                 >
                   Clear
                 </button>
@@ -1184,7 +1081,7 @@ function TrainingDocumentEditor({
                 className="training-document-editor-add"
                 onClick={handleAddDocument}
                 disabled={
-                  isDisabled || hasReachedDocumentMaximum || !selectedFile
+                  manualDisabled || hasReachedDocumentMaximum || !selectedFile
                 }
               >
                 {isUploading ? "Uploading..." : "+ Add Document"}
@@ -1260,221 +1157,29 @@ function TrainingDocumentEditor({
 
       {documentSource === "create-certification" && (
         <div className="training-document-editor-create-certification">
-          <div className="training-document-editor-create-heading">
-            <div>
-              <small>Certification Library</small>
-
-              <h4>Create a New Certification</h4>
-
-              <p>
-                This creates a separate Certification record and links it to
-                this Training draft.
-              </p>
-            </div>
-          </div>
-
-          <div className="training-document-editor-create-grid">
-            <div className="training-document-editor-field training-document-editor-wide">
-              <label htmlFor={certificationNameInputId}>
-                Certification Name
-                <small> Required</small>
-              </label>
-
-              <input
-                id={certificationNameInputId}
-                type="text"
-                value={certificationName}
-                onChange={(event) => {
-                  setCertificationName(event.target.value);
-                  setEditorError("");
-                }}
-                placeholder="CompTIA A+"
-                disabled={isDisabled}
-              />
-            </div>
-
-            <div className="training-document-editor-field training-document-editor-wide">
-              <label htmlFor={certificationIssuerInputId}>
-                Issuing Organization
-                <small> Required</small>
-              </label>
-
-              <input
-                id={certificationIssuerInputId}
-                type="text"
-                value={certificationIssuerName}
-                onChange={(event) => {
-                  setCertificationIssuerName(event.target.value);
-                  setEditorError("");
-                }}
-                placeholder="CompTIA"
-                disabled={isDisabled}
-              />
-            </div>
-
-            <div className="training-document-editor-field">
-              <label htmlFor={certificationIssueDateInputId}>
-                Issue Date
-                <small> Required</small>
-              </label>
-
-              <input
-                id={certificationIssueDateInputId}
-                type="month"
-                value={certificationIssueDate}
-                onChange={(event) => {
-                  setCertificationIssueDate(event.target.value);
-                  setEditorError("");
-                }}
-                disabled={isDisabled}
-              />
-            </div>
-
-            <div className="training-document-editor-field">
-              <label htmlFor={certificationExpirationDateInputId}>
-                Expiration Date
-                <small> Optional</small>
-              </label>
-
-              <input
-                id={certificationExpirationDateInputId}
-                type="month"
-                value={certificationExpirationDate}
-                onChange={(event) => {
-                  setCertificationExpirationDate(event.target.value);
-                  setEditorError("");
-                }}
-                disabled={isDisabled || certificationDoesNotExpire}
-              />
-            </div>
-
-            <label className="training-document-editor-checkbox training-document-editor-wide">
-              <input
-                type="checkbox"
-                checked={certificationDoesNotExpire}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-
-                  setCertificationDoesNotExpire(checked);
-
-                  if (checked) {
-                    setCertificationExpirationDate("");
-                  }
-
-                  setEditorError("");
-                }}
-                disabled={isDisabled}
-              />
-
-              <span>This Certification does not expire</span>
-            </label>
-
-            <div className="training-document-editor-field">
-              <label htmlFor={certificationCredentialIdInputId}>
-                Credential ID
-                <small> Optional</small>
-              </label>
-
-              <input
-                id={certificationCredentialIdInputId}
-                type="text"
-                value={certificationCredentialId}
-                onChange={(event) => {
-                  setCertificationCredentialId(event.target.value);
-                  setEditorError("");
-                }}
-                placeholder="Credential identifier"
-                disabled={isDisabled}
-              />
-            </div>
-
-            <div className="training-document-editor-field">
-              <label htmlFor={certificationVerificationUrlInputId}>
-                Verification URL
-                <small> Optional</small>
-              </label>
-
-              <input
-                id={certificationVerificationUrlInputId}
-                type="url"
-                value={certificationVerificationUrl}
-                onChange={(event) => {
-                  setCertificationVerificationUrl(event.target.value);
-                  setEditorError("");
-                }}
-                placeholder="https://example.com/verify"
-                disabled={isDisabled}
-              />
-            </div>
-
-            <div className="training-document-editor-field training-document-editor-wide">
-              <label htmlFor={certificationFileInputId}>
-                Certificate File
-                <small> Optional</small>
-              </label>
-
-              <input
-                ref={certificationFileInputRef}
-                id={certificationFileInputId}
-                type="file"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
-                onChange={handleCertificationFileChange}
-                disabled={isDisabled}
-              />
-
-              <small>PDF, Word, JPG, PNG, or WebP. Maximum 10 MB.</small>
-            </div>
-
-            {certificationFile && (
-              <div className="training-document-editor-selected training-document-editor-wide">
-                <span aria-hidden="true">◇</span>
-
-                <div>
-                  <strong>{certificationFile.name}</strong>
-
-                  <small>
-                    {getDocumentFormatLabel(certificationFile)}
-                    {" · "}
-                    {formatFileSize(certificationFile.size)}
-                  </small>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <footer className="training-document-editor-create-footer">
-            <small>
-              The Certification is saved immediately in the Certification
-              Library. Cancelling this Training afterward will not delete it.
-            </small>
-
-            <div>
-              <button
-                type="button"
-                onClick={resetCertificationCreator}
-                disabled={isDisabled}
-              >
-                Clear
-              </button>
-
-              <button
-                type="button"
-                className="training-document-editor-create-button"
-                onClick={handleCreateCertification}
-                disabled={
-                  isDisabled ||
-                  !certificationName.trim() ||
-                  !certificationIssuerName.trim() ||
-                  !certificationIssueDate
-                }
-              >
-                {isCreatingCertification
-                  ? "Creating Certification..."
-                  : "+ Create and Link Certification"}
-              </button>
-            </div>
-          </footer>
+          <h4>Create a New Certification</h4>
+          <p>Use the complete Certification form, including multiple supporting documents.</p>
+          <button type="button" disabled={isDisabled || hasReachedCertificationMaximum || Boolean(createdCertificationAfterFailure)} onClick={() => setIsFullCertificationOpen(true)}>
+            Open Full Certification Form
+          </button>
+          {createdCertificationAfterFailure && (
+            <p role="alert">Certification {createdCertificationAfterFailure} was saved, but an upload or linking step failed. Do not create it again. Open the Certification Library to complete the documents.</p>
+          )}
         </div>
+      )}
+
+      {isFullCertificationOpen && createPortal(
+        <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.7)", overflowY: "auto", padding: "2rem" }}>
+          <div role="dialog" aria-modal="true" aria-label="Create Certification" style={{ background: "#111827", color: "#f9fafb", border: "1px solid #374151", maxWidth: "1100px", margin: "auto", padding: "1.5rem", borderRadius: "12px" }}>
+            <CertificationForm
+              existingCertifications={safeCertifications}
+              isSaving={isCreatingCertification || Boolean(createdCertificationAfterFailure)}
+              onSubmit={handleFullCertificationSubmit}
+              onCancel={() => { if (!isCreatingCertification) setIsFullCertificationOpen(false); }}
+            />
+          </div>
+        </div>,
+        document.body,
       )}
 
       {editorError && (
@@ -1576,8 +1281,9 @@ function TrainingDocumentEditor({
                         handleUnlinkCertification(linkedCertification)
                       }
                       disabled={
-                        isDisabled ||
-                        workingCertificationId === linkedCertification.id
+                        disabled || isUploading || isCreatingCertification ||
+                        (readOnly && typeof onUnlinkCertification !== "function") ||
+                        Boolean(workingCertificationId)
                       }
                     >
                       {workingCertificationId === linkedCertification.id
@@ -1592,7 +1298,13 @@ function TrainingDocumentEditor({
         </div>
       )}
 
-      {orderedDocuments.length > 0 && (
+      {onUploadDocument && orderedDocuments.length > 0 && (
+        <div className="training-document-editor-documents">
+          <h4>Uploaded Training PDFs ({orderedDocuments.length})</h4>
+          {orderedDocuments.map(document => <TrainingPdfCard key={document.id} trainingId={trainingId} document={document} disabled={manualDisabled} onRemove={onRemoveDocument} />)}
+        </div>
+      )}
+      {!onUploadDocument && orderedDocuments.length > 0 && (
         <div className="training-document-editor-documents">
           <div className="training-document-editor-subheading">
             <div>
@@ -1696,7 +1408,7 @@ function TrainingDocumentEditor({
                       <button
                         type="button"
                         onClick={() => handlePreview(trainingDocument)}
-                        disabled={isDisabled || isDocumentWorking}
+                        disabled={disabled || isUploading || isCreatingCertification || isDocumentWorking}
                       >
                         Preview
                       </button>
@@ -1705,7 +1417,7 @@ function TrainingDocumentEditor({
                     <button
                       type="button"
                       onClick={() => handleDownload(trainingDocument)}
-                      disabled={isDisabled || isDocumentWorking}
+                      disabled={disabled || isUploading || isCreatingCertification || isDocumentWorking}
                     >
                       {isDocumentWorking ? "Opening..." : "Download"}
                     </button>

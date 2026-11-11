@@ -1,0 +1,10 @@
+import {test, beforeEach, mock} from "node:test";
+import assert from "node:assert/strict";
+let calls, response, failure;
+mock.module("../../src/services/apiClient.js",{exports:{apiGet:async()=>{},apiPatch:async()=>{},apiDelete:async()=>{},apiPost:async(...args)=>{calls.push(args);if(failure)throw failure;return response;}}});
+const {linkTrainingCertificationApi:link}=await import("../../src/services/Training/trainingApiService.js");
+beforeEach(()=>{calls=[];failure=null;response={data:{training:{id:"training-1",rowVersion:"AAAAAAAAAAI=",certificationRelationships:[],relatedCertificationIds:[]}}};});
+test("uses the dedicated endpoint and only sends ID and version",async()=>{const saved=await link("training-1"," certification-1 ","AAAAAAAAAAE=");assert.equal(saved,response.data.training);assert.deepEqual(calls,[["/trainings/training-1/certification-links",{certificationId:"certification-1",rowVersion:"AAAAAAAAAAE="},{}]]);});
+test("invalid identifiers and missing version do not issue requests",async()=>{for(const args of [["","cert","v"],["t","","v"],["t",[],"v"],["t","cert",""]])await assert.rejects(link(...args),TypeError);assert.equal(calls.length,0);});
+test("forwards API conflict without pretending the link saved",async()=>{failure=Object.assign(new Error("Refresh Training"),{status:409});await assert.rejects(link("training-1","cert","v"),{status:409});});
+test("rejects malformed or wrong-Training responses",async()=>{for(const value of [null,[],{id:"other",rowVersion:"v",certificationRelationships:[],relatedCertificationIds:[]},{id:"training-1",rowVersion:"v"}]){response={data:{training:value}};await assert.rejects(link("training-1","cert","v"),TypeError);}});

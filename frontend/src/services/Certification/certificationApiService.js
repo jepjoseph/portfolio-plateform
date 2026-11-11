@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from "../apiClient.js";
+import { apiGet, apiPatch, apiPost, apiDelete } from "../apiClient.js";
 
 const CERTIFICATIONS_ENDPOINT = "/certifications";
 
@@ -102,4 +102,55 @@ export async function patchCertification(
   );
 
   return response.data.certification;
+}
+
+export async function postCertification(certification, options = {}) {
+  const response = await apiPost(
+    CERTIFICATIONS_ENDPOINT,
+    certification,
+    options,
+  );
+
+  return response.data.certification;
+}
+
+export async function postCertificationDocument(
+  certificationId,
+  upload,
+  options = {},
+) {
+  if (!(upload?.file instanceof File)) {
+    throw new TypeError("A Certification document file is required.");
+  }
+
+  const body = new FormData();
+  body.append("document", upload.file);
+  body.append("documentType", upload.documentType || "certificate");
+  body.append("name", upload.name || upload.file.name);
+  body.append("description", upload.description || "");
+  body.append("isPrimary", String(Boolean(upload.isPrimary)));
+  body.append("displayOrder", String(upload.displayOrder ?? 0));
+
+  const response = await apiPost(
+    `${certificationPath(certificationId)}/documents`,
+    body,
+    options,
+  );
+
+  notifyCertificationDocumentsChanged(certificationId);
+  return response.data.document;
+}
+
+
+function notifyCertificationDocumentsChanged(certificationId) {
+  if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("certification-documents-changed",{detail:{certificationId}}));
+}
+export async function deleteCertificationDocumentApi(certificationId,documentId,options={}) {
+  await apiDelete(documentPath(certificationId,documentId),options);
+  notifyCertificationDocumentsChanged(certificationId);
+}
+export async function updateCertificationDocumentApi(certificationId,documentId,updates,options={}) {
+  const response=await apiPatch(documentPath(certificationId,documentId),updates,options);
+  notifyCertificationDocumentsChanged(certificationId);
+  return response.data.document;
 }

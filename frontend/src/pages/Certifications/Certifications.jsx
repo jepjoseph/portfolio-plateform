@@ -10,6 +10,8 @@ import {
   getCertificationIssuerName,
 } from "../../models/certificationModel.js";
 
+import { projectCertificationTrainingRelationships } from "../../services/Certification/certificationTrainingProjection.js";
+
 import { getCertificationStatistics } from "../../services/Certification/certificationUtils.js";
 
 import CertificationDashboard from "./components/CertificationDashboard/CertificationDashboard.jsx";
@@ -43,7 +45,8 @@ function Certifications() {
 
   const { skills, isLoading: areSkillsLoading } = useSkillData();
 
-  const { trainingRecords, isLoading: isTrainingLoading } = useTrainingData();
+  const { trainingRecords, isLoading: isTrainingLoading, loadStatus: trainingLoadStatus, refreshTraining } = useTrainingData();
+  const trainingLinksStatus = isTrainingLoading ? "loading" : trainingLoadStatus;
 
   const { educationRecords, isLoading: isEducationLoading } =
     useEducationData();
@@ -60,9 +63,20 @@ function Certifications() {
    * =========================================
    */
 
+  const resolvedCertifications = useMemo(
+    () => projectCertificationTrainingRelationships(
+      certifications, trainingLinksStatus === "success" ? trainingRecords : [],
+    ),
+    [certifications, trainingRecords, trainingLinksStatus],
+  );
   const statistics = useMemo(
-    () => getCertificationStatistics(certifications),
-    [certifications],
+    () => getCertificationStatistics(resolvedCertifications),
+    [resolvedCertifications],
+  );
+  const resolvedEditingTrainingLinks = useMemo(
+    () => resolvedCertifications.find((item) => item.id === editingCertificationId)
+      ?.relatedRecords.trainingRelationships || [],
+    [resolvedCertifications, editingCertificationId],
   );
 
   const editingCertification = useMemo(
@@ -75,9 +89,9 @@ function Certifications() {
     [certifications, editingCertificationId],
   );
 
-  const displayedCertifications = showArchived
-    ? archivedCertifications
-    : activeCertifications;
+  const displayedCertifications = resolvedCertifications.filter((item) =>
+    showArchived ? item.status === "archived" : item.status !== "archived",
+  );
 
   const areRelationshipsLoading =
     areSkillsLoading || isTrainingLoading || isEducationLoading;
@@ -284,7 +298,16 @@ function Certifications() {
         onToggleArchived={handleToggleArchived}
       />
 
-      <CertificationDashboard statistics={statistics} isLoading={isLoading} />
+      <CertificationDashboard statistics={statistics} isLoading={isLoading} trainingLinksStatus={trainingLinksStatus} />
+
+      {trainingLinksStatus === "error" && (
+        <section className="certifications-page-message certifications-page-message--error" role="alert">
+          <p>Training links could not be loaded. Certification records and documents remain available.</p>
+          <button type="button" onClick={() => refreshTraining({ includeArchived: true }).catch(() => {})}>
+            Retry Training Links
+          </button>
+        </section>
+      )}
 
       {/* =====================================
           Error Message
@@ -419,6 +442,8 @@ function Certifications() {
             existingCertifications={certifications}
             skills={skills}
             trainingRecords={trainingRecords}
+            resolvedTrainingRelationships={resolvedEditingTrainingLinks}
+            trainingLinksStatus={trainingLinksStatus}
             educationRecords={educationRecords}
             isSaving={saveStatus === "saving"}
             isRelationshipDataLoading={areRelationshipsLoading}
@@ -434,6 +459,7 @@ function Certifications() {
 
       <CertificationLibrary
         certifications={displayedCertifications}
+        trainingLinksStatus={trainingLinksStatus}
         showArchived={showArchived}
         isLoading={isLoading}
         loadStatus={loadStatus}

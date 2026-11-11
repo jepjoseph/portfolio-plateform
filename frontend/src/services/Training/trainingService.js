@@ -15,6 +15,10 @@ import { readStoredTraining } from "./trainingStorage.js";
 import {
   fetchTrainings,
   fetchTrainingById,
+  createTrainingApi,
+  updateTrainingApi,
+  unlinkTrainingCertificationApi,
+  linkTrainingCertificationApi,
 } from "./trainingApiService.js";
 
 import { saveTrainingWithCertificationSync } from "../Certification/certificationTrainingRelationshipService.js";
@@ -116,54 +120,86 @@ export async function getTrainingById(trainingId) {
   return fetchTrainingById(trainingId);
 }
 
+const TRAINING_PROTECTED_FIELDS = [
+  "skillRelationships",
+  "supportingDocuments",
+  "relatedEducationIds",
+  "certificationRelationships",
+  "relatedCertificationIds",
+  "relatedExperienceIds",
+  "relatedProjectIds",
+];
+
+const TRAINING_EDITABLE_FIELDS = [
+  "title",
+  "trainingType",
+  "provider",
+  "delivery",
+  "dates",
+  "completion",
+  "description",
+  "instructors",
+  "topics",
+  "learningOutcomes",
+  "visibility",
+  "privateInformation",
+  "source",
+  "sourceContext",
+  "status",
+];
+
+function assertProtectedTrainingFieldsUnchanged(candidate, original) {
+  const changed = TRAINING_PROTECTED_FIELDS.filter(
+    (field) =>
+      JSON.stringify(candidate[field]) !== JSON.stringify(original[field]),
+  );
+
+  if (changed.length) {
+    throw createTrainingServiceError({
+      message: `Unsupported Training changes: ${changed.join(", ")}`,
+      publicMessage:
+        "Document and relationship changes are not available yet. No changes were saved.",
+      code: "TRAINING_RELATIONSHIP_OR_DOCUMENT_WRITE_NOT_READY",
+      status: 409,
+      details: { fields: changed },
+    });
+  }
+}
+
+function assertNoNewTrainingRelationshipsOrDocuments(candidate) {
+  const unsupported = TRAINING_PROTECTED_FIELDS.filter(
+    (field) => Array.isArray(candidate[field]) && candidate[field].length > 0,
+  );
+
+  if (unsupported.length) {
+    throw createTrainingServiceError({
+      message: `Unsupported Training creation fields: ${unsupported.join(", ")}`,
+      publicMessage:
+        "Create this Training without documents or relationships. Those features are not connected to backend persistence yet.",
+      code: "TRAINING_RELATIONSHIP_OR_DOCUMENT_WRITE_NOT_READY",
+      status: 409,
+      details: { fields: unsupported },
+    });
+  }
+}
+
 export async function createTraining(trainingData) {
-  throw createTrainingServiceError({
-    message: "Training writes are temporarily disabled during backend migration.",
-    publicMessage:
-      "Training changes are temporarily unavailable while backend persistence is being connected.",
-    code: "TRAINING_BACKEND_WRITE_NOT_READY",
-    status: 503,
-  });
-
-  const records = readStoredTraining();
-
   const candidate = createTrainingCandidate(trainingData);
 
   assertValidTraining(candidate);
 
-  const training = createTrainingModel(candidate);
+  const normalized = normalizeTraining(candidate);
 
-  if (records.some((record) => record.id === training.id)) {
-    throw createTrainingServiceError({
-      message: `Training ID "${training.id}" already exists.`,
-      publicMessage:
-        "This training record could not be created because its identifier already exists.",
-      code: "TRAINING_ID_CONFLICT",
-      status: 409,
-    });
-  }
+  assertNoNewTrainingRelationshipsOrDocuments(normalized);
 
-  const transaction = saveTrainingWithCertificationSync({
-    trainingRecords: [training, ...records],
-
-    changedTrainingIds: [training.id],
-  });
-
-  return (
-    transaction.trainingRecords.find((record) => record.id === training.id) ||
-    training
-  );
+  return createTrainingApi(normalized);
 }
 
-export async function updateTraining(trainingId, updates = {}) {
-  throw createTrainingServiceError({
-    message: "Training writes are temporarily disabled during backend migration.",
-    publicMessage:
-      "Training changes are temporarily unavailable while backend persistence is being connected.",
-    code: "TRAINING_BACKEND_WRITE_NOT_READY",
-    status: 503,
-  });
-
+export async function updateTraining(
+  trainingId,
+  updates = {},
+  editMetadata = {},
+) {
   if (!trainingId) {
     throw createTrainingServiceError({
       message: "A training ID is required.",
@@ -173,79 +209,52 @@ export async function updateTraining(trainingId, updates = {}) {
     });
   }
 
-  const records = readStoredTraining();
+  const { rowVersion, originalTraining } = editMetadata;
 
-  const recordIndex = records.findIndex(
-    (training) => training.id === trainingId,
-  );
-
-  if (recordIndex === -1) {
-    throw createTrainingNotFoundError(trainingId);
+  if (
+    typeof rowVersion !== "string" ||
+    !rowVersion.trim() ||
+    !originalTraining ||
+    originalTraining.id !== trainingId ||
+    originalTraining.rowVersion !== rowVersion
+  ) {
+    throw createTrainingServiceError({
+      message: "The original SQL Training version is unavailable.",
+      publicMessage:
+        "The original Training version is missing. Close the editor, refresh the Training Library, and reopen the record.",
+      code: "TRAINING_ORIGINAL_VERSION_REQUIRED",
+      status: 409,
+    });
   }
 
-  const currentTraining = records[recordIndex];
+  const original = normalizeTraining(originalTraining);
 
-  const candidate = createTrainingCandidate({
-    ...currentTraining,
-    ...updates,
+  const candidate = normalizeTraining(
+    createTrainingCandidate({
+      ...originalTraining,
+      ...updates,
+    }),
+  );
 
-    provider: {
-      ...currentTraining.provider,
-      ...updates.provider,
-    },
+  assertProtectedTrainingFieldsUnchanged(candidate, original);
 
-    delivery: {
-      ...currentTraining.delivery,
-      ...updates.delivery,
+  const changedFields = Object.fromEntries(
+    TRAINING_EDITABLE_FIELDS
+      .filter(
+        (field) =>
+          JSON.stringify(candidate[field]) !== JSON.stringify(original[field]),
+      )
+      .map((field) => [field, candidate[field]]),
+  );
 
-      location: {
-        ...currentTraining.delivery?.location,
-        ...updates.delivery?.location,
-      },
-    },
-
-    dates: {
-      ...currentTraining.dates,
-      ...updates.dates,
-    },
-
-    completion: {
-      ...currentTraining.completion,
-      ...updates.completion,
-    },
-
-    visibility: {
-      ...currentTraining.visibility,
-      ...updates.visibility,
-    },
-
-    privateInformation: {
-      ...currentTraining.privateInformation,
-      ...updates.privateInformation,
-    },
-  });
+  if (Object.keys(changedFields).length === 0) {
+    return originalTraining;
+  }
 
   assertValidTraining(candidate);
 
-  const updatedTraining = updateTrainingModel(currentTraining, updates);
-
-  const nextRecords = [...records];
-
-  nextRecords[recordIndex] = updatedTraining;
-
-  const transaction = saveTrainingWithCertificationSync({
-    trainingRecords: nextRecords,
-
-    changedTrainingIds: [updatedTraining.id],
-  });
-
-  return (
-    transaction.trainingRecords.find(
-      (record) => record.id === updatedTraining.id,
-    ) || updatedTraining
-  );
+  return updateTrainingApi(trainingId, changedFields, rowVersion);
 }
-
 export async function archiveTraining(trainingId) {
   throw createTrainingServiceError({
     message: "Training writes are temporarily disabled during backend migration.",
@@ -425,4 +434,12 @@ export async function replaceTrainingRecords(trainingValues) {
   });
 
   return transaction.trainingRecords;
+}
+
+export async function unlinkTrainingCertification(trainingId, certificationId, rowVersion) {
+  return unlinkTrainingCertificationApi(trainingId, certificationId, rowVersion);
+}
+
+export async function linkTrainingCertification(trainingId, certificationId, rowVersion) {
+  return linkTrainingCertificationApi(trainingId, certificationId, rowVersion);
 }

@@ -1,3 +1,4 @@
+import { useCertificationDocuments, selectCertificationPreview } from "../../../../services/Certification/useCertificationDocuments.js";
 import { useState } from "react";
 
 import {
@@ -5,8 +6,8 @@ import {
   getCertificationCredentialStateDisplay,
   getCertificationDateRange,
   getCertificationTrainingSummary,
+  getCertificationTrainingRelationships,
   getCertificationTypeDisplay,
-  getPrimaryCertificationDocumentInfo,
 } from "../../../../services/Certification/certificationUtils.js";
 
 import CertificationDocumentPreview from "../CertificationDocumentPreview/CertificationDocumentPreview.jsx";
@@ -16,6 +17,7 @@ import "./CertificationItem.css";
 
 function CertificationItem({
   certification,
+  trainingLinksStatus = "success",
   operation = null,
   onEdit,
   onArchive,
@@ -28,7 +30,8 @@ function CertificationItem({
 
   const isOperating = operation?.certificationId === certification?.id;
 
-  const primaryDocumentInfo = getPrimaryCertificationDocumentInfo(certification);
+  const {documents: backendDocuments,status: documentStatus,error: documentError,refresh: refreshDocuments} = useCertificationDocuments(certification.id);
+  const primaryDocumentInfo = selectCertificationPreview(backendDocuments);
 
   const primaryDocument = primaryDocumentInfo
     ? {
@@ -44,11 +47,7 @@ function CertificationItem({
 
   const dateRange = getCertificationDateRange(certification);
 
-  const activeDocuments = Array.isArray(certification?.supportingDocuments)
-    ? certification.supportingDocuments.filter(
-        (document) => document?.status !== "archived",
-      )
-    : [];
+  const activeDocuments = backendDocuments.filter(document=>document.status!=="archived");
 
   return (
     <>
@@ -57,10 +56,9 @@ function CertificationItem({
           isArchived ? "certification-item--archived" : ""
         }`}
       >
-        <CertificationDocumentPreview
-          document={primaryDocument}
-          onView={setViewingDocument}
-        />
+        {documentStatus==="success" ? <CertificationDocumentPreview document={primaryDocument} onView={setViewingDocument}/> :
+          <div role="status">{documentStatus==="error" ? <><span>{documentError}</span><button type="button" onClick={refreshDocuments}>Retry documents</button></> : "Loading certificate preview…"}</div>}
+
 
         <div className="certification-item-content">
           <header>
@@ -137,8 +135,21 @@ function CertificationItem({
               </span>
             )}
 
-            <span>{getCertificationTrainingSummary(certification)}</span>
+            <span>{trainingLinksStatus === "success"
+              ? getCertificationTrainingSummary(certification)
+              : trainingLinksStatus === "error" ? "Training links unavailable" : "Loading Training links…"}</span>
           </div>
+
+          {trainingLinksStatus === "success" && getCertificationTrainingRelationships(certification).length > 1 && (
+            <ul aria-label="Linked Training records">
+              {getCertificationTrainingRelationships(certification).map((relationship) => (
+                <li key={relationship.trainingId}>
+                  {relationship.snapshot?.title || "Untitled Training"}
+                  {relationship.trainingStatus === "archived" && " (Archived)"}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {certification?.description && (
             <p className="certification-item-description">
@@ -167,7 +178,7 @@ function CertificationItem({
                   type="button"
                   onClick={() => setViewingDocument(primaryDocument)}
                 >
-                  View Certificate
+                  {primaryDocument?.documentType === "certificate" ? "View Certificate" : "View Document"}
                 </button>
               )}
 
