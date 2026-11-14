@@ -1,6 +1,10 @@
+import { useState } from "react";
+
 import { useAuth } from "../../context/AuthContext";
 
 import PublicNavigation from "../PublicNavigation/PublicNavigation";
+
+import { useProfileData } from "../../context/ProfileDataContext";
 
 import "./Header.css";
 
@@ -18,7 +22,7 @@ function getUserDisplayName(user) {
   }
 
   if (typeof user?.email === "string" && user.email.trim()) {
-    return user.email.trim();
+    return user.email.trim().split("@")[0];
   }
 
   return "My Account";
@@ -63,6 +67,27 @@ function getUserRole(roles) {
     .join(", ");
 }
 
+function ProfileAvatar({ imageUrl, initials }) {
+  const [failedUrl, setFailedUrl] = useState(null);
+
+  const showImage = Boolean(imageUrl) && failedUrl !== imageUrl;
+
+  return (
+    <div className="header-avatar" aria-hidden="true">
+      {showImage ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="header-avatar-image"
+          onError={() => setFailedUrl(imageUrl)}
+        />
+      ) : (
+        <span>{initials}</span>
+      )}
+    </div>
+  );
+}
+
 /*
  * =========================================
  * Dashboard Header
@@ -71,10 +96,22 @@ function getUserRole(roles) {
 
 function Header({ onMenuClick }) {
   const { user, roles } = useAuth();
+  const { profile, activeCollections } = useProfileData();
 
   const displayName = getUserDisplayName(user);
   const initials = getUserInitials(user);
   const roleLabel = getUserRole(roles);
+
+  // Get the picture selected as primary.
+  const primaryPictureId =
+    profile?.preferences?.primaryProfilePictureId;
+
+    const primaryPicture = activeCollections.profilePictures.find(
+    (picture) => picture.id === primaryPictureId
+  );
+  
+    // Use the primary picture, otherwise show initials.
+  const profileImageUrl = primaryPicture?.imageUrl || null;
 
   return (
     <header className="dashboard-header">
@@ -109,9 +146,7 @@ function Header({ onMenuClick }) {
         </button>
 
         <div className="header-profile">
-          <div className="header-avatar" aria-hidden="true">
-            {initials}
-          </div>
+          <ProfileAvatar imageUrl={profileImageUrl} initials={initials} />
 
           <div className="header-user">
             <span className="header-user-name">{displayName}</span>
@@ -132,7 +167,7 @@ function Header({ onMenuClick }) {
 function NavBrand() {
   return (
     <div className="header-brand">
-      <span className="header-brand-name">PortAncest</span>
+      <span className="header-brand-name">PortAncests</span>
 
       <span className="header-brand-subtitle">Portfolio Platform</span>
     </div>

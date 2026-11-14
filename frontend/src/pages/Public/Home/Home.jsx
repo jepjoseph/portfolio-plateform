@@ -23,11 +23,11 @@ const productDemonstrations = [
     title: "See your professional progress",
     description:
       "Review your profile, recent activity, career records, resumes, and portfolio from one organized workspace.",
-    media: "/media/demos/dashboard-ai.gif",
+    media: "/media/demos/dashboard.gif",
   },
   {
     id: "profile",
-    label: "AI profile assistance",
+    label: "Profile setup",
     title: "Build a stronger professional profile",
     description:
       "Use guided AI assistance to improve your introduction, professional title, summary, and other profile information.",
@@ -35,7 +35,7 @@ const productDemonstrations = [
   },
   {
     id: "experience",
-    label: "AI writing assistance",
+    label: "Experience documentation",
     title: "Turn responsibilities into achievements",
     description:
       "Describe what you did in your own words, then let AI help you create clear, professional, results-focused content.",
