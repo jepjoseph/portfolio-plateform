@@ -31,15 +31,7 @@ const productDemonstrations = [
     title: "Build a stronger professional profile",
     description:
       "Use guided AI assistance to improve your introduction, professional title, summary, and other profile information.",
-    media: "/media/demos/profile-ai.gif",
-  },
-  {
-    id: "experience",
-    label: "Experience documentation",
-    title: "Turn responsibilities into achievements",
-    description:
-      "Describe what you did in your own words, then let AI help you create clear, professional, results-focused content.",
-    media: "/media/demos/experience-ai.gif",
+    media: "/media/demos/profile.gif",
   },
   {
     id: "projects",
@@ -47,19 +39,28 @@ const productDemonstrations = [
     title: "Present projects with confidence",
     description:
       "Organize project goals, technologies, contributions, outcomes, and supporting media with AI-guided suggestions.",
-    media: "/media/demos/projects-ai.gif",
+    media: "/media/demos/projects.gif",
   },
   {
-    id: "development",
-    label: "Complete career record",
-    title: "Organize education, training, and skills",
+    id: "experience",
+    label: "Experience documentation",
+    title: "Turn responsibilities into achievements",
     description:
-      "Keep education, training, certifications, and skills connected to the professional story you want to present.",
-    media: "/media/demos/career-development-ai.gif",
+      "Describe what you did in your own words, then let AI help you create clear, professional, results-focused content.",
+    media: "/media/demos/experience.gif",
   },
+{
+  id: "skills",
+  label: "Skills and competencies",
+  title: "Showcase your professional skills",
+  description:
+    "Organize your technical and professional skills, document proficiency levels, and connect your capabilities to relevant experience, projects, and certifications.",
+  media: "/media/demos/skills.gif",
+},
+
   {
     id: "portfolio",
-    label: "One-click generation",
+    label: "Portfolio One-click generation",
     title: "Generate your portfolio",
     description:
       "Select your information, choose a presentation, and let AI prepare a professional portfolio draft for your review.",
@@ -67,7 +68,7 @@ const productDemonstrations = [
   },
   {
     id: "resume",
-    label: "One-click generation",
+    label: "Resume One-click generation",
     title: "Generate a targeted resume",
     description:
       "Use your structured career information to produce a focused resume draft for a specific opportunity.",
