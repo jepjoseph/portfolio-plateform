@@ -465,7 +465,7 @@ function EducationForm({
         itemLabel="Honor"
         emptyTitle="No honors added"
         emptyMessage="Academic honors and distinctions will appear here."
-        namePlaceholder="Dean’s List"
+        namePlaceholder="Deanâ€™s List"
         descriptionPlaceholder="Describe the recognition."
         maximumItems={EDUCATION_FIELD_LIMITS.maximumHonors}
         maximumNameLength={EDUCATION_FIELD_LIMITS.honorName}
@@ -526,11 +526,12 @@ function EducationForm({
         }
       />
 
+      <p role="status">PDF uploads are available after an Education record has been saved. Uploaded files are stored on the backend; deletion is not supported.</p>
       <EducationDocumentEditor
         educationId={formData.id}
         documents={formData.supportingDocuments}
         fieldErrors={fieldErrors}
-        disabled={isSaving}
+        disabled={!initialEducation?.id || isSaving}
         onChange={(documents) =>
           updateTopLevel("supportingDocuments", documents)
         }
@@ -560,7 +561,7 @@ function EducationForm({
                 onChange={(event) =>
                   updateNested("visibility", field, event.target.checked)
                 }
-                disabled={isSaving}
+                disabled={true}
               />
 
               <span>{label}</span>
@@ -573,7 +574,7 @@ function EducationForm({
             <select
               value={formData.source}
               onChange={(event) => updateTopLevel("source", event.target.value)}
-              disabled={isSaving}
+              disabled={true}
             >
               {EDUCATION_SOURCE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -587,7 +588,7 @@ function EducationForm({
             <select
               value={formData.status}
               onChange={(event) => updateTopLevel("status", event.target.value)}
-              disabled={isSaving}
+              disabled={true}
             >
               {EDUCATION_STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -610,7 +611,7 @@ function EducationForm({
                 updateNested("privateInformation", "notes", event.target.value)
               }
               maxLength={EDUCATION_FIELD_LIMITS.privateNotes}
-              disabled={isSaving}
+              disabled={true}
             />
           </FormField>
         </div>

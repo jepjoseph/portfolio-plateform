@@ -1,4 +1,6 @@
 import { useState } from "react";
+import EducationDocumentPreviewModal from "../EducationDocumentPreviewModal/EducationDocumentPreviewModal.jsx";
+import { loadEducationPdf } from "../../../../services/Education/educationApiService.js";
 
 import { getSkillCategoryLabel } from "../../../../config/skillConfig.js";
 
@@ -76,6 +78,7 @@ function EducationItem({
   const [workingDocumentId, setWorkingDocumentId] = useState("");
 
   const [documentError, setDocumentError] = useState("");
+  const [previewDocument, setPreviewDocument] = useState(null);
 
   if (!education) {
     return null;
@@ -118,6 +121,10 @@ function EducationItem({
    */
 
   const getDocumentUrl = async (educationDocument) => {
+    if (educationDocument.storageProvider === "education-api") {
+      const blob = await loadEducationPdf(education.id, educationDocument.id);
+      return { url: URL.createObjectURL(blob), temporary: true };
+    }
     if (educationDocument.fileUrl) {
       return {
         url: educationDocument.fileUrl,
@@ -147,36 +154,10 @@ function EducationItem({
    * =========================================
    */
 
-  const handlePreviewDocument = async (educationDocument) => {
-    try {
-      setDocumentError("");
-
-      setWorkingDocumentId(educationDocument.id);
-
-      const { url, temporary } = await getDocumentUrl(educationDocument);
-
-      const previewWindow = window.open(url, "_blank", "noopener,noreferrer");
-
-      if (!previewWindow) {
-        throw new Error("The browser blocked the document preview window.");
-      }
-
-      if (temporary) {
-        window.setTimeout(() => {
-          revokeDocumentUrl(url);
-        }, 60000);
-      }
-    } catch (error) {
-      setDocumentError(
-        error?.publicMessage ||
-          error?.message ||
-          "The document could not be opened.",
-      );
-    } finally {
-      setWorkingDocumentId("");
-    }
+  const handlePreviewDocument = (educationDocument) => {
+    setDocumentError("");
+    setPreviewDocument(educationDocument);
   };
-
   /*
    * =========================================
    * Download Document
@@ -591,6 +572,13 @@ function EducationItem({
             )}
           </footer>
         </div>
+      )}
+      {previewDocument && (
+        <EducationDocumentPreviewModal
+          educationId={education.id}
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
+        />
       )}
     </article>
   );

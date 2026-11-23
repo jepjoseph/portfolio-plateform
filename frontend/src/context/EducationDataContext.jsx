@@ -227,6 +227,15 @@ export function EducationDataProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    const onDocumentsChanged = (event) => {
+      if (!event?.detail?.educationId) return;
+      refreshEducation({ includeArchived: true, showLoading: false }).catch(() => {});
+    };
+    window.addEventListener("education:documents-changed", onDocumentsChanged);
+    return () => window.removeEventListener("education:documents-changed", onDocumentsChanged);
+  }, [refreshEducation]);
+
   /*
    * =========================================
    * Cross-Tab Synchronization

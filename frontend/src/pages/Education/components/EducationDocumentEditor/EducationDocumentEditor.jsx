@@ -1,4 +1,5 @@
 import { useId, useMemo, useRef, useState } from "react";
+import EducationDocumentPreviewModal from "../EducationDocumentPreviewModal/EducationDocumentPreviewModal.jsx";
 
 import {
   DOCUMENT_ACCEPT_VALUE,
@@ -9,14 +10,9 @@ import {
   getEducationDocumentTypeLabel,
 } from "../../../../config/documentConfig.js";
 
-import { createEducationDocument } from "../../../../models/educationModel.js";
+import { uploadEducationPdf, loadEducationPdf, fetchEducationDocuments, deleteEducationPdf } from "../../../../services/Education/educationApiService.js";
 
-import {
-  createStoredDocumentUrl,
-  deleteStoredDocumentFile,
-  revokeDocumentUrl,
-  saveDocumentFile,
-} from "../../../../services/Documents/documentStorage.js";
+import { createStoredDocumentUrl, revokeDocumentUrl } from "../../../../services/Documents/documentStorage.js";
 
 import {
   canPreviewDocument,
@@ -75,6 +71,7 @@ function EducationDocumentEditor({
   const [editorError, setEditorError] = useState("");
 
   const [workingDocumentId, setWorkingDocumentId] = useState("");
+  const [previewDocument, setPreviewDocument] = useState(null);
 
   const [isUploading, setIsUploading] = useState(false);
 
@@ -149,6 +146,10 @@ function EducationDocumentEditor({
    */
 
   const handleAddDocument = async () => {
+    if (!educationId) {
+      setEditorError("Save the Education record before uploading a PDF.");
+      return;
+    }
     setEditorError("");
 
     if (hasReachedMaximum) {
@@ -165,6 +166,10 @@ function EducationDocumentEditor({
       return;
     }
 
+    if (!/\.pdf$/i.test(selectedFile.name) || (selectedFile.type && selectedFile.type !== "application/pdf") || selectedFile.size > 15 * 1024 * 1024) {
+      setEditorError("Only PDF files up to 15 MiB can be uploaded to the Education backend.");
+      return;
+    }
     const normalizedName = documentName.trim();
 
     if (!normalizedName) {
@@ -203,43 +208,21 @@ function EducationDocumentEditor({
 
     try {
       setIsUploading(true);
-
-      const storedFile = await saveDocumentFile(selectedFile, {
-        recordId: educationId || "",
-
-        category: "education",
-      });
-
-      const document = createEducationDocument({
-        documentType,
-
-        name: normalizedName,
-
-        description: description.trim(),
-
-        fileName: storedFile.fileName,
-
-        mimeType: storedFile.mimeType,
-
-        fileSize: storedFile.fileSize,
-
-        storageProvider: "indexed-db",
-
-        storageKey: storedFile.storageKey,
-
-        fileUrl: "",
-
-        uploadedAt: storedFile.uploadedAt,
-
-        visibility,
-
-        order: documents.length,
-      });
-
-      onChange?.(normalizeDocumentOrder([...documents, document]));
-
-      resetEditor();
-    } catch (error) {
+      const uploaded = await uploadEducationPdf(educationId, selectedFile);
+      if (!uploaded?.id) throw new Error("Backend upload did not return a document ID.");
+      const { ownedDocuments } = await fetchEducationDocuments(educationId);
+      onChange?.(ownedDocuments.map((doc, index) => ({
+        id: doc.id,
+        name: doc.name || doc.originalFileName || doc.fileName || "Document",
+        fileName: doc.originalFileName || doc.fileName || doc.name || "Document.pdf",
+        fileSize: Number(doc.fileSize ?? doc.sizeBytes ?? 0),
+        mimeType: "application/pdf", documentType: doc.documentType || "other",
+        visibility: doc.visibility || "private", description: doc.description || "",
+        storageProvider: "education-api", storageKey: "", fileUrl: "education-api-document",
+        uploadedAt: doc.uploadedAt || doc.createdAt || "", order: index,
+      })));
+      window.dispatchEvent(new CustomEvent("education:documents-changed", { detail: { educationId } }));
+      resetEditor();    } catch (error) {
       setEditorError(
         error?.publicMessage ||
           error?.message ||
@@ -257,6 +240,10 @@ function EducationDocumentEditor({
    */
 
   const getDocumentObjectUrl = async (document) => {
+    if (document.storageProvider === "education-api") {
+      const blob = await loadEducationPdf(educationId, document.id);
+      return { url: URL.createObjectURL(blob), temporary: true };
+    }
     if (document.fileUrl) {
       return {
         url: document.fileUrl,
@@ -276,34 +263,10 @@ function EducationDocumentEditor({
     };
   };
 
-  const handlePreview = async (document) => {
-    try {
-      setWorkingDocumentId(document.id);
-
-      const { url, temporary } = await getDocumentObjectUrl(document);
-
-      const previewWindow = window.open(url, "_blank", "noopener,noreferrer");
-
-      if (!previewWindow) {
-        throw new Error("The browser blocked the document preview window.");
-      }
-
-      if (temporary) {
-        window.setTimeout(() => {
-          revokeDocumentUrl(url);
-        }, 60000);
-      }
-    } catch (error) {
-      setEditorError(
-        error?.publicMessage ||
-          error?.message ||
-          "The document could not be opened.",
-      );
-    } finally {
-      setWorkingDocumentId("");
-    }
+  const handlePreview = (document) => {
+    setEditorError("");
+    setPreviewDocument(document);
   };
-
   const handleDownload = async (educationDocument) => {
     try {
       setWorkingDocumentId(educationDocument.id);
@@ -347,37 +310,34 @@ function EducationDocumentEditor({
    */
 
   const handleRemove = async (document) => {
-    const shouldRemove = window.confirm(
-      `Remove "${document.name}"?\n\nThe uploaded file will also be removed from browser storage.`,
-    );
-
-    if (!shouldRemove) {
+    if (!educationId || !document?.id || document.storageProvider !== "education-api") {
+      setEditorError("Only Education-owned PDFs can be removed here.");
       return;
     }
-
+    const name = document.fileName || document.name || "this PDF";
+    if (!window.confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
+    setEditorError("");
+    setWorkingDocumentId(document.id);
     try {
-      setWorkingDocumentId(document.id);
-
-      if (document.storageProvider === "indexed-db" && document.storageKey) {
-        await deleteStoredDocumentFile(document.storageKey);
-      }
-
-      const remainingDocuments = documents.filter(
-        (candidate) => candidate.id !== document.id,
-      );
-
-      onChange?.(normalizeDocumentOrder(remainingDocuments));
+      await deleteEducationPdf(educationId, document.id);
+      const { ownedDocuments } = await fetchEducationDocuments(educationId);
+      onChange?.(ownedDocuments.map((doc, index) => ({
+        id: doc.id,
+        name: doc.name || doc.originalFileName || doc.fileName || "Document",
+        fileName: doc.originalFileName || doc.fileName || doc.name || "Document.pdf",
+        fileSize: Number(doc.fileSize ?? doc.sizeBytes ?? 0),
+        mimeType: "application/pdf", documentType: doc.documentType || "other",
+        visibility: doc.visibility || "private", description: doc.description || "",
+        storageProvider: "education-api", storageKey: "", fileUrl: "education-api-document",
+        uploadedAt: doc.uploadedAt || doc.createdAt || "", order: index,
+      })));
+      window.dispatchEvent(new CustomEvent("education:documents-changed", { detail: { educationId } }));
     } catch (error) {
-      setEditorError(
-        error?.publicMessage ||
-          error?.message ||
-          "The document could not be removed.",
-      );
+      setEditorError(error?.publicMessage || error?.message || "The PDF could not be deleted.");
     } finally {
       setWorkingDocumentId("");
     }
   };
-
   /*
    * =========================================
    * Reorder
@@ -409,7 +369,7 @@ function EducationDocumentEditor({
     onChange?.(normalizeDocumentOrder(reorderedDocuments));
   };
 
-  const isDisabled = disabled || isUploading;
+  const isDisabled = disabled || isUploading || !educationId;
 
   return (
     <section
@@ -435,8 +395,8 @@ function EducationDocumentEditor({
         <span aria-hidden="true">ⓘ</span>
 
         <p>
-          Documents are stored privately in this browser. PDF, image, and text
-          files can be previewed. Word files are downloaded for viewing.
+          Education documents are stored on the backend. Only PDF files are supported;
+          owned PDFs can be permanently removed after confirmation.
         </p>
       </div>
 
@@ -451,14 +411,14 @@ function EducationDocumentEditor({
             ref={fileInputRef}
             id={fileInputId}
             type="file"
-            accept={DOCUMENT_ACCEPT_VALUE}
+            accept=".pdf,application/pdf"
             onChange={handleFileChange}
             disabled={isDisabled || hasReachedMaximum}
           />
 
           <small>
-            PDF, Word, OpenDocument, text, JPG, PNG, WebP, GIF, BMP, or HEIC.
-            Maximum {formatFileSize(DOCUMENT_FILE_LIMITS.maximumFileSizeBytes)}.
+            PDF only.
+            Maximum 15 MiB. Save the Education record before uploading.
           </small>
         </div>
 
@@ -690,7 +650,8 @@ function EducationDocumentEditor({
                     type="button"
                     className="education-document-editor-remove"
                     onClick={() => handleRemove(document)}
-                    disabled={isDisabled || isWorking}
+                    disabled={isDisabled || isWorking || document.storageProvider !== "education-api"}
+                    title="Permanently delete this Education-owned PDF"
                   >
                     Remove
                   </button>
@@ -710,6 +671,13 @@ function EducationDocumentEditor({
             document, PDF, or image.
           </p>
         </div>
+      )}
+      {previewDocument && (
+        <EducationDocumentPreviewModal
+          educationId={educationId}
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
+        />
       )}
     </section>
   );

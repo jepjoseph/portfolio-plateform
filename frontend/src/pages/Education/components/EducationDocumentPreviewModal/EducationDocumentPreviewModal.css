@@ -1,0 +1,310 @@
+/*
+ * =========================================
+ * Document Viewer Backdrop
+ * =========================================
+ */
+
+.education-document-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 7, 18, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/*
+ * =========================================
+ * Document Viewer
+ * =========================================
+ */
+
+.education-document-preview {
+  width: min(1100px, 100%);
+  height: min(820px, calc(100vh - 48px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * =========================================
+ * Header and Footer
+ * =========================================
+ */
+
+.education-document-preview > header,
+.education-document-preview > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 17px;
+}
+
+.education-document-preview > header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.education-document-preview > header > div {
+  min-width: 0;
+}
+
+.education-document-preview > footer {
+  border-top: 1px solid var(--border-color);
+}
+
+.education-document-preview header span {
+  color: var(--accent-hover);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.education-document-preview h2 {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.education-document-preview-description {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.59rem;
+}
+
+.education-document-preview header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.education-document-preview header button:hover {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+
+.education-document-preview header button:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+/*
+ * =========================================
+ * Viewer Content
+ * =========================================
+ */
+
+.education-document-preview-content {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.education-document-preview-content iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+.education-document-preview-content img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/*
+ * =========================================
+ * Viewer States
+ * =========================================
+ */
+
+.education-document-preview-state {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  max-width: 460px;
+  padding: 30px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.education-document-preview-state > strong {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.education-document-preview-state p {
+  margin: 7px 0 0;
+  line-height: 1.5;
+}
+
+.education-document-preview-state--error > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.09);
+  color: #f87171;
+  font-weight: 800;
+}
+
+.education-document-preview-loader {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: certification-viewer-spin 0.75s linear infinite;
+}
+
+.education-document-preview-file-icon {
+  width: 68px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+@keyframes certification-viewer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * =========================================
+ * Download Buttons
+ * =========================================
+ */
+
+.education-document-preview footer > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.education-document-preview footer > div {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.education-document-preview footer button,
+.education-document-preview-inline-download {
+  min-height: 37px;
+  padding: 0 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.education-document-preview footer button:hover:not(:disabled),
+.education-document-preview-inline-download:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.education-document-preview footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.education-document-preview footer .education-document-preview-download,
+.education-document-preview-inline-download {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.education-document-preview-inline-download {
+  margin-top: 16px;
+}
+
+/*
+ * =========================================
+ * Responsive
+ * =========================================
+ */
+
+@media (max-width: 600px) {
+  .education-document-preview-backdrop {
+    padding: 10px;
+  }
+
+  .education-document-preview {
+    height: calc(100vh - 20px);
+  }
+
+  .education-document-preview > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .education-document-preview footer > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .education-document-preview footer button {
+    width: 100%;
+  }
+}
+
+/*
+ * =========================================
+ * Reduced Motion
+ * =========================================
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .education-document-preview-loader {
+    animation: none;
+  }
+
+  .education-document-preview button {
+    transition: none;
+  }
+}
