@@ -1,0 +1,131 @@
+.ppd-page {
+  display: grid;
+  gap: var(--pt-gap, 18px);
+  padding-top: 24px;
+  padding-bottom: 32px;
+  overflow-wrap: anywhere;
+}
+
+.ppd-toolbar,
+.ppd-resources {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ppd-toolbar > span {
+  color: var(--pt-secondary, var(--text-secondary));
+  font-size: 0.78rem;
+}
+
+.ppd-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 40px;
+  padding: 10px 16px;
+  border: 1px solid var(--pt-border, var(--border-color));
+  border-radius: var(--pt-radius, 10px);
+  background: var(--pt-card, var(--bg-card));
+  color: var(--pt-text, var(--text-primary));
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ppd-button:hover,
+.ppd-button:focus-visible {
+  border-color: var(--pt-accent, var(--accent));
+}
+
+.ppd-button:focus-visible {
+  outline: 2px solid var(--pt-accent, var(--accent));
+  outline-offset: 3px;
+}
+
+.ppd-hero h1 {
+  margin: 12px 0;
+  color: var(--pt-text, var(--text-primary));
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  line-height: 1.2;
+}
+
+.ppd-eyebrow {
+  color: var(--pt-accent, var(--accent));
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ppd-metadata {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.ppd-metadata > div {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--pt-border, var(--border-color));
+  border-radius: var(--pt-radius, 10px);
+}
+
+.ppd-metadata small {
+  color: var(--pt-secondary, var(--text-secondary));
+}
+
+.ppd-metadata strong {
+  color: var(--pt-text, var(--text-primary));
+  font-size: 0.9rem;
+}
+
+.ppd-text {
+  margin-top: 18px;
+}
+
+.ppd-text h3 {
+  margin: 0 0 8px;
+  color: var(--pt-text, var(--text-primary));
+  font-size: 1rem;
+}
+
+.ppd-text p,
+.ppd-hero p,
+.ppd-list {
+  color: var(--pt-secondary, var(--text-secondary));
+  font-size: 0.95rem;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.ppd-text p {
+  margin: 0;
+}
+
+.ppd-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 22px;
+}
+
+@media (max-width: 600px) {
+  .ppd-metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .ppd-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+.portfolio-view button.portfolio-view-project-link {
+  font-family: inherit;
+  cursor: pointer;
+}

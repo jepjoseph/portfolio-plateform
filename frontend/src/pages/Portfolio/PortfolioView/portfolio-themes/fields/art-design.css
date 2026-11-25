@@ -1,0 +1,17 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-field="art_design"] {
+  --pt-accent: #9333ea;
+}
+
+.portfolio-view[data-portfolio-theme="enabled"][data-field="art_design"] {
+  --accent: var(--pt-accent);
+  border-top: 6px dashed #9333ea;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="art_design"] .portfolio-view-section {
+  border-inline-start: 5px dashed #9333ea;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="art_design"] .portfolio-view-section-header h2 {
+  font-family: system-ui, sans-serif;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="art_design"] .portfolio-view-project {
+  border-radius: 24px;
+}

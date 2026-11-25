@@ -1,0 +1,6 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-purpose="researcher"] {
+  --pt-padding: 36px;
+  --pt-radius: 4px;
+  --pt-gap: 24px;
+  --pt-heading-size: 1.45rem;
+}

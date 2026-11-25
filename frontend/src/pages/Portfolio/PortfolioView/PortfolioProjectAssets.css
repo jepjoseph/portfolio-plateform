@@ -1,0 +1,137 @@
+.ppa-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.ppa-media-card {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--pt-border, var(--border-color));
+  border-radius: var(--pt-radius, 12px);
+  background: var(--pt-card, var(--bg-card));
+}
+
+.ppa-media-card:has(.ppa-featured) {
+  grid-column: 1 / -1;
+}
+
+.ppa-media-content {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  background: var(--pt-background, var(--bg-primary));
+}
+
+.ppa-media-content a:not(.ppd-button) {
+  display: block;
+  width: 100%;
+}
+
+.ppa-media-content img,
+.ppa-media-content video {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+}
+
+.ppa-media-card figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+}
+
+.ppa-media-card strong,
+.ppa-document-info h3 {
+  color: var(--pt-text, var(--text-primary));
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.ppa-media-card figcaption p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.ppa-featured {
+  border: 1px solid var(--pt-accent, var(--accent));
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: var(--pt-text, var(--text-primary));
+  font-size: 0.7rem;
+}
+
+.ppa-documents {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.ppa-document {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--pt-border, var(--border-color));
+  border-radius: var(--pt-radius, 10px);
+  background: var(--pt-card, var(--bg-card));
+}
+
+.ppa-document-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 52px;
+  border: 1px solid var(--pt-accent, var(--accent));
+  border-radius: 6px;
+  color: var(--pt-text, var(--text-primary));
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.ppa-document-info h3 {
+  margin: 0 0 6px;
+}
+
+.ppa-document-info p,
+.ppa-document-info small,
+.ppa-media-card figcaption p,
+.ppa-message {
+  color: var(--pt-secondary, var(--text-secondary));
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.ppa-document-info p {
+  margin: 5px 0;
+}
+
+.ppa-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ppa-message {
+  padding: 10px;
+}
+
+@media (max-width: 650px) {
+  .ppa-gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ppa-document {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ppa-document-actions {
+    grid-column: 1 / -1;
+  }
+}

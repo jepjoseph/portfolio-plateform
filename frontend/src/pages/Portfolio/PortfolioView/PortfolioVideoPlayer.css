@@ -1,0 +1,15 @@
+.portfolio-pip-player { position: relative; width: 100%; min-width: 0; }
+.portfolio-view-project-media > .portfolio-pip-player { height: 100%; }
+.portfolio-pip-toggle {
+  position: absolute; top: 10px; right: 10px; z-index: 3;
+  display: grid; place-items: center; width: 36px; height: 36px;
+  border: 1px solid rgba(255,255,255,.65); border-radius: 7px;
+  background: rgba(0,0,0,.78); color: white; cursor: pointer;
+  opacity: 0; transition: opacity .15s ease;
+}
+.portfolio-pip-player:hover .portfolio-pip-toggle,
+.portfolio-pip-player:focus-within .portfolio-pip-toggle,
+.portfolio-pip-toggle[aria-pressed="true"] { opacity: 1; }
+.portfolio-pip-toggle:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.portfolio-pip-message { display: block; padding: 8px; color: var(--pt-text, var(--text-primary)); font-size: .75rem; }
+@media (hover: none), (pointer: coarse) { .portfolio-pip-toggle { opacity: 1; } }

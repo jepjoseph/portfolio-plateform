@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "../../../services/apiClient.js";
+import PortfolioVideoPlayer from "./PortfolioVideoPlayer.jsx";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -18,7 +20,9 @@ import {
 import PortfolioHero from "../components/PortfolioHero/PortfolioHero";
 import PortfolioNavigation from "../components/PortfolioNavigation/PortfolioNavigation";
 
+import PortfolioProjectDetails from "./PortfolioProjectDetails.jsx";
 import "./PortfolioView.css";
+import "./portfolio-themes/index.css";
 
 /*
  * =========================================
@@ -97,7 +101,8 @@ function getItemText(item, fields = []) {
  * =========================================
  */
 
-function PortfolioView({ portfolio, mode = "public" }) {
+function PortfolioView({ portfolio, mode = "public", snapshotMode = false, projectRoute = "" }) {
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   if (!portfolio) {
     return null;
   }
@@ -111,9 +116,32 @@ function PortfolioView({ portfolio, mode = "public" }) {
     skills = [],
     projects = [],
     certifications = [],
+    trainings = [],
     featuredResume = null,
     sectionVisibility = {},
   } = portfolio;
+
+  const selectedProject =
+    mode === "preview" && sectionVisibility.projects !== false
+      ? projects.find(project => project.id === selectedProjectId)
+      : null;
+
+  function openProject(projectId) {
+    setSelectedProjectId(projectId);
+  }
+
+  function closeProject() {
+    setSelectedProjectId(null);
+    requestAnimationFrame(() => {
+      const buttons = document.querySelectorAll(
+        "[data-portfolio-project-button]"
+      );
+      const button = Array.from(buttons).find(
+        item => item.dataset.portfolioProjectButton === selectedProjectId
+      );
+      button?.focus();
+    });
+  }
 
   const aboutText =
     typeof about === "string" ? about : about?.text || summary || "";
@@ -162,6 +190,18 @@ function PortfolioView({ portfolio, mode = "public" }) {
   return (
     <div
       id="top"
+      data-portfolio-theme={
+        portfolio.purpose && portfolio.professionalField
+          ? "enabled"
+          : undefined
+      }
+      data-purpose={portfolio.purpose}
+      data-field={portfolio.professionalField}
+      data-style={
+        portfolio.style ||
+        portfolio.heroSettings?.portfolioStyle ||
+        "professional"
+      }
       className={`portfolio-view ${
         portfolioBackgroundUrl ? "portfolio-view--has-background" : ""
       }`}
@@ -173,19 +213,26 @@ function PortfolioView({ portfolio, mode = "public" }) {
           : undefined
       }
     >
+      {selectedProject ? (
+        <PortfolioProjectDetails
+          project={selectedProject}
+          onBack={closeProject}
+        />
+      ) : (
+      <>
       <PortfolioNavigation
         portfolio={portfolio}
         selectedName={selectedName}
         mode={mode}
       />
 
-      <PortfolioHero
+      {(!snapshotMode || isSectionVisible("profile")) && <PortfolioHero
         portfolio={portfolio}
         selectedProfile={selectedProfile}
         selectedProfilePicture={selectedProfilePicture}
         profilePictureUrl={profilePictureUrl}
         headerBackgroundUrl={headerBackgroundUrl}
-      />
+      />}
 
       <main className="portfolio-view-main">
         {isSectionVisible("summary") && aboutText && (
@@ -263,6 +310,9 @@ function PortfolioView({ portfolio, mode = "public" }) {
                 <PortfolioProjectEntry
                   key={project?.id || `project-${index}`}
                   project={project}
+                  onOpenProject={!snapshotMode && mode === "preview" ? openProject : undefined}
+                  snapshotMode={snapshotMode}
+                  projectRoute={projectRoute}
                 />
               ))}
             </div>
@@ -288,6 +338,18 @@ function PortfolioView({ portfolio, mode = "public" }) {
             type="certification"
           />
         )}
+
+        {(mode === "preview" || snapshotMode) &&
+          isSectionVisible("training") &&
+          trainings.length > 0 && (
+            <PortfolioListSection
+              id="training"
+              eyebrow="Continuous Learning"
+              title="Training and Professional Development"
+              items={trainings}
+              type="training"
+            />
+          )}
 
         {professionalTitles.length > 1 && (
           <section className="portfolio-view-section">
@@ -478,6 +540,8 @@ function PortfolioView({ portfolio, mode = "public" }) {
 
         <a href="#top">Back to top ↑</a>
       </footer>
+      </>
+      )}
     </div>
   );
 }
@@ -488,10 +552,10 @@ function PortfolioView({ portfolio, mode = "public" }) {
  * =========================================
  */
 
-function PortfolioProjectEntry({ project }) {
+function PortfolioProjectEntry({ project, onOpenProject, snapshotMode, projectRoute }) {
   const featuredMedia = useMemo(
-    () => getProjectFeaturedMedia(project),
-    [project],
+    () => snapshotMode ? (Array.isArray(project.publicMedia) ? project.publicMedia.find(asset => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(asset?.assetId || "") && ["image", "video"].includes(asset.type)) : null) : getProjectFeaturedMedia(project),
+    [project, snapshotMode],
   );
 
   const [mediaUrl, setMediaUrl] = useState("");
@@ -504,6 +568,12 @@ function PortfolioProjectEntry({ project }) {
     setMediaUrl("");
     setMediaError(false);
 
+    if (snapshotMode) {
+      if (featuredMedia && projectRoute && /^[a-f0-9]{64}$/.test(project.projectKey || "")) {
+        setMediaUrl(`${API_BASE_URL}/public/portfolio-assets/${project.projectKey}/media/${featuredMedia.assetId}?${new URLSearchParams({routeKey: projectRoute})}`);
+      }
+      return undefined;
+    }
     if (!featuredMedia) {
       return undefined;
     }
@@ -543,6 +613,10 @@ function PortfolioProjectEntry({ project }) {
       }
     };
   }, [
+    snapshotMode,
+    projectRoute,
+    project?.projectKey,
+    featuredMedia?.assetId,
     project?.id,
     featuredMedia?.id,
     featuredMedia?.storageKey,
@@ -559,7 +633,7 @@ function PortfolioProjectEntry({ project }) {
   const summary =
     project?.presentation?.shortSummary ||
     project?.solution?.overview ||
-    project?.problem?.statement ||
+    (project?.displaySettings?.sections.overview !== false ? project?.problem?.statement : "") ||
     "";
 
   const liveUrl =
@@ -584,8 +658,9 @@ function PortfolioProjectEntry({ project }) {
     <article className="portfolio-view-project" role="listitem">
       <div className="portfolio-view-project-media">
         {mediaUrl && !mediaError && isVideo && (
-          <video
+          <PortfolioVideoPlayer
             src={mediaUrl}
+            controls
             muted
             playsInline
             preload="metadata"
@@ -633,7 +708,7 @@ function PortfolioProjectEntry({ project }) {
           <h3>{title}</h3>
 
           <p>
-            {project?.role || "Role not specified"}
+            {project?.displaySettings?.sections.contributions !== false && (project?.role || "Role not specified")}
 
             {organizationName && ` · ${organizationName}`}
           </p>
@@ -650,11 +725,10 @@ function PortfolioProjectEntry({ project }) {
             </span>
           )}
 
-          <span>
+          {project?.displaySettings?.sections.contributions !== false && <span>
             <small>Ownership</small>
-
             <strong>{getProjectOwnershipLabel(project?.ownership)}</strong>
-          </span>
+          </span>}
 
           {skillCount > 0 && (
             <span>
@@ -678,7 +752,17 @@ function PortfolioProjectEntry({ project }) {
           </div>
         )}
 
-        {liveUrl && (
+        {snapshotMode ? (projectRoute && /^[a-f0-9]{64}$/.test(project.projectKey || "") ? <a className="portfolio-view-project-link" href={`/${projectRoute}/projects/${project.projectKey}`}>View Project →</a> : null) : onOpenProject && project?.id ? (
+          <button
+            type="button"
+            className="portfolio-view-project-link"
+            data-portfolio-project-button={project.id}
+            onClick={() => onOpenProject(project.id)}
+          >
+            View Project
+            <span aria-hidden="true"> →</span>
+          </button>
+        ) : liveUrl && (
           <a
             className="portfolio-view-project-link"
             href={getExternalUrl(liveUrl)}
@@ -763,6 +847,11 @@ function PortfolioEntry({ item, type }) {
       ]),
     },
 
+    training: {
+      title: getItemText(item, ["title", "name"]),
+      subtitle: getItemText(item, ["provider.name"]),
+    },
+
     certification: {
       title: getItemText(item, ["name", "title"]),
 
@@ -779,11 +868,12 @@ function PortfolioEntry({ item, type }) {
 
   const description = getItemText(item, [
     "description",
+    "overview",
     "summary",
     "responsibilities",
   ]);
 
-  const location = getItemText(item, ["location.displayValue", "location"]);
+  const location = getItemText(item, ["location.displayValue", "location"]) || [item?.location?.city, item?.location?.stateRegion, item?.location?.country].filter(v => typeof v === "string" && v).join(", ");
 
   const startDate = getItemText(item, [
     "dates.startDate",
@@ -824,6 +914,18 @@ function PortfolioEntry({ item, type }) {
       {location && <small>{location}</small>}
 
       {description && <p>{description}</p>}
+      {!item?.visibility && type === "experience" && <p>{[item?.position?.employmentType, item?.position?.workArrangement].filter(v => typeof v === "string" && v).join(" · ")}</p>}
+      {!item?.visibility && type === "education" && <p>{[item?.credential?.fieldOfStudy, item?.credential?.minor].filter(v => typeof v === "string" && v).join(" · ")}</p>}
+      {!item?.visibility && type === "education" && typeof item?.academic?.gpa === "number" && <p>GPA: {item.academic.gpa}{typeof item.academic.maximumGpa === "number" ? ` / ${item.academic.maximumGpa}` : ""}</p>}
+      {!item?.visibility && (type === "experience" || type === "education") && [
+        ["Responsibilities", item?.responsibilities, "showResponsibilities"], ["Achievements", item?.achievements, "showAchievements"],
+        ["Skills", item?.skills || item?.skillRelationships, "showSkills"], ["Technologies", item?.technologies, "showTechnologies"],
+        ["Honors", item?.academic?.honors, "showHonors"], ["Coursework", item?.coursework, "showCoursework"], ["Activities", item?.activities, "showActivities"],
+      ].map(([label, values, flag]) => {
+        if (item?.visibility?.[flag] === false || !Array.isArray(values)) return null;
+        const rows = values.map(v => typeof v === "string" ? v : [v?.text || v?.name || v?.nameSnapshot, v?.description, v?.metric].filter(t => typeof t === "string" && t).join(" — ")).filter(Boolean);
+        return rows.length ? <div key={label}><h4>{label}</h4><ul>{rows.map((v,i) => <li key={i}>{v}</li>)}</ul></div> : null;
+      })}
 
       {url && (
         <a href={getExternalUrl(url)} target="_blank" rel="noopener noreferrer">

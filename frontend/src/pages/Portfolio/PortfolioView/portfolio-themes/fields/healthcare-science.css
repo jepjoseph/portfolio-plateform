@@ -1,0 +1,17 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-field="healthcare_science"] {
+  --pt-accent: #07845e;
+}
+
+.portfolio-view[data-portfolio-theme="enabled"][data-field="healthcare_science"] {
+  --accent: var(--pt-accent);
+  border-top: 6px solid #07845e;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="healthcare_science"] .portfolio-view-section {
+  border-inline-start: 5px solid #07845e;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="healthcare_science"] .portfolio-view-section-header h2 {
+  font-family: system-ui, sans-serif;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="healthcare_science"] .portfolio-view-project {
+  border-radius: 16px;
+}

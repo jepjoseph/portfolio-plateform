@@ -1,0 +1,17 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-field="architecture_product_design"] {
+  --pt-accent: #64748b;
+}
+
+.portfolio-view[data-portfolio-theme="enabled"][data-field="architecture_product_design"] {
+  --accent: var(--pt-accent);
+  border-top: 6px solid #64748b;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="architecture_product_design"] .portfolio-view-section {
+  border-inline-start: 5px solid #64748b;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="architecture_product_design"] .portfolio-view-section-header h2 {
+  font-family: Arial, sans-serif;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="architecture_product_design"] .portfolio-view-project {
+  border-radius: 0;
+}

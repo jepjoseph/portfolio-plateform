@@ -1,0 +1,9 @@
+import {createPublicProject} from "../../../models/projectModel.js";
+import {normalizeDisplay,sections,links} from "../../../services/Portfolio/projectDisplaySettings.js";
+export default function ProjectDisplaySettings({record,value,onChange,disabled}) {
+ const s=normalizeDisplay(value), project=createPublicProject(record);
+ const update=(key,v)=>onChange({...s,[key]:v});
+ const flags=(key,labels)=><div className="pds-grid">{Object.entries(labels).map(([id,label])=><label key={id}><input type="checkbox" checked={s[key][id]} onChange={e=>update(key,{...s[key],[id]:e.target.checked})}/>{label}</label>)}</div>;
+ const assets=(key,items)=><div><label>Selection <select value={s[key].selectionMode} onChange={e=>update(key,{...s[key],selectionMode:e.target.value})}><option value="all">All eligible files</option><option value="selected">Selected files only</option><option value="none">None</option></select></label>{s[key].selectionMode==="selected" && items.map(a=><label key={a.id}><input type="checkbox" checked={s[key].selectedIds.includes(a.id)} onChange={e=>update(key,{...s[key],selectedIds:e.target.checked?[...s[key].selectedIds,a.id]:s[key].selectedIds.filter(id=>id!==a.id)})}/>{a.name||a.fileName||a.caption||a.id}</label>)}{!items.length&&<p>No eligible files.</p>}</div>;
+ return <details className="pds-settings"><summary>Display Settings</summary><fieldset disabled={disabled}><legend>Project information</legend>{flags("sections",sections)}<h4>Media</h4>{assets("media",project.media)}<h4>Documents</h4>{assets("documents",project.supportingDocuments)}<label><input type="checkbox" checked={s.documents.allowDownload} onChange={e=>update("documents",{...s.documents,allowDownload:e.target.checked})}/>Offer document downloads</label><h4>External resources</h4>{flags("links",links)}<button type="button" className="pm-button" onClick={()=>onChange(normalizeDisplay())}>Reset display settings</button></fieldset></details>;
+}

@@ -1,0 +1,28 @@
+@media (max-width: 768px) {
+  .portfolio-view[data-portfolio-theme="enabled"] {
+    width: calc(100% - 12px);
+    padding: 8px;
+  }
+
+  .portfolio-view[data-portfolio-theme="enabled"]
+  .portfolio-view-section {
+    padding: 18px;
+  }
+
+  .portfolio-view[data-portfolio-theme="enabled"]
+  .portfolio-view-entry > header {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .portfolio-view[data-portfolio-theme="enabled"]
+  .portfolio-view-section {
+    padding: 14px;
+  }
+
+  .portfolio-view[data-portfolio-theme="enabled"]
+  .portfolio-view-section-header h2 {
+    font-size: 1.2rem;
+  }
+}

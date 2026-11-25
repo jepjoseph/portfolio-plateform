@@ -1,0 +1,9 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-style="technical"] {
+  --pt-background: #0c1424;
+  --pt-card: #162337;
+  --pt-text: #e1ecf9;
+  --pt-secondary: #b5c6dc;
+  --pt-muted: #9bafc9;
+  --pt-border: #34465e;
+  --pt-font: system-ui, sans-serif;
+}

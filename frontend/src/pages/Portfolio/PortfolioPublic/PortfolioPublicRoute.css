@@ -1,0 +1,106 @@
+.ppr-page {
+  --ppr-accent: #1e40af;
+  --ppr-background: #f1f5f9;
+  --ppr-surface: #ffffff;
+  --ppr-text: #172033;
+
+  min-height: 100vh;
+  padding: clamp(16px, 5vw, 64px);
+  background: var(--ppr-background);
+  color: var(--ppr-text);
+}
+
+.ppr-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.ppr-page .pm-snapshot {
+  background: var(--ppr-surface);
+  color: var(--ppr-text);
+  border-top: 5px solid var(--ppr-accent);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.ppr-page .pm-snapshot-header h2 {
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  line-height: 1.15;
+}
+
+.ppr-page .pm-snapshot-section > h3 {
+  color: var(--ppr-accent);
+  padding-bottom: 10px;
+  border-bottom: 1px solid currentColor;
+}
+
+.ppr-modern {
+  --ppr-accent: #6d28d9;
+  --ppr-background: #f5f3ff;
+}
+
+.ppr-modern .pm-snapshot-record {
+  border-radius: 18px;
+}
+
+.ppr-technical {
+  --ppr-accent: #38bdf8;
+  --ppr-background: #020617;
+  --ppr-surface: #0f172a;
+  --ppr-text: #e2e8f0;
+}
+
+.ppr-technical .pm-snapshot-record {
+  background: #111c30;
+}
+
+.ppr-technical .pm-snapshot-header small {
+  font-family: monospace;
+}
+
+.ppr-academic {
+  --ppr-accent: #78350f;
+  --ppr-background: #fafaf9;
+  --ppr-text: #292524;
+
+  font-family: Georgia, serif;
+}
+
+.ppr-academic .pm-snapshot-record {
+  border-radius: 0;
+}
+
+.ppr-footer {
+  text-align: center;
+  padding: 28px 12px;
+}
+
+.ppr-footer a {
+  color: var(--ppr-accent);
+}
+
+.ppr-message {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 70vh;
+  padding: 24px;
+  gap: 16px;
+  text-align: center;
+}
+
+.ppr-message button {
+  cursor: pointer;
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .ppr-page {
+    padding: 12px;
+  }
+
+  .ppr-page .pm-snapshot {
+    padding: 18px;
+  }
+}

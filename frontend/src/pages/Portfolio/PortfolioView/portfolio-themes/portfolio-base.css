@@ -1,0 +1,81 @@
+/* Scoped theme rules: no global application overrides. */
+
+.portfolio-view[data-portfolio-theme="enabled"] {
+  --text-primary: var(--pt-text, #172b45);
+  --text-secondary: var(--pt-secondary, #475569);
+  --text-muted: var(--pt-muted, #64748b);
+  --bg-card: var(--pt-card, #ffffff);
+  --border-color: var(--pt-border, #d6e0eb);
+  --accent-hover: var(--pt-accent, #285eaa);
+  --radius-lg: var(--pt-radius, 12px);
+  --radius-md: var(--pt-radius, 12px);
+
+  box-sizing: border-box;
+  background: var(--pt-background, #f1f5f9);
+  color: var(--text-primary);
+  font-family: var(--pt-font, system-ui, sans-serif);
+  border-radius: var(--pt-radius, 12px);
+  padding: 16px;
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-view-main {
+  gap: var(--pt-gap, 18px);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-view-section {
+  padding: var(--pt-padding, 32px);
+  background: var(--pt-card, #ffffff);
+  border-color: var(--pt-border, #d6e0eb);
+  border-radius: var(--pt-radius, 12px);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-view-section-header h2 {
+  font-family: var(--pt-font, system-ui, sans-serif);
+  font-size: var(--pt-heading-size, 1.35rem);
+  color: var(--pt-text, #172b45);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-view-section-header > span {
+  color: var(--pt-accent, #285eaa);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-view-entry {
+  border-inline-start: 3px solid var(--pt-accent, #285eaa);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-view-summary {
+  line-height: 1.85;
+}
+/* Theme-aware portfolio navigation */
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-navigation {
+    background: var(--pt-card);
+    border-color: var(--pt-border);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-navigation-brand,
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-navigation-brand strong {
+    color: var(--pt-text);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-navigation-links a {
+    color: var(--pt-secondary);
+}
+
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-navigation-links a:hover,
+.portfolio-view[data-portfolio-theme="enabled"]
+.portfolio-navigation-links a:focus-visible {
+    color: var(--pt-text);
+    background: var(--pt-background);
+}

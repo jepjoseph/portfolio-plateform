@@ -1,0 +1,6 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-purpose="educator"] {
+  --pt-padding: 28px;
+  --pt-radius: 12px;
+  --pt-gap: 20px;
+  --pt-heading-size: 1.4rem;
+}

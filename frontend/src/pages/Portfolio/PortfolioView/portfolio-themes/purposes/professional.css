@@ -1,0 +1,6 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-purpose="professional"] {
+  --pt-padding: 32px;
+  --pt-radius: 12px;
+  --pt-gap: 18px;
+  --pt-heading-size: 1.35rem;
+}

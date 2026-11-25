@@ -1,0 +1,6 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-purpose="entrepreneur"] {
+  --pt-padding: 34px;
+  --pt-radius: 14px;
+  --pt-gap: 22px;
+  --pt-heading-size: 1.55rem;
+}

@@ -1,0 +1,6 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-purpose="freelancer"] {
+  --pt-padding: 24px;
+  --pt-radius: 18px;
+  --pt-gap: 16px;
+  --pt-heading-size: 1.4rem;
+}

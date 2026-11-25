@@ -1,0 +1,6 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-purpose="developer_engineer"] {
+  --pt-padding: 24px;
+  --pt-radius: 8px;
+  --pt-gap: 16px;
+  --pt-heading-size: 1.35rem;
+}

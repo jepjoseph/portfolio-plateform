@@ -1,0 +1,17 @@
+.portfolio-view[data-portfolio-theme="enabled"][data-field="academic_research"] {
+  --pt-accent: #92713d;
+}
+
+.portfolio-view[data-portfolio-theme="enabled"][data-field="academic_research"] {
+  --accent: var(--pt-accent);
+  border-top: 6px double #92713d;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="academic_research"] .portfolio-view-section {
+  border-inline-start: 5px double #92713d;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="academic_research"] .portfolio-view-section-header h2 {
+  font-family: Georgia, serif;
+}
+.portfolio-view[data-portfolio-theme="enabled"][data-field="academic_research"] .portfolio-view-project {
+  border-radius: 0;
+}

@@ -27,8 +27,11 @@ import SetPassword from "./pages/Auth/SetPassword/SetPassword";
 
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Portfolio from "./pages/Portfolio/Portfolio";
+import PortfolioAdvancedEditor from "./pages/Portfolio/PortfolioManager/PortfolioAdvancedEditor.jsx";
+import PortfolioManager from "./pages/Portfolio/PortfolioManager/PortfolioManager";
 import PortfolioPreview from "./pages/Portfolio/PortfolioPreview/PortfolioPreview";
 import PublicPortfolio from "./pages/Portfolio/PortfolioPublic/PortfolioPublic";
+import PortfolioPublicRoute from "./pages/Portfolio/PortfolioPublic/PortfolioPublicRoute.jsx";
 import Projects from "./pages/Projects/Projects";
 import Experience from "./pages/Experience/Experience";
 import Education from "./pages/Education/Education";
@@ -242,8 +245,17 @@ function App() {
 
             {
               path: "portfolio",
-              element: <Portfolio />,
+              element: <PortfolioManager />,
             },
+
+            {
+              path: "portfolio/manage",
+              element: <Navigate to="/portfolio" replace />,
+            },
+            { path: "portfolio/manage/:portfolioId/edit", element: <PortfolioAdvancedEditor /> },
+            { path: "portfolio/manage/create", element: <PortfolioAdvancedEditor /> },
+            { path: "portfolio/manage/:portfolioId/preview", element: <PortfolioAdvancedEditor previewOnly /> },
+            { path: "portfolio/legacy", element: <Portfolio /> },
 
             {
               path: "projects",
@@ -315,6 +327,36 @@ function App() {
       path: "/portfolio/:username/:portfolioSlug",
 
       element: <PublicPortfolio />,
+    },
+
+    {
+      path: "/g/:portfolioSlug",
+      element: <PortfolioPublicRoute provider="g" />,
+    },
+
+    {
+      path: "/y/:portfolioSlug",
+      element: <PortfolioPublicRoute provider="y" />,
+    },
+
+    {
+      path: "/i/:portfolioSlug",
+      element: <PortfolioPublicRoute provider="i" />,
+    },
+
+    {
+      path: "/o/:portfolioSlug",
+      element: <PortfolioPublicRoute provider="o" />,
+    },
+
+    { path: "/g/:portfolioSlug/projects/:projectKey", element: <PortfolioPublicRoute provider="g" /> },
+    { path: "/y/:portfolioSlug/projects/:projectKey", element: <PortfolioPublicRoute provider="y" /> },
+    { path: "/i/:portfolioSlug/projects/:projectKey", element: <PortfolioPublicRoute provider="i" /> },
+    { path: "/o/:portfolioSlug/projects/:projectKey", element: <PortfolioPublicRoute provider="o" /> },
+    { path: "/:portfolioSlug/projects/:projectKey", element: <PortfolioPublicRoute /> },
+    {
+      path: "/:portfolioSlug",
+      element: <PortfolioPublicRoute />,
     },
   ]);
 
